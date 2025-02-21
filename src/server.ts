@@ -8,8 +8,29 @@ import { is } from './helpers';
 import { createReadStream, readFileSync } from 'node:fs';
 import { Writable } from 'node:stream';
 import { AllowedMethod, AllowedMethods, Router } from './router';
+import * as sql from "./store/sql-tiddler-database";
+import * as assert from "assert";
+okEntityType(sql.okEntityType);
 
-interface IncomingHttpHeaders extends NodeIncomingHeaders {
+var acl_id: number = {} as any;
+okField("acl", "acl_id", acl_id);
+const t: number = acl_id;
+
+(global as any).ok = assert.ok;
+(global as any).okEntityType = sql.okEntityType;
+// (global as any).okType = sql.okType;
+// (global as any).okTypeTruthy = sql.okTypeTruthy;
+(global as any).okField = function (table: string, field: string, value: any) { };
+(global as any).parseIntNull = function (str: string | null) {
+  return str === null ? null : parseInt(str);
+};
+(global as any).parseIntNullSafe = function (str: string | null) {
+  if (str === null) return { success: true, value: null };
+  const val = parseInt(str);
+  return { success: !isNaN(val), value: val };
+};
+
+export interface IncomingHttpHeaders extends NodeIncomingHeaders {
   "accept-encoding"?: string;
 }
 interface ListenerOptions {

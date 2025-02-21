@@ -38,6 +38,7 @@ function redirectToLogin(response, returnUrl) {
 };
 /** @type {ACL_Middleware_Helper} */
 exports.middleware = async function middleware(request, response, state, entityType, permissionName) {
+	okEntityType(entityType);
   var extensionRegex = /\.[A-Za-z0-9]{1,4}$/;
 
 	var
@@ -52,7 +53,7 @@ exports.middleware = async function middleware(request, response, state, entityT
 	var isGetRequest = request.method === "GET";
 	var hasAnonymousAccess = state.allowAnon ? (isGetRequest ? state.allowAnonReads : state.allowAnonWrites) : false;
 	var anonymousAccessConfigured = state.anonAccessConfigured;
-	var entity = await sqlTiddlerDatabase.getEntityByName(entityType, decodedEntityName);
+	const {value:entity} = await sqlTiddlerDatabase.getEntityByName(entityType, decodedEntityName);
 	var isAdmin = state.authenticatedUser?.isAdmin;
 
 	if(isAdmin) {

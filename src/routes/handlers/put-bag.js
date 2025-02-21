@@ -19,11 +19,11 @@ exports.path = /^\/bags\/(.+)$/;
 exports.useACL = true;
 
 exports.entityName = "bag"
-/** @type {ServerRouteHandler<1>} */	
+/** @type {ServerRouteHandler<1, "json">} */	
 exports.handler = async function(request,response,state) {
 	// Get the  parameters
 	var bag_name = $tw.utils.decodeURIComponentSafe(state.params[0]),
-		data = $tw.utils.parseJSONSafe(state.data);
+		data = state.data; // $tw.utils.parseJSONSafe(state.data);
 	if(bag_name && data) {
 		var result = await state.store.createBag(bag_name,data.description);
 		if(!result) {

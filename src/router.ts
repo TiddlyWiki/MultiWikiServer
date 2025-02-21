@@ -10,13 +10,19 @@ import { is } from "./helpers";
 export const AllowedMethods = [...["GET", "HEAD", "OPTIONS", "POST", "PUT", "DELETE"] as const];
 export type AllowedMethod = typeof AllowedMethods[number];
 
-export const BodyFormats = ["stream", "string", "json", "buffer", "www-form-urlencoded", "www-form-urlencoded-object", "ignore"] as const;
+export const BodyFormats = ["stream", "string", "json", "buffer", "www-form-urlencoded", "www-form-urlencoded-params", "ignore"] as const;
 export type BodyFormat = typeof BodyFormats[number];
 
 
 const zodJSON = (arg: string, ctx: z.RefinementCtx) => {
   try {
-    return JSON.parse(arg);
+    return JSON.parse(arg, (key, value) => {
+      //https://github.com/fastify/secure-json-parse
+      if (key === '__proto__')
+        throw new Error('Invalid key: __proto__');
+      if (key === 'constructor' && Object.prototype.hasOwnProperty.call(value, 'prototype'))
+        throw new Error('Invalid key: constructor.prototype');
+    });
   } catch (e) {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
@@ -100,9 +106,9 @@ export class Router {
         if (!success) return state.sendEmpty(400, {});
         state.data = data;
       }
-    } else if (state.bodyFormat === "www-form-urlencoded" || state.bodyFormat === "www-form-urlencoded-object") {
+    } else if (state.bodyFormat === "www-form-urlencoded-params" || state.bodyFormat === "www-form-urlencoded") {
       const data = state.data = new URLSearchParams((await state.readBody()).toString("utf8"));
-      if (state.bodyFormat === "www-form-urlencoded-object") {
+      if (state.bodyFormat === "www-form-urlencoded") {
         state.data = Object.fromEntries(data);
       }
     } else if (state.bodyFormat === "buffer") {
@@ -114,22 +120,22 @@ export class Router {
       const state2: StateObject = state as any;
       return state2.sendString(500, {}, "Invalid bodyFormat: " + state2.bodyFormat, "utf8");
     }
-    // we don't check buffer or stream, but stream isn't here, so just not buffer.
-    if (state.bodyFormat !== "buffer") {
-      // check zod for the entire tree, starting from the first bodyFormat
-      // since it is a type error for zod to be specified above the bodyFormat, 
-      // we can optimize this for performance and consistency.
-      const firstBodyFormat = routePath.findIndex(e => e.route.bodyFormat);
-      // if we don't have a body format, skip zod.
-      const result = firstBodyFormat === -1 ? [] : routePath.slice(firstBodyFormat)
-        .map(e => z.any().pipe(e.route.zod ?? z.any()).safeParse(state.data));
+    // I couldn't get the types to work. call state.zod instead.
+    // if (state.bodyFormat !== "buffer") {
+    //   // check zod for the entire tree, starting from the first bodyFormat
+    //   // since it is a type error for zod to be specified above the bodyFormat, 
+    //   // we can optimize this for performance and consistency.
+    //   const firstBodyFormat = routePath.findIndex(e => e.route.bodyFormat);
+    //   // if we don't have a body format, skip zod.
+    //   const result = firstBodyFormat === -1 ? [] : routePath.slice(firstBodyFormat)
+    //     .map(e => z.any().pipe(e.route.zod ?? z.any()).safeParse(state.data));
 
-      if (result.length) {
-        if (!result.every(e => e.success)) return state.sendEmpty(400, {});
-        // we use the last zod result (zod strips unknown keys, among other things)
-        state.data = result.pop();
-      }
-    }
+    //   if (result.length) {
+    //     if (!result.every(e => e.success)) return state.sendEmpty(400, {});
+    //     // we use the last zod result (zod strips unknown keys, among other things)
+    //     state.data = result.pop();
+    //   }
+    // }
 
     return await this.handleRoute(state, routePath);
 
@@ -203,7 +209,7 @@ export class Router {
     let testPath = url.pathname || "/";
     if (this.pathPrefix && testPath.startsWith(this.pathPrefix))
       testPath = testPath.slice(this.pathPrefix.length) || "/";
-    return this.findRouteRecursive([this.rootRoute as Route], testPath, method);
+    return this.findRouteRecursive([this.rootRoute as any], testPath, method);
   }
 
 }
@@ -217,6 +223,7 @@ interface RouteOptBase<B extends BodyFormat, M extends AllowedMethod[]> {
    * it will be tested against the remaining portion of the parent route.  
    */
   path: RegExp;
+  pathParams?: string[];
   /** The uppercase method names to match this route */
   method: M;
   /** 
@@ -227,14 +234,18 @@ interface RouteOptBase<B extends BodyFormat, M extends AllowedMethod[]> {
    */
   bodyFormat?: B;
 
-  zod?: z.ZodTypeAny;
 
 }
 interface RouteOptAny extends RouteOptBase<BodyFormat, AllowedMethod[]> { }
 
-export interface Route extends RouteDef<[BodyFormat | undefined, AllowedMethod[], any], any> { }
+export interface Route extends RouteDef<ParentTuple> { }
 
-export interface rootRoute extends RouteDef<[undefined, AllowedMethod[], StateObject<BodyFormat, AllowedMethod>], any> { }
+export interface rootRoute extends RouteDef<[
+  undefined,
+  AllowedMethod[],
+  StateObject<BodyFormat, AllowedMethod>,
+  [string[] & { length: 0 }]
+]> { }
 
 export interface RouteMatch<Params extends string[] = string[]> {
   route: Route;
@@ -243,29 +254,26 @@ export interface RouteMatch<Params extends string[] = string[]> {
 }
 
 type DetermineRouteOptions<
-  P extends [
-    BodyFormat | undefined,
-    AllowedMethod[],
-    any
-  ]
-> = P extends [BodyFormat, AllowedMethod[], any]
+  P extends ParentTuple
+> = P extends [BodyFormat, AllowedMethod[], any, any]
   ?
   RouteOptBase<P[0], P[1]> & { bodyFormat?: undefined; }
   :
-  P extends [undefined, AllowedMethod[], any]
+  P extends [undefined, AllowedMethod[], any, any]
   ?
   | { [K in BodyFormat]: RouteOptBase<K, P[1]> & { bodyFormat: K; }; }[BodyFormat]
   | RouteOptBase<BodyFormat, P[1]> & { bodyFormat?: undefined; }
-  : never;// RouteOptBase<BodyFormat, P[1]>;
+  : never;
 
+type ParentTuple = [BodyFormat | undefined, AllowedMethod[], any, string[][]];
 
-interface RouteDef<P extends [BodyFormat | undefined, AllowedMethod[], any], PZ extends z.ZodTypeAny>
+interface RouteDef<P extends ParentTuple>
   extends RouteOptBase<P[0] & {}, P[1]> {
 
   /**
    * If this route's handler sends headers, the matched child route will not be called.
    */
-  handler: (state: StateObject<P[0] & {}, P[1][number], RouteMatch[], z.infer<PZ>>) => Promise<P[2]>
+  handler: (state: StateObject<P[0] extends undefined ? BodyFormat : (P[0] & {}), P[1][number], RouteMatch[], unknown>) => Promise<P[2]>
 
   /**
    * ### ROUTING
@@ -285,7 +293,7 @@ interface RouteDef<P extends [BodyFormat | undefined, AllowedMethod[], any], PZ 
    * Note that GET and HEAD are always bodyFormat: "ignore", regardless of what is set here.
    */
   defineRoute: <R, Z extends z.ZodTypeAny,
-    T extends DetermineRouteOptions<P> & { zod?: Z }
+    T extends DetermineRouteOptions<P>
   >(
     route: T,
     handler: (state: StateObject<
@@ -309,9 +317,9 @@ interface RouteDef<P extends [BodyFormat | undefined, AllowedMethod[], any], PZ 
       z.infer<Z>
     >) => Promise<R>
   ) =>
-    P[0] extends BodyFormat ? RouteDef<[P[0], T["method"], R], Z> :
-    T["bodyFormat"] extends BodyFormat ? RouteDef<[T["bodyFormat"], T["method"], R], Z> :
-    RouteDef<[undefined, T["method"], R], never>
+    P[0] extends BodyFormat ? RouteDef<[P[0], T["method"], R, [...P[3], T["pathParams"] & []]]> :
+    T["bodyFormat"] extends BodyFormat ? RouteDef<[T["bodyFormat"], T["method"], R, [...P[3], T["pathParams"] & []]]> :
+    RouteDef<[undefined, T["method"], R, [...P[3], T["pathParams"] & []]]>
 
   $o?: P;
 }
@@ -366,10 +374,10 @@ function testroute(root: rootRoute) {
   const test2_2 = test1.defineRoute({
     useACL: {},
     path: /^test/,
-    bodyFormat: "www-form-urlencoded-object",
+    bodyFormat: "www-form-urlencoded",
     method: ["POST"],
-    zod: z.object({ test: z.string() }),
   }, async state => {
+    // zod: z.object({ test: z.string() }),
 
 
   });

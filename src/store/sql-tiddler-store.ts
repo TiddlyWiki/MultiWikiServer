@@ -60,7 +60,7 @@ class Eventer<E extends Record<string, any[]>> {
 				if (listeners) {
 					for (var p = 0; p < listeners.length; p++) {
 						var listener = listeners[p];
-						listener.apply(listener, args);
+						if (listener) listener.apply(listener, args);
 					}
 				}
 			});

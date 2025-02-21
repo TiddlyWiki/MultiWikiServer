@@ -21,9 +21,9 @@ exports.bodyFormat = "www-form-urlencoded";
 exports.csrfDisable = true;
 /** @type {ServerRouteHandler<0,"www-form-urlencoded">} */	
 exports.handler = async function (request, response, state) {
-	var sqlTiddlerDatabase = state.store.sql;
-	var role_name = state.data.get("role_name");
-	var role_description = state.data.get("role_description");
+
+	var role_name = state.data.role_name;
+	var role_description = state.data.role_description;
 
 	if(!state.authenticatedUser || !state.authenticatedUser.isAdmin) {
 		state.store.adminWiki.addTiddler(new $tw.Tiddler({
@@ -47,7 +47,7 @@ exports.handler = async function (request, response, state) {
 
 	try {
 		// Check if role already exists
-		var existingRole = await sqlTiddlerDatabase.getRole(role_name);
+		var existingRole = await state.store.sql.getRole(role_name);
 		if(existingRole) {
 			state.store.adminWiki.addTiddler(new $tw.Tiddler({
 				title: "$:/temp/mws/post-role/error",
@@ -58,7 +58,7 @@ exports.handler = async function (request, response, state) {
 			return;
 		}
 
-		await sqlTiddlerDatabase.createRole(role_name, role_description);
+		await state.store.sql.createRole(role_name, role_description);
 
 		state.store.adminWiki.addTiddler(new $tw.Tiddler({
 			title: "$:/temp/mws/post-role/success",

@@ -58,9 +58,7 @@ exports.handler = async function (request, response, state) {
 	// Enhance ACL records with role and permission details
 	recipeAclRecords = recipeAclRecords.map(record => {
 		var role = roles.find(role => role.role_id === record.role_id);
-		if(!role) $tw.utils.warning("Role not found for record " + record.acl_id);
 		var permission = permissions.find(perm => perm.permission_id === record.permission_id);
-		if(!permission) $tw.utils.warning("Permission not found for record " + record.acl_id);
 		return ({
 			...record,
 			role,
@@ -74,9 +72,7 @@ exports.handler = async function (request, response, state) {
 
 	bagAclRecords = bagAclRecords.map(record => {
 		var role = roles.find(role => role.role_id === record.role_id);
-		if(!role) $tw.utils.warning("Role not found for record " + record.acl_id);
 		var permission = permissions.find(perm => perm.permission_id === record.permission_id);
-		if(!permission) $tw.utils.warning("Permission not found for record " + record.acl_id);
 		return ({
 			...record,
 			role,
@@ -103,7 +99,7 @@ exports.handler = async function (request, response, state) {
 			"user-is-admin": state.authenticatedUser && state.authenticatedUser.isAdmin ? "yes" : "no"
 		}
 	});
-
+	
 	response.write(html);
 	response.end();
 };

@@ -33,9 +33,9 @@ exports.handler = async function (request, response, state) {
     response.end();
     return;
   }
-  var userId = state.data.get("userId");
-  var newPassword = state.data.get("newPassword");
-  var confirmPassword = state.data.get("confirmPassword");
+  var userId = state.data.userId;
+  var newPassword = state.data.newPassword;
+  var confirmPassword = state.data.confirmPassword;
   if(!userId || !newPassword || !confirmPassword) {
     response.writeHead(400);
     response.end();
@@ -72,7 +72,7 @@ exports.handler = async function (request, response, state) {
     return;
   }
 
-  var userData = await state.store.sql.getUser(userId);
+  var userData = await state.store.sql.getUser($tw.utils.parseInt(userId));
 
   if(!userData) {
     state.store.adminWiki.addTiddler(new $tw.Tiddler({
@@ -85,8 +85,9 @@ exports.handler = async function (request, response, state) {
   }
 
   var newHash = auth.hashPassword(newPassword);
-  var result = await state.store.sql.updateUserPassword(userId, newHash);
+  var result = await state.store.sql.updateUserPassword($tw.utils.parseInt(userId), newHash);
 
+  // set success regardless of whether it actually succeeded?
   state.store.adminWiki.addTiddler(new $tw.Tiddler({
     title: "$:/temp/mws/change-password/" + userId + "/success",
     text: result.message

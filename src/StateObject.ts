@@ -9,7 +9,103 @@ import { SqlTiddlerStore } from './store/sql-tiddler-store';
 
 // This class abstracts the request/response cycle into a single object.
 // It hides most of the details from the routes, allowing us to easily change the underlying server implementation.
-export class StateObject<B extends BodyFormat = BodyFormat, M extends AllowedMethod = AllowedMethod, R extends RouteMatch<any>[] = RouteMatch<any>[], D = unknown> {
+export class StateObject<
+  B extends BodyFormat = BodyFormat,
+  M extends AllowedMethod = AllowedMethod,
+  R extends RouteMatch<any>[] = RouteMatch<any>[],
+  D = unknown
+> {
+  // handler shims
+  authenticatedUsername: string | null = null;
+  authenticatedUser: any = null;
+  store!: SqlTiddlerStore;
+  z: typeof z = z;
+  allowAnon: any;
+  allowAnonReads: any;
+  allowAnonWrites: any;
+  anonAccessConfigured: any;
+  firstGuestUser: any;
+  showAnonConfig: any;
+
+
+
+  // checkACL: ACL_Middleware_Helper = async (request, response, state, entityType, permissionName) => {
+  //   okEntityType(entityType);
+  //   var extensionRegex = /\.[A-Za-z0-9]{1,4}$/;
+
+  //   var
+  //     sqlTiddlerDatabase = state.store.sql,
+  //     entityName = state.data ? (state.data[entityType + "_name"] || state.params[0]) : state.params[0];
+
+  //   // First, replace '%3A' with ':' to handle TiddlyWiki's system tiddlers
+  //   var partiallyDecoded = entityName?.replace(/%3A/g, ":");
+  //   // Then use decodeURIComponent for the rest
+  //   var decodedEntityName = decodeURIComponent(partiallyDecoded);
+  //   var aclRecord = await sqlTiddlerDatabase.getACLByName(entityType, decodedEntityName);
+  //   var isGetRequest = request.method === "GET";
+  //   var hasAnonymousAccess = state.allowAnon ? (isGetRequest ? state.allowAnonReads : state.allowAnonWrites) : false;
+  //   var anonymousAccessConfigured = state.anonAccessConfigured;
+  //   const { value: entity } = await sqlTiddlerDatabase.getEntityByName(entityType, decodedEntityName);
+  //   var isAdmin = state.authenticatedUser?.isAdmin;
+
+  //   if (isAdmin) {
+  //     return;
+  //   }
+
+  //   if (entity?.owner_id) {
+  //     if (state.authenticatedUser?.user_id && (state.authenticatedUser?.user_id !== entity.owner_id) || !state.authenticatedUser?.user_id && !hasAnonymousAccess) {
+  //       const hasPermission = state.authenticatedUser?.user_id ?
+  //         entityType === 'recipe' ? await sqlTiddlerDatabase.hasRecipePermission(state.authenticatedUser?.user_id, decodedEntityName, isGetRequest ? 'READ' : 'WRITE')
+  //           : await sqlTiddlerDatabase.hasBagPermission(state.authenticatedUser?.user_id, decodedEntityName, isGetRequest ? 'READ' : 'WRITE')
+  //         : false
+  //       if (!response.headersSent && !hasPermission) {
+  //         response.writeHead(403, "Forbidden");
+  //         response.end();
+  //       }
+  //       return;
+  //     }
+  //   } else {
+  //     // First, we need to check if anonymous access is allowed
+  //     if (!state.authenticatedUser?.user_id && (anonymousAccessConfigured && !hasAnonymousAccess)) {
+  //       if (!response.headersSent && !extensionRegex.test(request.url)) {
+  //         response.writeHead(401, "Unauthorized");
+  //         response.end();
+  //       }
+  //       return;
+  //     } else {
+  //       // Get permission record
+  //       const permission = await sqlTiddlerDatabase.getPermissionByName(permissionName);
+  //       // ACL Middleware will only apply if the entity has a middleware record
+  //       if (aclRecord && aclRecord?.permission_id === permission?.permission_id) {
+  //         // If not authenticated and anonymous access is not allowed, request authentication
+  //         if (!state.authenticatedUsername && !state.allowAnon) {
+  //           if (state.urlInfo.pathname !== '/login') {
+  //             // redirectToLogin(response, request.url);
+  //             return;
+  //           }
+  //         }
+  //       }
+
+  //       // Check ACL permission
+  //       var hasPermission = request.method === "POST"
+  //         || await sqlTiddlerDatabase.checkACLPermission(
+  //           state.authenticatedUser?.user_id,
+  //           entityType,
+  //           decodedEntityName,
+  //           permissionName,
+  //           entity?.owner_id
+  //         );
+
+  //       if (!hasPermission && !hasAnonymousAccess) {
+  //         if (!response.headersSent) {
+  //           response.writeHead(403, "Forbidden");
+  //           response.end();
+  //         }
+  //         return;
+  //       }
+  //     }
+  //   }
+  // };
 
   get url() { return this.streamer.url; }
   get method(): M { return this.streamer.method as M; }
@@ -40,13 +136,13 @@ export class StateObject<B extends BodyFormat = BodyFormat, M extends AllowedMet
   data!:
     B extends "string" ? string :
     B extends "buffer" ? Buffer :
-    B extends "www-form-urlencoded" ? URLSearchParams :
+    B extends "www-form-urlencoded-params" ? URLSearchParams :
     B extends "stream" ? Readable :
     B extends "ignore" ? undefined :
     D;
   params: string[][];
 
-  store!: SqlTiddlerStore;
+
 
   constructor(
     private streamer: Streamer,
@@ -64,8 +160,9 @@ export class StateObject<B extends BodyFormat = BodyFormat, M extends AllowedMet
   boot: any;
   server: any;
 
-  zod<T extends z.ZodTypeAny>(schema: T): this is { data: z.infer<T> } {
-    const { success, data } = z.any().pipe(schema).safeParse(this.data);
+  /** Runs zod on state.data, assigning the result to state.data if successful, and returning success. */
+  zod<T extends z.ZodTypeAny>(schema: (zod: typeof z) => T): this is { data: z.infer<T> } {
+    const { success, data } = z.any().pipe(schema(z)).safeParse(this.data);
     if (!success) return false;
     this.data = data;
     return true;

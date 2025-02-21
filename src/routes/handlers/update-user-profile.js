@@ -31,10 +31,10 @@ exports.handler = async function (request,response,state) {
     return;
   }
 
-  var userId = state.data.get("userId");
-  var username = state.data.get("username");
-  var email = state.data.get("email");
-  var roleId = state.data.get("role");
+  var userId = state.data.userId;
+  var username = state.data.username;
+  var email = state.data.email;
+  var roleId = state.data.role;
   var currentUserId = state.authenticatedUser.user_id;
 
   var hasPermission = ($tw.utils.parseInt(userId) === currentUserId) || state.authenticatedUser.isAdmin;

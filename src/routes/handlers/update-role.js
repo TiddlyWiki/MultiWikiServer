@@ -21,10 +21,10 @@ exports.bodyFormat = "www-form-urlencoded";
 exports.csrfDisable = true;
 /** @type {ServerRouteHandler<1,"www-form-urlencoded">} */	
 exports.handler = async function(request, response, state) {
-  var sqlTiddlerDatabase = state.store.sql;
+
   var role_id = state.params[0];
-  var role_name = state.data.get("role_name");
-  var role_description = state.data.get("role_description");
+  var role_name = state.data.role_name;
+  var role_description = state.data.role_description;
 
   if(!state.authenticatedUser?.isAdmin) {
     response.writeHead(403, "Forbidden");
@@ -33,7 +33,7 @@ exports.handler = async function(request, response, state) {
   }
 
   // get the role
-  var role = await sqlTiddlerDatabase.getRoleById(role_id);
+  var role = await state.store.sql.getRoleById(role_id);
 
   if(!role) {
     response.writeHead(404, "Role not found");
@@ -48,7 +48,7 @@ exports.handler = async function(request, response, state) {
   }
 
   try {
-    await sqlTiddlerDatabase.updateRole(
+    await state.store.sql.updateRole(
       role_id,
       role_name,
       role_description

@@ -30,7 +30,7 @@ exports.handler = async function(request, response, state) {
 
   
   // Update the configuration tiddlers
-  $tw.wiki.addTiddler({
+  state.store.adminWiki.addTiddler({
     title: "$:/config/MultiWikiServer/ShowAnonymousAccessModal",
     text: "yes"
   });

@@ -29,6 +29,7 @@ export function okType<T>(value: any, type: TYPEOF_ENUM, msg?: string) {
 	switch (type) {
 		case "null": ok(value === null, msg); break;
 		case "nully": ok(value === null || value === undefined, msg); break;
+		case "number": ok(typeof value === "number" && !isNaN(value), msg); break;
 		default: ok(typeof value === type, msg);
 	}
 }
@@ -58,6 +59,8 @@ Create a tiddler store. Options include:
 	
 databasePath - path to the database file (can be ":memory:" to get a temporary database)
 engine - wasm | better
+
+Most of this class was converted using VSCode copilot suggestions
 */
 export class SqlTiddlerDatabase {
 
@@ -210,6 +213,7 @@ export class SqlTiddlerDatabase {
 	*/
 	async saveBagTiddler(tiddlerFields: { [s: string]: string; }, bag_name: string, attachment_blob: string) {
 		// fields are deleted at the same time (cascade)
+		ok(tiddlerFields.title, "Missing title");
 		await this.engine.tiddlers.deleteMany({
 			where: { bag: { bag_name }, title: tiddlerFields.title },
 		});
@@ -456,10 +460,8 @@ export class SqlTiddlerDatabase {
 				},
 			},
 		});
-		if (!row) {
-			return null;
-		}
-		const tiddler = row.bag.tiddlers[0];
+		const tiddler = row?.bag.tiddlers[0];
+		if (!tiddler) { return null; }
 
 		return {
 			bag_name: row.bag.bag_name,
@@ -542,6 +544,7 @@ export class SqlTiddlerDatabase {
 	Checks if a user has permission to access a bag
 	*/
 	async hasBagPermission(userId: number | undefined, bagName: string, permissionName: string) {
+		// the original code had the ownerID undefined here as well
 		return await this.checkACLPermission(userId, "bag", bagName, permissionName, undefined);
 	}
 	/**
@@ -564,7 +567,7 @@ export class SqlTiddlerDatabase {
 
 		return await this.engine.acl.findMany({
 			where: { entity_type: entityType, entity_name: entityName },
-			include: { permissions: true },
+			include: { permission: true },
 			take: fetchAll ? undefined : 1,
 		});
 
@@ -600,7 +603,7 @@ export class SqlTiddlerDatabase {
 		permissionName: string,
 		ownerId: number | undefined
 	) {
-		if(user_id === undefined) return false;
+		if (user_id === undefined) return false;
 
 		okType(user_id, "number", "No user_id provided");
 		okEntityType(entityType);
@@ -611,7 +614,7 @@ export class SqlTiddlerDatabase {
 		// if the entityName starts with "$:/", we'll assume its a system bag/recipe, then grant the user permission
 		if (entityName.startsWith("$:/")) return true;
 		const aclRecords = await this.getACLByName(entityType, entityName, true);
-		const aclRecord = aclRecords.find(record => record.permissions?.permission_name === permissionName);
+		const aclRecord = aclRecords.find(record => record.permission?.permission_name === permissionName);
 
 		// If no ACL record exists, return true for hasPermission
 		if (!aclRecord && !ownerId && aclRecords.length === 0
@@ -619,11 +622,11 @@ export class SqlTiddlerDatabase {
 			return true;
 		}
 
-		if (!aclRecord?.permissions?.permission_id) return false;
+		if (!aclRecord?.permission?.permission_id) return false;
 
 		const result = await this.engine.users.findUnique({
 			where: {
-				user_id, 
+				user_id,
 				user_roles: {
 					some: {
 						role: {
@@ -631,7 +634,7 @@ export class SqlTiddlerDatabase {
 								some: {
 									entity_type: entityType,
 									entity_name: entityName,
-									permission_id: aclRecord.permissions.permission_id
+									permission_id: aclRecord.permission.permission_id
 								}
 							}
 						}
@@ -686,17 +689,27 @@ export class SqlTiddlerDatabase {
 	/*
 	Get the entity by name
 	*/
-	async getEntityByName(entityType: EntityType, entityName: string) {
+	async getEntityByName<T extends EntityType>(entityType: T, entityName: string) {
 		okEntityType(entityType);
 		okTypeTruthy(entityName, "string", "No entityName provided");
 		// they have to be separated for typechecking, but the code is the same
 		switch (entityType) {
-			case "recipe": return await this.engine.recipes.findUnique({
-				where: { recipe_name: entityName },
-			});
-			case "bag": return await this.engine.bags.findUnique({
-				where: { bag_name: entityName },
-			});
+			case "recipe": return {
+				type: "recipe" as const,
+				value: await this.engine.recipes.findUnique({
+					where: { recipe_name: entityName },
+				})
+			};
+			case "bag": return {
+				type: "bag" as const,
+				value: await this.engine.bags.findUnique({
+					where: { bag_name: entityName },
+				})
+			};
+			default: {
+				const t: never = entityType;
+				throw new Error("Invalid entity type: " + t);
+			}
 		}
 		// const entityTypeToTableMap = {
 		// 	bag: {
@@ -795,50 +808,72 @@ export class SqlTiddlerDatabase {
 		is_deleted: boolean
 	}[] | null> {
 
-		const tiddlers = await this.engine.tiddlers.findMany({
-			// all tiddlers in a bag that are in the recipe
+		// This function was converted by ChatGPT 03-mini-high
+
+		// 1. Look up the recipe by name.
+		const recipe = await this.engine.recipes.findUnique({
+			where: { recipe_name },
+			select: { recipe_id: true },
+		});
+		if (!recipe) {
+			return null;
+		}
+		const recipe_id = recipe.recipe_id;
+
+		// 2. Retrieve tiddlers that belong to bags associated with the recipe.
+		// We join via the bag -> recipe_bags relation.
+		// Note: We do not apply the limit here because we need to group by title first.
+		const tiddlersRaw = await this.engine.tiddlers.findMany({
 			where: {
-				bag: { recipe_bags: { some: { recipe: { recipe_name } } } },
-				tiddler_id: options.last_known_tiddler_id ? {
-					gt: options.last_known_tiddler_id
-				} : undefined,
-				is_deleted: options.include_deleted ? undefined : false
+				bag: {
+					recipe_bags: {
+						some: { recipe_id },
+					},
+				},
+				// Only include non-deleted tiddlers if options.include_deleted is false (or undefined)
+				...(!options.include_deleted ? { is_deleted: false } : {}),
+				// Filter by last_known_tiddler_id if provided.
+				...(options.last_known_tiddler_id ? { tiddler_id: { gt: options.last_known_tiddler_id } } : {}),
 			},
 			select: {
 				title: true,
 				tiddler_id: true,
 				is_deleted: true,
 				bag: {
-					select: {
-						bag_name: true,
-						recipe_bags: {
-							select: { position: true, recipe_id: true },
-							where: { recipe: { recipe_name } }
-						}
-					}
-				}
-			}
+					select: { bag_name: true },
+				},
+			},
+			orderBy: [
+				{ title: 'asc' },
+				{ tiddler_id: 'desc' },
+			],
 		});
 
-		const tiddlerMap = new Map<string, { tiddler: typeof tiddlers[number], position: number }>();
-		for (const tiddler of tiddlers) {
-			if (!tiddler.bag.recipe_bags.length)
-				$tw.utils.warning(`Tiddler '${tiddler.title}' is not in the recipe '${recipe_name}'???`);
-			if (tiddler.bag.recipe_bags.length > 1)
-				$tw.utils.warning(`Tiddler bag '${tiddler.bag.bag_name}' is specified multiple times in the recipe '${recipe_name}'???`);
+		// 3. Group the tiddlers by title (simulate GROUP BY t.title in SQL).
+		// Because the SQL orders by title asc and tiddler_id desc,
+		// the first occurrence for each title corresponds to the desired record.
+		const distinctTiddlers: Array<{
+			title: string;
+			tiddler_id: number;
+			is_deleted: boolean;
+			bag_name: string;
+		}> = [];
+		const seenTitles = new Set<string>();
 
-			const { position } = tiddler.bag.recipe_bags.sort((a, b) => b.position - a.position)[0];
-			const current = tiddlerMap.get(tiddler.title);
-			if (current) if (current.position > position) continue;
-			tiddlerMap.set(tiddler.title, { position, tiddler });
+		for (const tiddler of tiddlersRaw) {
+			if (!seenTitles.has(tiddler.title)) {
+				distinctTiddlers.push({
+					title: tiddler.title,
+					tiddler_id: tiddler.tiddler_id,
+					is_deleted: tiddler.is_deleted,
+					bag_name: tiddler.bag.bag_name,
+				});
+				seenTitles.add(tiddler.title);
+			}
 		}
 
-		return [...tiddlerMap.values()].map(({ tiddler }) => ({
-			title: tiddler.title,
-			tiddler_id: tiddler.tiddler_id,
-			is_deleted: tiddler.is_deleted,
-			bag_name: tiddler.bag.bag_name,
-		}));
+		// 4. Apply the limit to the grouped results if specified.
+		return options.limit ? distinctTiddlers.slice(0, options.limit) : distinctTiddlers;
 
 
 
@@ -1204,10 +1239,17 @@ export class SqlTiddlerDatabase {
 		// 		}
 	}
 	async updateUserPassword(user_id: number, password: string) {
-		await this.engine.users.update({
+		return await this.engine.users.update({
 			where: { user_id },
 			data: { password }
-		});
+		}).then(() => ({
+			success: true,
+			message: "Password updated successfully."
+		}), (error) => ({
+			success: false,
+			message: "Failed to update password: " + error.message
+		}));
+
 		// try {
 		// 	await this.engine.runStatement(`
 		// 		UPDATE users

@@ -20,22 +20,38 @@ POST /admin/delete-acl
 	exports.path = /^\/admin\/delete-acl\/?$/;
 
 
-	exports.bodyFormat = "www-form-urlencoded";
+	exports.bodyFormat = "www-form-urlencoded-object";
 
 	exports.csrfDisable = true;
 
 	/** @type {ServerRouteHandler<0, "www-form-urlencoded">} */
 	exports.handler = async function(request, response, state) {
-		var sqlTiddlerDatabase = state.store.sql;
-		var recipe_name = state.data.get("recipe_name");
-		var bag_name = state.data.get("bag_name");
-		var acl_id = state.data.get("acl_id");
-		var entity_type = state.data.get("entity_type");
+
+		ok(state.zod(z => z.object({
+			recipe_name: z.string(),
+			bag_name: z.string(),
+			acl_id: z.string()
+				.transform(x => parseInt(x))
+				.refine(x => !isNaN(x))
+				.describe("acl_id must be an integer"),
+			entity_type: z.string()
+				.refine(x => ["recipe", "bag"].includes(x))
+				.describe("entity_type must be 'recipe' or 'bag'")
+		})));
+
+		const {
+			recipe_name,
+			bag_name,
+			acl_id,
+			entity_type
+		} = state.data;
+
+		// mark this as the acl_id field
+		okField("acl", "acl_id", acl_id);
 
 		await aclMiddleware(request, response, state, entity_type, "WRITE");
-		if(response.headersSent) return;
-		
-		await sqlTiddlerDatabase.deleteACL(acl_id);
+
+		await state.store.sql.deleteACL(acl_id);
 
 		response.writeHead(302, {"Location": "/admin/acl/" + recipe_name + "/" + bag_name});
 		response.end();

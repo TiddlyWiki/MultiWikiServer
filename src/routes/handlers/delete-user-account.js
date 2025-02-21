@@ -22,7 +22,7 @@ exports.csrfDisable = true;
 /** @type {ServerRouteHandler<0,"www-form-urlencoded">} */	
 exports.handler = async function (request, response, state) {
 
-	var userId = state.data.get("userId");
+	var userId = state.data.userId;
 	
 
 	// Check if user is admin
