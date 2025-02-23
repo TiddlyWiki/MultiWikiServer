@@ -1,6 +1,7 @@
-import "../jsglobal";
+import "./jsglobal";
 import * as http2 from 'node:http2';
 import * as opaque from "@serenity-kit/opaque";
+import * as z from 'zod';
 import send from 'send';
 import { Readable } from 'stream';
 import { createServer, IncomingMessage, Server, ServerResponse, IncomingHttpHeaders as NodeIncomingHeaders, OutgoingHttpHeaders } from 'node:http';
@@ -10,25 +11,8 @@ import { Writable } from 'node:stream';
 import { AllowedMethod, AllowedMethods, Router } from './router';
 import * as sql from "./store/sql-tiddler-database";
 import * as assert from "assert";
-okEntityType(sql.okEntityType);
+import { StateObject } from "./StateObject";
 
-var acl_id: number = {} as any;
-okField("acl", "acl_id", acl_id);
-const t: number = acl_id;
-
-(global as any).ok = assert.ok;
-(global as any).okEntityType = sql.okEntityType;
-// (global as any).okType = sql.okType;
-// (global as any).okTypeTruthy = sql.okTypeTruthy;
-(global as any).okField = function (table: string, field: string, value: any) { };
-(global as any).parseIntNull = function (str: string | null) {
-  return str === null ? null : parseInt(str);
-};
-(global as any).parseIntNullSafe = function (str: string | null) {
-  if (str === null) return { success: true, value: null };
-  const val = parseInt(str);
-  return { success: !isNaN(val), value: val };
-};
 
 export interface IncomingHttpHeaders extends NodeIncomingHeaders {
   "accept-encoding"?: string;
@@ -53,7 +37,8 @@ export type StreamerChunk = { data: string, encoding: NodeJS.BufferEncoding } | 
 export class Streamer {
   host: string;
   method: AllowedMethod;
-  url: URL;
+  urlInfo: URL;
+  url: string;
   headers: IncomingHttpHeaders;
   constructor(
     private req: IncomingMessage | http2.Http2ServerRequest,
@@ -62,6 +47,7 @@ export class Streamer {
   ) {
 
     this.headers = req.headers;
+    this.url = req.url as string;
     if (is<http2.Http2ServerRequest>(req, req.httpVersionMajor > 1)) {
       this.req.headers.host = req.headers[":authority"];
     }
@@ -73,12 +59,17 @@ export class Streamer {
       throw this.sendString(501, {}, "Method not supported", "utf8");
     this.host = req.headers.host;
     this.method = req.method;
-    this.url = new URL(`https://${req.headers.host}${req.url}`);
+    this.urlInfo = new URL(`https://${req.headers.host}${req.url}`);
     req.complete
   }
 
   get reader(): Readable { return this.req; }
-  get writer(): Writable { return this.res; }
+  get writer(): Writable {
+    // don't overwrite it here if it's already set because this could just be for sending the body.
+    if (!this.headersSent && !this.headersSentBy)
+      this.headersSentBy = new Error("Possible culprit was given access to the response object here.");
+    return this.res;
+  }
 
   throw(statusCode: number) {
     this.sendEmpty(statusCode);
@@ -88,11 +79,16 @@ export class Streamer {
   catcher = (error: unknown) => {
     if (error === SYMBOL_IGNORE_ERROR) return;
     if (error === STREAM_ENDED) return;
-    const tag = this.url.href;
+    const tag = this.urlInfo.href;
     console.error(tag, error);
   }
 
-
+  checkHeadersSentBy(setError: boolean) {
+    if (this.headersSent && this.headersSentBy) console.log(this.headersSentBy);
+    else if (this.res.headersSent) console.log("Headers were sent by an unknown source.");
+    // queue up the error in case there is a second attempt.
+    else this.headersSentBy = new Error("You are appear to be sending headers more than once. The first attempt was here. Does it need to throw or return?")
+  }
 
 
 
@@ -110,12 +106,14 @@ export class Streamer {
   });
 
   sendEmpty(status: number, headers: OutgoingHttpHeaders = {}): typeof STREAM_ENDED {
+    this.checkHeadersSentBy(true);
     this.res.writeHead(status, headers);
     this.res.end();
     return STREAM_ENDED;
   }
 
   sendString(status: number, headers: OutgoingHttpHeaders, data: string, encoding: NodeJS.BufferEncoding): typeof STREAM_ENDED {
+    this.checkHeadersSentBy(true);
     headers['content-length'] = Buffer.byteLength(data, encoding);
     this.res.writeHead(status, headers);
     this.res.end(data, encoding);
@@ -123,6 +121,7 @@ export class Streamer {
   }
 
   sendBuffer(status: number, headers: OutgoingHttpHeaders, data: Buffer): typeof STREAM_ENDED {
+    this.checkHeadersSentBy(true);
     headers['content-length'] = data.length;
     this.res.writeHead(status, headers);
     this.res.end(data);
@@ -130,6 +129,7 @@ export class Streamer {
   }
 
   sendStream(status: number, headers: OutgoingHttpHeaders, stream: Readable): typeof STREAM_ENDED {
+    this.checkHeadersSentBy(true);
     this.res.writeHead(status, headers);
     stream.pipe(this.res);
     return STREAM_ENDED;
@@ -140,6 +140,7 @@ export class Streamer {
     offset?: number;
     length?: number;
   }): typeof STREAM_ENDED {
+    this.checkHeadersSentBy(true);
     this.res.writeHead(status, headers);
     const { fd, offset, length } = options;
     const stream = createReadStream("", {
@@ -201,10 +202,24 @@ export class Streamer {
       }
     });
 
+    this.checkHeadersSentBy(true);
     stream.pipe(this.res);
     return STREAM_ENDED;
   }
+  setHeader(name: string, value: string): void {
+    this.res.setHeader(name, value);
+  }
+  writeHead(status: number, headers: OutgoingHttpHeaders = {}): void {
+    this.checkHeadersSentBy(true);
+    this.res.writeHead(status, headers);
+  }
+  write(chunk: Buffer | string, encoding?: NodeJS.BufferEncoding): void {
+    this.checkHeadersSentBy(true);
+    // Between http1 and http2, the types are slightly different, but the runtime effect seems to be the same.
+    encoding ? (this.res as ServerResponse).write(chunk, encoding) : (this.res as ServerResponse).write(chunk)
+  }
   end(): typeof STREAM_ENDED {
+    this.checkHeadersSentBy(true);
     this.res.end();
     return STREAM_ENDED;
   }
@@ -212,6 +227,8 @@ export class Streamer {
   get headersSent() {
     return this.res.headersSent;
   }
+
+  headersSentBy: Error | undefined;
 }
 
 class ListenerHTTPS {

@@ -6,34 +6,29 @@ module-type: mws-route
 GET /login
 
 \*/
-(function() {
-
-/*jslint node: true, browser: true */
-/*global $tw: false */
 "use strict";
-
-exports.method = "GET";
-
-exports.path = /^\/login$/;
-/** @type {ServerRouteHandler<0>} */	
-exports.handler = async function(request,response,state) {
-	// // Check if the user already has a valid session
-	// var authenticatedUser = await state.server.authenticateUser(request, response);
+/** @type {ServerRouteDefinition} */
+export const route = (root) => root.defineRoute({
+	method: ["GET"],
+	path: /^\/login$/,
+	useACL: {},
+}, async state => {
+	// Check if the user already has a valid session
 	if(state.authenticatedUser) {
-			// User is already logged in, redirect to home page
-			response.writeHead(302, { "Location": "/" });
-			response.end();
-			return;
+		// User is already logged in, redirect to home page
+		return state.redirect("/");
 	}
-	var loginTiddler = state.store.adminWiki.getTiddler("$:/plugins/tiddlywiki/multiwikiserver/auth/form/login");
-	if(loginTiddler) {
-		var text = state.store.adminWiki.renderTiddler("text/html", loginTiddler.fields.title);
-		response.writeHead(200, { "Content-Type": "text/html" });
-		response.end(text);
-	} else {
-		response.writeHead(404);
-		response.end("Login page not found");
-	}
-};
 
-}());
+	const loginTitle = "$:/plugins/tiddlywiki/multiwikiserver/auth/form/login";
+	var loginTiddler = state.store.adminWiki.tiddlerExists(loginTitle);
+
+	if(loginTiddler) {
+		state.writeHead(200, {"Content-Type": "text/html"});
+		state.write(state.store.adminWiki.renderTiddler("text/html", loginTitle));
+		state.end();
+	} else {
+		state.writeHead(500);
+		state.write("Login form is not set up correctly.");
+		state.end();
+	}
+});

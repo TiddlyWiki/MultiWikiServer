@@ -6,37 +6,41 @@ module-type: mws-route
 POST /admin/post-acl
 
 \*/
-
-(function () {
-	// const {okEntityType, okType} = require("$:/plugins/tiddlywiki/multiwikiserver/store/sql-tiddler-database");
-	// const {ok} = require("assert");
-	
-/*jslint node: true, browser: true */
-/*global $tw: false */
 "use strict";
+/** @type {ServerRouteDefinition} */
+export const route = (root) => root.defineRoute({
+	method: ["POST"],
+	path: /^\/admin\/post-acl\/?$/,
+	bodyFormat: "www-form-urlencoded",
+	useACL: {csrfDisable: true},
+}, async state => {
 
-exports.method = "POST";
+	zodAssert.data(state, z => z.object({
+		entity_name: z.string(),
+		entity_type: z.enum(["recipe", "bag"]),
+		recipe_name: z.string(),
+		bag_name: z.string(),
+		role_id: z.parsedNumber().optional(),
+		permission_id: z.parsedNumber().optional()
+	}));
 
-exports.path = /^\/admin\/post-acl\/?$/;
+	const {
+		entity_name,
+		entity_type,
+		recipe_name,
+		bag_name,
+		role_id,
+		permission_id
+	} = state.data;
 
-exports.bodyFormat = "www-form-urlencoded";
 
-exports.csrfDisable = true;
-/** @type {ServerRouteHandler<0,"www-form-urlencoded">} */	
-exports.handler = async function (request, response, state) {
-	var sqlTiddlerDatabase = state.store.sql;
-	var entity_type = state.data.entity_type;
-	var recipe_name = state.data.recipe_name;
-	var bag_name = state.data.bag_name;
-	var role_id = state.data.role_id ?? "";
-	var permission_id = state.data.permission_id ?? "";
 	var isRecipe = entity_type === "recipe"
-	
+
 	try {
-		var entityAclRecords = await sqlTiddlerDatabase.getACLByName(entity_type, entity_name, true);
+		var entityAclRecords = await state.store.sql.getACLByName(entity_type, entity_name, true);
 
 		var aclExists = entityAclRecords.some((record) => (
-			record.role_id == +role_id && record.permission_id == +permission_id
+			record.role_id == role_id && record.permission_id == permission_id
 		))
 
 		// This ensures that the user attempting to modify the ACL has permission to do so
@@ -46,26 +50,41 @@ exports.handler = async function (request, response, state) {
 		// 	return
 		// }
 
-		if (aclExists) {
+		if(aclExists) {
 			// do nothing, return the user back to the form
-			response.writeHead(302, { "Location": "/admin/acl/" + recipe_name + "/" + bag_name });
-			response.end();
-			return
+			return state.redirect("/admin/acl/" + recipe_name + "/" + bag_name);
 		}
 
-		await sqlTiddlerDatabase.createACL(
+		await state.store.sql.createACL(
 			isRecipe ? recipe_name : bag_name,
 			entity_type,
 			role_id,
 			permission_id
 		)
-
-		response.writeHead(302, { "Location": "/admin/acl/" + recipe_name + "/" + bag_name });
-		response.end();
-	} catch (error) {
-		response.writeHead(302, { "Location": "/admin/acl/" + recipe_name + "/" + bag_name });
-		response.end();
+		return state.redirect(`/admin/acl/${recipe_name}/${bag_name}`);
+	} catch(error) {
+		return state.redirect(`/admin/acl/${recipe_name}/${bag_name}`);
 	}
-};
+});
+(function() {
+	// const {okEntityType, okType} = require("$:/plugins/tiddlywiki/multiwikiserver/store/sql-tiddler-database");
+	// const {ok} = require("assert");
+
+	/*jslint node: true, browser: true */
+	/*global $tw: false */
+	"use strict";
+
+	exports.method = "POST";
+
+	exports.path = /^\/admin\/post-acl\/?$/;
+
+	exports.bodyFormat = "www-form-urlencoded";
+
+	exports.csrfDisable = true;
+	/** @type {ServerRouteHandler<0,"www-form-urlencoded">} */
+	exports.handler = async function(request, response, state) {
+
+
+	};
 
 }());

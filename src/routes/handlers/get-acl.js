@@ -6,35 +6,39 @@ module-type: mws-route
 GET /admin/acl
 
 \*/
-(function () {
 /*jslint node: true, browser: true */
 /*global $tw: false */
 "use strict";
 
-exports.method = "GET";
 
-exports.path = /^\/admin\/acl\/(.+)$/;
-/** @type {ServerRouteHandler<1>} */	
-exports.handler = async function (request, response, state) {
-	var sqlTiddlerDatabase = state.store.sql;
-	var params = state.params[0].split("/")
+/** @type {ServerRouteDefinition} */
+export const route = (root) => root.defineRoute({
+	method: ["GET"],
+	path: /^\/admin\/acl\/(.+)$/,
+	pathParams: ["recipe_name"],
+	useACL: {},
+}, async state => {
+
+	zodAssert.pathParams(state, z => ({
+		recipe_name: z.string(),
+	}));
+
+	var params = state.pathParams.recipe_name.split("/")
 	var recipeName = params[0];
 	var bagName = params[params.length - 1];
 
-	var recipes = await sqlTiddlerDatabase.listRecipes()
-	var bags = await sqlTiddlerDatabase.listBags()
+	var recipes = await state.store.sql.listRecipes()
+	var bags = await state.store.sql.listBags()
 
 	var recipe = recipes.find((entry) => entry.recipe_name === recipeName && entry.bag_names.includes(bagName))
 	var bag = bags.find((entry) => entry.bag_name === bagName);
 
-	if (!recipe || !bag) {
-		response.writeHead(500, "Unable to handle request", { "Content-Type": "text/html" });
-		response.end();
-		return;
+	if(!recipe || !bag) {
+		return state.sendEmpty(500, {"Content-Type": "text/html"});
 	}
 
-	var recipeAclRecords = await sqlTiddlerDatabase.getEntityAclRecords(recipe.recipe_name);
-	var bagAclRecords = await sqlTiddlerDatabase.getEntityAclRecords(bag.bag_name);
+	var recipeAclRecords = await state.store.sql.getEntityAclRecords(recipe.recipe_name);
+	var bagAclRecords = await state.store.sql.getEntityAclRecords(bag.bag_name);
 	var roles = await state.store.sql.listRoles();
 	var permissions = await state.store.sql.listPermissions();
 
@@ -44,15 +48,12 @@ exports.handler = async function (request, response, state) {
 		if(!state.authenticatedUser) return false;
 		if(state.authenticatedUser.isAdmin) return true;
 		if(recipeAclRecords.length === 0) return false;
-		return await sqlTiddlerDatabase.hasRecipePermission(
+		return await state.store.sql.hasRecipePermission(
 			state.authenticatedUser.user_id, recipeName, "WRITE");
 	}
 
-	if(!await canContinue())
-	{
-		response.writeHead(403, "Forbidden");
-		response.end();
-		return
+	if(!await canContinue()) {
+		return state.sendEmpty(403, {"Content-Type": "text/html"});
 	}
 
 	// Enhance ACL records with role and permission details
@@ -84,7 +85,8 @@ exports.handler = async function (request, response, state) {
 		})
 	});
 
-	response.writeHead(200, "OK", { "Content-Type": "text/html" });
+	// send the status 200 before rendering the page
+	state.writeHead(200, {"Content-Type": "text/html"});
 
 	var html = state.store.adminWiki.renderTiddler("text/plain", "$:/plugins/tiddlywiki/multiwikiserver/templates/page", {
 		variables: {
@@ -99,9 +101,7 @@ exports.handler = async function (request, response, state) {
 			"user-is-admin": state.authenticatedUser && state.authenticatedUser.isAdmin ? "yes" : "no"
 		}
 	});
-	
-	response.write(html);
-	response.end();
-};
 
-}());
+	state.write(html);
+	return state.end();
+});

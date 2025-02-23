@@ -6,24 +6,28 @@ module-type: mws-route
 POST /delete-user-account
 
 \*/
-(function () {
 
 /*jslint node: true, browser: true */
 /*global $tw: false */
 "use strict";
+/** @type {ServerRouteDefinition} */
+export const route = (root) => root.defineRoute({
+	method: ["POST"],
+	path: /^\/delete-user-account\/?$/,
+	bodyFormat: "www-form-urlencoded",
+	useACL: {csrfDisable: true},
+}, async state => {
 
-exports.method = "POST";
+	zodAssert.data(state, z => z.object({
+		userId: z.string()
+			.transform(x => parseInt(x))
+			.refine(x => !isNaN(x))
+			.describe("userId must be an integer"),
+	}));
 
-exports.path = /^\/delete-user-account\/?$/;
-
-exports.bodyFormat = "www-form-urlencoded";
-
-exports.csrfDisable = true;
-/** @type {ServerRouteHandler<0,"www-form-urlencoded">} */	
-exports.handler = async function (request, response, state) {
 
 	var userId = state.data.userId;
-	
+
 
 	// Check if user is admin
 	if(!state.authenticatedUser || !state.authenticatedUser.isAdmin) {
@@ -31,9 +35,7 @@ exports.handler = async function (request, response, state) {
 			title: "$:/temp/mws/delete-user/error",
 			text: "You must be an administrator to delete user accounts"
 		}));
-		response.writeHead(302, { "Location": '/admin/users/'+userId });
-		response.end();
-		return;
+		return state.redirect('/admin/users/' + userId);
 	}
 
 	// Prevent admin from deleting their own account
@@ -42,9 +44,7 @@ exports.handler = async function (request, response, state) {
 			title: "$:/temp/mws/delete-user/error",
 			text: "Cannot delete your own account"
 		}));
-		response.writeHead(302, { "Location": '/admin/users/'+userId });
-		response.end();
-		return;
+		return state.redirect('/admin/users/' + userId);
 	}
 
 	// Check if the user exists
@@ -54,9 +54,7 @@ exports.handler = async function (request, response, state) {
 			title: "$:/temp/mws/delete-user/error",
 			text: "User not found"
 		}));
-		response.writeHead(302, { "Location": '/admin/users/'+userId });
-		response.end();
-		return;
+		return state.redirect('/admin/users/' + userId);
 	}
 
 	// Check if this is the last admin account
@@ -66,29 +64,22 @@ exports.handler = async function (request, response, state) {
 			title: "$:/temp/mws/delete-user/error",
 			text: "Admin role not found"
 		}));
-		response.writeHead(302, { "Location": '/admin/users/'+userId });
-		response.end();
-		return;
+		return state.redirect('/admin/users/' + userId);
 	}
 
 	var adminUsers = await state.store.sql.listUsersByRoleId(adminRole.role_id);
-	if(adminUsers.length <= 1 && adminUsers.some(admin => admin.user_id === parseInt(userId))) {
+	if(adminUsers.length <= 1 && adminUsers.some(admin => admin.user_id === userId)) {
 		state.store.adminWiki.addTiddler(new $tw.Tiddler({
 			title: "$:/temp/mws/delete-user/error",
 			text: "Cannot delete the last admin account"
 		}));
-		response.writeHead(302, { "Location": '/admin/users/'+userId });
-		response.end();
-		return;
+		return state.redirect('/admin/users/' + userId);
 	}
-	
+
 	await state.store.sql.deleteUserRolesByUserId(userId);
 	await state.store.sql.deleteUserSessions(userId);
 	await state.store.sql.deleteUser(userId);
 
 	// Redirect back to the users management page
-	response.writeHead(302, { "Location": "/admin/users" });
-	response.end();
-};
-
-}()); 
+	return state.redirect('/admin/users');
+});

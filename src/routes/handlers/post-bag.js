@@ -11,44 +11,28 @@ bag_name
 description
 
 \*/
-(function() {
-
-/*jslint node: true, browser: true */
-/*global $tw: false */
 "use strict";
+/** @type {ServerRouteDefinition} */
+export const route = (root) => root.defineRoute({
+	method: ["POST"],
+	path: /^\/bags$/,
+	bodyFormat: "www-form-urlencoded",
+	useACL: {csrfDisable: true}
+}, async state => {
 
-exports.method = "POST";
+	zodAssert.data(state, z => z.object({
+		bag_name: z.string(),
+		description: z.string().optional()
+	}));
 
-exports.path = /^\/bags$/;
+	await state.checkACL("bag", state.data.bag_name, "WRITE");
 
-exports.bodyFormat = "www-form-urlencoded";
+	// this returns a validation result object
+	const error = await state.store.createBag(state.data.bag_name, state.data.description ?? "");
 
-exports.csrfDisable = true;
-
-exports.useACL = true;
-
-exports.entityName = "bag"
-/** @type {ServerRouteHandler<0,"www-form-urlencoded">} */	
-exports.handler = async function(request,response,state) {
-	if(state.data.bag_name) {
-		const result = await state.store.createBag(state.data.bag_name,state.data.description);
-		if(!result) {
-			state.sendResponse(302,{
-				"Content-Type": "text/plain",
-				"Location": "/"
-			});
-		} else {
-			state.sendResponse(400,{
-				"Content-Type": "text/plain"
-			},
-			result.message,
-			"utf8");
-		}
+	if(!error) {
+		return state.redirect("/");
 	} else {
-		state.sendResponse(400,{
-			"Content-Type": "text/plain"
-		});
+		return state.sendString(400, {}, error.message, "utf8");
 	}
-};
-
-}());
+});

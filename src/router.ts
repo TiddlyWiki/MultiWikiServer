@@ -4,13 +4,13 @@ import { Streamer } from "./server";
 import { StateObject } from "./StateObject";
 import RootRoute from "./routes";
 import * as z from "zod";
-import { is } from "./helpers";
+import { createStrictAwaitProxy, is } from "./helpers";
 
 
 export const AllowedMethods = [...["GET", "HEAD", "OPTIONS", "POST", "PUT", "DELETE"] as const];
 export type AllowedMethod = typeof AllowedMethods[number];
 
-export const BodyFormats = ["stream", "string", "json", "buffer", "www-form-urlencoded", "www-form-urlencoded-params", "ignore"] as const;
+export const BodyFormats = ["stream", "string", "json", "buffer", "www-form-urlencoded", "www-form-urlencoded-urlsearchparams", "ignore"] as const;
 export type BodyFormat = typeof BodyFormats[number];
 
 
@@ -83,7 +83,7 @@ export class Router {
 
     type statetype = { [K in BodyFormat]: StateObject<K> }[BodyFormat]
 
-    const state = new StateObject(streamer, routePath, bodyFormat, authState, this) as statetype;
+    const state = createStrictAwaitProxy(new StateObject(streamer, routePath, bodyFormat, authState, this) as statetype);
     const method = streamer.method;
 
     // anything that sends a response before this should have thrown, but just in case
@@ -106,7 +106,7 @@ export class Router {
         if (!success) return state.sendEmpty(400, {});
         state.data = data;
       }
-    } else if (state.bodyFormat === "www-form-urlencoded-params" || state.bodyFormat === "www-form-urlencoded") {
+    } else if (state.bodyFormat === "www-form-urlencoded-urlsearchparams" || state.bodyFormat === "www-form-urlencoded") {
       const data = state.data = new URLSearchParams((await state.readBody()).toString("utf8"));
       if (state.bodyFormat === "www-form-urlencoded") {
         state.data = Object.fromEntries(data);
@@ -205,8 +205,8 @@ export class Router {
    * @returns The tree path matched
    */
   findRoute(streamer: Streamer): RouteMatch[] {
-    const { method, url } = streamer;
-    let testPath = url.pathname || "/";
+    const { method, urlInfo } = streamer;
+    let testPath = urlInfo.pathname || "/";
     if (this.pathPrefix && testPath.startsWith(this.pathPrefix))
       testPath = testPath.slice(this.pathPrefix.length) || "/";
     return this.findRouteRecursive([this.rootRoute as any], testPath, method);
@@ -215,7 +215,38 @@ export class Router {
 }
 
 
-interface RouteOptBase<B extends BodyFormat, M extends AllowedMethod[]> {
+interface RouteOptAny extends RouteOptBase<BodyFormat, AllowedMethod[], string[]> { }
+
+export interface Route extends RouteDef<ParentTuple, string[]> { }
+
+export interface rootRoute extends RouteDef<[
+  undefined,
+  AllowedMethod[],
+  StateObject<BodyFormat, AllowedMethod>,
+  [[]]
+], []> { }
+
+export interface RouteMatch {
+  route: Route;
+  params: (string | undefined)[];
+  remainingPath: string;
+}
+
+type DetermineRouteOptions<
+  P extends ParentTuple, PA extends string[]
+> = P extends [BodyFormat, AllowedMethod[], any, any]
+  ?
+  RouteOptBase<P[0], P[1], PA> & { bodyFormat?: undefined; }
+  :
+  P extends [undefined, AllowedMethod[], any, any]
+  ?
+  | { [K in BodyFormat]: RouteOptBase<K, P[1], PA> & { bodyFormat: K; }; }[BodyFormat]
+  | RouteOptBase<BodyFormat, P[1], PA> & { bodyFormat?: undefined; }
+  : never;
+
+type ParentTuple = [BodyFormat | undefined, AllowedMethod[], any, string[][]];
+
+interface RouteOptBase<B extends BodyFormat, M extends AllowedMethod[], PA extends string[]> {
   /** The ACL options for this route. It is required to simplify updates, but could be empty by default */
   useACL: AuthStateRouteACL;
   /** 
@@ -223,7 +254,7 @@ interface RouteOptBase<B extends BodyFormat, M extends AllowedMethod[]> {
    * it will be tested against the remaining portion of the parent route.  
    */
   path: RegExp;
-  pathParams?: string[];
+  pathParams?: PA;
   /** The uppercase method names to match this route */
   method: M;
   /** 
@@ -233,47 +264,14 @@ interface RouteOptBase<B extends BodyFormat, M extends AllowedMethod[]> {
    * Note that bodyFormat is completely ignored for GET and HEAD requests.
    */
   bodyFormat?: B;
-
-
-}
-interface RouteOptAny extends RouteOptBase<BodyFormat, AllowedMethod[]> { }
-
-export interface Route extends RouteDef<ParentTuple> { }
-
-export interface rootRoute extends RouteDef<[
-  undefined,
-  AllowedMethod[],
-  StateObject<BodyFormat, AllowedMethod>,
-  [string[] & { length: 0 }]
-]> { }
-
-export interface RouteMatch<Params extends string[] = string[]> {
-  route: Route;
-  params: Params;
-  remainingPath: string;
 }
 
-type DetermineRouteOptions<
-  P extends ParentTuple
-> = P extends [BodyFormat, AllowedMethod[], any, any]
-  ?
-  RouteOptBase<P[0], P[1]> & { bodyFormat?: undefined; }
-  :
-  P extends [undefined, AllowedMethod[], any, any]
-  ?
-  | { [K in BodyFormat]: RouteOptBase<K, P[1]> & { bodyFormat: K; }; }[BodyFormat]
-  | RouteOptBase<BodyFormat, P[1]> & { bodyFormat?: undefined; }
-  : never;
-
-type ParentTuple = [BodyFormat | undefined, AllowedMethod[], any, string[][]];
-
-interface RouteDef<P extends ParentTuple>
-  extends RouteOptBase<P[0] & {}, P[1]> {
+interface RouteDef<P extends ParentTuple, PA extends string[]> extends RouteOptBase<P[0] & {}, P[1], PA> {
 
   /**
    * If this route's handler sends headers, the matched child route will not be called.
    */
-  handler: (state: StateObject<P[0] extends undefined ? BodyFormat : (P[0] & {}), P[1][number], RouteMatch[], unknown>) => Promise<P[2]>
+  handler: (state: StateObject<P[0] extends undefined ? BodyFormat : (P[0] & {}), P[1][number], [...P[3], [...PA]], unknown>) => Promise<P[2]>
 
   /**
    * ### ROUTING
@@ -292,11 +290,34 @@ interface RouteDef<P extends ParentTuple>
    * 
    * Note that GET and HEAD are always bodyFormat: "ignore", regardless of what is set here.
    */
-  defineRoute: <R, Z extends z.ZodTypeAny,
-    T extends DetermineRouteOptions<P>
+  defineRoute: <R, PA extends string[],
+    // T extends DetermineRouteOptions<P, [...PA]>
+    T extends P extends [BodyFormat, AllowedMethod[], any, any]
+    ?
+    RouteOptBase<P[0], P[1], [...PA]> & { bodyFormat?: undefined; }
+    :
+    P extends [undefined, AllowedMethod[], any, any]
+    ?
+    | { [K in BodyFormat]: RouteOptBase<K, P[1], [...PA]> & { bodyFormat: K; }; }[BodyFormat]
+    | RouteOptBase<BodyFormat, P[1], [...PA]> & { bodyFormat?: undefined; }
+    : never
   >(
     route: T,
-    handler: (state: StateObject<
+    handler: (
+      /** 
+       * The state object for this route.
+       * 
+       * If the route only specifies "GET" and/or "HEAD", then the bodyFormat can only be "ignore"
+       * 
+       * Otherwise, the bodyFormat is determined by the first parent route that specifies it.
+       * 
+       * The state object is wrapped in a proxy which throws if methods return a promise that 
+       * doesn't get awaited before the next property access. It only enforces the first layer 
+       * of properties, so if you have a nested object, you will need to wrap it in a proxy as well.
+       * 
+       * store and store.sql will probably also be wrapped in this proxy.
+       */
+      state: StateObject<
       // if the route only specifies "GET" and/or "HEAD", then the bodyFormat can only be "ignore"
       (Exclude<T["method"][number], "GET" | "HEAD"> extends never ? never : (
         // parent route specified bodyFormat?
@@ -312,19 +333,20 @@ interface RouteDef<P extends ParentTuple>
       // HTTP method
       T["method"][number],
       // possible placeholder for declaring routes
-      RouteMatch[],
+      getPA<P, T>,
       // infer zod, if set for this route
-      z.infer<Z>
+      unknown
     >) => Promise<R>
   ) =>
-    P[0] extends BodyFormat ? RouteDef<[P[0], T["method"], R, [...P[3], T["pathParams"] & []]]> :
-    T["bodyFormat"] extends BodyFormat ? RouteDef<[T["bodyFormat"], T["method"], R, [...P[3], T["pathParams"] & []]]> :
-    RouteDef<[undefined, T["method"], R, [...P[3], T["pathParams"] & []]]>
+    P[0] extends BodyFormat ? RouteDef<[P[0], T["method"], R, P[3]], [...PA]> :
+    T["bodyFormat"] extends BodyFormat ? RouteDef<[T["bodyFormat"], T["method"], R, P[3]], [...PA]> :
+    RouteDef<[undefined, T["method"], R, P[3]], [...PA]>
 
   $o?: P;
 }
 
-
+type getPA<P extends ParentTuple, T extends DetermineRouteOptions<P, any>> = 
+[...P[3], ...T["pathParams"] extends string[] ? [T["pathParams"]] : []];
 function test<T extends z.ZodTypeAny>(schema: { schema: T }): T {
   return schema.schema;
 }

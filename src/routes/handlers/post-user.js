@@ -6,25 +6,22 @@ module-type: mws-route
 POST /admin/post-user
 
 \*/
-(function() {
-
-/*jslint node: true, browser: true */
-/*global $tw: false */
+import * as crypto from "crypto";
 "use strict";
-if($tw.node) {
-	var crypto = require("crypto");
-}
-exports.method = "POST";
+/** @type {ServerRouteDefinition} */
+export const route = (root) => root.defineRoute({
+  method: ["POST"],
+  path: /^\/admin\/post-user\/?$/,
+  bodyFormat: "www-form-urlencoded",
+  useACL: {csrfDisable: true},
+}, async state => {
+  zodAssert.data(state, z => z.object({
+    username: z.string(),
+    email: z.string(),
+    password: z.string(),
+    confirmPassword: z.string(),
+  }));
 
-exports.path = /^\/admin\/post-user\/?$/;
-
-exports.bodyFormat = "www-form-urlencoded";
-
-exports.csrfDisable = true;
-
-
-/** @type {ServerRouteHandler<0, "www-form-urlencoded">} */	
-exports.handler = async function(request, response, state) {
   function deleteTempTiddlers() {
     setTimeout(function() {
       state.store.adminWiki.deleteTiddler("$:/temp/mws/queryParams");
@@ -32,6 +29,7 @@ exports.handler = async function(request, response, state) {
       state.store.adminWiki.deleteTiddler("$:/temp/mws/post-user/success");
     }, 1000);
   }
+
   var sqlTiddlerDatabase = state.store.sql;
   var username = state.data.username;
   var email = state.data.email;
@@ -40,17 +38,18 @@ exports.handler = async function(request, response, state) {
   var queryParamsTiddlerTitle = "$:/temp/mws/queryParams";
 
   if(!state.authenticatedUser && !state.firstGuestUser) {
+    // No idea why this is here. An access denied error should NEVER cause a state change. 
+    // I have to leave it here until I figure it out though.
     state.store.adminWiki.addTiddler(new $tw.Tiddler({
       title: "$:/temp/mws/post-user/error",
       text: "Unauthorized access"
     }));
-    response.writeHead(302, { "Location": "/login" });
-    response.end();
     deleteTempTiddlers();
-    return;
+    return state.redirect("/login");
   }
 
   if(!username || !email || !password || !confirmPassword) {
+    // no idea what's going on here
     state.store.adminWiki.addTiddler(new $tw.Tiddler({
       title: "$:/temp/mws/post-user/error",
       text: "All fields are required"
@@ -60,8 +59,7 @@ exports.handler = async function(request, response, state) {
       username: username,
       email: email,
     }));
-    response.writeHead(302, { "Location": "/admin/users" });
-    response.end();
+    state.redirect("/admin/users");
     deleteTempTiddlers();
     return;
   }
@@ -76,8 +74,7 @@ exports.handler = async function(request, response, state) {
       username: username,
       email: email,
     }));
-    response.writeHead(302, { "Location": "/admin/users" });
-    response.end();
+    state.redirect("/admin/users");
     deleteTempTiddlers();
     return;
   }
@@ -86,7 +83,7 @@ exports.handler = async function(request, response, state) {
     // Check if username or email already exists
     var existingUser = await sqlTiddlerDatabase.getUserByUsername(username);
     var existingUserByEmail = await sqlTiddlerDatabase.getUserByEmail(email);
-    
+
     if(existingUser || existingUserByEmail) {
       state.store.adminWiki.addTiddler(new $tw.Tiddler({
         title: "$:/temp/mws/post-user/error",
@@ -103,8 +100,7 @@ exports.handler = async function(request, response, state) {
         username: username,
         email: email,
       }));
-      response.writeHead(302, { "Location": "/admin/users" });
-      response.end();
+      state.redirect("/admin/users");
       deleteTempTiddlers();
       return;
     }
@@ -119,19 +115,19 @@ exports.handler = async function(request, response, state) {
       try {
         // If this is the first guest user, assign admin privileges
         await sqlTiddlerDatabase.setUserAdmin(userId);
-        
+
         // Create a session for the new admin user
         var auth = require("$:/plugins/tiddlywiki/multiwikiserver/auth/authentication.js").Authenticator;
         var authenticator = auth(sqlTiddlerDatabase);
         var sessionId = await authenticator.createSession(userId);
-        
+
         state.store.adminWiki.addTiddler(new $tw.Tiddler({
           title: "$:/temp/mws/post-user/success",
           text: "Admin user created successfully"
         }));
-        response.setHeader("Set-Cookie", "session="+sessionId+"; HttpOnly; Path=/");
-        response.writeHead(302, {"Location": "/"});
-        response.end();
+        state.setHeader("Set-Cookie", "session=" + sessionId + "; HttpOnly; Path=/");
+        state.writeHead(302, {"Location": "/"});
+        state.end();
         deleteTempTiddlers();
         return;
       } catch(adminError) {
@@ -144,8 +140,8 @@ exports.handler = async function(request, response, state) {
           username: username,
           email: email,
         }));
-        response.writeHead(302, { "Location": "/admin/users" });
-        response.end();
+        state.writeHead(302, {"Location": "/admin/users"});
+        state.end();
         deleteTempTiddlers();
         return;
       }
@@ -167,25 +163,22 @@ exports.handler = async function(request, response, state) {
       if(role) {
         await sqlTiddlerDatabase.addRoleToUser(userId, role.role_id);
       }
-      response.writeHead(302, {"Location": "/admin/users/"+userId});
-      response.end();
+      state.writeHead(302, {"Location": "/admin/users/" + userId});
+      state.end();
       deleteTempTiddlers();
     }
   } catch(error) {
     state.store.adminWiki.addTiddler(new $tw.Tiddler({
       title: "$:/temp/mws/post-user/error",
-      text: "Error creating user: " + error.message
+      text: `Error creating user: ${error}`
     }));
     state.store.adminWiki.addTiddler(new $tw.Tiddler({
       title: queryParamsTiddlerTitle,
       username: username,
       email: email,
     }));
-    response.writeHead(302, { "Location": "/admin/users" });
-    response.end();
+    state.redirect("/admin/users");
     deleteTempTiddlers();
     return;
   }
-};
-
-}());
+});

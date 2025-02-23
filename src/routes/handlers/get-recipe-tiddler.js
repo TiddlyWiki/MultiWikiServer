@@ -10,72 +10,58 @@ Parameters:
 fallback=<url> // Optional redirect if the tiddler is not found
 
 \*/
-(function() {
-
-/*jslint node: true, browser: true */
-/*global $tw: false */
 "use strict";
+/** @type {ServerRouteDefinition} */
+export const route = (root) => root.defineRoute({
+	method: ["GET"],
+	path: /^\/recipes\/([^\/]+)\/tiddlers\/(.+)$/,
+	pathParams: ["recipe_name", "title"],
+	useACL: {},
+}, async state => {
 
-exports.method = "GET";
+	zodAssert.pathParams(state, z => ({
+		recipe_name: z.uriComponent(),
+		title: z.uriComponent(),
+	}));
 
-exports.path = /^\/recipes\/([^\/]+)\/tiddlers\/(.+)$/;
+	zodAssert.queryParams(state, z => ({
+		fallback: z.array(z.string()).optional()
+	}));
 
-// exports.useACL = true;
+	const {recipe_name, title} = state.pathParams;
 
-exports.entityName = "recipe"
-/** @type {ServerRouteHandler<2>} */	
-exports.handler = async function(request,response,state) {
+	await state.checkACL("recipe", recipe_name, "READ");
+
 	// Get the  parameters
-	var recipe_name = $tw.utils.decodeURIComponentSafe(state.params[0]),
-		title = $tw.utils.decodeURIComponentSafe(state.params[1]),
-		tiddlerInfo = await state.store.getRecipeTiddler(title,recipe_name);
+	var tiddlerInfo = await state.store.getRecipeTiddler(title, recipe_name);
 	if(tiddlerInfo && tiddlerInfo.tiddler) {
 		// If application/json is requested then this is an API request, and gets the response in JSON
-		if(request.headers.accept && request.headers.accept.indexOf("application/json") !== -1) {
-			state.sendResponse(200,{
+		if(state.headers.accept && state.headers.accept.indexOf("application/json") !== -1) {
+			return state.sendResponse(200, {
 				"X-Revision-Number": tiddlerInfo.tiddler_id,
 				"X-Bag-Name": tiddlerInfo.bag_name,
 				Etag: state.makeTiddlerEtag(tiddlerInfo),
 				"Content-Type": "application/json"
-			},JSON.stringify(tiddlerInfo.tiddler),"utf8");
-			return;
+			}, JSON.stringify(tiddlerInfo.tiddler), "utf8");
 		} else {
 			// This is not a JSON API request, we should return the raw tiddler content
-			const result = await state.store.getBagTiddlerStream(title,tiddlerInfo.bag_name);
+			const result = await state.store.getBagTiddlerStream(title, tiddlerInfo.bag_name);
 			if(result) {
-				if(!response.headersSent){
-					response.writeHead(200, "OK",{
-						Etag: state.makeTiddlerEtag(result),
-						"Content-Type":  result.type
-					});
-				}
-				result.stream.pipe(response);
-				return;
+				return state.sendStream(200, {
+					Etag: state.makeTiddlerEtag(result),
+					"Content-Type": result.type
+				}, result.stream);
 			} else {
-				if(!response.headersSent){
-					response.writeHead(404);
-					response.end();
-				}
-				return;
+				return state.sendEmpty(404);
 			}
 		}
 	} else {
-		if(!response.headersSent) {
-			// Redirect to fallback URL if tiddler not found
-			if(state.queryParameters.get("fallback")) {
-				response.writeHead(302, "OK",{
-					"Location": state.queryParameters.get("fallback")
-				});
-				response.end();
-				return;
-			} else {
-				response.writeHead(404);
-				response.end();
-				return;
-			}
+		// Redirect to fallback URL if tiddler not found4
+		const fallback = state.queryParams.fallback?.[0];
+		if(fallback) {
+			return state.redirect(fallback);
+		} else {
+			return state.sendEmpty(404);
 		}
-		return;
 	}
-};
-
-}());
+});

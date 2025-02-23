@@ -17,6 +17,7 @@ import { PrismaClient } from "@prisma/client";
 import { AttachmentStore } from "./attachments";
 import { SqlTiddlerDatabase } from "./sql-tiddler-database";
 import * as path from "path";
+import { Wiki } from "tiddlywiki";
 
 type EventListener<T extends any[]> = (...args: T) => void;
 
@@ -89,7 +90,7 @@ engine - wasm | better
 */
 export class SqlTiddlerStore<TXN extends TxnType = unknown> implements EventSource<SqlTiddlerStoreEvents> {
 	attachmentStore;
-	adminWiki;
+	adminWiki: Wiki;
 	sql: SqlTiddlerDatabase;
 	transactionType: TXN = "DEFERRED" as any;
 
@@ -186,7 +187,7 @@ export class SqlTiddlerStore<TXN extends TxnType = unknown> implements EventSour
 	/*
 	*/
 	processIncomingTiddler(tiddlerFields: Record<string, string>, existing_attachment_blob: string | null, existing_canonical_uri: string | undefined) {
-		let attachmentSizeLimit = $tw.utils.parseNumber(this.adminWiki.getTiddlerText("$:/config/MultiWikiServer/AttachmentSizeLimit"));
+		let attachmentSizeLimit = $tw.utils.parseNumber(this.adminWiki.getTiddlerText("$:/config/MultiWikiServer/AttachmentSizeLimit", "0"));
 		if (attachmentSizeLimit < 100 * 1024) {
 			attachmentSizeLimit = 100 * 1024;
 		}
@@ -279,7 +280,7 @@ export class SqlTiddlerStore<TXN extends TxnType = unknown> implements EventSour
   
 	allowPrivilegedCharacters - allows "$", ":" and "/" to appear in recipe name
 	*/
-	async createRecipe(recipe_name: string, bag_names: string[], description: string, options?: { allowPrivilegedCharacters?: boolean; }) {
+	async createRecipe(recipe_name: string, bag_names: string[] | undefined, description: string | undefined, options?: { allowPrivilegedCharacters?: boolean; }) {
 		bag_names = bag_names || [];
 		description = description || "";
 		options = options || {};
@@ -322,7 +323,6 @@ export class SqlTiddlerStore<TXN extends TxnType = unknown> implements EventSour
 	Returns {tiddler_id:}
 	*/
 	async saveBagTiddlerWithAttachment(
-		this: SqlTiddlerStore<IMMEDIATE>,
 		incomingTiddlerFields: Record<string, string>,
 		bag_name: string,
 		options: {
@@ -363,7 +363,7 @@ export class SqlTiddlerStore<TXN extends TxnType = unknown> implements EventSour
 	async getBagTiddler(title: string, bag_name: string) {
 		var tiddlerInfo = await this.sql.getBagTiddler(title, bag_name);
 		if (tiddlerInfo) {
-			return await Object.assign(
+			return Object.assign(
 				{},
 				tiddlerInfo,
 				{

@@ -6,19 +6,15 @@ module-type: mws-route
 GET /admin/users
 
 \*/
-(function() {
-
-/*jslint node: true, browser: true */
-/*global $tw: false */
 "use strict";
-
-exports.method = "GET";
-
-exports.path = /^\/admin\/users$/;
-/** @type {ServerRouteHandler<0>} */	
-exports.handler = async function(request,response,state) {
+/** @type {ServerRouteDefinition} */
+export const route = (root) => root.defineRoute({
+	method: ["GET"],
+	path: /^\/admin\/users$/,
+	useACL: {},
+}, async state => {
 	var userList = await state.store.sql.listUsers();
-	if(request.url.includes("*")) {
+	if(state.url.includes("*")) {
 		state.store.adminWiki.deleteTiddler("$:/temp/mws/post-user/error");
 		state.store.adminWiki.deleteTiddler("$:/temp/mws/post-user/success");
 	}
@@ -30,13 +26,15 @@ exports.handler = async function(request,response,state) {
 	}
 
 	if(!state.authenticatedUser?.isAdmin && !state.firstGuestUser) {
-		response.writeHead(403, "Forbidden", { "Content-Type": "text/plain" });
-		response.end("Forbidden");
-		return;
+		return state.sendEmpty(403, { "Content-Type": "text/plain" });
 	}
 
+	state.writeHead(200, {
+		"Content-Type": "text/html"
+	});
+
 	// Convert dates to strings and ensure all necessary fields are present
-	userList = userList.map(user => ({
+	const userList2 = userList.map(user => ({
 		user_id: user.user_id || '',
 		username: user.username || '',
 		email: user.email || '',
@@ -44,22 +42,17 @@ exports.handler = async function(request,response,state) {
 		last_login: user.last_login ? new Date(user.last_login).toISOString() : ''
 	}));
 
-	response.writeHead(200, "OK", {
-		"Content-Type": "text/html"
-	});
-
 	// Render the html
 	var html = state.store.adminWiki.renderTiddler("text/plain","$:/plugins/tiddlywiki/multiwikiserver/templates/page",{
 		variables: {
 			"page-content": "$:/plugins/tiddlywiki/multiwikiserver/templates/get-users",
-			"user-list": JSON.stringify(userList),
+			"user-list": JSON.stringify(userList2),
 			"username": state.authenticatedUser ? state.authenticatedUser.username : state.firstGuestUser ? "Anonymous User" : "Guest",
 			"user-is-admin": state.authenticatedUser && state.authenticatedUser.isAdmin ? "yes" : "no",
 			"first-guest-user": state.firstGuestUser ? "yes" : "no"
 		}
 	});
-	response.write(html);
-	response.end();
-};
+	state.write(html);
+	state.end();
+});
 
-}());

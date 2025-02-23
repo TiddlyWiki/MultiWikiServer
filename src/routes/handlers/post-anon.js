@@ -6,29 +6,19 @@ module-type: mws-route
 POST /admin/anon
 
 \*/
-(function() {
-
-/*jslint node: true, browser: true */
-/*global $tw: false */
 "use strict";
-
-exports.method = "POST";
-
-exports.path = /^\/admin\/anon\/?$/;
-
-exports.bodyFormat = "www-form-urlencoded";
-
-exports.csrfDisable = true;
-/** @type {ServerRouteHandler<0,"www-form-urlencoded">} */	
-exports.handler = async function(request, response, state) {
+/** @type {ServerRouteDefinition} */
+export const route = (root) => root.defineRoute({
+  method: ["POST"],
+  path: /^\/admin\/anon\/?$/,
+  bodyFormat: "www-form-urlencoded",
+  useACL: {csrfDisable: true},
+}, async state => {
   // Check if user is authenticated and is admin
   if(!state.authenticatedUser || !state.authenticatedUser.isAdmin) {
-    response.writeHead(401, "Unauthorized", { "Content-Type": "text/plain" });
-    response.end("Unauthorized");
-    return;
+    return state.sendString(401, {"Content-Type": "text/plain"}, "Unauthorized", "utf8");
   }
 
-  
   // Update the configuration tiddlers
   state.store.adminWiki.addTiddler({
     title: "$:/config/MultiWikiServer/ShowAnonymousAccessModal",
@@ -36,8 +26,5 @@ exports.handler = async function(request, response, state) {
   });
 
   // Redirect back to admin page
-  response.writeHead(302, {"Location": "/"});
-  response.end();
-};
-
-}()); 
+  return state.redirect("/");
+});

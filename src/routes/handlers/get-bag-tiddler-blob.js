@@ -6,39 +6,39 @@ module-type: mws-route
 GET /bags/:bag_name/tiddler/:title/blob
 
 \*/
-(function() {
 
 /*jslint node: true, browser: true */
 /*global $tw: false */
 "use strict";
+/** @type {ServerRouteDefinition} */
+export const route = (root) => root.defineRoute({
+	method: ["GET"],
+	path: /^\/bags\/([^\/]+)\/tiddlers\/([^\/]+)\/blob$/,
+	pathParams: ["bag_name", "title"],
+	useACL: {},
+}, async state => {
 
-var aclMiddleware = require("$:/plugins/tiddlywiki/multiwikiserver/routes/helpers/acl-middleware.js").middleware;
+	zodAssert.pathParams(state, z => ({
+		bag_name: z.uriComponent(),
+		title: z.uriComponent(),
+	}));
 
-exports.method = "GET";
+	const {bag_name, title} = state.pathParams;
 
-exports.path = /^\/bags\/([^\/]+)\/tiddlers\/([^\/]+)\/blob$/;
-/** @type {ServerRouteHandler<2>} */	
-exports.handler = async function(request,response,state) {
-	await aclMiddleware(request, response, state, "bag", "READ");
-	if(response.headersSent) return;
-	// Get the  parameters
-	const bag_name = $tw.utils.decodeURIComponentSafe(state.params[0]),
-		title = $tw.utils.decodeURIComponentSafe(state.params[1]);
-	if(bag_name) {
-		const result = await state.store.getBagTiddlerStream(title,bag_name);
-		if(result && !response.headersSent) {
-			response.writeHead(200, "OK",{
-				Etag: state.makeTiddlerEtag(result),
-				"Content-Type":  result.type,
-			});
-			result.stream.pipe(response);
-			return;
-		}
-	}
-	if (!response.headersSent) {
-		response.writeHead(404);
-		response.end();
-	}
-};
+	if(!bag_name || !title) return state.sendEmpty(404);
 
-}());
+	await state.checkACL("bag", bag_name, "READ");
+
+	const result = await state.store.getBagTiddlerStream(title, bag_name);
+
+	if(!result) return state.sendEmpty(404);
+
+	return state.sendStream(200, {
+		// not sure where copilot got this one
+		// "X-Revision-Number": result.tiddler_id.toString(), 
+		Etag: state.makeTiddlerEtag(result),
+		"Content-Type": result.type
+	}, result.stream);
+
+
+});

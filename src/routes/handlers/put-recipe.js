@@ -6,41 +6,38 @@ module-type: mws-route
 PUT /recipes/:recipe_name
 
 \*/
-(function () {
-
-/*jslint node: true, browser: true */
-/*global $tw: false */
 "use strict";
+/** @type {ServerRouteDefinition} */
+export const route = (root) => root.defineRoute({
+	method: ["PUT"],
+	path: /^\/recipes\/(.+)$/,
+	pathParams: ["recipe_name"],
+	useACL: {},
+}, async state => {
 
-exports.method = "PUT";
+	zodAssert.pathParams(state, z => ({
+		recipe_name: z.uriComponent(),
+	}));
 
-exports.path = /^\/recipes\/(.+)$/;
+	const {recipe_name} = state.pathParams;
 
-exports.useACL = true;
+	await state.checkACL("recipe", recipe_name, "WRITE");
 
-exports.entityName = "recipe"
-/** @type {ServerRouteHandler<1>} */	
-exports.handler = async function (request, response, state) {
-	// Get the  parameters
-	var recipe_name = $tw.utils.decodeURIComponentSafe(state.params[0]),
-		data = $tw.utils.parseJSONSafe(state.data);
-	if(recipe_name && data) {
-		var result = await state.store.createRecipe(recipe_name, data.bag_names, data.description);
-		if(!result) {
-			state.sendResponse(204, {
-				"Content-Type": "text/plain"
-			});
-		} else {
-			state.sendResponse(400, {
-				"Content-Type": "text/plain"
-			}, result.message, "utf8");
-		}
+	zodAssert.data(state, z => z.object({
+		bag_names: z.array(z.string()).optional(),
+		description: z.string().optional(),
+	}));
+
+	// result is a validation error object
+	var result = await state.store.createRecipe(recipe_name,
+		state.data.bag_names,
+		state.data.description
+	);
+
+	if(!result) {
+		state.sendEmpty(204);
 	} else {
-		if(!response.headersSent) {
-			response.writeHead(404);
-			response.end();
-		}
+		state.sendResponse(400, {"Content-Type": "text/plain"}, result.message, "utf8");
 	}
-};
 
-}());
+});

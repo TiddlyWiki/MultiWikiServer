@@ -6,41 +6,38 @@ module-type: mws-route
 POST /change-user-password
 
 \*/
-(function () {
+
 
 /*jslint node: true, browser: true */
 /*global $tw: false */
 "use strict";
 var authenticator = require("$:/plugins/tiddlywiki/multiwikiserver/auth/authentication.js").Authenticator;
 
-exports.method = "POST";
-
-exports.path = /^\/change-user-password\/?$/;
-
-exports.bodyFormat = "www-form-urlencoded";
-
-exports.csrfDisable = true;
-
-/** @type {ServerRouteHandler<0, "www-form-urlencoded">} */
-exports.handler = async function (request, response, state) {
+/** @type {ServerRouteDefinition} */
+export const route = (root) => root.defineRoute({
+  method: ["POST"],
+  path: /^\/change-user-password\/?$/,
+  bodyFormat: "www-form-urlencoded",
+  useACL: {csrfDisable: true},
+  pathParams: [],
+}, async state => {
 
   if(!state.authenticatedUser) {
-    state.store.adminWiki.addTiddler(new $tw.Tiddler({
+    state.store.adminWiki.addTiddler({
       title: "$:/temp/mws/login/error",
       text: "You must be logged in to change passwords"
-    }));
-    response.writeHead(302, { "Location": "/login" });
-    response.end();
-    return;
+    });
+    return state.redirect("/login");
   }
-  var userId = state.data.userId;
-  var newPassword = state.data.newPassword;
-  var confirmPassword = state.data.confirmPassword;
-  if(!userId || !newPassword || !confirmPassword) {
-    response.writeHead(400);
-    response.end();
-    return;
-  }
+
+  zodAssert.data(state, z => z.object({
+    userId: z.string(),
+    newPassword: z.string(),
+    confirmPassword: z.string()
+  }));
+
+  const {confirmPassword, newPassword, userId} = state.data;
+
   // Clean up any existing error/success messages
   state.store.adminWiki.deleteTiddler("$:/temp/mws/change-password/" + userId + "/error");
   state.store.adminWiki.deleteTiddler("$:/temp/mws/change-password/" + userId + "/success");
@@ -57,9 +54,7 @@ exports.handler = async function (request, response, state) {
       title: "$:/temp/mws/change-password/" + userId + "/error",
       text: "You don't have permission to change this user's password"
     }));
-    response.writeHead(302, { "Location": "/admin/users/" + userId });
-    response.end();
-    return;
+    return state.redirect("/admin/users/" + userId);
   }
 
   if(newPassword !== confirmPassword) {
@@ -67,9 +62,7 @@ exports.handler = async function (request, response, state) {
       title: "$:/temp/mws/change-password/" + userId + "/error",
       text: "New passwords do not match"
     }));
-    response.writeHead(302, { "Location": "/admin/users/" + userId });
-    response.end();
-    return;
+    return state.redirect("/admin/users/" + userId);
   }
 
   var userData = await state.store.sql.getUser($tw.utils.parseInt(userId));
@@ -79,9 +72,7 @@ exports.handler = async function (request, response, state) {
       title: "$:/temp/mws/change-password/" + userId + "/error",
       text: "User not found"
     }));
-    response.writeHead(302, { "Location": "/admin/users/" + userId });
-    response.end();
-    return;
+    return state.redirect("/admin/users/" + userId);
   }
 
   var newHash = auth.hashPassword(newPassword);
@@ -92,8 +83,7 @@ exports.handler = async function (request, response, state) {
     title: "$:/temp/mws/change-password/" + userId + "/success",
     text: result.message
   }));
-  response.writeHead(302, { "Location": "/admin/users/" + userId });
-  response.end();
-};
+  state.redirect("/admin/users/" + userId);
 
-}());
+});
+

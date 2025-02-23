@@ -1,75 +1,20 @@
+
 import { IncomingMessage as HTTPIncomingMessage, ServerResponse as HTTPServerResponse } from "http";
 import { Prisma, PrismaClient } from "@prisma/client";
 import { DefaultArgs } from "@prisma/client/runtime/library";
 import "./src/startup";
-import { SqlTiddlerStore, } from "./src/store/sql-tiddler-store";
-import * as sql from "./src/store/sql-tiddler-database";
-import * as assert from "assert";
+
+import * as z from "zod";
 import { StateObject } from "./src/StateObject";
 import { Http2ServerRequest, Http2ServerResponse } from "http2";
-import { BodyFormat } from "./src/router";
+import { AllowedMethod, BodyFormat, rootRoute } from "./src/router";
+import { Wiki, Tiddler } from "tiddlywiki";
 
-type PrismaTables = Prisma.ModelName
-type PrismaPayload<T extends PrismaTables> = Prisma.TypeMap["model"][T]["payload"];
-
-type AllPrismaTypesInUse = {
-  [T in PrismaTables]: {
-    [K in keyof Prisma.TypeMap["model"][T]["fields"]]: Prisma.TypeMap["model"][T]["fields"][K] extends { typeName: infer T } ? T : unknown
-  }[keyof Prisma.TypeMap["model"][T]["fields"]]
-}[PrismaTables]
 
 declare global {
 
-  
-  type PrismaField<T extends PrismaTables, K extends keyof PrismaPayload<T>["scalars"]> = PrismaPayload<T>["scalars"][K] & { __prisma_table: T, __prisma_field: K }
-
-  type UserID = number & { __user_id: never }
-
-  const ok: typeof assert.ok;
-  const okEntityType: typeof sql.okEntityType;
-  function parseIntNull(str: string | null): number | null;
-  function parseIntNullSafe(str: string | null): { success: boolean, value: number | null };
-  
-  // const okType: typeof sql.okType;
-  // const okTypeTruthy: typeof sql.okTypeTruthy;
-
-  /** 
-   * This is a type assertion function that is used to assert that a value is a field value. 
-   * It looks up the field type from the prisma schema and restricts the type of the value 
-   * to that field type. If the field is optional, null is allowed as a field value. 
-   * 
-   * This does not check the value itself at runtime, rather it restricts the argument type.
-   * 
-   * @example
-   * 
-  ```
-    // recieve the id field from somewhere
-    var acl_id: number = 5;
-
-    // mark it as a field value
-    okField("acl", "acl_id", acl_id);
-    
-    // you can still use it as a regular number if required
-    const t: number = acl_id;
-
-  ```
-   */
-
-  function okField<T extends PrismaTables, K extends keyof PrismaPayload<T>["scalars"]>(
-    table: T, field: K, value: PrismaPayload<T>["scalars"][K]
-  ): asserts value is PrismaField<T, K>;
 
   const $tw: $TW;
-
-  interface Wiki extends Record<string, any> {
-
-  }
-  interface Boot extends Record<string, any> {
-
-  }
-  interface Tiddler extends Record<string, any> {
-
-  }
 
 
   interface $TW {
@@ -89,9 +34,10 @@ declare global {
     loadTiddlersFromPath: any;
     loadPluginFolder: any;
     getLibraryItemSearchPaths: any;
-    wiki: Wiki;
+    wiki: never;
     utils: {
       [x: string]: any;
+      /** If you pass it null, it stringifies it as "null" */
       decodeURIComponentSafe(str: string): string;
       each<T>(object: T[], callback: (value: T, index: number, object: T[]) => void): void;
       each<T>(object: Record<string, T>, callback: (value: T, key: string, object: Record<string, T>) => void): void;
@@ -144,15 +90,23 @@ declare global {
     bodyFormat?: ServerRouteBodyFormat;
   }
   type ServerRouteBodyFormat = BodyFormat;
-  interface ServerRouteHandler<P extends number, F extends ServerRouteBodyFormat = "string"> {
+  interface ServerRouteHandler<P extends number,
+    B extends ServerRouteBodyFormat = "string",
+    M extends AllowedMethod = AllowedMethod,
+  > {
     (
       this: ServerRoute,
       req: IncomingMessage,
       res: ServerResponse,
-      state: StateObject<F>
+      // root route has no params
+      state: StateObject<B, M, [[], string[] & { length: P }]>
     ): Promise<void>;
     // each parent would have to define this
     // params: string[] & { length: P };
+  }
+
+  interface ServerRouteDefinition {
+    (root: rootRoute): any;
   }
 
 
@@ -164,7 +118,16 @@ declare global {
       state: StateObject,
       entityType: string | null,
       permissionName: string
+
     ): Promise<void>;
+  }
+
+  interface ZodAssert {
+    <T extends z.ZodTypeAny>(
+      input: any,
+      schema: (zod: typeof z) => T,
+      onError?: (error: z.ZodError<any>) => string | void
+    ): asserts input is z.infer<T>;
   }
 
 }

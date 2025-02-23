@@ -38,13 +38,19 @@ export default function AuthRoutes(router: Router, parent: rootRoute) {
   authRoute.defineRoute({
     useACL: {},
     method: ["POST"],
-    bodyFormat: "www-form-urlencoded-object",
+    bodyFormat: "www-form-urlencoded",
     path: /^\/register\/1/,
     zod: z.object({
       username: z.string(),
       registrationRequest: z.string(),
     }),
   }, async (state) => {
+
+    zodAssert.data(state, z => z.object({
+      username: z.string(),
+      registrationRequest: z.string(),
+    }));
+
     // zod types are supposed to infer here
     const { username, registrationRequest } = state.data;
 
@@ -62,13 +68,15 @@ export default function AuthRoutes(router: Router, parent: rootRoute) {
   const test2 = authRoute.defineRoute({
     useACL: {},
     method: ["POST"],
-    bodyFormat: "www-form-urlencoded-object",
-    zod: z.object({
-      username: z.string(),
-      registrationRecord: z.string(),
-    }),
+    bodyFormat: "www-form-urlencoded",
     path: /^\/register\/2/
   }, async (state) => {
+
+    zodAssert.data(state, z => z.object({
+      username: z.string(),
+      registrationRecord: z.string(),
+    }));
+
     const { username, registrationRecord } = state.data;
 
     const userIdentifier = userIdentifiers.get(username); // userId/email/username
@@ -77,8 +85,6 @@ export default function AuthRoutes(router: Router, parent: rootRoute) {
     registrationRecords.set(userIdentifier, state.data);
     return state.sendEmpty(200, {});
   });
-  type t2 = z.infer<typeof test2.zod & {}>;
-
 
   authRoute.defineRoute({
     useACL: {},
@@ -95,13 +101,15 @@ export default function AuthRoutes(router: Router, parent: rootRoute) {
   authRoute.defineRoute({
     useACL: {},
     method: ["POST"],
-    bodyFormat: "www-form-urlencoded-object",
-    zod: z.object({
-      username: z.string(),
-      startLoginRequest: z.string(),
-    }),
+    bodyFormat: "www-form-urlencoded",
+    zod: z.object,
     path: /^\/login\/1/,
   }, async (state) => {
+
+    zodAssert.data(state, z => z.object({
+      username: z.string(),
+      startLoginRequest: z.string(),
+    }));
     const { username, startLoginRequest } = state.data;
 
     const userIdentifier = userIdentifiers.get(username);
@@ -124,13 +132,13 @@ export default function AuthRoutes(router: Router, parent: rootRoute) {
   authRoute.defineRoute({
     useACL: {},
     method: ["POST"],
-    bodyFormat: "www-form-urlencoded-object",
+    bodyFormat: "www-form-urlencoded",
     path: /^\/login\/2/,
-    zod: z.object({
+  }, async (state) => {
+    zodAssert.data(state, z => z.object({
       username: z.string(),
       finishLoginRequest: z.string(),
-    }),
-  }, async (state) => {
+    }));
     const { username, finishLoginRequest } = state.data;
 
     const userIdentifier = userIdentifiers.get(username); // userId/email/username

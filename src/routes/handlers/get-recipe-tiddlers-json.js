@@ -6,36 +6,41 @@ module-type: mws-route
 GET /recipes/:recipe_name/tiddlers.json?last_known_tiddler_id=:last_known_tiddler_id&include_deleted=true|false
 
 \*/
-(function() {
-
-/*jslint node: true, browser: true */
-/*global $tw: false */
 "use strict";
+/** @type {ServerRouteDefinition} */
+export const route = (root) => root.defineRoute({
+	method: ["GET"],
+	path: /^\/recipes\/([^\/]+)\/tiddlers.json$/,
+	pathParams: ["recipe_name"],
+	queryParams: ["last_known_tiddler_id", "include_deleted"],
+	useACL: {},
+}, async state => {
 
-exports.method = "GET";
+	zodAssert.pathParams(state, z => ({
+		recipe_name: z.uriComponent(),
+	}));
 
-exports.path = /^\/recipes\/([^\/]+)\/tiddlers.json$/;
-/** @type {ServerRouteHandler<1>} */	
-exports.handler = async function(request,response,state) {
-	if(!response.headersSent) {
-		// Get the  parameters
-		var recipe_name = $tw.utils.decodeURIComponentSafe(state.params[0]);
-		if(recipe_name) {
-			// Get the tiddlers in the recipe, optionally since the specified last known tiddler_id
-			var recipeTiddlers = await state.store.getRecipeTiddlers(recipe_name,{
-				include_deleted: state.queryParameters.get("include_deleted") === "true",
-				last_known_tiddler_id: state.queryParameters.get("last_known_tiddler_id"),
-			});
-			if(recipeTiddlers) {
-				state.sendResponse(200,{"Content-Type": "application/json"},JSON.stringify(recipeTiddlers),"utf8");
-				return;
-			}
-		}
-		// Fail if something went wrong
-		response.writeHead(404);
-		response.end();
+	zodAssert.queryParams(state, z => ({
+		last_known_tiddler_id: z.array(z.parsedNumber()).optional(),
+		include_deleted: z.array(z.string()).optional(),
+	}));
+
+	const {recipe_name} = state.pathParams;
+	const include_deleted = state.queryParams.include_deleted?.[0] === "true";
+	const last_known_tiddler_id = state.queryParams.last_known_tiddler_id?.[0];
+
+	await state.checkACL("recipe", recipe_name, "READ");
+
+	// Get the  parameters
+	var recipeTiddlers = await state.store.getRecipeTiddlers(recipe_name, {
+		last_known_tiddler_id,
+		include_deleted,
+	});
+	if(recipeTiddlers) {
+		state.sendResponse(200, {
+			"Content-Type": "application/json"
+		}, JSON.stringify(recipeTiddlers), "utf8");
+	} else {
+		state.sendEmpty(404);
 	}
-
-};
-
-}());
+});

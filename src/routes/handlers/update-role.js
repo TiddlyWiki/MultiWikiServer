@@ -6,45 +6,44 @@ module-type: mws-route
 POST /admin/roles/:id
 
 \*/
-(function() {
-
-/*jslint node: true, browser: true */
-/*global $tw: false */
 "use strict";
+/** @type {ServerRouteDefinition} */
+export const route = (root) => root.defineRoute({
+  method: ["POST"],
+  path: /^\/admin\/roles\/([^\/]+)\/?$/,
+  pathParams: ["role_id"],
+  bodyFormat: "www-form-urlencoded",
+  useACL: {csrfDisable: true},
+}, async state => {
+  zodAssert.pathParams(state, z => ({
+    role_id: z.parsedNumber(),
+  }));
 
-exports.method = "POST";
+  zodAssert.data(state, z => z.object({
+    role_name: z.string(),
+    role_description: z.string().default("")
+  }));
 
-exports.path = /^\/admin\/roles\/([^\/]+)\/?$/;
 
-exports.bodyFormat = "www-form-urlencoded";
 
-exports.csrfDisable = true;
-/** @type {ServerRouteHandler<1,"www-form-urlencoded">} */	
-exports.handler = async function(request, response, state) {
 
-  var role_id = state.params[0];
+  var role_id = state.pathParams.role_id;
   var role_name = state.data.role_name;
   var role_description = state.data.role_description;
 
   if(!state.authenticatedUser?.isAdmin) {
-    response.writeHead(403, "Forbidden");
-    response.end();
-    return;
+    return state.sendEmpty(403);
   }
 
   // get the role
   var role = await state.store.sql.getRoleById(role_id);
 
   if(!role) {
-    response.writeHead(404, "Role not found");
-    response.end();
-    return;
+    return state.sendEmpty(404);
   }
 
   if(role.role_name.toLowerCase().includes("admin")) {
-    response.writeHead(400, "Admin role cannot be updated");
-    response.end();
-    return;
+    return state.sendSimple(400, "Admin role cannot be updated");
   }
 
   try {
@@ -54,13 +53,10 @@ exports.handler = async function(request, response, state) {
       role_description
     );
 
-    response.writeHead(302, { "Location": "/admin/roles" });
-    response.end();
+    state.writeHead(302, {"Location": "/admin/roles"});
+    state.end();
   } catch(error) {
     console.error("Error updating role:", error);
-    response.writeHead(500, "Internal Server Error");
-    response.end();
+    return state.sendEmpty(500);
   }
-};
-
-}()); 
+});

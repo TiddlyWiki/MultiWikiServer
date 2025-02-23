@@ -6,55 +6,45 @@ module-type: mws-route
 POST /admin/delete-acl
 
 \*/
-(function() {
-
-	/*jslint node: true, browser: true */
-	/*global $tw: false */
-	"use strict";
 
 
-	var aclMiddleware = require("$:/plugins/tiddlywiki/multiwikiserver/routes/helpers/acl-middleware.js").middleware;
+/*jslint node: true, browser: true */
+/*global $tw: false */
+"use strict";
 
-	exports.method = "POST";
+/** @type {ServerRouteDefinition} */
+export const route = (root) => root.defineRoute({
+	method: ["POST"],
+	path: /^\/admin\/delete-acl\/?$/,
+	bodyFormat: "www-form-urlencoded",
+	useACL: {csrfDisable: true},
+}, async state => {
 
-	exports.path = /^\/admin\/delete-acl\/?$/;
+	zodAssert.data(state, z => z.object({
+		recipe_name: z.string(),
+		bag_name: z.string(),
+		acl_id: z.string()
+			.transform(x => parseInt(x))
+			.refine(x => !isNaN(x))
+			.describe("acl_id must be an integer"),
+		entity_type: z.string()
+			.refine(isEntityType)
+			.describe("entity_type must be 'recipe' or 'bag'")
+	}));
 
+	const {
+		recipe_name,
+		bag_name,
+		acl_id,
+		entity_type
+	} = state.data;
 
-	exports.bodyFormat = "www-form-urlencoded-object";
+	const entity_name = {recipe_name, bag_name}[`${entity_type}_name`];
 
-	exports.csrfDisable = true;
+	await state.checkACL(entity_type, entity_name, "WRITE");
 
-	/** @type {ServerRouteHandler<0, "www-form-urlencoded">} */
-	exports.handler = async function(request, response, state) {
+	await state.store.sql.deleteACL(acl_id);
 
-		ok(state.zod(z => z.object({
-			recipe_name: z.string(),
-			bag_name: z.string(),
-			acl_id: z.string()
-				.transform(x => parseInt(x))
-				.refine(x => !isNaN(x))
-				.describe("acl_id must be an integer"),
-			entity_type: z.string()
-				.refine(x => ["recipe", "bag"].includes(x))
-				.describe("entity_type must be 'recipe' or 'bag'")
-		})));
+	throw state.redirect("/admin/acl/" + recipe_name + "/" + bag_name);
+})
 
-		const {
-			recipe_name,
-			bag_name,
-			acl_id,
-			entity_type
-		} = state.data;
-
-		// mark this as the acl_id field
-		okField("acl", "acl_id", acl_id);
-
-		await aclMiddleware(request, response, state, entity_type, "WRITE");
-
-		await state.store.sql.deleteACL(acl_id);
-
-		response.writeHead(302, {"Location": "/admin/acl/" + recipe_name + "/" + bag_name});
-		response.end();
-	};
-
-}());

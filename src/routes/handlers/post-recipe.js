@@ -12,49 +12,32 @@ description
 bag_names: space separated list of bags
 
 \*/
-(function() {
-
-/*jslint node: true, browser: true */
-/*global $tw: false */
 "use strict";
+/** @type {ServerRouteDefinition} */
+export const route = (root) => root.defineRoute({
+	method: ["POST"],
+	path: /^\/recipes$/,
+	bodyFormat: "www-form-urlencoded",
+	useACL: {csrfDisable: true},
+}, async state => {
+	zodAssert.data(state, z => z.object({
+		recipe_name: z.string(),
+		description: z.string().default(""),
+		bag_names: z.string()
+	}));
+	await state.checkACL("recipe", state.data.recipe_name, "WRITE");
 
-exports.method = "POST";
-
-exports.path = /^\/recipes$/;
-
-exports.bodyFormat = "www-form-urlencoded";
-
-exports.csrfDisable = true;
-
-exports.useACL = true;
-
-exports.entityName = "recipe"
-/** @type {ServerRouteHandler<0,"www-form-urlencoded">} */	
-exports.handler = async function(request,response,state) {
-	var server = state.server,
-		sqlTiddlerDatabase = server.sqlTiddlerDatabase
 	if(state.data.recipe_name && state.data.bag_names) {
-		const result = await state.store.createRecipe(state.data.recipe_name,$tw.utils.parseStringArray(state.data.bag_names),state.data.description);
+		const result = await state.store.createRecipe(state.data.recipe_name, $tw.utils.parseStringArray(state.data.bag_names), state.data.description);
 		if(!result) {
 			if(state.authenticatedUser) {
-				await sqlTiddlerDatabase.assignRecipeToUser(state.data.recipe_name,state.authenticatedUser.user_id);
+				await state.store.sql.assignRecipeToUser(state.data.recipe_name, state.authenticatedUser.user_id);
 			}
-			state.sendResponse(302,{
-				"Content-Type": "text/plain",
-				"Location": "/"
-			});
+			return state.redirect("/");
 		} else {
-			state.sendResponse(400,{
-				"Content-Type": "text/plain"
-			},
-			result.message,
-			"utf8");
+			return state.sendResponse(400, {"Content-Type": "text/plain"}, result.message, "utf8");
 		}
 	} else {
-		state.sendResponse(400,{
-			"Content-Type": "text/plain"
-		});
+		return state.sendEmpty(400, {"Content-Type": "text/plain"});
 	}
-};
-
-}());
+});

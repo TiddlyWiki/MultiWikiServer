@@ -354,7 +354,7 @@ export class SqlTiddlerDatabase {
 				bag: { connect: { bag_name } }
 			}
 		});
-		return { tiddler_id: rowDeleteMarker.tiddler_id };
+		return { tiddler_id: rowDeleteMarker.tiddler_id, bag_name };
 		// 	// Delete the fields of this tiddler
 		// 	await this.engine.runStatement(`
 		// 	DELETE FROM fields
@@ -399,6 +399,7 @@ export class SqlTiddlerDatabase {
 			return null;
 		}
 		return {
+			bag_name: bag_name,
 			tiddler_id: tiddler.tiddler_id,
 			attachment_blob: tiddler.attachment_blob,
 			tiddler: tiddler.fields.reduce((accumulator, value) => {
@@ -1894,8 +1895,8 @@ export class SqlTiddlerDatabase {
 	async getUserRoles(userId: number) {
 		return await this.engine.user_roles.findFirst({
 			where: { user_id: userId },
-			select: { role: { select: { role_name: true } } }
-		}).then(e => e && ({ role_name: e.role.role_name }));
+			select: { role: { select: { role_name: true } }, role_id: true }
+		}).then(e => e && ({ role_name: e.role.role_name, role_id: e.role_id }));
 		// 	const query = `
 		// 		SELECT r.role_id, r.role_name
 		// 		FROM user_roles ur

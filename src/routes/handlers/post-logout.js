@@ -6,32 +6,26 @@ module-type: mws-route
 POST /logout
 
 \*/
-(function() {
-
-/*jslint node: true, browser: true */
-/*global $tw: false */
 "use strict";
-
-exports.method = "POST";
-
-exports.path = /^\/logout$/;
-
-exports.csrfDisable = true;
-/** @type {ServerRouteHandler<0>} */	
-exports.handler = async function(request,response,state) {
+/** @type {ServerRouteDefinition} */
+export const route = (root) => root.defineRoute({
+	method: ["POST"],
+	path: /^\/logout$/,
+	useACL: {csrfDisable: true},
+}, async state => {
 	if(state.authenticatedUser) {
 		await state.store.sql.deleteSession(state.authenticatedUser.sessionId);
 	}
-	var cookies = request.headers.cookie ? request.headers.cookie.split(";") : [];
+	var cookies = state.headers.cookie ? state.headers.cookie.split(";") : [];
 	for(var i = 0; i < cookies.length; i++) {
 		var cookie = cookies[i].trim().split("=")[0];
-		response.setHeader("Set-Cookie", cookie + "=; HttpOnly; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Strict");
+		state.setHeader("Set-Cookie", cookie + "=; HttpOnly; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Strict");
 	}
-		
+
 	// response.setHeader("Set-Cookie", "session=; HttpOnly; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT");
 	// response.setHeader("Set-Cookie", "returnUrl=; HttpOnly; Path=/");
-	response.writeHead(302, { "Location": "/login" });
-	response.end();
-};
+	// state.writeHead(302, {"Location": "/login"});
+	// state.end();
 
-}());
+	state.redirect("/login");
+});

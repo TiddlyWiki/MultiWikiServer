@@ -12,41 +12,37 @@ Retrieves a system file. System files are stored in configuration tiddlers with 
 GET /.system/:filename
 
 \*/
-(function() {
-
-/*jslint node: true, browser: true */
-/*global $tw: false */
 "use strict";
-
-exports.method = "GET";
-
-exports.path = /^\/\.system\/(.+)$/;
-
 const SYSTEM_FILE_TITLE_PREFIX = "$:/plugins/tiddlywiki/multiwikiserver/system-files/";
-/** @type {ServerRouteHandler<1>} */	
-exports.handler = async function(request,response,state) {
+
+/** @type {ServerRouteDefinition} */
+export const route = (root) => root.defineRoute({
+	method: ["GET"],
+	path: /^\/\.system\/(.+)$/,
+	pathParams: ["filename"],
+	useACL: {},
+}, async state => {
+	zodAssert.pathParams(state, z => ({
+		filename: z.uriComponent(),
+	}));
 	// Get the  parameters
-	const filename = $tw.utils.decodeURIComponentSafe(state.params[0]),
+	const filename = state.pathParams.filename,
 		title = SYSTEM_FILE_TITLE_PREFIX + filename,
-		tiddler = $tw.wiki.getTiddler(title),
+		tiddler = state.store.adminWiki.getTiddler(title),
 		isSystemFile = tiddler && tiddler.hasTag("$:/tags/MWS/SystemFile"),
 		isSystemFileWikified = tiddler && tiddler.hasTag("$:/tags/MWS/SystemFileWikified");
 	if(tiddler && (isSystemFile || isSystemFileWikified)) {
 		let text = tiddler.fields.text || "";
-		const type = tiddler.fields["system-file-type"] || tiddler.fields.type || "text/plain",
-			encoding = ($tw.config.contentTypeInfo[type] ||{encoding: "utf8"}).encoding;
+		const sysFileType = tiddler.fields["system-file-type"];
+		const type = typeof sysFileType === "string" && sysFileType || tiddler.fields.type || "text/plain",
+			encoding = ($tw.config.contentTypeInfo[type] || {encoding: "utf8"}).encoding;
 		if(isSystemFileWikified) {
-			text = $tw.wiki.renderTiddler("text/plain",title);
+			text = state.store.adminWiki.renderTiddler("text/plain", title);
 		}
-		response.writeHead(200, "OK",{
-			"Content-Type": type
-		});
-		response.write(text,encoding);
-		response.end();
+		return state.sendString(200, {
+			"content-type": type
+		}, text, encoding);
 	} else {
-		response.writeHead(404);
-		response.end();
+		return state.sendEmpty(404);
 	}
-};
-
-}());
+});

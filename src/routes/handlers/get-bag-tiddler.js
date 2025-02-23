@@ -10,71 +10,60 @@ Parameters:
 fallback=<url> // Optional redirect if the tiddler is not found
 
 \*/
-(function() {
+
 
 /*jslint node: true, browser: true */
 /*global $tw: false */
 "use strict";
 
-var aclMiddleware = require("$:/plugins/tiddlywiki/multiwikiserver/routes/helpers/acl-middleware.js").middleware;
+/** @type {ServerRouteDefinition} */
+export const route = (root) => root.defineRoute({
+	method: ["GET"],
+	path: /^\/bags\/([^\/]+)\/tiddlers\/(.+)$/,
+	pathParams: ["bag_name", "title"],
+	useACL: {},
+}, async state => {
 
-exports.method = "GET";
+	zodAssert.pathParams(state, z => ({
+		bag_name: z.uriComponent(),
+		title: z.uriComponent(),
+	}));
 
-exports.path = /^\/bags\/([^\/]+)\/tiddlers\/(.+)$/;
-/** @type {ServerRouteHandler<2>} */	
-exports.handler = async function(request,response,state) {
-	await aclMiddleware(request, response, state, "bag", "READ");
-	if(response.headersSent) return;
+	const {bag_name, title} = state.pathParams;
+
+	await state.checkACL("bag", bag_name, "READ");
+
 	// Get the  parameters
-	const bag_name = $tw.utils.decodeURIComponentSafe(state.params[0]),
-		title = $tw.utils.decodeURIComponentSafe(state.params[1]),
-		tiddlerInfo = await state.store.getBagTiddler(title,bag_name);
+	const tiddlerInfo = await state.store.getBagTiddler(title, bag_name);
 	if(tiddlerInfo && tiddlerInfo.tiddler) {
 		// If application/json is requested then this is an API request, and gets the response in JSON
-		if(request.headers.accept && request.headers.accept.indexOf("application/json") !== -1) {
-			state.sendResponse(200,{
+		if(state.headers.accept && state.headers.accept.indexOf("application/json") !== -1) {
+			return state.sendResponse(200, {
 				Etag: state.makeTiddlerEtag(tiddlerInfo),
 				"Content-Type": "application/json"
-			},JSON.stringify(tiddlerInfo.tiddler),"utf8");
-			return;
+			}, JSON.stringify(tiddlerInfo.tiddler), "utf8");
+
 		} else {
 			// This is not a JSON API request, we should return the raw tiddler content
-			const result = await state.store.getBagTiddlerStream(title,bag_name);
+			const result = await state.store.getBagTiddlerStream(title, bag_name);
 			if(result) {
-				if(!response.headersSent){
-					response.writeHead(200, "OK",{
-						Etag: state.makeTiddlerEtag(result),
-						"Content-Type":  result.type
-					});
-				}
-				result.stream.pipe(response);
-				return;
+				return state.sendStream(200, {
+					Etag: state.makeTiddlerEtag(result),
+					"Content-Type": result.type
+				}, result.stream);
 			} else {
-				if(!response.headersSent){
-					response.writeHead(404);
-					response.end();
-				}
-				return;
+				return state.sendEmpty(404);
 			}
 		}
 	} else {
 		// Redirect to fallback URL if tiddler not found
-		if(state.queryParameters.get("fallback")) {
-			if (!response.headersSent){
-				response.writeHead(302, "OK",{
-					"Location": state.queryParameters.get("fallback")
-				});
-				response.end();
-			}
-			return;
+		const fallback = state.queryParams.fallback?.[0];
+		if(fallback) {
+			return state.redirect(fallback);
 		} else {
-			if(!response.headersSent){
-				response.writeHead(404);
-				response.end();
-			}
-			return;
+			return state.sendEmpty(404);
 		}
 	}
-};
+});
 
-}());
+

@@ -7,6 +7,7 @@
     "allowImportingTsExtensions": true,
     "strictNullChecks": true,
     "strictFunctionTypes": true,
+    "strict": true,
     "checkJs": true,
     "allowJs": true,
     "types":["node"],
@@ -21,6 +22,7 @@
   },
   "include":[
     "./src/routes/handlers/*.js",
-    "./jsglobal.d.ts"
+    "./jsglobal.d.ts",
+    "./src/global.ts",
   ]
 }

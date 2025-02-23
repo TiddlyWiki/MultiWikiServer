@@ -6,24 +6,25 @@ module-type: mws-route
 GET /admin/users/:user_id
 
 \*/
-(function() {
-
-/*jslint node: true, browser: true */
-/*global $tw: false */
 "use strict";
+/** @type {ServerRouteDefinition} */
+export const route = (root) => root.defineRoute({
+	method: ["GET"],
+	path: /^\/admin\/users\/([^\/]+)\/?$/,
+	pathParams: ["user_id"],
+	useACL: {},
+}, async state => {
+	zodAssert.pathParams(state, z => ({
+		user_id: z.parsedNumber()
+	}));
 
-exports.method = "GET";
-
-exports.path = /^\/admin\/users\/([^\/]+)\/?$/;
-/** @type {ServerRouteHandler<1>} */	
-exports.handler = async function(request,response,state) {
-	var user_id = $tw.utils.decodeURIComponentSafe(state.params[0]);
+	var user_id = state.pathParams.user_id;
 	var userData = await state.store.sql.getUser(user_id);
 
 	// Clean up any existing error/success messages if the user_id is different from the "$:/temp/mws/user-info/preview-user-id"
-	var lastPreviewedUser = $tw.wiki.getTiddlerText("$:/temp/mws/user-info/" + user_id + "/preview-user-id");
+	var lastPreviewedUser = state.store.adminWiki.getTiddlerText("$:/temp/mws/user-info/" + user_id + "/preview-user-id");
 
-	if(user_id !== lastPreviewedUser || request.url.includes("preview")) {
+	if(user_id !== lastPreviewedUser || state.url.includes("preview")) {
 		state.store.adminWiki.deleteTiddler("$:/temp/mws/change-password/" + user_id + "/	error");
 		state.store.adminWiki.deleteTiddler("$:/temp/mws/change-password/" + user_id + "/success");
 		state.store.adminWiki.deleteTiddler("$:/temp/mws/login/error");
@@ -34,23 +35,21 @@ exports.handler = async function(request,response,state) {
 	}
 
 	if(!userData) {
-		response.writeHead(404, "Not Found", {"Content-Type": "text/html"});
+		state.writeHead(404,  {"Content-Type": "text/html"});
 		var errorHtml = state.store.adminWiki.renderTiddler("text/plain", "$:/plugins/tiddlywiki/multiwikiserver/templates/error", {
 			variables: {
 				"error-message": "User not found"
 			}
 		});
-		response.write(errorHtml);
-		response.end();
+		state.write(errorHtml);
+		state.end();
 		return;
 	}
 
 	// Check if the user is trying to access their own profile or is an admin
 	var hasPermission = ($tw.utils.parseInt(user_id) === state.authenticatedUser?.user_id) || state.authenticatedUser?.isAdmin;
 	if(!hasPermission) {
-		response.writeHead(403, "Forbidden", { "Content-Type": "text/plain" });
-		response.end("Forbidden");
-		return;
+		return state.sendEmpty(403, {"Content-Type": "text/plain"});
 	}
 
 	// Convert dates to strings and ensure all necessary fields are present
@@ -67,14 +66,14 @@ exports.handler = async function(request,response,state) {
 	var allRoles = await state.store.sql.listRoles();
 
 	// sort allRoles by placing the user's role at the top of the list
-	allRoles.sort(function(a, b){ return (a.role_id === userRole?.role_id ? -1 : 1) });
+	allRoles.sort(function(a, b) {return (a.role_id === userRole?.role_id ? -1 : 1)});
 
 	state.store.adminWiki.addTiddler(new $tw.Tiddler({
 		title: "$:/temp/mws/user-info/" + user_id + "/preview-user-id",
 		text: user_id
 	}));
 
-	response.writeHead(200, "OK", {
+	state.writeHead(200, {
 		"Content-Type": "text/html"
 	});
 
@@ -95,8 +94,21 @@ exports.handler = async function(request,response,state) {
 			"has-profile-access": !!state.authenticatedUser ? "yes" : "no"
 		}
 	});
-	response.write(html);
-	response.end();
-};
+	state.write(html);
+	state.end();
+});
+(function() {
+
+	/*jslint node: true, browser: true */
+	/*global $tw: false */
+	"use strict";
+
+	exports.method = "GET";
+
+	exports.path = /^\/admin\/users\/([^\/]+)\/?$/;
+	/** @type {ServerRouteHandler<1>} */
+	exports.handler = async function(request, response, state) {
+
+	};
 
 }());

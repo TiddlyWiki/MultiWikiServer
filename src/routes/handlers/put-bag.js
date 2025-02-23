@@ -6,43 +6,36 @@ module-type: mws-route
 PUT /bags/:bag_name
 
 \*/
-(function() {
-
-/*jslint node: true, browser: true */
-/*global $tw: false */
 "use strict";
+/** @type {ServerRouteDefinition} */
+export const route = (root) => root.defineRoute({
+	method: ["PUT"],
+	path: /^\/bags\/(.+)$/,
+	bodyFormat: "json",
+	pathParams: ["bag_name"],
+	useACL: {},
+}, async state => {
+	zodAssert.pathParams(state, z => ({
+		bag_name: z.uriComponent(),
+	}));
 
-exports.method = "PUT";
+	await state.checkACL("bag", state.pathParams.bag_name, "WRITE");
 
-exports.path = /^\/bags\/(.+)$/;
+	// the old code did not make this optional
+	zodAssert.data(state, z => z.object({
+		description: z.string()
+	}));
 
-exports.useACL = true;
+	var result = await state.store.createBag(state.pathParams.bag_name, state.data.description);
 
-exports.entityName = "bag"
-/** @type {ServerRouteHandler<1, "json">} */	
-exports.handler = async function(request,response,state) {
-	// Get the  parameters
-	var bag_name = $tw.utils.decodeURIComponentSafe(state.params[0]),
-		data = state.data; // $tw.utils.parseJSONSafe(state.data);
-	if(bag_name && data) {
-		var result = await state.store.createBag(bag_name,data.description);
-		if(!result) {
-			state.sendResponse(204,{
-				"Content-Type": "text/plain"
-			});
-		} else {
-			state.sendResponse(400,{
-				"Content-Type": "text/plain"
-			},
-			result.message,
-			"utf8");
-		}
+	if(!result) {
+		return state.sendEmpty(204, {
+			"Content-Type": "text/plain"
+		});
 	} else {
-		if(!response.headersSent) {
-			response.writeHead(404);
-			response.end();
-		}
+		return state.sendResponse(400, {
+			"Content-Type": "text/plain"
+		}, result.message, "utf8");
 	}
-};
 
-}());
+});

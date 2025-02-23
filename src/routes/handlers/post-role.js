@@ -6,33 +6,27 @@ module-type: mws-route
 POST /admin/post-role
 
 \*/
-(function () {
-
-/*jslint node: true, browser: true */
-/*global $tw: false */
 "use strict";
+/** @type {ServerRouteDefinition} */
+export const route = (root) => root.defineRoute({
+	method: ["POST"],
+	path: /^\/admin\/post-role\/?$/,
+	bodyFormat: "www-form-urlencoded",
+	useACL: {csrfDisable: true},
+}, async state => {
+	zodAssert.data(state, z => z.object({
+		role_name: z.string(),
+		role_description: z.string(),
+	}));
 
-exports.method = "POST";
-
-exports.path = /^\/admin\/post-role\/?$/;
-
-exports.bodyFormat = "www-form-urlencoded";
-
-exports.csrfDisable = true;
-/** @type {ServerRouteHandler<0,"www-form-urlencoded">} */	
-exports.handler = async function (request, response, state) {
-
-	var role_name = state.data.role_name;
-	var role_description = state.data.role_description;
+	const {role_name, role_description} = state.data;
 
 	if(!state.authenticatedUser || !state.authenticatedUser.isAdmin) {
 		state.store.adminWiki.addTiddler(new $tw.Tiddler({
 			title: "$:/temp/mws/post-role/error",
 			text: "Unauthorized access. Admin privileges required."
 		}));
-		response.writeHead(302, { "Location": "/login" });
-		response.end();
-		return;
+		return state.redirect("/login");
 	}
 
 	if(!role_name || !role_description) {
@@ -40,22 +34,18 @@ exports.handler = async function (request, response, state) {
 			title: "$:/temp/mws/post-role/error",
 			text: "Role name and description are required"
 		}));
-		response.writeHead(302, { "Location": "/admin/roles" });
-		response.end();
-		return;
+		return state.redirect("/admin/roles");
 	}
 
 	try {
 		// Check if role already exists
-		var existingRole = await state.store.sql.getRole(role_name);
+		var existingRole = await state.store.sql.getRoleByName(role_name);
 		if(existingRole) {
 			state.store.adminWiki.addTiddler(new $tw.Tiddler({
 				title: "$:/temp/mws/post-role/error",
 				text: "Role already exists"
 			}));
-			response.writeHead(302, { "Location": "/admin/roles" });
-			response.end();
-			return;
+			return state.redirect("/admin/roles");
 		}
 
 		await state.store.sql.createRole(role_name, role_description);
@@ -64,19 +54,15 @@ exports.handler = async function (request, response, state) {
 			title: "$:/temp/mws/post-role/success",
 			text: "Role created successfully"
 		}));
-		response.writeHead(302, { "Location": "/admin/roles" });
-		response.end();
+
+		return state.redirect("/admin/roles");
 
 	} catch(error) {
 		console.error("Error creating role:", error);
 		state.store.adminWiki.addTiddler(new $tw.Tiddler({
 			title: "$:/temp/mws/post-role/error",
-			text: "Error creating role: " + error.message
+			text: `Error creating role: ${error}`
 		}));
-		response.writeHead(302, { "Location": "/admin/roles" });
-		response.end();
-		return;
+		return state.redirect("/admin/roles")
 	}
-};
-
-}());
+});

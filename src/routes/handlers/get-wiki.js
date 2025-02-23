@@ -6,34 +6,30 @@ module-type: mws-route
 GET /wiki/:recipe_name
 
 \*/
-(function() {
-
-/*jslint node: true, browser: true */
-/*global $tw: false */
 "use strict";
+/** @type {ServerRouteDefinition} */
+export const route = (root) => root.defineRoute({
+	method: ["GET"],
+	path: /^\/wiki\/([^\/]+)$/,
+	pathParams: ["recipe_name"],
+	useACL: {},
+}, async state => {
+	zodAssert.pathParams(state, z => ({
+		recipe_name: z.uriComponent(),
+	}));
+	await state.checkACL("recipe", state.pathParams.recipe_name, "READ");
 
-exports.method = "GET";
-
-exports.path = /^\/wiki\/([^\/]+)$/;
-
-exports.useACL = true;
-
-exports.entityName = "recipe"
-/** @type {ServerRouteHandler<1>} */	
-exports.handler = async function(request,response,state) {
 	// Get the recipe name from the parameters
-	var recipe_name = $tw.utils.decodeURIComponentSafe(state.params[0]),
+	var recipe_name = state.pathParams.recipe_name,
 		recipeTiddlers = recipe_name && await state.store.getRecipeTiddlers(recipe_name);
 
 	console.log("GET /wiki/:recipe_name",recipe_name,!!recipeTiddlers);
 	// Check request is valid
 	if(!recipe_name || !recipeTiddlers) {
-		response.writeHead(404);
-		response.end();
-		return;
+		return state.sendEmpty(404);
 	}
 
-	response.writeHead(200, "OK",{
+	state.writeHead(200, {
 		"Content-Type": "text/html"
 	});
 	// Get the tiddlers in the recipe
@@ -63,10 +59,10 @@ exports.handler = async function(request,response,state) {
 	 * @param {Record<string, string>} tiddlerFields 
 	 */
 	function writeTiddler(tiddlerFields) {
-		response.write(JSON.stringify(tiddlerFields).replace(/</g,"\\u003c"));
-		response.write(",\n");
+		state.write(JSON.stringify(tiddlerFields).replace(/</g,"\\u003c"));
+		state.write(",\n");
 	}
-	response.write(template.substring(0,markerPos + marker.length));
+	state.write(template.substring(0,markerPos + marker.length));
 	const 
 		/** @type {Record<string, string>} */
 		bagInfo = {},
@@ -100,10 +96,9 @@ exports.handler = async function(request,response,state) {
 		title: "$:/state/multiwikiclient/recipe/last_tiddler_id",
 		text: (await state.store.getRecipeLastTiddlerId(recipe_name) || 0).toString()
 	});
-	response.write(template.substring(markerPos + marker.length))
+	state.write(template.substring(markerPos + marker.length))
 	// Finish response
-	response.end();
+	state.end();
+});
 
-};
 
-}());

@@ -6,51 +6,51 @@ module-type: mws-route
 POST /update-user-profile
 
 \*/
-(function () {
-
-/*jslint node: true, browser: true */
-/*global $tw: false */
 "use strict";
-
-exports.method = "POST";
-
-exports.path = /^\/update-user-profile\/?$/;
-
-exports.bodyFormat = "www-form-urlencoded";
-
-exports.csrfDisable = true;
-/** @type {ServerRouteHandler<0,"www-form-urlencoded">} */	
-exports.handler = async function (request,response,state) {
+/** @type {ServerRouteDefinition} */
+export const route = (root) => root.defineRoute({
+  method: ["POST"],
+  path: /^\/update-user-profile\/?$/,
+  bodyFormat: "www-form-urlencoded",
+  useACL: {csrfDisable: true},
+}, async state => {
   if(!state.authenticatedUser) {
     state.store.adminWiki.addTiddler(new $tw.Tiddler({
       title: "$:/temp/mws/login/error",
       text: "You must be logged in to update profiles"
     }));
-    response.writeHead(302, { "Location": "/login" });
-    response.end();
-    return;
+    return state.redirect("/login");
   }
+
+  zodAssert.data(state, z => z.object({
+    userId: z.parsedNumber(),
+    username: z.string().min(1),
+    email: z.string().min(1),
+    role: z.parsedNumber(),
+  }));
 
   var userId = state.data.userId;
   var username = state.data.username;
   var email = state.data.email;
   var roleId = state.data.role;
+
   var currentUserId = state.authenticatedUser.user_id;
 
-  var hasPermission = ($tw.utils.parseInt(userId) === currentUserId) || state.authenticatedUser.isAdmin;
+  var hasPermission = (userId === currentUserId) || state.authenticatedUser.isAdmin;
 
   if(!hasPermission) {
+    // No idea why this is here. An access denied error should NEVER cause a state change.
+    // I have to leave it here until I figure it out though
     state.store.adminWiki.addTiddler(new $tw.Tiddler({
       title: "$:/temp/mws/update-profile/" + userId + "/error",
       text: "You don't have permission to update this profile"
     }));
-    response.writeHead(302, { "Location": "/admin/users/" + userId });
-    response.end();
-    return;
+    return state.redirect("/admin/users/" + userId);
   }
 
   if(!state.authenticatedUser.isAdmin) {
     var userRole = await state.store.sql.getUserRoles(userId);
+    // TODO: why is this being overwritten?
     roleId = userRole.role_id;
   }
 
@@ -68,8 +68,5 @@ exports.handler = async function (request,response,state) {
     }));
   }
 
-  response.writeHead(302, { "Location": "/admin/users/" + userId });
-  response.end();
-};
-
-}());
+  return state.redirect("/admin/users/" + userId);
+});

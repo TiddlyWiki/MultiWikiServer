@@ -6,47 +6,70 @@ module-type: mws-route
 PUT /recipes/:recipe_name/tiddlers/:title
 
 \*/
-(function () {
-
-/*jslint node: true, browser: true */
-/*global $tw: false */
 "use strict";
+/** @type {ServerRouteDefinition} */
+export const route = (root) => root.defineRoute({
+	method: ["PUT"],
+	path: /^\/recipes\/([^\/]+)\/tiddlers\/(.+)$/,
+	pathParams: ["recipe_name", "title"],
+	bodyFormat: "json",
+	useACL: {},
+}, async state => {
+	zodAssert.pathParams(state, z => ({
+		recipe_name: z.uriComponent(),
+		title: z.uriComponent(),
+	}));
 
-exports.method = "PUT";
+	await state.checkACL("recipe", state.pathParams.recipe_name, "WRITE");
 
-exports.path = /^\/recipes\/([^\/]+)\/tiddlers\/(.+)$/;
+	const {recipe_name, title} = state.pathParams;
 
-exports.useACL = true;
+	// since the second param matches one or more characters, title should always be a string
+	// safeParseJSON returns an empty object if parsing fails, which makes fields.title undefined,
+	// so it wouldn't match that path and would return a 404, but a 400 is better to return,
+	// so we'll just rely on the router to return 400 if the body is not valid JSON
+	// here we'll just make sure that data is an object. 
+	zodAssert.data(state, z => z.record(z.any()));
+	const fields = state.data;
 
-exports.entityName = "recipe"
-/** @type {ServerRouteHandler<2>} */	
-exports.handler = async function (request, response, state) {
-	// Get the  parameters
-	var recipe_name = $tw.utils.decodeURIComponentSafe(state.params[0]),
-		title = $tw.utils.decodeURIComponentSafe(state.params[1]),
-		fields = $tw.utils.parseJSONSafe(state.data);
-	if(recipe_name && title === fields.title) {
-		var result = await state.store.saveRecipeTiddler(fields, recipe_name);
-		if(!response.headersSent) {
-			if(result) {
-				response.writeHead(204, "OK", {
-					"X-Revision-Number": result.tiddler_id.toString(),
-					"X-Bag-Name": result.bag_name,
-					Etag: state.makeTiddlerEtag(result),
-					"Content-Type": "text/plain"
-				});
-			} else {
-				response.writeHead(400);
-			}
-			response.end();
-		}
-		return;
+	if(title !== fields.title)
+		return state.sendString(400, {},
+			"Title in URL does not match title in body", "utf8");
+
+	// Check if the recipe exists and the title matches
+
+
+	var result = await state.store.saveRecipeTiddler(fields, recipe_name);
+
+	if(result) {
+		state.writeHead(204, {
+			"X-Revision-Number": result.tiddler_id.toString(),
+			"X-Bag-Name": result.bag_name,
+			Etag: state.makeTiddlerEtag(result),
+			"Content-Type": "text/plain"
+		});
+	} else {
+		state.writeHead(400);
 	}
-	// Fail if something went wrong
-	if(!response.headersSent) {
-		response.writeHead(404);
-		response.end();
-	}
-};
+	state.end();
+
+});
+(function() {
+
+	/*jslint node: true, browser: true */
+	/*global $tw: false */
+	"use strict";
+
+	exports.method = "PUT";
+
+	exports.path = /^\/recipes\/([^\/]+)\/tiddlers\/(.+)$/;
+
+	exports.useACL = true;
+
+	exports.entityName = "recipe"
+	/** @type {ServerRouteHandler<2>} */
+	exports.handler = async function(request, response, state) {
+
+	};
 
 }());

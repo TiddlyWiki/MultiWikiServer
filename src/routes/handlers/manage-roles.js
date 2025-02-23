@@ -6,23 +6,20 @@ module-type: mws-route
 GET /admin/manage-roles
 
 \*/
-(function() {
-
-/*jslint node: true, browser: true */
-/*global $tw: false */
 "use strict";
+/** @type {ServerRouteDefinition} */
+export const route = (root) => root.defineRoute({
+	method: ["GET"],
+	path: /^\/admin\/manage-roles\/?$/,
+	useACL: {csrfDisable: true},
+}, async state => {
 
-exports.method = "GET";
-
-exports.path = /^\/admin\/roles\/?$/;
-/** @type {ServerRouteHandler<0>} */	
-exports.handler = async function(request, response, state) {
-	if(request.url.includes("*")) {
+	if(state.url.includes("*")) {
 		state.store.adminWiki.deleteTiddler("$:/temp/mws/post-role/error");
 		state.store.adminWiki.deleteTiddler("$:/temp/mws/post-role/success");
 	}
 	var roles = await state.store.sql.listRoles();
-	var editRoleId = request.url.includes("?") ? request.url.split("?")[1]?.split("=")[1] : null;
+	var editRoleId = state.url.includes("?") ? state.url.split("?")[1]?.split("=")[1] : null;
 	var editRole = editRoleId ? roles.find(role => role.role_id === $tw.utils.parseInt(editRoleId, 10)) : null;
 
 	if(editRole && editRole.role_name.toLowerCase().includes("admin")) {
@@ -39,8 +36,6 @@ exports.handler = async function(request, response, state) {
 			"user-is-admin": state.authenticatedUser && state.authenticatedUser.isAdmin ? "yes" : "no"
 		}
 	});
-	response.write(html);
-	response.end();
-};
-
-}());
+	state.write(html);
+	state.end();
+});

@@ -9,8 +9,10 @@ export function TWRoutes(router: Router, parent: rootRoute) {
     method: ["OPTIONS", "GET", "HEAD", "POST", "PUT"],
     bodyFormat: "stream",
     path: /^\/test(\/|$)/,
+    pathParams: ["final_slash"]
   }, async (state) => {
-    if (!state.params[1]?.[0]) throw state.redirect(301, state.url.pathname + "/");
+    zodAssert.pathParams(state, z => ({ final_slash: z.string().optional() }));
+    if (!state.pathParams.final_slash) throw state.redirect(state.urlInfo.pathname + "/");
     // literally don't do this
     const { req, res } = (state as any).streamer;
     // options not required

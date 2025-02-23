@@ -13,7 +13,7 @@ Options include:
 - `cbPartEnd()` - invoked when a file finishes being received
 - `cbFinished(err)` - invoked when the all the form data has been processed
 */
-export function recieveMultipartData(this: Router, request: StateObject<any, any>, options: {
+export function readMultipartData(this: StateObject<any, any>, options: {
   cbPartStart: (headers: IncomingHttpHeaders, name: string | null, filename: string | null) => void,
   cbPartChunk: (chunk: Buffer) => void,
   cbPartEnd: () => void,
@@ -21,7 +21,7 @@ export function recieveMultipartData(this: Router, request: StateObject<any, any
 }) {
   return new Promise<void>((resolve, reject) => {
     // Check that the Content-Type is multipart/form-data
-    const contentType = request.headers['content-type'];
+    const contentType = this.headers['content-type'];
     if (!contentType?.startsWith("multipart/form-data")) {
       return reject("Expected multipart/form-data content type");
     }
@@ -36,7 +36,7 @@ export function recieveMultipartData(this: Router, request: StateObject<any, any
     let buffer = Buffer.alloc(0);
     let processingPart = false;
     // Process incoming chunks
-    request.reader.on("data", (chunk) => {
+    this.reader.on("data", (chunk) => {
       // Accumulate the incoming data
       buffer = Buffer.concat([buffer, chunk]);
       // Loop through any parts within the current buffer
@@ -109,7 +109,7 @@ export function recieveMultipartData(this: Router, request: StateObject<any, any
     });
 
     // All done
-    request.reader.on("end", () => {
+    this.reader.on("end", () => {
       resolve();
     });
   }).then(() => {
@@ -120,6 +120,114 @@ export function recieveMultipartData(this: Router, request: StateObject<any, any
   });
 
 }
+
+
+/*
+Process an incoming new multipart/form-data stream. Options include:
+
+store - tiddler store
+state - provided by server.js
+response - provided by server.js
+bag_name - name of bag to write to
+callback - invoked as callback(err,results). Results is an array of titles of imported tiddlers
+*/
+/**
+ * 
+ * @param {Object} options 
+ * @param {SqlTiddlerStore} options.store
+ * @param {ServerState} options.state
+ * @param {ServerResponse} options.response
+ * @param {string} options.bag_name
+ * @param {function} options.callback
+ */
+export async function processIncomingStream(
+  this: StateObject,
+  bag_name: string,
+): Promise<string[]> {
+
+  const path = require("path"),
+    fs = require("fs");
+  // Process the incoming data
+  const inboxName = $tw.utils.stringifyDate(new Date());
+  const inboxPath = path.resolve(this.store.attachmentStore.storePath, "inbox", inboxName);
+  $tw.utils.createDirectory(inboxPath);
+  let fileStream: { write: (arg0: any) => void; end: () => void; } | null = null; // Current file being written
+  let hash: { update: (arg0: any) => void; finalize: () => any; } | null = null; // Accumulating hash of current part
+  let length = 0; // Accumulating length of current part
+  const parts: any[] = []; // Array of {name:, headers:, value:, hash:} and/or {name:, filename:, headers:, inboxFilename:, hash:} 
+
+
+  const options = { callback: {} }
+  await this.readMultipartData({
+    cbPartStart: function (headers, name, filename) {
+      const part = {
+        name: name,
+        filename: filename,
+        headers: headers
+      };
+      if (filename) {
+        const inboxFilename = (parts.length).toString();
+        part.inboxFilename = path.resolve(inboxPath, inboxFilename);
+        fileStream = fs.createWriteStream(part.inboxFilename);
+      } else {
+        part.value = "";
+      }
+      hash = new $tw.sjcl.hash.sha256();
+      length = 0;
+      parts.push(part)
+    },
+    cbPartChunk: function (chunk) {
+      if (fileStream) {
+        fileStream.write(chunk);
+      } else {
+        parts[parts.length - 1].value += chunk;
+      }
+      length = length + chunk.length;
+      hash.update(chunk);
+    },
+    cbPartEnd: function () {
+      if (fileStream) {
+        fileStream.end();
+      }
+      fileStream = null;
+      parts[parts.length - 1].hash = $tw.sjcl.codec.hex.fromBits(hash.finalize()).slice(0, 64).toString();
+      hash = null;
+    },
+    // if an error is given here, it will also be thrown in the promise
+    cbFinished: (err) => { }
+  });
+
+  const partFile = parts.find(part => part.name === "file-to-upload" && !!part.filename);
+  if (!partFile) {
+    throw this.sendResponse(400, { "Content-Type": "text/plain" }, "Missing file to upload");
+  }
+  const type = partFile.headers["content-type"];
+  const tiddlerFields = {
+    title: partFile.filename,
+    type: type
+  };
+  for (const part of parts) {
+    const tiddlerFieldPrefix = "tiddler-field-";
+    if (part.name.startsWith(tiddlerFieldPrefix)) {
+      tiddlerFields[part.name.slice(tiddlerFieldPrefix.length)] = part.value.trim();
+    }
+  }
+
+  await this.store.saveBagTiddlerWithAttachment(tiddlerFields, bag_name, {
+    filepath: partFile.inboxFilename,
+    type: type,
+    hash: partFile.hash
+  }).then(() => {
+    $tw.utils.deleteDirectory(inboxPath);
+    return [tiddlerFields.title];
+  }, err => {
+    throw err;
+  });
+
+  return parts;
+};
+
+
 
 /*
 Send a response to the client. This method checks if the response must be sent
@@ -251,4 +359,55 @@ export class SyncCheck {
     });
     this.done = () => { cancelled = true };
   }
+}
+
+
+/** 
+ * If any property returns a function, and that function returns a promise, 
+ * the proxy will throw an error if the promise is not awaited before the next property access.
+ * 
+ * The stack trace of the error will point to the line where the promise was returned.
+ */
+export function createStrictAwaitProxy<T extends object>(instance: T): T {
+  let outstandingPromiseError: Error | null = null;
+
+  return new Proxy(instance, {
+    get(target, prop, receiver) {
+      // throw an error if an outstanding promise exists.
+      if (outstandingPromiseError !== null) {
+        throw outstandingPromiseError;
+      }
+      // Use Reflect.get to get the property value.
+      const value = Reflect.get(target, prop, receiver);
+
+      // If the property is a function, return a wrapped function.
+      if (typeof value === "function") {
+        return function (this: any, ...args: any[]) {
+          // Protect against calling any methods while an outstanding promise exists.
+
+          // Call the original function preserving the correct "this" context.
+          const result = Reflect.apply(value, this, args);
+          // If the result is a promise, wrap it to clear the outstanding lock on await.
+          if (result instanceof Promise) {
+            outstandingPromiseError = new Error(
+              `Guarded promise returned by '${String(prop)}' was not awaited.`
+            );
+            return new Proxy(result, {
+              get(promiseTarget, promiseProp, promiseReceiver) {
+                // When the promise's then property is accessed (i.e. when it's awaited),
+                // clear the outstanding promise so that subsequent method calls are allowed.
+                if (promiseProp === "then") {
+                  outstandingPromiseError = null;
+                }
+                return Reflect.get(promiseTarget, promiseProp, promiseReceiver).bind(promiseTarget);
+              }
+            });
+          }
+          return result;
+        };
+      }
+      // For non-function properties, just return the value.
+      return value;
+    }
+  });
 }
