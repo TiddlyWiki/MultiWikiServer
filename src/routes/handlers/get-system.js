@@ -27,10 +27,10 @@ export const route = (root) => root.defineRoute({
 	}));
 	// Get the  parameters
 	const filename = state.pathParams.filename,
-		title = SYSTEM_FILE_TITLE_PREFIX + filename,
-		tiddler = state.store.adminWiki.getTiddler(title),
-		isSystemFile = tiddler && tiddler.hasTag("$:/tags/MWS/SystemFile"),
-		isSystemFileWikified = tiddler && tiddler.hasTag("$:/tags/MWS/SystemFileWikified");
+	title = SYSTEM_FILE_TITLE_PREFIX + filename,
+	tiddler = state.store.adminWiki.getTiddler(title),
+	isSystemFile = tiddler && tiddler.hasTag("$:/tags/MWS/SystemFile"),
+	isSystemFileWikified = tiddler && tiddler.hasTag("$:/tags/MWS/SystemFileWikified");
 	if(tiddler && (isSystemFile || isSystemFileWikified)) {
 		let text = tiddler.fields.text || "";
 		const sysFileType = tiddler.fields["system-file-type"];

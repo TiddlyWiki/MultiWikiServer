@@ -1,11 +1,26 @@
 import { Readable } from 'stream';
 import { createStrictAwaitProxy, processIncomingStream, readMultipartData, sendResponse } from './helpers';
 import { STREAM_ENDED, Streamer } from './server';
-import { AuthState } from './AuthState';
 import { PassThrough } from 'node:stream';
 import { AllowedMethod, BodyFormat, RouteMatch, Router } from './router';
 import { SqlTiddlerStore } from './store/sql-tiddler-store';
 import * as z from 'zod';
+
+const authLevelNeededForMethod: Record<AllowedMethod, "readers" | "writers" | undefined> = {
+  "GET": "readers",
+  "OPTIONS": "readers",
+  "HEAD": "readers",
+  "PUT": "writers",
+  "POST": "writers",
+  "DELETE": "writers"
+} as const;
+
+export interface AuthStateRouteACL {
+  /** Every level in the route path must have this disabled for it to be disabled */
+  csrfDisable?: boolean;
+}
+
+
 // This class abstracts the request/response cycle into a single object.
 // It hides most of the details from the routes, allowing us to easily change the underlying server implementation.
 export class StateObject<
@@ -15,22 +30,12 @@ export class StateObject<
   D = unknown
 > {
   // handler shims
-  authenticatedUsername: string | null = null;
-  authenticatedUser: { user_id: number, isAdmin: boolean, username: string } | null = null;
-  store!: SqlTiddlerStore;
-  allowAnon: any;
-  allowAnonReads: any;
-  allowAnonWrites: any;
-  anonAccessConfigured: any;
-  firstGuestUser: any;
-  showAnonConfig: any;
 
-  auth: Authenticator;
 
   z: typeof z = z;
 
 
-  
+
   get url() { return this.streamer.url; }
   get method(): M { return this.streamer.method as M; }
   get headers() { return this.streamer.headers; }
@@ -101,18 +106,29 @@ export class StateObject<
    * This will always satisfy the zod schema: `z.record(z.array(z.string()))`
    */
   queryParams: Record<string, string[] | undefined>;
-
-
+  authLevelNeeded: "readers" | "writers";
+  authorizationType: string;
+  authenticatedUser: { user_id: number, isAdmin: boolean, username: string, sessionId: string } | null = null;
+  authenticatedUsername: string | null = null;
+  anonAccessConfigured: boolean = false;
+  allowAnon: boolean = false;
+  allowAnonReads: boolean = false;
+  allowAnonWrites: boolean = false;
+  showAnonConfig: boolean = false;
+  // This isn't necessary on the route state. Something this temporary needs to be more self-contained.
+  // however it is used in client state as well, so I have to leave it here for now.
+  firstGuestUser: boolean = false;
+  store!: SqlTiddlerStore;
+  auth: Authenticator;
   constructor(
     private streamer: Streamer,
     /** The array of Route tree nodes the request matched. */
     private routePath: RouteMatch[],
     /** The bodyformat that ended up taking precedence. This should be correctly typed. */
     public bodyFormat: B,
-    public authState: AuthState,
     private router: Router
   ) {
-
+    this.store = this.router.$tw.mws.store;
 
     this.readBody = this.streamer.readBody.bind(this.streamer);
     this.readMultipartData = readMultipartData.bind(this);
@@ -134,27 +150,87 @@ export class StateObject<
         .filter(<T>(e: T): e is T & {} => !!e)
       ?? []
     ).flat()) as any;
-
+    const pathParamsZodCheck = z.record(z.string()).safeParse(this.pathParams);
+    if (!pathParamsZodCheck.success) console.log("BUG: Query params zod error", pathParamsZodCheck.error);
 
     this.queryParams = Object.fromEntries([...this.urlInfo.searchParams.keys()]
       .map(key => [key, this.urlInfo.searchParams.getAll(key)] as const));
     const queryParamsZodCheck = z.record(z.array(z.string())).safeParse(this.queryParams);
     if (!queryParamsZodCheck.success) console.log("BUG: Query params zod error", queryParamsZodCheck.error);
 
+    this.cookies = this.parseCookieString(this.headers.cookie ?? "");
+
     this.auth = createStrictAwaitProxy(new Authenticator(this));
+
+    this.authLevelNeeded = authLevelNeededForMethod[this.streamer.method] ?? "writers";
+    this.authorizationType = this.authLevelNeeded;
+
   }
 
-  zodError: z.ZodError | null = null;
-  /** Runs zod on state.data, assigning the result to state.data if successful, and returning success. */
-  zod<T extends z.ZodTypeAny>(schema: (zod: typeof z) => T): this is { data: z.infer<T> } {
-    const { success, data, error } = z.any().pipe(schema(z)).safeParse(this.data);
-    if (!success) return false;
-    this.data = data;
-    return true;
+  public cookies: Record<string, string | undefined>;
+  parseCookieString(cookieString: string) {
+    const cookies: any = {};
+    if (typeof cookieString !== 'string') throw new Error('cookieString must be a string');
+    cookieString.split(';').forEach(cookie => {
+      const parts = cookie.split('=');
+      if (parts.length >= 2) {
+        const key = parts[0]!.trim();
+        const value = parts.slice(1).join('=').trim();
+        cookies[key] = decodeURIComponent(value);
+      }
+    });
+    return cookies;
+  }
+  async authenticateUser() {
+    const session_id = this.cookies.session;
+    if (!session_id) {
+      return null;
+    }
+    // get user info
+    const user: any = await this.store.sql.findUserBySessionId(session_id);
+    if (!user) {
+      return null;
+    }
+    delete user.password;
+    const userRole = await this.store.sql.getUserRoles(user.user_id);
+    user['isAdmin'] = userRole?.role_name?.toLowerCase() === 'admin';
+    user['sessionId'] = session_id;
+
+    return user;
   }
 
+  getAnonymousAccessConfig() {
+    const allowReadsTiddler = this.store.adminWiki.getTiddlerText("$:/config/MultiWikiServer/AllowAnonymousReads", "undefined");
+    const allowWritesTiddler = this.store.adminWiki.getTiddlerText("$:/config/MultiWikiServer/AllowAnonymousWrites", "undefined");
+    const showAnonymousAccessModal = this.store.adminWiki.getTiddlerText("$:/config/MultiWikiServer/ShowAnonymousAccessModal", "undefined");
 
+    return {
+      allowReads: allowReadsTiddler === "yes",
+      allowWrites: allowWritesTiddler === "yes",
+      isEnabled: allowReadsTiddler !== "undefined" && allowWritesTiddler !== "undefined",
+      showAnonConfig: showAnonymousAccessModal === "yes"
+    };
+  }
 
+  async getOldAuthState() {
+    // const state: any = {};
+    // Authenticate the user
+    const authenticatedUser = await this.authenticateUser();
+    const authenticatedUsername = authenticatedUser?.username;
+    var { allowReads, allowWrites, isEnabled, showAnonConfig } = this.getAnonymousAccessConfig();
+
+    return {
+      authenticatedUser,
+      authenticatedUsername,
+      anonAccessConfigured: isEnabled,
+      allowAnon: isEnabled && (this.method === 'GET' ? allowReads : allowWrites),
+      allowAnonReads: allowReads,
+      allowAnonWrites: allowWrites,
+      showAnonConfig: !!this.authenticatedUser?.isAdmin && showAnonConfig,
+      firstGuestUser: (await this.store.sql.listUsers()).length === 0 && !this.authenticatedUser,
+    };
+
+  }
   makeTiddlerEtag(options: { bag_name: string; tiddler_id: string | number; }) {
     if (options.bag_name || options.tiddler_id) {
       return `"tiddler:${options.bag_name}/${options.tiddler_id}"`;

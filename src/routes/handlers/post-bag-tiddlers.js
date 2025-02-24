@@ -29,7 +29,7 @@ export const route = (root) => root.defineRoute({
 
 	// If application/json is requested then this is an API request, and gets the response in JSON
 	if(state.headers.accept && state.headers.accept.indexOf("application/json") !== -1) {
-		state.sendResponse(200, {"Content-Type": "application/json"}, JSON.stringify({
+		return state.sendResponse(200, {"Content-Type": "application/json"}, JSON.stringify({
 			"imported-tiddlers": results
 		}));
 	} else {

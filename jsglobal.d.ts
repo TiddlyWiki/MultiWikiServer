@@ -14,7 +14,14 @@ import { Wiki, Tiddler } from "tiddlywiki";
 declare global {
 
 
-  const $tw: $TW;
+  const $tw: {
+    boot: any;
+    sjcl: any;
+    utils: any;
+    config: any;
+    Tiddler: any;
+    loadTiddlersFromPath: any;
+  };
 
 
   interface $TW {

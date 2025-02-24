@@ -199,7 +199,7 @@ export async function processIncomingStream(
 
   const partFile = parts.find(part => part.name === "file-to-upload" && !!part.filename);
   if (!partFile) {
-    throw this.sendResponse(400, { "Content-Type": "text/plain" }, "Missing file to upload");
+    throw await this.sendResponse(400, { "Content-Type": "text/plain" }, "Missing file to upload");
   }
   const type = partFile.headers["content-type"];
   const tiddlerFields = {

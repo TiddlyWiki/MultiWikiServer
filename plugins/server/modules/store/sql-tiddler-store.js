@@ -24,9 +24,15 @@ attachmentStore - reference to associated attachment store
 engine - wasm | better
 */
 function SqlTiddlerStore(options) {
+	if (!options?.attachmentStore) {
+		throw new Error("SqlTiddlerStore requires an attachment store");
+	}
+	if (!options.adminWiki) {
+		throw new Error("SqlTiddlerStore requires an adminWiki");
+	}
 	options = options || {};
 	this.attachmentStore = options.attachmentStore;
-	this.adminWiki = options.adminWiki || $tw.wiki;
+	this.adminWiki = options.adminWiki;
 	this.eventListeners = {}; // Hashmap by type of array of event listener functions
 	this.eventOutstanding = {}; // Hashmap by type of boolean true of outstanding events
 	// Create the database
@@ -37,6 +43,7 @@ function SqlTiddlerStore(options) {
 		engine: options.engine
 	});
 	this.sqlTiddlerDatabase.createTables();
+	this.sql = this.sqlTiddlerDatabase;
 }
 
 SqlTiddlerStore.prototype.addEventListener = function(type,listener) {

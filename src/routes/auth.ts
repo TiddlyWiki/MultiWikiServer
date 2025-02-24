@@ -4,7 +4,7 @@ import * as opaque from "@serenity-kit/opaque";
 import { z } from "zod";
 
 
-export default function AuthRoutes(router: Router, parent: rootRoute) {
+export default function AuthRoutes( parent: rootRoute) {
 
   const authRoute = parent.defineRoute({
     useACL: {},

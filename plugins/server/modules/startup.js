@@ -22,9 +22,7 @@ exports.startup = function() {
 	const store = setupStore();
 	$tw.mws = {
 		store: store,
-		serverManager: new ServerManager({
-			store: store
-		})
+		serverManager: new ServerManager()
 	};
 }
 
@@ -39,12 +37,13 @@ function setupStore() {
 		store = new SqlTiddlerStore({
 			databasePath: path.resolve($tw.boot.wikiPath,"store/database.sqlite"),
 			engine: $tw.wiki.getTiddlerText("$:/config/MultiWikiServer/Engine","better"), // better || wasm
-			attachmentStore: attachmentStore
+			attachmentStore: attachmentStore,
+			adminWiki: $tw.wiki,
 		});
 	return store;
 }
 
-function ServerManager(store) {
+function ServerManager() {
 	this.servers = [];
 }
 

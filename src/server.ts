@@ -1,4 +1,4 @@
-import "./jsglobal";
+import "./global";
 import * as http2 from 'node:http2';
 import * as opaque from "@serenity-kit/opaque";
 import * as z from 'zod';
@@ -214,12 +214,10 @@ export class Streamer {
     this.res.writeHead(status, headers);
   }
   write(chunk: Buffer | string, encoding?: NodeJS.BufferEncoding): void {
-    this.checkHeadersSentBy(true);
     // Between http1 and http2, the types are slightly different, but the runtime effect seems to be the same.
     encoding ? (this.res as ServerResponse).write(chunk, encoding) : (this.res as ServerResponse).write(chunk)
   }
   end(): typeof STREAM_ENDED {
-    this.checkHeadersSentBy(true);
     this.res.end();
     return STREAM_ENDED;
   }
@@ -303,8 +301,8 @@ async function setupServers(useHTTPS: boolean, port: number) {
   await opaque.ready;
 
   const { server } = useHTTPS
-    ? new ListenerHTTPS(new Router(), readFileSync("./localhost.key"), readFileSync("./localhost.crt"))
-    : new ListenerHTTP(new Router());
+    ? new ListenerHTTPS(await Router.makeRouter(), readFileSync("./localhost.key"), readFileSync("./localhost.crt"))
+    : new ListenerHTTP(await Router.makeRouter());
   server.on('error', errorHandler(server, port));
   server.on('listening', listenHandler(server));
   server.listen(port, "::");

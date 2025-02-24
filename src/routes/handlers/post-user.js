@@ -117,9 +117,7 @@ export const route = (root) => root.defineRoute({
         await sqlTiddlerDatabase.setUserAdmin(userId);
 
         // Create a session for the new admin user
-        var auth = require("$:/plugins/tiddlywiki/multiwikiserver/auth/authentication.js").Authenticator;
-        var authenticator = auth(sqlTiddlerDatabase);
-        var sessionId = await authenticator.createSession(userId);
+        var sessionId = await state.auth.createSession(userId);
 
         state.store.adminWiki.addTiddler(new $tw.Tiddler({
           title: "$:/temp/mws/post-user/success",

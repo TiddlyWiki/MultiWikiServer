@@ -2,7 +2,7 @@ import { IParseTreeNode, IServerOptions, ITiddlyWiki, Server as ServerClass, Tid
 import { Server } from "http";
 import { rootRoute, Router } from "../router";
 
-export function TWRoutes(router: Router, parent: rootRoute) {
+export function TWRoutes(parent: rootRoute) {
   const wikiRouter = new TWRouter();
   parent.defineRoute({
     useACL: {},

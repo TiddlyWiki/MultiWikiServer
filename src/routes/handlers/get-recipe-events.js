@@ -14,7 +14,7 @@ Last-Event-ID:
 const SSE_HEARTBEAT_INTERVAL_MS = 10 * 1000;
 
 /** @type {ServerRouteDefinition} */
-export const root = (root) => root.defineRoute({
+export const route = (root) => root.defineRoute({
 	method: ["GET"],
 	path: /^\/recipes\/([^\/]+)\/events$/,
 	pathParams: ["recipe_name"],

@@ -37,7 +37,7 @@ export const route = (root) => root.defineRoute({
 		include_deleted,
 	});
 	if(recipeTiddlers) {
-		state.sendResponse(200, {
+		return state.sendResponse(200, {
 			"Content-Type": "application/json"
 		}, JSON.stringify(recipeTiddlers), "utf8");
 	} else {

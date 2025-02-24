@@ -20,11 +20,11 @@ export const route = (root) => root.defineRoute({
 	}
 
 	const loginTitle = "$:/plugins/tiddlywiki/multiwikiserver/auth/form/login";
-	var loginTiddler = state.store.adminWiki.tiddlerExists(loginTitle);
+	var loginTiddler = state.store.adminWiki.getTiddler(loginTitle);
 
 	if(loginTiddler) {
 		state.writeHead(200, {"Content-Type": "text/html"});
-		state.write(state.store.adminWiki.renderTiddler("text/html", loginTitle));
+		state.write(state.store.adminWiki.renderTiddler("text/html", loginTiddler.fields.title));
 		state.end();
 	} else {
 		state.writeHead(500);

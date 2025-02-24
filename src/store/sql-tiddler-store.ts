@@ -113,8 +113,11 @@ export class SqlTiddlerStore<TXN extends TxnType = unknown> implements EventSour
 		if (!options?.attachmentStore) {
 			throw new Error("SqlTiddlerStore requires an attachment store");
 		}
+		if (!options.adminWiki) {
+			throw new Error("SqlTiddlerStore requires an adminWiki");
+		}
 		this.attachmentStore = options.attachmentStore;
-		this.adminWiki = options.adminWiki || $tw.wiki;
+		this.adminWiki = options.adminWiki;
 		this.sql = new SqlTiddlerDatabase(options.prisma);
 
 	}

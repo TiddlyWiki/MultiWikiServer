@@ -32,7 +32,7 @@ export const route = (root) => root.defineRoute({
 
 	if(user && isPasswordValid) {
 		var sessionId = await state.auth.createSession(user.user_id);
-		var returnUrl = state.server.parseCookieString(state.headers.cookie).returnUrl
+		var returnUrl = state.cookies.returnUrl;
 		state.setHeader('Set-Cookie', `session=${sessionId}; HttpOnly; Path=/`);
 		if(state.headers.accept && state.headers.accept.indexOf("application/json") !== -1) {
 			return state.sendResponse(200, {"Content-Type": "application/json"}, JSON.stringify({

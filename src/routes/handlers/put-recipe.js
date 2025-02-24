@@ -35,9 +35,9 @@ export const route = (root) => root.defineRoute({
 	);
 
 	if(!result) {
-		state.sendEmpty(204);
+		return state.sendEmpty(204);
 	} else {
-		state.sendResponse(400, {"Content-Type": "text/plain"}, result.message, "utf8");
+		return state.sendResponse(400, {"Content-Type": "text/plain"}, result.message, "utf8");
 	}
 
 });

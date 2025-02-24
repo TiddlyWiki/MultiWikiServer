@@ -11,7 +11,6 @@ POST /change-user-password
 /*jslint node: true, browser: true */
 /*global $tw: false */
 "use strict";
-var authenticator = require("$:/plugins/tiddlywiki/multiwikiserver/auth/authentication.js").Authenticator;
 
 /** @type {ServerRouteDefinition} */
 export const route = (root) => root.defineRoute({
@@ -43,8 +42,6 @@ export const route = (root) => root.defineRoute({
   state.store.adminWiki.deleteTiddler("$:/temp/mws/change-password/" + userId + "/success");
   state.store.adminWiki.deleteTiddler("$:/temp/mws/login/error");
 
-  var auth = authenticator(state.store.sql);
-
   var currentUserId = state.authenticatedUser.user_id;
 
   var hasPermission = ($tw.utils.parseInt(userId) === currentUserId) || state.authenticatedUser.isAdmin;
@@ -75,7 +72,7 @@ export const route = (root) => root.defineRoute({
     return state.redirect("/admin/users/" + userId);
   }
 
-  var newHash = auth.hashPassword(newPassword);
+  var newHash = state.auth.hashPassword(newPassword);
   var result = await state.store.sql.updateUserPassword($tw.utils.parseInt(userId), newHash);
 
   // set success regardless of whether it actually succeeded?

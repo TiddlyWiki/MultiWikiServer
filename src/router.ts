@@ -1,11 +1,11 @@
 import { ok } from "assert";
-import { AuthState, AuthStateRouteACL } from "./AuthState";
 import { Streamer } from "./server";
-import { StateObject } from "./StateObject";
+import { AuthStateRouteACL, StateObject } from "./StateObject";
 import RootRoute from "./routes";
 import * as z from "zod";
 import { createStrictAwaitProxy, is } from "./helpers";
-
+import rxjs from "rxjs";
+import { TiddlyWiki } from "tiddlywiki";
 
 export const AllowedMethods = [...["GET", "HEAD", "OPTIONS", "POST", "PUT", "DELETE"] as const];
 export type AllowedMethod = typeof AllowedMethods[number];
@@ -14,7 +14,7 @@ export const BodyFormats = ["stream", "string", "json", "buffer", "www-form-urle
 export type BodyFormat = typeof BodyFormats[number];
 
 
-const zodJSON = (arg: string, ctx: z.RefinementCtx) => {
+const zodTransformJSON = (arg: string, ctx: z.RefinementCtx) => {
   try {
     return JSON.parse(arg, (key, value) => {
       //https://github.com/fastify/secure-json-parse
@@ -22,6 +22,7 @@ const zodJSON = (arg: string, ctx: z.RefinementCtx) => {
         throw new Error('Invalid key: __proto__');
       if (key === 'constructor' && Object.prototype.hasOwnProperty.call(value, 'prototype'))
         throw new Error('Invalid key: constructor.prototype');
+      return value;
     });
   } catch (e) {
     ctx.addIssue({
@@ -46,44 +47,63 @@ export class Router {
   }
 
 
-
-  rootRoute: rootRoute;
-  constructor() {
-    this.rootRoute = defineRoute(ROOT_ROUTE, {
-      useACL: {},
+  static async makeRouter() {
+    const rootRoute = defineRoute(ROOT_ROUTE, {
+      useACL: { csrfDisable: true },
       method: AllowedMethods,
       path: /^/,
+      denyFinal: true,
     }, async (state: any) => state);
-    RootRoute(this, this.rootRoute as rootRoute);
+    await RootRoute(rootRoute);
+
+    const $tw = TiddlyWiki();
+    // tiddlywiki [+<pluginname> | ++<pluginpath>] [<wikipath>] ...[--command ...args]
+    $tw.boot.argv = [
+      "++plugins/client",
+      "++plugins/server",
+      "./editions/mws",
+      "--mws-load-plugin-bags",
+      "--build", "load-mws-demo-data",
+      // "--mws-listen", "port=5001", "host=::"
+    ];
+    await new Promise<void>(resolve => $tw.boot.boot(resolve));
+    (global as any).$tw = $tw;
+    console.log($tw.wiki.isShadowTiddler("$:/plugins/tiddlywiki/multiwikiserver/system-files/styles.css"));
+    return new Router(rootRoute, $tw);
+  }
+
+  constructor(private rootRoute: rootRoute, public $tw: any) {
+
   }
 
   async handle(streamer: Streamer) {
 
-    const authState = new AuthState(this);
-
-    await authState.checkStreamer(streamer);
-
-    /** This always has a length of at least 1. */
+    /** This should always have a length of at least 1 because of the root route. */
     const routePath = this.findRoute(streamer);
-    // well, at least after this line it does.
-    if (!routePath.length) return streamer.sendString(404, {}, "Not found", "utf8");
-
-    await authState.checkMatchedRoutes(routePath);
+    if (!routePath.length || routePath[routePath.length - 1]?.route.denyFinal)
+      return streamer.sendString(404, {}, "Not found", "utf8");
 
     // Optionally output debug info
-    // if (this.get("debug-level") !== "none") {
     console.log("Request path:", JSON.stringify(streamer.url));
     routePath.forEach(e => console.log("Matched route:", e.route.path.source));
-    // console.log("Request headers:", JSON.stringify(streamer.headers));
-    console.log(authState.toDebug());
-    // }
 
     // if no bodyFormat is specified, we default to "buffer" since we do still need to recieve the body
     const bodyFormat = routePath.find(e => e.route.bodyFormat)?.route.bodyFormat || "buffer";
 
     type statetype = { [K in BodyFormat]: StateObject<K> }[BodyFormat]
 
-    const state = createStrictAwaitProxy(new StateObject(streamer, routePath, bodyFormat, authState, this) as statetype);
+    const state = createStrictAwaitProxy(
+      new StateObject(streamer, routePath, bodyFormat, this) as statetype
+    );
+
+    Object.assign(state, await state.getOldAuthState());
+
+    routePath.forEach(match => {
+      if (!this.csrfDisable && !match.route.useACL.csrfDisable && state.authLevelNeeded === "writers" && state.headers["x-requested-with"] !== "TiddlyWiki")
+        throw streamer.sendString(403, {}, "'X-Requested-With' header required to login to '" + this.servername + "'", "utf8");
+    })
+
+
     const method = streamer.method;
 
     // anything that sends a response before this should have thrown, but just in case
@@ -102,11 +122,13 @@ export class Router {
       state.data = (await state.readBody()).toString("utf8");
       if (state.bodyFormat === "json") {
         // make sure this parses as valid data
-        const { success, data } = z.string().transform(zodJSON).safeParse(state.data);
+        const { success, data } = z.string().transform(zodTransformJSON).safeParse(state.data);
         if (!success) return state.sendEmpty(400, {});
+        console.log(state.data, data);
         state.data = data;
       }
-    } else if (state.bodyFormat === "www-form-urlencoded-urlsearchparams" || state.bodyFormat === "www-form-urlencoded") {
+    } else if (state.bodyFormat === "www-form-urlencoded-urlsearchparams" 
+      || state.bodyFormat === "www-form-urlencoded") {
       const data = state.data = new URLSearchParams((await state.readBody()).toString("utf8"));
       if (state.bodyFormat === "www-form-urlencoded") {
         state.data = Object.fromEntries(data);
@@ -120,38 +142,24 @@ export class Router {
       const state2: StateObject = state as any;
       return state2.sendString(500, {}, "Invalid bodyFormat: " + state2.bodyFormat, "utf8");
     }
-    // I couldn't get the types to work. call state.zod instead.
-    // if (state.bodyFormat !== "buffer") {
-    //   // check zod for the entire tree, starting from the first bodyFormat
-    //   // since it is a type error for zod to be specified above the bodyFormat, 
-    //   // we can optimize this for performance and consistency.
-    //   const firstBodyFormat = routePath.findIndex(e => e.route.bodyFormat);
-    //   // if we don't have a body format, skip zod.
-    //   const result = firstBodyFormat === -1 ? [] : routePath.slice(firstBodyFormat)
-    //     .map(e => z.any().pipe(e.route.zod ?? z.any()).safeParse(state.data));
-
-    //   if (result.length) {
-    //     if (!result.every(e => e.success)) return state.sendEmpty(400, {});
-    //     // we use the last zod result (zod strips unknown keys, among other things)
-    //     state.data = result.pop();
-    //   }
-    // }
 
     return await this.handleRoute(state, routePath);
 
   }
 
 
+
   async handleRoute(state: StateObject<BodyFormat>, route: RouteMatch[]) {
-
-    await state.authState.checkStateObject(state);
-
 
     {
       let result: any = state;
       for (const match of route) {
-        result = await match.route.handler(result);
+        await match.route.handler(result);
         if (state.headersSent) return;
+      }
+      if (!state.headersSent) {
+        state.sendEmpty(404, {});
+        console.log("No handler sent headers before the promise resolved.");
       }
     }
   }
@@ -264,6 +272,8 @@ interface RouteOptBase<B extends BodyFormat, M extends AllowedMethod[], PA exten
    * Note that bodyFormat is completely ignored for GET and HEAD requests.
    */
   bodyFormat?: B;
+  /** If this route is the last one matched, it will NOT be called, and a 404 will be returned. */
+  denyFinal?: boolean;
 }
 
 interface RouteDef<P extends ParentTuple, PA extends string[]> extends RouteOptBase<P[0] & {}, P[1], PA> {
@@ -318,25 +328,25 @@ interface RouteDef<P extends ParentTuple, PA extends string[]> extends RouteOptB
        * store and store.sql will probably also be wrapped in this proxy.
        */
       state: StateObject<
-      // if the route only specifies "GET" and/or "HEAD", then the bodyFormat can only be "ignore"
-      (Exclude<T["method"][number], "GET" | "HEAD"> extends never ? never : (
-        // parent route specified bodyFormat?
-        P[0] extends BodyFormat ? P[0] :
-        // this route specified bodyFormat?
-        T["bodyFormat"] extends BodyFormat ? T["bodyFormat"] :
-        // otherwise it could be anything
-        BodyFormat
-      )) | (
-        // GET and HEAD requests imply "ignore"
-        T["method"][number] extends "GET" | "HEAD" ? "ignore" : never
-      ),
-      // HTTP method
-      T["method"][number],
-      // possible placeholder for declaring routes
-      getPA<P, T>,
-      // infer zod, if set for this route
-      unknown
-    >) => Promise<R>
+        // if the route only specifies "GET" and/or "HEAD", then the bodyFormat can only be "ignore"
+        (Exclude<T["method"][number], "GET" | "HEAD"> extends never ? never : (
+          // parent route specified bodyFormat?
+          P[0] extends BodyFormat ? P[0] :
+          // this route specified bodyFormat?
+          T["bodyFormat"] extends BodyFormat ? T["bodyFormat"] :
+          // otherwise it could be anything
+          BodyFormat
+        )) | (
+          // GET and HEAD requests imply "ignore"
+          T["method"][number] extends "GET" | "HEAD" ? "ignore" : never
+        ),
+        // HTTP method
+        T["method"][number],
+        // possible placeholder for declaring routes
+        getPA<P, T>,
+        // infer zod, if set for this route
+        unknown
+      >) => Promise<R>
   ) =>
     P[0] extends BodyFormat ? RouteDef<[P[0], T["method"], R, P[3]], [...PA]> :
     T["bodyFormat"] extends BodyFormat ? RouteDef<[T["bodyFormat"], T["method"], R, P[3]], [...PA]> :
@@ -345,8 +355,8 @@ interface RouteDef<P extends ParentTuple, PA extends string[]> extends RouteOptB
   $o?: P;
 }
 
-type getPA<P extends ParentTuple, T extends DetermineRouteOptions<P, any>> = 
-[...P[3], ...T["pathParams"] extends string[] ? [T["pathParams"]] : []];
+type getPA<P extends ParentTuple, T extends DetermineRouteOptions<P, any>> =
+  [...P[3], ...T["pathParams"] extends string[] ? [T["pathParams"]] : []];
 function test<T extends z.ZodTypeAny>(schema: { schema: T }): T {
   return schema.schema;
 }

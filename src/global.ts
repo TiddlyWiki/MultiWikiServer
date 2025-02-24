@@ -5,8 +5,7 @@ import * as sql from "./store/sql-tiddler-database";
 import * as assert from "assert";
 import "../jsglobal";
 import { Prisma } from "@prisma/client";
-okField("recipes", "recipe_id", 5);
-okEntityType(sql.okEntityType);
+
 type PrismaPayload<T extends PrismaTables> = Prisma.TypeMap["model"][T]["payload"];
 
 declare global {
@@ -145,7 +144,7 @@ z.object
 const _zodAssert = (
   input: "data" | "pathParams" | "queryParams",
   state: StateObject,
-  schema: (z: Z2) => z.ZodTypeAny,
+  schema: (z: Z2) => z.ZodTypeAny | Record<string, z.ZodTypeAny>,
   onError?: (error: z.ZodError<any>) => string | void
 ) => {
   const z2: Z2 = Object.create(z);
@@ -158,15 +157,18 @@ const _zodAssert = (
     console.log(new Error(`schema is a string: ${schema}`));
     throw state.sendEmpty(500);
   }
-
-  const { success, data, error } = z.any().pipe(schema(z2)).safeParse(input);
+  const schema2: any = schema(z2);
+  
+  const { success, data, error } = z.any().pipe(
+    input === "data" ? schema2 : z.object(schema2)
+  ).safeParse(state[input]);
   if (!success) {
     const status = input === "pathParams" ? 404 : 400;
     const message = onError?.(error);
     if (typeof message === "string")
-      throw state.sendString(status, {}, message ?? "", "utf8");
+      throw state.sendString(status, {"x-reason": input}, message ?? "", "utf8");
     else
-      throw state.sendEmpty(status);
+      throw state.sendEmpty(status, {"x-reason": input});
   }
   state[input] = data;
 };
