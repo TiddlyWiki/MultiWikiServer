@@ -412,7 +412,7 @@ export class StateObject<
       console.log(`Invalid return URL detected: ${returnUrl}. Redirecting to home page.`);
     }
     const loginUrl = '/login';
-    return this.redirect(302, loginUrl);
+    return this.redirect(loginUrl);
 
   };
 }

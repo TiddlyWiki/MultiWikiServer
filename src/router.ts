@@ -4,7 +4,6 @@ import { AuthStateRouteACL, StateObject } from "./StateObject";
 import RootRoute from "./routes";
 import * as z from "zod";
 import { createStrictAwaitProxy, is } from "./helpers";
-import rxjs from "rxjs";
 import { TiddlyWiki } from "tiddlywiki";
 
 export const AllowedMethods = [...["GET", "HEAD", "OPTIONS", "POST", "PUT", "DELETE"] as const];
