@@ -23,12 +23,13 @@ export const route = (root) => root.defineRoute({
   }
 
   zodAssert.data(state, z => z.object({
-    allowReads: z.string().optional(),
-    allowWrites: z.string().optional()
+    allowReads: z.prismaField("config", "allowReads", "parse-boolean"),
+    allowWrites: z.prismaField("config", "allowWrites", "parse-boolean"),
   }));
+  
 
-  var allowReads = state.data.allowReads === "on";
-  var allowWrites = state.data.allowWrites === "on";
+  var allowReads = state.data.allowReads;
+  var allowWrites = state.data.allowWrites;
 
   // Update the configuration tiddlers
 

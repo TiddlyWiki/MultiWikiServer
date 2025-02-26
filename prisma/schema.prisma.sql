@@ -1,4 +1,11 @@
 -- CreateTable
+CREATE TABLE "config" (
+    "realm_id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+    "allowReads" BOOLEAN NOT NULL,
+    "allowWrites" BOOLEAN NOT NULL
+);
+
+-- CreateTable
 CREATE TABLE "acl" (
     "acl_id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
     "entity_name" TEXT NOT NULL,

@@ -324,7 +324,7 @@ export class SqlTiddlerDatabase extends DataChecks {
 		const oldRecipe = await this.engine.recipes.findUnique({
 			where: { recipe_name }
 		});
-		await this.engine.recipes.delete({
+		await this.engine.recipes.deleteMany({
 			where: { recipe_name }
 		});
 
@@ -411,6 +411,11 @@ export class SqlTiddlerDatabase extends DataChecks {
 			await this.engine.tiddlers.delete({
 				where: { tiddler_id: oldTiddler.tiddler_id, }
 			});
+		const encodeTiddlerFields = ([field_name, field_value]: [string, any]) => {
+			if (typeof field_value === "number") field_value = field_value.toString();
+			if (typeof field_value === "undefined" || field_value === null) field_value = "";
+			return [field_name, field_value];
+		}
 
 		return await this.engine.tiddlers.create({
 			data: {
@@ -420,6 +425,7 @@ export class SqlTiddlerDatabase extends DataChecks {
 				attachment_blob: attachment_blob || null,
 				fields: {
 					create: Object.entries(tiddlerFields)
+						.map(encodeTiddlerFields)
 						.map(([field_name, field_value]) => ({ field_name, field_value }))
 				}
 			},
@@ -1761,7 +1767,7 @@ export class SqlTiddlerDatabase extends DataChecks {
 		description: PrismaField<"permissions", "description">
 	) {
 		const e = await this.engine.permissions.create({
-			data: { permission_name: permissionName, description }
+			data: { permission_name: permissionName, description },
 		});
 		return e.permission_id;
 		// const result = this.engine.runStatement(`

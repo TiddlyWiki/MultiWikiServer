@@ -24,6 +24,7 @@ export class SqlTiddlerStore extends DataChecks {
   eventOutstanding: Record<string, boolean>;
   // databasePath: any;
   // sql: SqlTiddlerDatabase;
+  sqlTiddlerDatabase: SqlTiddlerDatabase;
   constructor(
     public sql: SqlTiddlerDatabase,
     public attachmentStore: any,
@@ -31,6 +32,7 @@ export class SqlTiddlerStore extends DataChecks {
   ) {
 
     super();
+    this.sqlTiddlerDatabase = sql;
 
     this.eventListeners = {}; // Hashmap by type of array of event listener functions
     this.eventOutstanding = {}; // Hashmap by type of boolean true of outstanding events
@@ -185,14 +187,14 @@ export class SqlTiddlerStore extends DataChecks {
     // var self = this;
     // await this.sql.$transaction(async store => {
     // Clear out the bag
-    this.deleteAllTiddlersInBag(bag_name);
+    await this.deleteAllTiddlersInBag(bag_name);
     // Get the tiddlers
     var path = require("path");
     var tiddlersFromPath = $tw.loadTiddlersFromPath(path.resolve($tw.boot.corePath, $tw.config.editionsPath, tiddler_files_path));
     // Save the tiddlers
     for (const tiddlersFromFile of tiddlersFromPath) {
       for (const tiddler of tiddlersFromFile.tiddlers) {
-        this.saveBagTiddler(tiddler, bag_name);
+        await this.saveBagTiddler(tiddler, bag_name);
       }
     }
     // });
@@ -214,7 +216,7 @@ export class SqlTiddlerStore extends DataChecks {
     // return await this.sql.transaction(function () {
     const validationBagName = this.validateItemName(bag_name, allowPrivilegedCharacters);
     if (validationBagName) { return { message: validationBagName }; }
-    this.sql.createBag(bag_name, description, null);
+    await this.sql.createBag(bag_name, description, null);
     this.dispatchEvent("change");
     return null;
     // });
@@ -245,7 +247,7 @@ export class SqlTiddlerStore extends DataChecks {
     }
 
     // return await this.sql.transaction(function () {
-    this.sql.createRecipe(recipe_name, bag_names, description);
+    await this.sql.createRecipe(recipe_name, bag_names, description);
     this.dispatchEvent("change");
     return null;
     // });

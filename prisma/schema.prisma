@@ -1,11 +1,18 @@
 datasource db {
   provider = "sqlite"
-  url      = "file:./editions/mws/store/database.sqlite"
+  url      = ""
 }
 
 generator client {
   provider      = "prisma-client-js"
   binaryTargets = ["native"]
+  previewFeatures = ["relationJoins", "driverAdapters"]
+}
+
+model config {
+  realm_id   Int     @id @default(autoincrement())
+  allowReads  Boolean
+  allowWrites Boolean
 }
 
 model acl {

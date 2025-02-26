@@ -1,7 +1,7 @@
 /*\
-title: $:/plugins/tiddlywiki/multiwikiserver/startup.js
+title: $:/plugins/tiddlywiki/multiwikiserver/startup-old.js
 type: application/javascript
-module-type: startup
+module-type: 
 
 Multi wiki server initialisation
 
