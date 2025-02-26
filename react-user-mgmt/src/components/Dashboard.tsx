@@ -1,8 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, PropsWithChildren } from 'react';
 import Header from './Header';
 import AnonConfigModal from './AnonConfigModal';
 import WikiCard from './WikiCard';
 import BagPill from './BagPill';
+import { useFormStatus } from 'react-dom';
+import { IndexJson } from '../helpers/server-types';
 
 interface Recipe {
   recipe_name: string;
@@ -17,8 +19,6 @@ interface Bag {
 }
 
 interface DashboardProps {
-  initialRecipes: Recipe[];
-  initialBags: Bag[];
   username: string;
   userIsAdmin: boolean;
   userIsLoggedIn: boolean;
@@ -30,122 +30,49 @@ interface DashboardProps {
   initialAllowWrites: boolean;
 }
 
-const Dashboard: React.FC<DashboardProps> = ({
-  initialRecipes,
-  initialBags,
+const Dashboard: React.FC<IndexJson> = ({
   username,
-  userIsAdmin,
-  userIsLoggedIn,
-  firstGuestUser,
-  userId,
-  initialShowSystem,
-  initialShowAnonConfig,
-  initialAllowReads,
-  initialAllowWrites
+  "recipe-list": initialRecipes,
+  "bag-list": initialBags,
+  "user-is-admin": userIsAdmin = false,
+  "user-is-logged-in": userIsLoggedIn,
+  "first-guest-user": firstGuestUser,
+  user,
+  allowReads,
+  allowWrites,
+
 }) => {
   const [recipes, setRecipes] = useState<Recipe[]>([
     { recipe_name: 'Home', description: 'Home page', has_acl_access: false, bag_names: ["home", '$:/config'], },
     { recipe_name: 'Dev', description: 'Dev docs', has_acl_access: false, bag_names: ["dev", '$:/config'], },
   ]);
-  const [bags, setBags] = useState<Bag[]>([
-    { bag_name: '$:/config', description: 'Configuration' },
-    { bag_name: '$:/state', description: 'State' },
-    { bag_name: "home", description: "Home page" },
-    { bag_name: "dev", description: "Dev docs" },
-  ]);
-  const [showSystem, setShowSystem] = useState(initialShowSystem);
-  const [showAnonConfig, setShowAnonConfig] = useState(initialShowAnonConfig);
 
-  // Form states
-  const [recipeForm, setRecipeForm] = useState({ recipe_name: '', description: '', bag_names: '' });
-  const [bagForm, setBagForm] = useState({ bag_name: '', description: '' });
-  const [isSubmitting, setIsSubmitting] = useState({ recipe: false, bag: false });
+  const [bags, setBags] = useState<Bag[]>(initialBags);
+  const [showSystem, setShowSystem] = useState(false);
+  const [showAnonConfig, setShowAnonConfig] = useState(false);
+
+  const userId = user?.user_id;
+
 
   // Filter system bags based on showSystem state
   const filteredBags = showSystem
     ? bags
     : bags.filter(bag => !bag.bag_name.startsWith("$:/"));
 
-  const handleRecipeFormChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
-    setRecipeForm(prev => ({ ...prev, [name]: value }));
+  const handleRecipeSubmit = async (e: any) => {
+    const formData: any = Object.fromEntries(e.entries());
+    formData.bag_names = formData.bag_names.split(' ');
+    console.log(formData);
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    setRecipes(prev => [...prev, formData]);
   };
 
-  const handleBagFormChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
-    setBagForm(prev => ({ ...prev, [name]: value }));
-  };
-
-  const handleRecipeSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsSubmitting(prev => ({ ...prev, recipe: true }));
-
-    try {
-      const response = await fetch('/recipes', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ...recipeForm,
-          bag_names: recipeForm.bag_names.split(' ')
-        })
-      });
-
-      if (response.ok) {
-        const newRecipe = await response.json();
-
-        // Update recipes list
-        setRecipes(prev => {
-          const index = prev.findIndex(r => r.recipe_name === newRecipe.recipe_name);
-          if (index >= 0) {
-            return prev.map(r => r.recipe_name === newRecipe.recipe_name ? newRecipe : r);
-          } else {
-            return [...prev, newRecipe];
-          }
-        });
-
-        // Clear form
-        setRecipeForm({ recipe_name: '', description: '', bag_names: '' });
-      }
-    } catch (error) {
-      console.error('Error submitting recipe:', error);
-    } finally {
-      setIsSubmitting(prev => ({ ...prev, recipe: false }));
-    }
-  };
-
-  const handleBagSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsSubmitting(prev => ({ ...prev, bag: true }));
-
-    try {
-      const response = await fetch('/bags', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(bagForm)
-      });
-
-      if (response.ok) {
-        const newBag = await response.json();
-
-        // Update bags list
-        setBags(prev => {
-          const index = prev.findIndex(b => b.bag_name === newBag.bag_name);
-          if (index >= 0) {
-            return prev.map(b => b.bag_name === newBag.bag_name ? newBag : b);
-          } else {
-            return [...prev, newBag];
-          }
-        });
-
-        // Clear form
-        setBagForm({ bag_name: '', description: '' });
-      }
-    } catch (error) {
-      console.error('Error submitting bag:', error);
-    } finally {
-      setIsSubmitting(prev => ({ ...prev, bag: false }));
-    }
-  };
+  const handleBagSubmit = async (e: any) => {
+    const formData: any = Object.fromEntries(e.entries());
+    console.log(formData);
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    setBags(prev => [...prev, formData]);
+  }
 
   const handleShowSystemChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newShowSystem = e.target.checked;
@@ -170,6 +97,7 @@ const Dashboard: React.FC<DashboardProps> = ({
         userIsLoggedIn={userIsLoggedIn}
         firstGuestUser={firstGuestUser}
         userId={userId}
+        setShowAnonConfig={setShowAnonConfig}
       />
 
       {firstGuestUser && (
@@ -188,8 +116,8 @@ const Dashboard: React.FC<DashboardProps> = ({
 
       {showAnonConfig && (
         <AnonConfigModal
-          initialAllowReads={initialAllowReads}
-          initialAllowWrites={initialAllowWrites}
+          initialAllowReads={allowReads}
+          initialAllowWrites={allowWrites}
           onClose={() => setShowAnonConfig(false)}
         />
       )}
@@ -208,53 +136,12 @@ const Dashboard: React.FC<DashboardProps> = ({
         ))}
       </ul>
 
-      <form className="mws-form" onSubmit={handleRecipeSubmit}>
-        <div className="mws-form-heading">
-          Create a new recipe or modify and existing one
-        </div>
-        <div className="mws-form-fields">
-          <div className="mws-form-field">
-            <label className="mws-form-field-description">
-              Recipe name
-            </label>
-            <input
-              name="recipe_name"
-              type="text"
-              value={recipeForm.recipe_name}
-              onChange={handleRecipeFormChange}
-            />
-          </div>
-          <div className="mws-form-field">
-            <label className="mws-form-field-description">
-              Recipe description
-            </label>
-            <input
-              name="description"
-              type="text"
-              value={recipeForm.description}
-              onChange={handleRecipeFormChange}
-            />
-          </div>
-          <div className="mws-form-field">
-            <label className="mws-form-field-description">
-              Bags in recipe (space separated)
-            </label>
-            <input
-              name="bag_names"
-              type="text"
-              value={recipeForm.bag_names}
-              onChange={handleRecipeFormChange}
-            />
-          </div>
-        </div>
-        <div className="mws-form-buttons">
-          <button
-            type="submit"
-            disabled={isSubmitting.recipe}
-          >
-            {isSubmitting.recipe ? 'Processing...' : 'Create or Update Recipe'}
-          </button>
-        </div>
+      <form className="mws-form" action={handleRecipeSubmit}>
+        <MwsFormChild title="Create a new recipe or modify an existing one" submitText="Create or Update Recipe">
+          <FormField name="recipe_name">Recipe name</FormField>
+          <FormField name="description">Recipe description</FormField>
+          <FormField name="bag_names">Bags in recipe (space separated)</FormField>
+        </MwsFormChild>
       </form>
 
       <h1>Bags</h1>
@@ -268,42 +155,11 @@ const Dashboard: React.FC<DashboardProps> = ({
         ))}
       </ul>
 
-      <form className="mws-form" onSubmit={handleBagSubmit}>
-        <div className="mws-form-heading">
-          Create a new bag or modify and existing one
-        </div>
-        <div className="mws-form-fields">
-          <div className="mws-form-field">
-            <label className="mws-form-field-description">
-              Bag name
-            </label>
-            <input
-              name="bag_name"
-              type="text"
-              value={bagForm.bag_name}
-              onChange={handleBagFormChange}
-            />
-          </div>
-          <div className="mws-form-field">
-            <label className="mws-form-field-description">
-              Bag description
-            </label>
-            <input
-              name="description"
-              type="text"
-              value={bagForm.description}
-              onChange={handleBagFormChange}
-            />
-          </div>
-        </div>
-        <div className="mws-form-buttons">
-          <button
-            type="submit"
-            disabled={isSubmitting.bag}
-          >
-            {isSubmitting.bag ? 'Processing...' : 'Create or Update Bag'}
-          </button>
-        </div>
+      <form className="mws-form" action={handleBagSubmit}>
+        <MwsFormChild title="Create a new bag or modify an existing one" submitText="Create or Update Bag"        >
+          <FormField name="bag_name">Bag name</FormField>
+          <FormField name="description">Bag description</FormField>
+        </MwsFormChild>
       </form>
 
       <h1>Advanced</h1>
@@ -322,5 +178,29 @@ const Dashboard: React.FC<DashboardProps> = ({
     </>
   );
 };
+
+function MwsFormChild({ title, submitText, children, }: PropsWithChildren<{ title: string, submitText: string }>) {
+  const status = useFormStatus();
+  return <>
+    <div className="mws-form-heading">
+      {title}
+    </div>
+    <div className="mws-form-fields">
+      {children}
+    </div>
+    <div className="mws-form-buttons">
+      <button type="submit" disabled={status.pending}          >
+        {status.pending ? 'Processing...' : submitText}
+      </button>
+    </div>
+  </>
+}
+
+function FormField({ name, children }: PropsWithChildren<{ name: string }>) {
+  return <div className="mws-form-field" key={name}>
+    <label className="mws-form-field-description">{children}</label>
+    <input name={name} type="text" required />
+  </div>
+}
 
 export default Dashboard;

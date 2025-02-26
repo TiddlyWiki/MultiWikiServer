@@ -7,6 +7,7 @@ interface HeaderProps {
   userIsLoggedIn: boolean;
   firstGuestUser: boolean;
   userId?: string;
+  setShowAnonConfig: (show: boolean) => void;
 }
 
 const Header: React.FC<HeaderProps> = ({
@@ -15,7 +16,8 @@ const Header: React.FC<HeaderProps> = ({
   userIsAdmin,
   userIsLoggedIn,
   firstGuestUser,
-  userId
+  userId,
+  setShowAnonConfig
 }) => {
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   
@@ -32,12 +34,7 @@ const Header: React.FC<HeaderProps> = ({
   };
   
   const handleAnonConfig = async () => {
-    try {
-      await fetch('/admin/anon', { method: 'POST' });
-      window.location.reload();
-    } catch (error) {
-      console.error('Error configuring anonymous access:', error);
-    }
+    setShowAnonConfig(true);
   };
   
   const handleLogout = async () => {
