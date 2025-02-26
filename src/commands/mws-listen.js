@@ -26,13 +26,13 @@ var Command = function(params,commander,callback) {
 	this.callback = callback;
 };
 
-Command.prototype.execute = function() {
+Command.prototype.execute = async function() {
 	var self = this;
 	if(!$tw.boot.wikiTiddlersPath) {
 		$tw.utils.warning("Warning: Wiki folder '" + $tw.boot.wikiPath + "' does not exist or is missing a tiddlywiki.info file");
 	}
 	// Set up server
-	this.server = $tw.mws.serverManager.createServer({
+	this.server = await $tw.mws.serverManager.createServer({
 		wiki: $tw.wiki,
 		variables: self.params
 	});

@@ -147,7 +147,7 @@ export class StateObject<
   ) {
     // this.store = this.router.$tw.mws.store;
     this.databasePath = resolve(this.router.$tw.boot.wikiPath, "store/database.sqlite");
-    this.attachmentStore = this.router.$tw.mws.store.attachmentStore;
+    this.attachmentStore = this.router.attachmentStore;
     this.adminWiki = this.router.$tw.wiki;
 
     this.engine = new PrismaClient<{ datasourceUrl: string }, never, {
@@ -226,7 +226,7 @@ export class StateObject<
     });
     return cookies;
   }
-  async authenticateUser() {
+  async authUser() {
     const session_id = this.cookies.session;
     if (!session_id) { return null; }
 
@@ -236,8 +236,16 @@ export class StateObject<
     if (!user) {
       return null;
     }
+    
+    // var admin = await this.store.sql.getRoleByName("ADMIN");
+    // if (admin) { await this.store.sql.addRoleToUser(user.user_id, admin.role_id); }
+    // console.log(admin, await this.store.sql.getUserRoles(user.user_id));
+
+
     delete user.password;
+    // console.log(await this.engine.roles.findMany())
     const userRole = await this.store.sql.getUserRoles(user.user_id);
+    // console.log(user.user_id, userRole);
     user['isAdmin'] = userRole?.roles.some(e => e.role_name === 'ADMIN');
     user['sessionId'] = session_id;
 
@@ -260,7 +268,7 @@ export class StateObject<
   async getOldAuthState() {
     // const state: any = {};
     // Authenticate the user
-    const authenticatedUser = await this.authenticateUser();
+    const authenticatedUser = await this.authUser();
     const authenticatedUsername = authenticatedUser?.username;
     var { allowReads, allowWrites, isEnabled, showAnonConfig } = this.getAnonymousAccessConfig();
 

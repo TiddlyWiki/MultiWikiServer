@@ -6,76 +6,76 @@ module-type: command
 Command to create and load a bag for each plugin in the repo
 
 \*/
-(function(){
+(function() {
 
-/*jslint node: true, browser: true */
-/*global $tw: false */
-"use strict";
+	/*jslint node: true, browser: true */
+	/*global $tw: false */
+	"use strict";
 
-exports.info = {
-	name: "mws-load-plugin-bags",
-	synchronous: true
-};
+	exports.info = {
+		name: "mws-load-plugin-bags",
+		synchronous: true
+	};
 
-var Command = function(params,commander,callback) {
-	this.params = params;
-	this.commander = commander;
-	this.callback = callback;
-};
+	var Command = function(params, commander, callback) {
+		this.params = params;
+		this.commander = commander;
+		this.callback = callback;
+	};
 
-Command.prototype.execute = function() {
-	var self = this;
-	loadPluginBags();
-	return null;
-};
+	Command.prototype.execute = async function() {
+		var self = this;
+		await loadPluginBags();
+		return null;
+	};
 
-function loadPluginBags() {
-	const path = require("path"),
-		fs = require("fs");
-	// Copy plugins
-	var makePluginBagName = function(type,publisher,name) {
+	async function loadPluginBags() {
+		const path = require("path"),
+			fs = require("fs");
+		// Copy plugins
+		var makePluginBagName = function(type, publisher, name) {
 			return "$:/" + type + "/" + (publisher ? publisher + "/" : "") + name;
-		},
-		savePlugin = function(pluginFields,type,publisher,name) {
-			const bagName = makePluginBagName(type,publisher,name);
-			const result = $tw.mws.store.createBag(bagName,pluginFields.description || "(no description)",{allowPrivilegedCharacters: true});
+		};
+		async function savePlugin(pluginFields, type, publisher, name) {
+			const bagName = makePluginBagName(type, publisher, name);
+			const result = await $tw.mws.store.createBag(bagName, pluginFields.description || "(no description)", {allowPrivilegedCharacters: true});
 			if(result) {
 				console.log(`Error creating plugin bag ${bagname}: ${JSON.stringify(result)}`);
 			}
-			$tw.mws.store.saveBagTiddler(pluginFields,bagName);
-		},
-		collectPlugins = function(folder,type,publisher) {
+			await $tw.mws.store.saveBagTiddler(pluginFields, bagName);
+		}
+		async function collectPlugins(folder, type, publisher) {
 			var pluginFolders = $tw.utils.getSubdirectories(folder) || [];
-			for(var p=0; p<pluginFolders.length; p++) {
+			for(var p = 0; p < pluginFolders.length; p++) {
 				const pluginFolderName = pluginFolders[p];
 				if(!$tw.boot.excludeRegExp.test(pluginFolderName)) {
-					var pluginFields = $tw.loadPluginFolder(path.resolve(folder,pluginFolderName));
+					var pluginFields = $tw.loadPluginFolder(path.resolve(folder, pluginFolderName));
 					if(pluginFields && pluginFields.title) {
-						savePlugin(pluginFields,type,publisher,pluginFolderName);
+						await savePlugin(pluginFields, type, publisher, pluginFolderName);
 					}
 				}
 			}
-		},
-		collectPublisherPlugins = function(folder,type) {
+		}
+		async function collectPublisherPlugins(folder, type) {
 			var publisherFolders = $tw.utils.getSubdirectories(folder) || [];
-			for(var t=0; t<publisherFolders.length; t++) {
+			for(var t = 0; t < publisherFolders.length; t++) {
 				const publisherFolderName = publisherFolders[t];
 				if(!$tw.boot.excludeRegExp.test(publisherFolderName)) {
-					collectPlugins(path.resolve(folder,publisherFolderName),type,publisherFolderName);
+					await collectPlugins(path.resolve(folder, publisherFolderName), type, publisherFolderName);
 				}
 			}
 		};
-	$tw.utils.each($tw.getLibraryItemSearchPaths($tw.config.pluginsPath,$tw.config.pluginsEnvVar),function(folder) {
-		collectPublisherPlugins(folder,"plugins");
-	});
-	$tw.utils.each($tw.getLibraryItemSearchPaths($tw.config.themesPath,$tw.config.themesEnvVar),function(folder) {
-		collectPublisherPlugins(folder,"themes");
-	});
-	$tw.utils.each($tw.getLibraryItemSearchPaths($tw.config.languagesPath,$tw.config.languagesEnvVar),function(folder) {
-		collectPlugins(folder,"languages");
-	});
-}
+		await $tw.utils.eachAsync($tw.getLibraryItemSearchPaths($tw.config.pluginsPath, $tw.config.pluginsEnvVar), async function(folder) {
+			await collectPublisherPlugins(folder, "plugins");
+		});
+		await $tw.utils.eachAsync($tw.getLibraryItemSearchPaths($tw.config.themesPath, $tw.config.themesEnvVar), async function(folder) {
+			await collectPublisherPlugins(folder, "themes");
+		});
+		await $tw.utils.eachAsync($tw.getLibraryItemSearchPaths($tw.config.languagesPath, $tw.config.languagesEnvVar), async function(folder) {
+			await collectPlugins(folder, "languages");
+		});
+	}
 
-exports.Command = Command;
+	exports.Command = Command;
 
 })();

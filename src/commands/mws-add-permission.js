@@ -1,3 +1,5 @@
+const {PrismaClientKnownRequestError} = require("@prisma/client/runtime/library");
+
 /*\
 title: $:/plugins/tiddlywiki/multiwikiserver/commands/mws-add-permission.js
 type: application/javascript
@@ -6,42 +8,44 @@ module-type: command
 Command to create a permission
 
 \*/
-(function(){
+(function() {
 
-/*jslint node: true, browser: true */
-/*global $tw: false */
-"use strict";
-	
-exports.info = {
-	name: "mws-add-permission",
-	synchronous: false
-};
+	/*jslint node: true, browser: true */
+	/*global $tw: false */
+	"use strict";
 
-var Command = function(params,commander,callback) {
-	this.params = params;
-	this.commander = commander;
-	this.callback = callback;
-};
+	exports.info = {
+		name: "mws-add-permission",
+		synchronous: false
+	};
 
-Command.prototype.execute = function() {
-	var self = this;
+	var Command = function(params, commander, callback) {
+		this.params = params;
+		this.commander = commander;
+		this.callback = callback;
+	};
 
-	if(this.params.length < 2) {
-		return "Usage: --mws-add-permission <permission_name> <description>";
-	}
+	Command.prototype.execute = async function() {
+		var self = this;
 
-	if(!$tw.mws || !$tw.mws.store || !$tw.mws.store.sqlTiddlerDatabase) {
-		return "Error: MultiWikiServer or SQL database not initialized.";
-	}
+		if(this.params.length < 2) {
+			return "Usage: --mws-add-permission <permission_name> <description>";
+		}
 
-	var permission_name = this.params[0];
-	var description = this.params[1];
+		if(!await $tw.mws || !await $tw.mws.store || !await $tw.mws.store.sqlTiddlerDatabase) {
+			return "Error: MultiWikiServer or SQL database not initialized.";
+		}
 
-	$tw.mws.store.sqlTiddlerDatabase.createPermission(permission_name, description);
-	self.callback();
-	return null;
-};
+		var permission_name = this.params[0];
+		var description = this.params[1];
 
-exports.Command = Command;
+		await $tw.mws.store.sqlTiddlerDatabase.createPermission(permission_name, description)
+			.catch(e => console.log(e instanceof PrismaClientKnownRequestError ? e.stack : e));
+
+		self.callback();
+		return null;
+	};
+
+	exports.Command = Command;
 
 })();

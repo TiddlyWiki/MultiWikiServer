@@ -27,7 +27,7 @@ var Command = function(params,commander,callback) {
 	this.callback = callback;
 };
 
-Command.prototype.execute = function() {
+Command.prototype.execute = async function() {
 	var self = this;
 	// Check parameters
 	if(this.params.length < 1) {
@@ -37,7 +37,7 @@ Command.prototype.execute = function() {
 		bagList = (this.params[1] || "").split(" "),
 		recipeDescription = this.params[2] || recipeNameName;
 	// Create recipe
-	var result = $tw.mws.store.createRecipe(recipeName,bagList,recipeDescription);
+	var result = await $tw.mws.store.createRecipe(recipeName,bagList,recipeDescription);
 	if(result) {
 		return result.message;
 	} else {

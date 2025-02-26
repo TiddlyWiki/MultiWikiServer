@@ -5,7 +5,16 @@ import RootRoute from "./routes";
 import * as z from "zod";
 import { createStrictAwaitProxy, is } from "./helpers";
 import { TiddlyWiki } from "tiddlywiki";
-import { readFileSync } from "fs";
+import { existsSync, mkdirSync, readFileSync } from "fs";
+import { AttachmentStore } from "./store/attachments";
+import { SqlTiddlerDatabase } from "./store/new-sql-tiddler-database";
+import { SqlTiddlerStore } from "./store/new-sql-tiddler-store";
+import { resolve } from "path";
+import { PrismaClient } from "@prisma/client";
+import Database from "better-sqlite3";
+import { Commander } from "./commander";
+import { PrismaLibSQL } from '@prisma/adapter-libsql'
+import { createClient } from '@libsql/client'
 
 export const AllowedMethods = [...["GET", "HEAD", "OPTIONS", "POST", "PUT", "DELETE"] as const];
 export type AllowedMethod = typeof AllowedMethods[number];
@@ -56,28 +65,119 @@ export class Router {
     }, async (state: any) => state);
     await RootRoute(rootRoute);
 
-    const $tw = TiddlyWiki();
+    const wikiPath = "./editions/mws";
+
+    const $tw = (global as any).$tw = Router.makeTiddlyWiki();
+    const commands = true;
     // tiddlywiki [+<pluginname> | ++<pluginpath>] [<wikipath>] ...[--command ...args]
     $tw.boot.argv = [
       "++plugins/client",
       "++plugins/server",
-      "./editions/mws",
-      // "--mws-load-plugin-bags",
-      // "--build", "load-mws-demo-data",
+      "++src/commands",
+      wikiPath,
+      ...commands ? [
+        "--mws-load-plugin-bags",
+        "--build", "load-mws-demo-data",
+      ] : []
       // "--mws-listen", "port=5001", "host=::"
     ];
-    await new Promise<void>(resolve => $tw.boot.boot(resolve));
-    try {
-      
-    } catch(e){
-      console.error(e);
-    }
+    mkdirSync(resolve(wikiPath, "store"), { recursive: true });
+    const attachmentStore = new AttachmentStore({ storePath: resolve(wikiPath, "store/") });
 
-    (global as any).$tw = $tw;
-    return new Router(rootRoute, $tw);
+    if (commands) $tw.modules.define("$:/plugins/tiddlywiki/multiwikiserver/startup.js", "startup", {
+      name: "multiwikiserver",
+      platforms: ["node"],
+      after: ["load-modules"],
+      before: ["story", "commands"],
+      synchronous: false,
+      startup: (callback: () => void) => Promise.resolve().then(async () => {
+        $tw.Commander = class Commander2 extends Commander {
+          get commands() { return $tw.commands; }
+          constructor(...args: ConstructorParameters<typeof Commander>) {
+            super(...args);
+          }
+        };
+
+
+        const libsql = createClient({ url: "file:" + resolve(wikiPath, "store/database.sqlite") });
+        // await libsql.executeMultiple(readFileSync("./prisma/schema.prisma.sql", "utf8"));
+        libsql.execute("pragma synchronous=off");
+        libsql.execute("pragma journal_mode=wal");
+        const adapter = new PrismaLibSQL(libsql)
+        const engine = new PrismaClient({ adapter, log: ["error", "warn", "info"] });
+        const sql = createStrictAwaitProxy(new SqlTiddlerDatabase(engine as any));
+        const store = createStrictAwaitProxy(new SqlTiddlerStore(sql, attachmentStore, $tw.wiki));
+        $tw.mws = { store };
+
+      }).then(callback)
+    });
+
+    await $tw.boot.boot();
+
+    if (commands) {
+      $tw.mws.store.sql.engine.$disconnect();
+      delete $tw.mws.store.sql.engine;
+      delete $tw.mws.store.sql;
+      delete $tw.mws.store;
+      delete $tw.mws;
+    }
+    console.log("booted")
+
+
+    return new Router(rootRoute, $tw, attachmentStore);
   }
 
-  constructor(private rootRoute: rootRoute, public $tw: any) {
+  static async makeStore($tw: any, wikiPath: string) {
+
+  }
+  static makeTiddlyWiki() {
+    const $tw = TiddlyWiki() as any;
+
+    $tw.boot.boot = async function () {
+      // Initialise crypto object
+      $tw.crypto = new $tw.utils.Crypto();
+      // Initialise password prompter
+      if ($tw.browser && !$tw.node) {
+        $tw.passwordPrompt = new $tw.utils.PasswordPrompt();
+      }
+      // Preload any encrypted tiddlers
+      await new Promise(resolve => $tw.boot.decryptEncryptedTiddlers(resolve));
+
+      // this part executes syncly
+      await new Promise(resolve => $tw.boot.startup({ callback: resolve }));
+    };
+    $tw.utils.eachAsync = async function (object: any, callback: any) {
+      var next, f, length;
+      if (object) {
+        if (Object.prototype.toString.call(object) == "[object Array]") {
+          for (f = 0, length = object.length; f < length; f++) {
+            next = await callback(object[f], f, object);
+            if (next === false) {
+              break;
+            }
+          }
+        } else {
+          var keys = Object.keys(object);
+          for (f = 0, length = keys.length; f < length; f++) {
+            var key = keys[f];
+            next = await callback(object[key], key, object);
+            if (next === false) {
+              break;
+            }
+          }
+        }
+      }
+    };
+
+
+    return $tw;
+  }
+
+  constructor(
+    private rootRoute: rootRoute,
+    public $tw: any,
+    public attachmentStore: AttachmentStore
+  ) {
 
   }
 
@@ -101,7 +201,9 @@ export class Router {
       new StateObject(streamer, routePath, bodyFormat, this) as statetype
     );
 
+
     Object.assign(state, await state.getOldAuthState());
+    // console.log(state.authenticatedUser)
 
     routePath.forEach(match => {
       if (!this.csrfDisable && !match.route.useACL.csrfDisable && state.authLevelNeeded === "writers" && state.headers["x-requested-with"] !== "TiddlyWiki")
@@ -132,7 +234,7 @@ export class Router {
         console.log(state.data, data);
         state.data = data;
       }
-    } else if (state.bodyFormat === "www-form-urlencoded-urlsearchparams" 
+    } else if (state.bodyFormat === "www-form-urlencoded-urlsearchparams"
       || state.bodyFormat === "www-form-urlencoded") {
       const data = state.data = new URLSearchParams((await state.readBody()).toString("utf8"));
       if (state.bodyFormat === "www-form-urlencoded") {

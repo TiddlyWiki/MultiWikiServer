@@ -1,0 +1,8 @@
+{
+	"title": "$:/plugins/tiddlywiki/multiwikiserver/commands",
+	"name": "Multi Wiki Server Commands",
+	"description": "Commands for the Multiple Wiki Server Extension",
+	"list": "readme",
+	"dependents": [],
+	"stability": "STABILITY_1_EXPERIMENTAL"
+}
