@@ -25,10 +25,10 @@ export const route = (root) => root.defineRoute({
 	if(loginTiddler) {
 		state.writeHead(200, {"Content-Type": "text/html"});
 		state.write(state.store.adminWiki.renderTiddler("text/html", loginTiddler.fields.title));
-		state.end();
+		return state.end();
 	} else {
 		state.writeHead(500);
 		state.write("Login form is not set up correctly.");
-		state.end();
+		return state.end();
 	}
 });

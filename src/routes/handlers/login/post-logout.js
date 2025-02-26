@@ -18,7 +18,7 @@ export const route = (root) => root.defineRoute({
 	}
 	var cookies = state.headers.cookie ? state.headers.cookie.split(";") : [];
 	for(var i = 0; i < cookies.length; i++) {
-		var cookie = cookies[i].trim().split("=")[0];
+		var cookie = cookies[i]?.trim().split("=")[0];
 		state.setHeader("Set-Cookie", cookie + "=; HttpOnly; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Strict");
 	}
 

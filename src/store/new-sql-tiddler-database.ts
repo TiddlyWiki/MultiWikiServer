@@ -878,7 +878,7 @@ export class SqlTiddlerDatabase extends DataChecks {
 				entity_name: entity_name,
 				entity_type: entity_type,
 				permission: { permission_name },
-				role: { user_roles: { some: { user_id } } }
+				role: { users: { some: { user_id } } }
 			},
 			take: 1,
 		});
@@ -1316,7 +1316,7 @@ export class SqlTiddlerDatabase extends DataChecks {
 	}
 	listUsersByRoleId(role_id: PrismaField<"roles", "role_id">) {
 		return this.engine.users.findMany({
-			where: { user_roles: { some: { role_id } } },
+			where: { roles: { some: { role_id } } },
 			orderBy: { username: "asc" }
 		});
 		// return this.engine.runStatementGetAll(`
@@ -1346,13 +1346,11 @@ export class SqlTiddlerDatabase extends DataChecks {
 
 			await this.engine.users.update({
 				where: { user_id: user_id },
-				data: { username, email, }
+				data: {
+					username, email,
+					roles: role_id ? { set: [{ role_id }] } : undefined
+				}
 			});
-
-			if (role_id) {
-				await this.engine.user_roles.deleteMany({ where: { user_id } });
-				await this.engine.user_roles.create({ data: { user_id, role_id } });
-			}
 
 			return { success: true, message: "User profile and role updated successfully." };
 		} catch (e) {
@@ -1916,8 +1914,9 @@ export class SqlTiddlerDatabase extends DataChecks {
 		userId: PrismaField<"users", "user_id">,
 		groupId: PrismaField<"groups", "group_id">
 	) {
-		return this.engine.user_groups.create({
-			data: { user_id: userId, group_id: groupId }
+		return this.engine.users.update({
+			where: { user_id: userId },
+			data: { groups: { connect: { group_id: groupId } } }
 		});
 		// this.engine.runStatement(`
 		// 		INSERT OR IGNORE INTO user_groups (user_id, group_id)
@@ -1931,10 +1930,10 @@ export class SqlTiddlerDatabase extends DataChecks {
 		userId: PrismaField<"users", "user_id">,
 		groupId: PrismaField<"groups", "group_id">
 	) {
-		const e = await this.engine.user_groups.count({
-			where: { user_id: userId, group_id: groupId }
+		return await this.engine.users.count({
+			where: { user_id: userId, groups: { some: { group_id: groupId } } },
 		});
-		return e > 0;
+
 		// const result = this.engine.runStatementGet(`
 		// 		SELECT 1 FROM user_groups
 		// 		WHERE user_id = $userId AND group_id = $groupId
@@ -1948,8 +1947,9 @@ export class SqlTiddlerDatabase extends DataChecks {
 		userId: PrismaField<"users", "user_id">,
 		groupId: PrismaField<"groups", "group_id">
 	) {
-		return this.engine.user_groups.delete({
-			where: { user_id_group_id: { user_id: userId, group_id: groupId } }
+		return this.engine.users.update({
+			where: { user_id: userId },
+			data: { groups: { disconnect: { group_id: groupId } } }
 		});
 		// this.engine.runStatement(`
 		// 		DELETE FROM user_groups
@@ -1963,8 +1963,9 @@ export class SqlTiddlerDatabase extends DataChecks {
 		userId: PrismaField<"users", "user_id">,
 		roleId: PrismaField<"roles", "role_id">
 	) {
-		return this.engine.user_roles.create({
-			data: { user_id: userId, role_id: roleId }
+		return this.engine.users.update({
+			where: { user_id: userId },
+			data: { roles: { connect: { role_id: roleId } } }
 		});
 		// this.engine.runStatement(`
 		// 		INSERT OR IGNORE INTO user_roles (user_id, role_id)
@@ -1978,8 +1979,9 @@ export class SqlTiddlerDatabase extends DataChecks {
 		userId: PrismaField<"users", "user_id">,
 		roleId: PrismaField<"roles", "role_id">
 	) {
-		return this.engine.user_roles.delete({
-			where: { user_id_role_id: { user_id: userId, role_id: roleId } }
+		return this.engine.users.update({
+			where: { user_id: userId },
+			data: { roles: { disconnect: { role_id: roleId } } }
 		});
 		// this.engine.runStatement(`
 		// 		DELETE FROM user_roles
@@ -1993,8 +1995,9 @@ export class SqlTiddlerDatabase extends DataChecks {
 		groupId: PrismaField<"groups", "group_id">,
 		roleId: PrismaField<"roles", "role_id">
 	) {
-		return this.engine.group_roles.create({
-			data: { group_id: groupId, role_id: roleId }
+		return this.engine.groups.update({
+			where: { group_id: groupId },
+			data: { roles: { connect: { role_id: roleId } } }
 		});
 		// this.engine.runStatement(`
 		// 		INSERT OR IGNORE INTO group_roles (group_id, role_id)
@@ -2005,11 +2008,12 @@ export class SqlTiddlerDatabase extends DataChecks {
 		// });
 	}
 	removeRoleFromGroup(
-		groupId: PrismaField<"groups", "group_id">,
-		roleId: PrismaField<"roles", "role_id">
+		group_id: PrismaField<"groups", "group_id">,
+		role_id: PrismaField<"roles", "role_id">
 	) {
-		return this.engine.group_roles.delete({
-			where: { group_id_role_id: { group_id: groupId, role_id: roleId } }
+		return this.engine.groups.update({
+			where: { group_id },
+			data: { roles: { disconnect: { role_id } } }
 		});
 		// this.engine.runStatement(`
 		// 		DELETE FROM group_roles
@@ -2019,40 +2023,42 @@ export class SqlTiddlerDatabase extends DataChecks {
 		// 	$roleId: roleId
 		// });
 	}
-	addPermissionToRole(
-		roleId: PrismaField<"roles", "role_id">,
-		permissionId: PrismaField<"permissions", "permission_id">
-	) {
-		return this.engine.role_permissions.create({
-			data: { role_id: roleId, permission_id: permissionId }
-		});
-		// this.engine.runStatement(`
-		// 		INSERT OR IGNORE INTO role_permissions (role_id, permission_id)
-		// 		VALUES ($roleId, $permissionId)
-		// `, {
-		// 	$roleId: roleId,
-		// 	$permissionId: permissionId
-		// });
-	}
-	removePermissionFromRole(
-		roleId: PrismaField<"roles", "role_id">,
-		permissionId: PrismaField<"permissions", "permission_id">
-	) {
-		return this.engine.role_permissions.delete({
-			where: { role_id_permission_id: { role_id: roleId, permission_id: permissionId } }
-		});
-		// this.engine.runStatement(`
-		// 		DELETE FROM role_permissions
-		// 		WHERE role_id = $roleId AND permission_id = $permissionId
-		// `, {
-		// 	$roleId: roleId,
-		// 	$permissionId: permissionId
-		// });
-	}
-	getUserRoles(userId: PrismaField<"users", "user_id">) {
-		return this.engine.user_roles.findMany({
-			where: { user_id: userId },
-			select: { role: true, role_id: true, }
+	// this doesn't appear to be used anywhere
+	// addPermissionToRole(
+	// 	roleId: PrismaField<"roles", "role_id">,
+	// 	permissionId: PrismaField<"permissions", "permission_id">
+	// ) {
+	// 	return this.engine.role_permissions.create({
+	// 		data: { role_id: roleId, permission_id: permissionId }
+	// 	});
+	// 	// this.engine.runStatement(`
+	// 	// 		INSERT OR IGNORE INTO role_permissions (role_id, permission_id)
+	// 	// 		VALUES ($roleId, $permissionId)
+	// 	// `, {
+	// 	// 	$roleId: roleId,
+	// 	// 	$permissionId: permissionId
+	// 	// });
+	// }
+	// this doesn't appear to be used anywhere
+	// removePermissionFromRole(
+	// 	roleId: PrismaField<"roles", "role_id">,
+	// 	permissionId: PrismaField<"permissions", "permission_id">
+	// ) {
+	// 	return this.engine.role_permissions.delete({
+	// 		where: { role_id_permission_id: { role_id: roleId, permission_id: permissionId } }
+	// 	});
+	// 	// this.engine.runStatement(`
+	// 	// 		DELETE FROM role_permissions
+	// 	// 		WHERE role_id = $roleId AND permission_id = $permissionId
+	// 	// `, {
+	// 	// 	$roleId: roleId,
+	// 	// 	$permissionId: permissionId
+	// 	// });
+	// }
+	getUserRoles(user_id: PrismaField<"users", "user_id">) {
+		return this.engine.users.findUnique({
+			where: { user_id },
+			select: { roles: true, }
 		});
 		// const query = `
 		// 		SELECT r.role_id, r.role_name
@@ -2065,7 +2071,10 @@ export class SqlTiddlerDatabase extends DataChecks {
 		// return this.engine.runStatementGet(query, { $userId: userId });
 	}
 	deleteUserRolesByRoleId(roleId: PrismaField<"roles", "role_id">) {
-		return this.engine.user_roles.deleteMany({ where: { role_id: roleId } });
+		return this.engine.roles.update({
+			where: { role_id: roleId },
+			data: { users: { set: [] } }
+		})
 		// this.engine.runStatement(`
 		// 		DELETE FROM user_roles
 		// 		WHERE role_id = $roleId
@@ -2074,7 +2083,10 @@ export class SqlTiddlerDatabase extends DataChecks {
 		// });
 	}
 	deleteUserRolesByUserId(userId: PrismaField<"users", "user_id">) {
-		return this.engine.user_roles.deleteMany({ where: { user_id: userId } });
+		return this.engine.users.update({
+			where: { user_id: userId },
+			data: { roles: { set: [] } }
+		});
 		// this.engine.runStatement(`
 		// 		DELETE FROM user_roles
 		// 		WHERE user_id = $userId
@@ -2082,9 +2094,10 @@ export class SqlTiddlerDatabase extends DataChecks {
 		// 	$userId: userId
 		// });
 	}
-	async isRoleInUse(roleId: PrismaField<"roles", "role_id">) {
-		return await this.engine.user_roles.count({ where: { role_id: roleId } }).then(e => e > 0)
-			|| await this.engine.acl.count({ where: { role_id: roleId } }).then(e => e > 0);
+	async isRoleInUse(role_id: PrismaField<"roles", "role_id">) {
+		return await this.engine.users.count({ where: { roles: { some: { role_id } } } }).then(e => e > 0)
+			|| await this.engine.groups.count({ where: { roles: { some: { role_id } } } }).then(e => e > 0)
+			|| await this.engine.acl.count({ where: { role_id } }).then(e => e > 0);
 
 		// // Check if the role is assigned to any users
 		// const userRoleCheck = this.engine.runStatementGet(`
@@ -2117,10 +2130,8 @@ export class SqlTiddlerDatabase extends DataChecks {
 		// // If we've reached this point, the role is not in use
 		// return false;
 	}
-	getRoleById(roleId: PrismaField<"roles", "role_id">) {
-		return this.engine.roles.findUnique({
-			where: { role_id: roleId }
-		});
+	getRoleById(role_id: PrismaField<"roles", "role_id">) {
+		return this.engine.roles.findUnique({ where: { role_id } });
 		// const role = this.engine.runStatementGet(`
 		// 	SELECT role_id, role_name, description
 		// 	FROM roles

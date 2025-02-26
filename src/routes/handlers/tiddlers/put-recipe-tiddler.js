@@ -51,25 +51,6 @@ export const route = (root) => root.defineRoute({
 	} else {
 		state.writeHead(400);
 	}
-	state.end();
+	return state.end();
 
 });
-(function() {
-
-	/*jslint node: true, browser: true */
-	/*global $tw: false */
-	"use strict";
-
-	exports.method = "PUT";
-
-	exports.path = /^\/recipes\/([^\/]+)\/tiddlers\/(.+)$/;
-
-	exports.useACL = true;
-
-	exports.entityName = "recipe"
-	/** @type {ServerRouteHandler<2>} */
-	exports.handler = async function(request, response, state) {
-
-	};
-
-}());

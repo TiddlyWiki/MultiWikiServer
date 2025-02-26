@@ -238,7 +238,7 @@ export class StateObject<
     }
     delete user.password;
     const userRole = await this.store.sql.getUserRoles(user.user_id);
-    user['isAdmin'] = userRole.some(e => e.role.role_name === 'ADMIN');
+    user['isAdmin'] = userRole?.roles.some(e => e.role_name === 'ADMIN');
     user['sessionId'] = session_id;
 
     return user;
@@ -392,7 +392,7 @@ export class StateObject<
     // Then use decodeURIComponent for the rest
     var decodedEntityName = decodeURIComponent(partiallyDecoded) as
       PrismaField<"bags", "bag_name"> | PrismaField<"recipes", "recipe_name">;
-    var aclRecord = await this.store.sql.getACLByName(entityType, decodedEntityName, undefined, false);
+    var [aclRecord] = await this.store.sql.getACLByName(entityType, decodedEntityName, undefined, false);
     var isGetRequest = this.method === "GET";
     var hasAnonymousAccess = this.allowAnon ? (isGetRequest ? this.allowAnonReads : this.allowAnonWrites) : false;
     var anonymousAccessConfigured = this.anonAccessConfigured;
@@ -436,9 +436,8 @@ export class StateObject<
         }
 
         // Check ACL permission
-        var hasPermission = this.method === "POST"
-          || await this.store.sql.checkACLPermission(
-            this.authenticatedUser?.user_id,
+        var hasPermission = this.authenticatedUser && await this.store.sql.checkACLPermission(
+            this.authenticatedUser.user_id,
             entityType,
             decodedEntityName,
             permissionName,
@@ -482,10 +481,10 @@ export class Authenticator {
   hashPassword(password: string) {
     return crypto.createHash("sha256").update(password).digest("hex");
   }
-  async createSession(userId: number) {
+  async createSession(userId: PrismaField<"users", "user_id">) {
     var sessionId = crypto.randomBytes(16).toString("hex");
     // Store the session in your database or in-memory store
-    await this.sqlTiddlerDatabase.createUserSession(userId, sessionId);
+    await this.sqlTiddlerDatabase.createUserSession(userId, sessionId as PrismaField<"sessions", "session_id">);
     return sessionId;
   }
 }

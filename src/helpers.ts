@@ -142,7 +142,7 @@ callback - invoked as callback(err,results). Results is an array of titles of im
  */
 export async function processIncomingStream(
   this: StateObject,
-  bag_name: string,
+  bag_name: PrismaField<"bags", "bag_name">,
 ): Promise<string[]> {
 
   const path = require("path"),

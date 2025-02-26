@@ -104,7 +104,7 @@ export const route = (root) => root.defineRoute({
 	});
 	state.write(template.substring(markerPos + marker.length))
 	// Finish response
-	state.end();
+	return state.end();
 });
 
 

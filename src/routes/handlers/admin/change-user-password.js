@@ -80,7 +80,7 @@ export const route = (root) => root.defineRoute({
     title: "$:/temp/mws/change-password/" + userId + "/success",
     text: result.message
   }));
-  state.redirect("/admin/users/" + userId);
+  return state.redirect("/admin/users/" + userId);
 
 });
 

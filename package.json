@@ -15,6 +15,7 @@
     "lint:fix": "exit 1 && eslint . --fix",
     "lint": "exit 1 && eslint .",
     "jsc": "tsc -p jsconfig.json --noEmit",
+    "tsc": "tsc -p tsconfig.json --noEmit",
     "gen:sql": "prisma migrate diff --from-empty --to-schema-datamodel prisma/schema.prisma --script > prisma/schema.prisma.sql",
     "gen:client": "prisma generate"
   },

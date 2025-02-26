@@ -21,4 +21,4 @@ At this commit, the server is running with the new routes, store, and prisma.
 
 This is a map of the current database layout.
 
-![prisma-editor](https://github.com/user-attachments/assets/c4d5d467-a7c9-4d90-8646-79fa1729e61c)
+![prisma-editor (1)](https://github.com/user-attachments/assets/607868ac-5f5c-4e83-b1fe-4b1d37fdb3b4)

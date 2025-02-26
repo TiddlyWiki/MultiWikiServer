@@ -54,7 +54,7 @@ export const route = (root) => root.defineRoute({
     );
 
     state.writeHead(302, {"Location": "/admin/roles"});
-    state.end();
+    return state.end();
   } catch(error) {
     console.error("Error updating role:", error);
     return state.sendEmpty(500);

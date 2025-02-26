@@ -53,6 +53,6 @@ export const route = (root) => root.defineRoute({
 		}
 	});
 	state.write(html);
-	state.end();
+	return state.end();
 });
 

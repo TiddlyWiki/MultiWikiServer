@@ -47,5 +47,5 @@ export const route = (root) => root.defineRoute({
   });
   // Redirect back to admin page
   state.writeHead(302, {"Location": "/"});
-  state.end();
+  return state.end();
 });

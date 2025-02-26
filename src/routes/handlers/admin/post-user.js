@@ -14,7 +14,7 @@ export const route = (root) => root.defineRoute({
   path: /^\/admin\/post-user\/?$/,
   bodyFormat: "www-form-urlencoded",
   useACL: {csrfDisable: true},
-}, async state => {
+}, async (state) => {
   zodAssert.data(state, z => z.object({
     username: z.prismaField("users", "username", "string"),
     email: z.prismaField("users", "email", "string"),
@@ -45,7 +45,8 @@ export const route = (root) => root.defineRoute({
       text: "Unauthorized access"
     }));
     deleteTempTiddlers();
-    return state.redirect("/login");
+    state.redirect("/login");
+    return;
   }
 
   if(!username || !email || !password || !confirmPassword) {

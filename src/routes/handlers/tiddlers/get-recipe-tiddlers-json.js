@@ -45,6 +45,6 @@ export const route = (root) => root.defineRoute({
 			"Content-Type": "application/json"
 		}, JSON.stringify(recipeTiddlers), "utf8");
 	} else {
-		state.sendEmpty(404);
+		return state.sendEmpty(404);
 	}
 });

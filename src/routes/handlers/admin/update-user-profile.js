@@ -51,7 +51,7 @@ export const route = (root) => root.defineRoute({
   if(!state.authenticatedUser.isAdmin) {
     var userRole = await state.store.sql.getUserRoles(userId);
     // TODO: why is this being overwritten?
-    roleId = userRole[0].role_id;
+    roleId = userRole?.roles[0]?.role_id;
   }
 
   var result = await state.store.sql.updateUser(userId, username, email, roleId);

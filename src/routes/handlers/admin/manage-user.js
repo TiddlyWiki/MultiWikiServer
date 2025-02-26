@@ -42,8 +42,7 @@ export const route = (root) => root.defineRoute({
 			}
 		});
 		state.write(errorHtml);
-		state.end();
-		return;
+		return state.end();
 	}
 
 	// Check if the user is trying to access their own profile or is an admin
@@ -67,7 +66,7 @@ export const route = (root) => root.defineRoute({
 
 	// sort allRoles by placing the user's role at the top of the list
 	allRoles.sort(function(a, b) {
-		return (userRole.some(e => e.role_id === a.role_id) ? -1 : 1)
+		return (userRole?.roles.some(e => e.role_id === a.role_id) ? -1 : 1)
 	});
 
 	state.store.adminWiki.addTiddler(new $tw.Tiddler({
@@ -97,20 +96,5 @@ export const route = (root) => root.defineRoute({
 		}
 	});
 	state.write(html);
-	state.end();
+	return state.end();
 });
-(function() {
-
-	/*jslint node: true, browser: true */
-	/*global $tw: false */
-	"use strict";
-
-	exports.method = "GET";
-
-	exports.path = /^\/admin\/users\/([^\/]+)\/?$/;
-	/** @type {ServerRouteHandler<1>} */
-	exports.handler = async function(request, response, state) {
-
-	};
-
-}());
