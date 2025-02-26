@@ -68,7 +68,7 @@ export class Router {
     const wikiPath = "./editions/mws";
 
     const $tw = (global as any).$tw = Router.makeTiddlyWiki();
-    const commands = true;
+    const commands = false;
     // tiddlywiki [+<pluginname> | ++<pluginpath>] [<wikipath>] ...[--command ...args]
     $tw.boot.argv = [
       "++plugins/client",

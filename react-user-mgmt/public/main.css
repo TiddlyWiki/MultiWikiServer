@@ -1,0 +1,296 @@
+/* react-user-mgmt/src/styles/index.css */
+.mws-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px;
+  background-color: #f0f0f0;
+  margin-bottom: 20px;
+}
+.mws-header h1 {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.mws-header h1 .divider {
+  font-size: 16px;
+  color: #ccc;
+}
+.mws-user-info {
+  display: flex;
+  align-items: center;
+}
+.mws-logout-form {
+  margin-left: 10px;
+}
+.mws-logout-button {
+  padding: 5px 10px;
+  background-color: #f44336;
+  color: white;
+  border: none;
+  cursor: pointer;
+}
+.mws-logout-button:hover {
+  background-color: #d32f2f;
+}
+.mws-login-btn {
+  margin-left: 5px;
+  background-color: #4caf50;
+  color: white;
+  border: none;
+  cursor: pointer;
+  text-decoration: none;
+  height: 27px;
+  width: 62px;
+  text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.mws-login-btn:hover {
+  background-color: #388e3c;
+}
+.mws-admin-dropdown {
+  position: relative;
+  display: inline-block;
+  margin-left: 10px;
+}
+.mws-admin-dropbtn {
+  color: white;
+  padding: 5px;
+  font-size: 16px;
+  border: none;
+  cursor: pointer;
+}
+.mws-admin-dropbtn:hover,
+.mws-admin-dropbtn:focus {
+  cursor: pointer;
+  opacity: 0.8;
+}
+.mws-admin-dropdown-content {
+  display: none;
+  position: absolute;
+  background-color: #f1f1f1;
+  min-width: 160px;
+  box-shadow: 0px 8px 16px 0px rgba(0, 0, 0, 0.2);
+  z-index: 1;
+  right: 0;
+}
+.mws-admin-dropdown-content a {
+  color: black;
+  padding: 12px 16px;
+  text-decoration: none;
+  display: block;
+}
+.mws-admin-dropdown-content a:hover {
+  background-color: #ddd;
+}
+.mws-admin-dropdown:hover .mws-admin-dropdown-content {
+  display: block;
+}
+.mws-admin-dropdown:hover {
+  background-color: #2980B9;
+}
+.mws-profile-btn {
+  background-color: #2980B9;
+  margin-left: 10px;
+  color: white;
+  border: none;
+  cursor: pointer;
+  padding: 5px 10px;
+}
+.mws-admin-form {
+  margin: 0;
+}
+.mws-admin-form-button {
+  width: 100%;
+  text-align: left;
+  padding: 12px 16px;
+  background: none;
+  border: none;
+  color: black;
+  cursor: pointer;
+  font-size: inherit;
+}
+.mws-admin-form-button:hover {
+  background-color: #ddd;
+}
+.mws-logo {
+  font-size: 24px;
+}
+.mws-security-warning {
+  background-color: #fff3cd;
+  border: 1px solid #ffeeba;
+  padding: 1rem;
+  margin-bottom: 1.5rem;
+  border-radius: 4px;
+}
+.mws-security-warning-content {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+.mws-security-warning-icon {
+  font-size: 1.5rem;
+}
+.mws-security-warning-text {
+  flex-grow: 1;
+  color: #856404;
+}
+.mws-security-warning-button {
+  display: flex;
+  padding: 0.5rem 1rem;
+  background-color: #856404;
+  color: white;
+  text-decoration: none;
+  border-radius: 4px;
+  font-weight: bold;
+  transition: background-color 0.2s;
+  flex-direction: row;
+  align-items: center;
+  text-align: center;
+  text-wrap: nowrap;
+}
+.mws-security-warning-button:hover {
+  background-color: #6d5204;
+}
+.mws-modal-container {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.5);
+}
+.mws-modal-content {
+  background-color: #fefefe;
+  margin: 15% auto;
+  padding: 20px;
+  border: 1px solid #888;
+  width: 80%;
+  max-width: 500px;
+}
+.mws-config-button {
+  background-color: #4CAF50;
+  color: white;
+  padding: 8px 16px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  margin-bottom: 1rem;
+}
+.mws-config-button:hover {
+  background-color: #45a049;
+}
+.mws-modal-section {
+  margin-bottom: 15px;
+}
+.mws-modal-buttons {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  margin-top: 20px;
+}
+.mws-modal-button-primary {
+  background-color: #4CAF50;
+  color: white;
+  padding: 8px 16px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+.mws-modal-button-primary:hover {
+  background-color: #45a049;
+}
+.mws-wiki-card {
+  display: flex;
+  flex-direction: row;
+}
+.mws-wiki-card-content {
+}
+.mws-wiki-card-actions {
+  padding: 10px;
+  display: flex;
+  justify-content: flex-end;
+  margin-left: auto;
+  height: 50px;
+  width: 50px;
+}
+.mws-wiki-card-action {
+  display: inline-flex;
+  align-items: center;
+  padding: 8px 16px;
+  background-color: white;
+  border-radius: 6px;
+  text-decoration: none;
+  color: #333;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  transition: all 0.2s ease;
+}
+.mws-wiki-card-action:hover {
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+  transform: translateY(-1px);
+}
+.mws-wiki-card-action svg {
+  width: 16px;
+  height: 16px;
+}
+.mws-form {
+  margin-top: 20px;
+  margin-bottom: 20px;
+  padding: 15px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+}
+.mws-form-heading {
+  font-weight: bold;
+  margin-bottom: 15px;
+}
+.mws-form-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.mws-form-field {
+  display: flex;
+  flex-direction: column;
+}
+.mws-form-field-description {
+  margin-bottom: 5px;
+}
+.mws-form-buttons {
+  margin-top: 15px;
+}
+.mws-vertical-list {
+  list-style: none;
+  padding: 0;
+}
+.mws-bag-pill {
+  display: inline-flex;
+  align-items: center;
+  background-color: #f1f1f1;
+  border-radius: 16px;
+  padding: 4px 12px;
+  margin-right: 8px;
+  font-size: 14px;
+}
+.mws-bag-pill-topmost {
+  background-color: #e3f2fd;
+}
+.mws-bag-pill-link {
+  display: flex;
+  align-items: center;
+  text-decoration: none;
+  color: inherit;
+}
+.mws-favicon-small {
+  width: 16px;
+  height: 16px;
+  margin-right: 6px;
+}
+.mws-favicon {
+  width: 32px;
+  height: 32px;
+}

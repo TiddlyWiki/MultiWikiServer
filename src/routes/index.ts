@@ -42,6 +42,7 @@ async function importDir(root: rootRoute, folder: string) {
     }
   }));
 }
+
 async function importEsbuild(root: rootRoute) {
   // "build": "tsc -b; esbuild main=src/main.tsx 
   // --outdir=public --bundle --target=es2020 

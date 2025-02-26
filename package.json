@@ -39,5 +39,8 @@
     "tsx": "^4.19.2",
     "typescript": "^5.7.3",
     "zod": "^3.24.2"
+  },
+  "devDependencies": {
+    "esbuild": "^0.25.0"
   }
 }
