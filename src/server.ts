@@ -175,7 +175,7 @@ export class Streamer {
     offset?: number;
     length?: number;
     index?: string | boolean | string[] | undefined
-  }): typeof STREAM_ENDED {
+  }) {
     // the headers and status have to be set on the response object before piping the stream
     this.res.statusCode = status;
     this.toHeadersMap(headers).forEach((v, k) => { this.res.appendHeader(k, v); });
@@ -189,18 +189,27 @@ export class Streamer {
       start: offset,
       end: length && length - 1,
     });
+    return new Promise<typeof STREAM_ENDED>((resolve, reject) => {
+      stream.on("error", err => {
+        if (err === 404) {
+          resolve(this.sendEmpty(404));
+        } else {
+          this.sendEmpty(500);
+          reject(err);
+        }
+      });
 
-    stream.on("error", err => {
-      if (err === 404) {
-        this.sendEmpty(404);
-      } else {
-        this.sendEmpty(500);
-      }
+      stream.on("directory", () => {
+        resolve(this.sendEmpty(404));
+      });
+
+      stream.on("end", () => {
+        resolve(STREAM_ENDED);
+      })
+
+      this.checkHeadersSentBy(true);
+      stream.pipe(this.res);
     });
-
-    this.checkHeadersSentBy(true);
-    stream.pipe(this.res);
-    return STREAM_ENDED;
   }
   setHeader(name: string, value: string): void {
     this.res.setHeader(name, value);

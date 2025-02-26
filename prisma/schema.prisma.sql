@@ -18,16 +18,6 @@ CREATE TABLE "bags" (
 );
 
 -- CreateTable
-CREATE TABLE "group_roles" (
-    "group_id" INTEGER NOT NULL,
-    "role_id" INTEGER NOT NULL,
-
-    PRIMARY KEY ("group_id", "role_id"),
-    CONSTRAINT "group_roles_role_id_fkey" FOREIGN KEY ("role_id") REFERENCES "roles" ("role_id") ON DELETE NO ACTION ON UPDATE NO ACTION,
-    CONSTRAINT "group_roles_group_id_fkey" FOREIGN KEY ("group_id") REFERENCES "groups" ("group_id") ON DELETE NO ACTION ON UPDATE NO ACTION
-);
-
--- CreateTable
 CREATE TABLE "groups" (
     "group_id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
     "group_name" TEXT NOT NULL,
@@ -57,16 +47,6 @@ CREATE TABLE "recipes" (
     "description" TEXT NOT NULL,
     "owner_id" INTEGER,
     CONSTRAINT "recipes_owner_id_fkey" FOREIGN KEY ("owner_id") REFERENCES "users" ("user_id") ON DELETE NO ACTION ON UPDATE NO ACTION
-);
-
--- CreateTable
-CREATE TABLE "role_permissions" (
-    "role_id" INTEGER NOT NULL,
-    "permission_id" INTEGER NOT NULL,
-
-    PRIMARY KEY ("role_id", "permission_id"),
-    CONSTRAINT "role_permissions_permission_id_fkey" FOREIGN KEY ("permission_id") REFERENCES "permissions" ("permission_id") ON DELETE NO ACTION ON UPDATE NO ACTION,
-    CONSTRAINT "role_permissions_role_id_fkey" FOREIGN KEY ("role_id") REFERENCES "roles" ("role_id") ON DELETE NO ACTION ON UPDATE NO ACTION
 );
 
 -- CreateTable
@@ -107,26 +87,6 @@ CREATE TABLE "fields" (
 );
 
 -- CreateTable
-CREATE TABLE "user_groups" (
-    "user_id" INTEGER NOT NULL,
-    "group_id" INTEGER NOT NULL,
-
-    PRIMARY KEY ("user_id", "group_id"),
-    CONSTRAINT "user_groups_group_id_fkey" FOREIGN KEY ("group_id") REFERENCES "groups" ("group_id") ON DELETE NO ACTION ON UPDATE NO ACTION,
-    CONSTRAINT "user_groups_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "users" ("user_id") ON DELETE NO ACTION ON UPDATE NO ACTION
-);
-
--- CreateTable
-CREATE TABLE "user_roles" (
-    "user_id" INTEGER NOT NULL,
-    "role_id" INTEGER NOT NULL,
-
-    PRIMARY KEY ("user_id", "role_id"),
-    CONSTRAINT "user_roles_role_id_fkey" FOREIGN KEY ("role_id") REFERENCES "roles" ("role_id") ON DELETE NO ACTION ON UPDATE NO ACTION,
-    CONSTRAINT "user_roles_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "users" ("user_id") ON DELETE NO ACTION ON UPDATE NO ACTION
-);
-
--- CreateTable
 CREATE TABLE "users" (
     "user_id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
     "username" TEXT NOT NULL,
@@ -134,6 +94,38 @@ CREATE TABLE "users" (
     "password" TEXT NOT NULL,
     "created_at" TEXT NOT NULL DEFAULT 'datetime(''now'')',
     "last_login" TEXT
+);
+
+-- CreateTable
+CREATE TABLE "_groupsToroles" (
+    "A" INTEGER NOT NULL,
+    "B" INTEGER NOT NULL,
+    CONSTRAINT "_groupsToroles_A_fkey" FOREIGN KEY ("A") REFERENCES "groups" ("group_id") ON DELETE CASCADE ON UPDATE CASCADE,
+    CONSTRAINT "_groupsToroles_B_fkey" FOREIGN KEY ("B") REFERENCES "roles" ("role_id") ON DELETE CASCADE ON UPDATE CASCADE
+);
+
+-- CreateTable
+CREATE TABLE "_groupsTousers" (
+    "A" INTEGER NOT NULL,
+    "B" INTEGER NOT NULL,
+    CONSTRAINT "_groupsTousers_A_fkey" FOREIGN KEY ("A") REFERENCES "groups" ("group_id") ON DELETE CASCADE ON UPDATE CASCADE,
+    CONSTRAINT "_groupsTousers_B_fkey" FOREIGN KEY ("B") REFERENCES "users" ("user_id") ON DELETE CASCADE ON UPDATE CASCADE
+);
+
+-- CreateTable
+CREATE TABLE "_permissionsToroles" (
+    "A" INTEGER NOT NULL,
+    "B" INTEGER NOT NULL,
+    CONSTRAINT "_permissionsToroles_A_fkey" FOREIGN KEY ("A") REFERENCES "permissions" ("permission_id") ON DELETE CASCADE ON UPDATE CASCADE,
+    CONSTRAINT "_permissionsToroles_B_fkey" FOREIGN KEY ("B") REFERENCES "roles" ("role_id") ON DELETE CASCADE ON UPDATE CASCADE
+);
+
+-- CreateTable
+CREATE TABLE "_rolesTousers" (
+    "A" INTEGER NOT NULL,
+    "B" INTEGER NOT NULL,
+    CONSTRAINT "_rolesTousers_A_fkey" FOREIGN KEY ("A") REFERENCES "roles" ("role_id") ON DELETE CASCADE ON UPDATE CASCADE,
+    CONSTRAINT "_rolesTousers_B_fkey" FOREIGN KEY ("B") REFERENCES "users" ("user_id") ON DELETE CASCADE ON UPDATE CASCADE
 );
 
 -- CreateIndex
@@ -174,4 +166,28 @@ CREATE UNIQUE INDEX "users_username_key" ON "users"("username");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "users_email_key" ON "users"("email");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "_groupsToroles_AB_unique" ON "_groupsToroles"("A", "B");
+
+-- CreateIndex
+CREATE INDEX "_groupsToroles_B_index" ON "_groupsToroles"("B");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "_groupsTousers_AB_unique" ON "_groupsTousers"("A", "B");
+
+-- CreateIndex
+CREATE INDEX "_groupsTousers_B_index" ON "_groupsTousers"("B");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "_permissionsToroles_AB_unique" ON "_permissionsToroles"("A", "B");
+
+-- CreateIndex
+CREATE INDEX "_permissionsToroles_B_index" ON "_permissionsToroles"("B");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "_rolesTousers_AB_unique" ON "_rolesTousers"("A", "B");
+
+-- CreateIndex
+CREATE INDEX "_rolesTousers_B_index" ON "_rolesTousers"("B");
 

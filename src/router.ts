@@ -62,8 +62,8 @@ export class Router {
       "++plugins/client",
       "++plugins/server",
       "./editions/mws",
-      "--mws-load-plugin-bags",
-      "--build", "load-mws-demo-data",
+      // "--mws-load-plugin-bags",
+      // "--build", "load-mws-demo-data",
       // "--mws-listen", "port=5001", "host=::"
     ];
     await new Promise<void>(resolve => $tw.boot.boot(resolve));

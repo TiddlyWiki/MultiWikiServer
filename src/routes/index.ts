@@ -13,6 +13,18 @@ import { TWRoutes } from "./tw-test";
 export default async function RootRoute(root: rootRoute) {
   // AuthRoutes(root);
   // TWRoutes(root);
+  root.defineRoute({
+    method: ['GET'],
+    path: /^\/public\/(.*)/,
+    pathParams: ['reqpath'],
+    useACL: {},
+  }, async state => {
+    console.log(state.pathParams.reqpath);
+    return state.sendFile(200, {}, {
+      root: 'public',
+      reqpath: state.pathParams.reqpath?.trim() || 'index.html', 
+    });
+  })
   await importDir(root, 'handlers');
 }
 async function importDir(root: rootRoute, folder: string) {
