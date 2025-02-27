@@ -76,6 +76,7 @@ model sessions {
   session_id          String  @id
   created_at          String
   last_accessed       String
+  session_key         String?
   session_login_state String?
   user_id             Int
   user                users   @relation(fields: [user_id], references: [user_id], onDelete: NoAction, onUpdate: NoAction)

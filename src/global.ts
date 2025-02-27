@@ -29,7 +29,6 @@ declare global {
   type PrismaField<T extends Prisma.ModelName, K extends keyof PrismaPayloadScalars<T>> =
     // manually map foriegn keys to their corresponding primary key so comparisons work
     [T, K] extends ["acl", "role_id"] ? PrismaField<"roles", "role_id"> :
-    [T, K] extends ["acl", "permission_id"] ? PrismaField<"permissions", "permission_id"> :
     [T, K] extends ["user_roles", "role_id"] ? PrismaField<"roles", "role_id"> :
     (PrismaPayloadScalars<T>[K] & { __prisma_table: T, __prisma_field: K })
     | (null extends PrismaPayloadScalars<T>[K] ? null : never);

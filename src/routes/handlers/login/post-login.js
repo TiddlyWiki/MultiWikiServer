@@ -13,17 +13,24 @@ password
 \*/
 "use strict";
 /** @type {ServerRouteDefinition} */
-export const route = (root) => root.defineRoute({
+export const route = (root) => (root.defineRoute({
 	method: ["POST"],
-	path: /^\/login$/,
+	path: /^\/login(\.json)?$/,
+	pathParams: ["format"],
 	bodyFormat: "www-form-urlencoded",
-	useACL: {csrfDisable: true}
+	useACL: { csrfDisable: true }
 }, async state => {
 	zodAssert.data(state, z => z.object({
 		username: z.prismaField("users", "username", "string"),
 		password: z.prismaField("users", "password", "string")
 	}));
 
+	zodAssert.pathParams(state, z => ({
+		format: z.string().optional()
+	}));
+
+	const asJson = state.headers.accept && state.headers.accept.indexOf("application/json") !== -1
+		|| state.pathParams.format === ".json";
 
 	var username = state.data.username;
 	var password = state.data.password;
@@ -33,13 +40,14 @@ export const route = (root) => root.defineRoute({
 	if(user && isPasswordValid) {
 		var sessionId = await state.auth.createSession(user.user_id);
 		var returnUrl = state.cookies.returnUrl;
-		state.setHeader('Set-Cookie', `session=${sessionId}; HttpOnly; Path=/`);
-		if(state.headers.accept && state.headers.accept.indexOf("application/json") !== -1) {
-			return state.sendResponse(200, {
-				"Content-Type": "application/json"
-			}, JSON.stringify({
-				"sessionId": sessionId
-			}));
+		// state.setHeader('Set-Cookie', `session=${sessionId}; HttpOnly; Path=/`);
+		state.setCookie("session", sessionId, { httpOnly: true, path: "/" });
+
+		if(asJson) {
+			return state.sendJSON(200, {
+				success: true,
+				message: "Logged in",
+			});
 		} else {
 			return state.redirect(returnUrl || "/");
 		}
@@ -48,8 +56,9 @@ export const route = (root) => root.defineRoute({
 			title: "$:/temp/mws/login/error",
 			text: "Invalid username or password"
 		}));
-		if(state.headers.accept && state.headers.accept.indexOf("application/json") !== -1) {
-			return state.sendResponse(200, {"Content-Type": "application/json"}, JSON.stringify({
+		if(asJson) {
+			return state.sendJSON(200, ({
+				success: false,
 				"message": "Invalid username or password"
 			}));
 		} else {
@@ -57,4 +66,42 @@ export const route = (root) => root.defineRoute({
 		}
 	}
 	return state.sendEmpty(400);
-});
+}), root.defineRoute({
+	useACL: {},
+	method: ["POST"],
+	bodyFormat: "www-form-urlencoded",
+	path: /^\/login\/1/,
+}, async state => {
+	zodAssert.data(state, z => z.object({
+		username: z.prismaField("users", "username", "string"),
+		startLoginRequest: z.string(),
+	}));
+
+	const user = await state.store.sql.getUserByUsername(state.data.username);
+
+	if(!user) return state.sendSimple(404, "User not found");
+	if(!user.password) return state.sendSimple(500, "Error: User has no password");
+	if(!state.data.startLoginRequest) return state.sendSimple(400, "Error: startLoginRequest is required");
+
+	return await state.auth.login1({
+		userID: user.user_id,
+		registrationRecord: user.password,
+		startLoginRequest: state.data.startLoginRequest
+	});
+
+}), root.defineRoute({
+	useACL: {},
+	method: ["POST"],
+	bodyFormat: "www-form-urlencoded",
+	path: /^\/login\/2/,
+}, async state => {
+	zodAssert.data(state, z => z.object({
+		finishLoginRequest: z.string(),
+	}));
+
+	// the first step sets a loginsession cookie so we don't need that
+	const { finishLoginRequest } = state.data;
+
+	return await state.auth.login2({ finishLoginRequest });
+
+}));

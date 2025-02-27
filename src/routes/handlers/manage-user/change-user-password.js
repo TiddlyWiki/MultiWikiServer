@@ -15,73 +15,56 @@ POST /change-user-password
 /** @type {ServerRouteDefinition} */
 export const route = (root) => root.defineRoute({
   method: ["POST"],
-  path: /^\/change-user-password\/?$/,
+  path: /^\/change-user-password\/(1|2)$/,
+  pathParams: ["stage"],
   bodyFormat: "www-form-urlencoded",
-  useACL: {csrfDisable: true},
-  pathParams: [],
+  useACL: { csrfDisable: true },
 }, async state => {
 
   if(!state.authenticatedUser) {
-    state.store.adminWiki.addTiddler({
-      title: "$:/temp/mws/login/error",
-      text: "You must be logged in to change passwords"
-    });
-    return state.redirect("/login");
+    return state.sendSimple(401, "You must be logged in to change passwords");
   }
 
   zodAssert.data(state, z => z.object({
-    userId: z.string(),
-    newPassword: z.string(),
-    confirmPassword: z.string()
+    userId: z.prismaField("users", "user_id", "parse-number"),
+    registrationRequest: z.string().optional(),
+    registrationRecord: z.string().optional(),
   }));
 
-  const {confirmPassword, newPassword, userId} = state.data;
-
-  // Clean up any existing error/success messages
-  state.store.adminWiki.deleteTiddler("$:/temp/mws/change-password/" + userId + "/error");
-  state.store.adminWiki.deleteTiddler("$:/temp/mws/change-password/" + userId + "/success");
-  state.store.adminWiki.deleteTiddler("$:/temp/mws/login/error");
+  const { userId: user_id } = state.data;
 
   var currentUserId = state.authenticatedUser.user_id;
 
-  var hasPermission = ((parseInt(userId ?? "") || 0) === currentUserId) || state.authenticatedUser.isAdmin;
+  var hasPermission = (user_id === currentUserId) || state.authenticatedUser.isAdmin;
 
   if(!hasPermission) {
-    state.store.adminWiki.addTiddler(new state.Tiddler({
-      title: "$:/temp/mws/change-password/" + userId + "/error",
-      text: "You don't have permission to change this user's password"
-    }));
-    return state.redirect("/admin/users/" + userId);
+    return state.sendSimple(403, "You don't have permission to change this user's password");
   }
 
-  if(newPassword !== confirmPassword) {
-    state.store.adminWiki.addTiddler(new state.Tiddler({
-      title: "$:/temp/mws/change-password/" + userId + "/error",
-      text: "New passwords do not match"
-    }));
-    return state.redirect("/admin/users/" + userId);
-  }
+  return await state.$transaction(async store => {
+    const userExists = await store.users.count({ where: { user_id } });
+    if(!userExists) return state.sendSimple(404, "User not found");
 
-  var userData = await state.store.sql.getUser(asPrismaField("users", "user_id", parseInt(userId ?? "") || 0));
-
-  if(!userData) {
-    state.store.adminWiki.addTiddler(new state.Tiddler({
-      title: "$:/temp/mws/change-password/" + userId + "/error",
-      text: "User not found"
-    }));
-    return state.redirect("/admin/users/" + userId);
-  }
-
-  var newHash = state.auth.hashPassword(newPassword);
-  var result = await state.store.sql.updateUserPassword(
-    asPrismaField("users", "user_id", parseInt(userId ?? "") || 0), newHash);
-
-  // set success regardless of whether it actually succeeded?
-  state.store.adminWiki.addTiddler(new state.Tiddler({
-    title: "$:/temp/mws/change-password/" + userId + "/success",
-    text: result.message
-  }));
-  return state.redirect("/admin/users/" + userId);
+    switch(state.pathParams.stage) {
+      case "1":
+        if(!state.data.registrationRequest)
+          return state.sendSimple(400, "registrationRequest is required");
+        return state.auth.register1({
+          userID: user_id,
+          registrationRequest: state.data.registrationRequest
+        });
+      case "2":
+        if(!state.data.registrationRecord)
+          return state.sendSimple(400, "registrationRecord is required");
+        await store.users.update({
+          where: { user_id },
+          data: { password: state.data.registrationRecord }
+        });
+        return state.sendEmpty(200);
+      default:
+        return state.sendEmpty(404, { "x-reason": "Invalid stage" });
+    }
+  });
 
 });
 

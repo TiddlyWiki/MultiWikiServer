@@ -11,8 +11,7 @@ CREATE TABLE "acl" (
     "entity_name" TEXT NOT NULL,
     "entity_type" TEXT NOT NULL,
     "role_id" INTEGER NOT NULL,
-    "permission_id" INTEGER NOT NULL,
-    CONSTRAINT "acl_permission_id_fkey" FOREIGN KEY ("permission_id") REFERENCES "permissions" ("permission_id") ON DELETE NO ACTION ON UPDATE NO ACTION,
+    "permission" TEXT NOT NULL,
     CONSTRAINT "acl_role_id_fkey" FOREIGN KEY ("role_id") REFERENCES "roles" ("role_id") ON DELETE NO ACTION ON UPDATE NO ACTION
 );
 
@@ -28,13 +27,6 @@ CREATE TABLE "bags" (
 CREATE TABLE "groups" (
     "group_id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
     "group_name" TEXT NOT NULL,
-    "description" TEXT
-);
-
--- CreateTable
-CREATE TABLE "permissions" (
-    "permission_id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
-    "permission_name" TEXT NOT NULL,
     "description" TEXT
 );
 
@@ -68,6 +60,7 @@ CREATE TABLE "sessions" (
     "session_id" TEXT NOT NULL PRIMARY KEY,
     "created_at" TEXT NOT NULL,
     "last_accessed" TEXT NOT NULL,
+    "session_key" TEXT,
     "session_login_state" TEXT,
     "user_id" INTEGER NOT NULL,
     CONSTRAINT "sessions_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "users" ("user_id") ON DELETE NO ACTION ON UPDATE NO ACTION
@@ -120,14 +113,6 @@ CREATE TABLE "_groupsTousers" (
 );
 
 -- CreateTable
-CREATE TABLE "_permissionsToroles" (
-    "A" INTEGER NOT NULL,
-    "B" INTEGER NOT NULL,
-    CONSTRAINT "_permissionsToroles_A_fkey" FOREIGN KEY ("A") REFERENCES "permissions" ("permission_id") ON DELETE CASCADE ON UPDATE CASCADE,
-    CONSTRAINT "_permissionsToroles_B_fkey" FOREIGN KEY ("B") REFERENCES "roles" ("role_id") ON DELETE CASCADE ON UPDATE CASCADE
-);
-
--- CreateTable
 CREATE TABLE "_rolesTousers" (
     "A" INTEGER NOT NULL,
     "B" INTEGER NOT NULL,
@@ -143,9 +128,6 @@ CREATE UNIQUE INDEX "bags_bag_name_key" ON "bags"("bag_name");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "groups_group_name_key" ON "groups"("group_name");
-
--- CreateIndex
-CREATE UNIQUE INDEX "permissions_permission_name_key" ON "permissions"("permission_name");
 
 -- CreateIndex
 CREATE INDEX "recipe_bags_recipe_id_idx" ON "recipe_bags"("recipe_id");
@@ -185,12 +167,6 @@ CREATE UNIQUE INDEX "_groupsTousers_AB_unique" ON "_groupsTousers"("A", "B");
 
 -- CreateIndex
 CREATE INDEX "_groupsTousers_B_index" ON "_groupsTousers"("B");
-
--- CreateIndex
-CREATE UNIQUE INDEX "_permissionsToroles_AB_unique" ON "_permissionsToroles"("A", "B");
-
--- CreateIndex
-CREATE INDEX "_permissionsToroles_B_index" ON "_permissionsToroles"("B");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "_rolesTousers_AB_unique" ON "_rolesTousers"("A", "B");

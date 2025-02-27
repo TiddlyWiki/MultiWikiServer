@@ -41,7 +41,7 @@ export const route = (root) => root.defineRoute({
 	var recipeAclRecords = await state.store.sql.getEntityAclRecords("recipe", recipe.recipe_name);
 	var bagAclRecords = await state.store.sql.getEntityAclRecords("bag", bag.bag_name);
 	var roles = await state.store.sql.listRoles();
-	var permissions = await state.store.sql.listPermissions();
+	// var permissions = await state.store.sql.listPermissions();
 
 	// This ensures that the user attempting to view the ACL management page has permission to do so
 	async function canContinue() {
@@ -60,29 +60,23 @@ export const route = (root) => root.defineRoute({
 	// Enhance ACL records with role and permission details
 	const recipeAclRecords2 = recipeAclRecords.map(record => {
 		var role = roles.find(role => role.role_id === record.role_id);
-		var permission = permissions.find(perm => perm.permission_id === record.permission_id);
+		// var permission = permissions.find(perm => perm.permission_id === record.permission_id);
 		return ({
 			...record,
 			role,
-			permission,
 			role_name: role?.role_name,
 			role_description: role?.description,
-			permission_name: permission?.permission_name,
-			permission_description: permission?.description
 		})
 	});
 
 	const bagAclRecords2 = bagAclRecords.map(record => {
 		var role = roles.find(role => role.role_id === record.role_id);
-		var permission = permissions.find(perm => perm.permission_id === record.permission_id);
+		// var permission = permissions.find(perm => perm.permission_id === record.permission_id);
 		return ({
 			...record,
 			role,
-			permission,
 			role_name: role?.role_name,
 			role_description: role?.description,
-			permission_name: permission?.permission_name,
-			permission_description: permission?.description
 		})
 	});
 
@@ -93,7 +87,7 @@ export const route = (root) => root.defineRoute({
 		variables: {
 			"page-content": "$:/plugins/tiddlywiki/multiwikiserver/templates/manage-acl",
 			"roles-list": JSON.stringify(roles),
-			"permissions-list": JSON.stringify(permissions),
+			"permissions-list": JSON.stringify(Object.keys(state.store.permissions)),
 			"bag": JSON.stringify(bag),
 			"recipe": JSON.stringify(recipe),
 			"recipe-acl-records": JSON.stringify(recipeAclRecords2),

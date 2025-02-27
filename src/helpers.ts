@@ -421,3 +421,30 @@ export function tryParseJSON<T>(json: string): T | undefined {
   }
 }
 
+
+export class TypedGenerator<T extends [any, any][]> {
+  static checker<T extends [any, any][]>() {
+    return {
+      /** `const value1 = asV(1, yield asY(0, value0))` */
+      asV<I extends number>(index: I, args: T[I][0]): T[I][0] { return args; },
+      /** `const value1 = asV(1, yield asY(0, value0))` */
+      asY<I extends number>(index: I, ret: T[I][1]): T[I][1] { return ret; },
+    }
+  }
+  static wrapper<T extends [any, any][]>() {
+    return <A extends any[]>(factory: (...args: A) => Generator<any, any, any>) => {
+      return (...args: A) => new TypedGenerator<T>(factory(...args));
+    };
+  }
+  constructor(private inner: Generator<any, any, any>, private index = 0) { }
+  next<I extends number>(index: I, ...args: T[I][0] extends void ? [] : [T[I][0]]): (
+    T extends [...any[], T[I]] ? IteratorReturnResult<T[I][1]> : IteratorYieldResult<T[I][1]>
+  ) {
+    if (index !== this.index) throw new Error("Invalid index");
+    this.index++;
+    return this.inner.next(...args) as any;
+  }
+  return(value: any): any { this.inner.return(value); }
+  throw(e: any): any { this.inner.throw(e); }
+}
+

@@ -22,7 +22,7 @@ export const route = (root) => root.defineRoute({
 		bag_name: z.prismaField("bags", "bag_name", "string"),
 		// I don't know why these were optional in the original code
 		role_id: z.prismaField("roles", "role_id", "parse-number"),
-		permission_id: z.prismaField("permissions", "permission_id", "parse-number")
+		permission: z.prismaField("acl", "permission", "string").refine(e => state.store.isPermissionName(e))
 	}));
 
 	const {
@@ -31,7 +31,7 @@ export const route = (root) => root.defineRoute({
 		recipe_name,
 		bag_name,
 		role_id,
-		permission_id
+		permission
 	} = state.data;
 
 
@@ -41,7 +41,7 @@ export const route = (root) => root.defineRoute({
 		var entityAclRecords = await state.store.sql.getACLByName(entity_type, entity_name, undefined, false);
 
 		var aclExists = entityAclRecords.some((record) => (
-			record.role_id == role_id && record.permission_id == permission_id
+			record.role_id == role_id && record.permission == permission
 		))
 
 		// This ensures that the user attempting to modify the ACL has permission to do so
@@ -60,7 +60,7 @@ export const route = (root) => root.defineRoute({
 			entity_type,
 			isRecipe ? recipe_name : bag_name,
 			role_id,
-			permission_id
+			permission
 		)
 		return state.redirect(`/admin/acl/${recipe_name}/${bag_name}`);
 	} catch(error) {

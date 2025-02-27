@@ -33,6 +33,7 @@ export default function AuthRoutes(parent: rootRoute) {
       reqpath: "register.html",
     });
   });
+
   authRoute.defineRoute({
     useACL: {},
     method: ["GET", "HEAD"],
@@ -165,75 +166,5 @@ export default function AuthRoutes(parent: rootRoute) {
 
 declare const serverSetup: string;
 
-
-async function* OPAQUE1() {
-  // client
-  const password = "sup-krah.42-UOI"; // user password
-
-  const { clientRegistrationState, registrationRequest } = opaque.client.startRegistration({ password });
-
-  // server
-  const userIdentifier = "20e14cd8-ab09-4f4b-87a8-06d2e2e9ff68"; // userId/email/username
-
-  const { registrationResponse } = opaque.server.createRegistrationResponse({
-    serverSetup,
-    userIdentifier,
-    registrationRequest,
-  });
-
-  // client
-  const { registrationRecord } = opaque.client.finishRegistration({
-    clientRegistrationState,
-    registrationResponse,
-    password,
-  });
-
-  return registrationRecord;
-
-}
-
-
-async function* OPAQUE2(registrationRecord: string) {
-  await opaque.ready;
-  const serverSetup = opaque.server.createSetup();
-  // client
-  const password = "sup-krah.42-UOI"; // user password
-
-  const { clientLoginState, startLoginRequest } = opaque.client.startLogin({
-    password,
-  });
-
-  // server
-  const userIdentifier = "20e14cd8-ab09-4f4b-87a8-06d2e2e9ff68"; // userId/email/username
-
-  const { serverLoginState, loginResponse } = opaque.server.startLogin({
-    serverSetup,
-    userIdentifier,
-    registrationRecord,
-    startLoginRequest,
-  });
-
-  // client
-  const loginResult = opaque.client.finishLogin({
-    clientLoginState,
-    loginResponse,
-    password,
-  });
-  if (!loginResult) {
-    throw new Error("Login failed");
-  }
-  const { finishLoginRequest, sessionKey } = loginResult;
-
-  // server
-  // the server session key is only returned after verifying the client's response, 
-  // which validates that the client actually has the session key.
-  const { sessionKey: serversessionkey } = opaque.server.finishLogin({
-    finishLoginRequest,
-    serverLoginState,
-  });
-
-  ok(sessionKey === serversessionkey);
-
-}
 
 // export type authRoute = ReturnType<typeof AuthRoutes>;

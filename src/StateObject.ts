@@ -11,6 +11,7 @@ import { resolve } from 'node:path';
 import { Prisma, PrismaClient } from '@prisma/client';
 import { DefaultArgs } from '@prisma/client/runtime/library';
 import { DataChecks } from './store/data-checks';
+import { Authenticator } from './Authenticator';
 
 const authLevelNeededForMethod: Record<AllowedMethod, "readers" | "writers" | undefined> = {
   "GET": "readers",
@@ -50,6 +51,8 @@ export class StateObject<
   get headersSent() { return this.streamer.headersSent; }
 
   get reader() { return this.streamer.reader; }
+  /** Currently this is based on whether the socket is secure, so a proxy will cause problems. */
+  get isSecure() { return this.streamer.isSecure; }
 
   readBody
   readMultipartData
@@ -60,7 +63,7 @@ export class StateObject<
   sendStream
   sendFile
   sendResponse
-
+  setCookie
   /**
    * 
    * Sets a single header value. If the header already exists in the to-be-sent
@@ -80,7 +83,15 @@ export class StateObject<
 
   /** sends a status and plain text string body */
   sendSimple(status: number, msg: string) {
-    return this.sendString(status, { "content-type": "text/plain" }, msg, "utf8");
+    return this.sendString(status, {
+      "content-type": "text/plain"
+    }, msg, "utf8");
+  }
+  /** Stringify the value (unconditionally) and send it with content-type `application/json` */
+  sendJSON(status: number, obj: any) {
+    return this.sendString(status, {
+      "content-type": "application/json"
+    }, JSON.stringify(obj), "utf8");
   }
 
   STREAM_ENDED: typeof STREAM_ENDED = STREAM_ENDED;
@@ -89,6 +100,7 @@ export class StateObject<
   get enableBrowserCache() { return this.router.enableBrowserCache; }
   get enableGzip() { return this.router.enableGzip; }
   get pathPrefix() { return this.router.pathPrefix; }
+
 
 
   data!:
@@ -173,7 +185,7 @@ export class StateObject<
     this.writeHead = this.streamer.writeHead.bind(this.streamer);
     this.write = this.streamer.write.bind(this.streamer);
     this.end = this.streamer.end.bind(this.streamer);
-
+    this.setCookie = this.streamer.setCookie.bind(this.streamer);
     this.sendDevServer = this.router.sendDevServer.bind(this.router, this);
 
     this.pathParams = Object.fromEntries<string | undefined>(routePath.map(r =>
@@ -182,11 +194,13 @@ export class StateObject<
         .filter(<T>(e: T): e is T & {} => !!e)
       ?? []
     ).flat()) as any;
+
     const pathParamsZodCheck = z.record(z.string()).safeParse(this.pathParams);
     if (!pathParamsZodCheck.success) console.log("BUG: Query params zod error", pathParamsZodCheck.error);
 
     this.queryParams = Object.fromEntries([...this.urlInfo.searchParams.keys()]
       .map(key => [key, this.urlInfo.searchParams.getAll(key)] as const));
+
     const queryParamsZodCheck = z.record(z.array(z.string())).safeParse(this.queryParams);
     if (!queryParamsZodCheck.success) console.log("BUG: Query params zod error", queryParamsZodCheck.error);
 
@@ -204,9 +218,12 @@ export class StateObject<
     return createStrictAwaitProxy(new SqlTiddlerStore(sql, this.attachmentStore, this.adminWiki, this.router.$tw.config));
   }
 
-  // $transaction = async <T>(fn: (store: SqlTiddlerStore) => Promise<T>): Promise<T> =>
-  //   await this.engine.$transaction(async prisma => await fn(this.createStore(prisma as PrismaTxnClient)));
-
+  $transaction = async <T>(fn: (prisma: PrismaTxnClient) => Promise<T>): Promise<T> => {
+    return await this.router.engine.$transaction(async prisma => {
+      // return await fn(this.createStore(prisma as PrismaTxnClient))
+      return await fn(prisma as PrismaTxnClient);
+    });
+  }
 
   public cookies: Record<string, string | undefined>;
   parseCookieString(cookieString: string) {
@@ -294,6 +311,9 @@ export class StateObject<
   isBodyFormat<T extends B, S extends { [K in B]: StateObject<K, M, RoutePathParams, D> }[T]>(format: T): this is S {
     return this.bodyFormat as BodyFormat === format;
   }
+
+
+
   /**
    *
    * Sends a **302** status code and **Location** header to the client.
@@ -368,7 +388,7 @@ export class StateObject<
   // - it should not send a response more than once since it should throw every time it does.
   async checkACL(entityType: EntityType, entityName: string, permissionName: ACLPermissionName): Promise<void> {
 
-    this.store.okPermissionName(permissionName);
+
 
 
     if (permissionName !== {
@@ -426,9 +446,9 @@ export class StateObject<
         return;
       } else {
         // Get permission record
-        const permission = await this.store.sql.getPermissionByName(permissionName);
+        // const permission = await this.store.sql.getPermissionByName(permissionName);
         // ACL Middleware will only apply if the entity has a middleware record
-        if (aclRecord && aclRecord?.permission_id === permission?.permission_id) {
+        if (aclRecord && aclRecord?.permission === permissionName) {
           // If not authenticated and anonymous access is not allowed, request authentication
           if (!this.authenticatedUser && !this.allowAnon) {
             if (this.urlInfo.pathname !== '/login') {
@@ -486,28 +506,6 @@ export class StateObject<
     }
     return results as any;
   }
+
 }
 
-export class Authenticator {
-  static hashPassword(password: string) {
-    return crypto.createHash("sha256").update(password).digest("hex");
-  }
-  hashPassword = Authenticator.hashPassword;
-  sqlTiddlerDatabase;
-  constructor(state: StateObject) {
-    this.sqlTiddlerDatabase = state.store.sql;
-  }
-  /** this is null to improve constant time. we still hash the password even if we discard it. */
-  verifyPassword(inputPassword: string, storedHash: string | null) {
-    var hashedInput = Authenticator.hashPassword(inputPassword);
-    if (storedHash === null) return false;
-    return hashedInput === storedHash;
-  }
-
-  async createSession(userId: PrismaField<"users", "user_id">) {
-    var sessionId = crypto.randomBytes(16).toString("hex");
-    // Store the session in your database or in-memory store
-    await this.sqlTiddlerDatabase.createUserSession(userId, sessionId as PrismaField<"sessions", "session_id">);
-    return sessionId;
-  }
-}

@@ -54,7 +54,7 @@ export class SqlTiddlerDatabase extends DataChecks {
 		}
 	}
 	// public $transaction: <T>(fn: (store: SqlTiddlerStore) => Promise<T>) => Promise<T>
-	constructor(private engine: PrismaTxnClient) {
+	constructor(public engine: PrismaTxnClient) {
 		super();
 	}
 
@@ -809,7 +809,7 @@ export class SqlTiddlerDatabase extends DataChecks {
 	async getACLByName<T extends EntityType>(
 		entityType: T,
 		entityName: EntityName<T>,
-		permission_name: PrismaField<"permissions", "permission_name"> | undefined,
+		permission_name: ACLPermissionName | undefined,
 		fetchAll: boolean
 	) {
 		this.okEntityType(entityType);
@@ -819,10 +819,9 @@ export class SqlTiddlerDatabase extends DataChecks {
 			where: {
 				entity_name: entityName,
 				entity_type: entityType,
-				permission: { permission_name }
+				permission: permission_name,
 			},
 			include: {
-				permission: true,
 				role: true
 			},
 			take: fetchAll ? undefined : 1
@@ -864,11 +863,11 @@ export class SqlTiddlerDatabase extends DataChecks {
 
 		// First, check if there's an ACL record for the entity and get the permission_id
 		const aclRecords = await this.engine.acl.findMany({
-			select: { permission: { select: { permission_name: true } } },
+			select: { permission: true },
 			where: { entity_name, entity_type },
 		});
 		const aclRecordForPermission = aclRecords.some(record =>
-			record.permission?.permission_name === permission_name
+			record.permission === permission_name
 		);
 		// TODO: ENTITY OWNER PERMISSIONS
 		// if the entity is site-level (no owner), and no acl record exists for it, return true (allow by default)
@@ -883,7 +882,7 @@ export class SqlTiddlerDatabase extends DataChecks {
 			where: {
 				entity_name: entity_name,
 				entity_type: entity_type,
-				permission: { permission_name },
+				permission: permission_name,
 				role: { users: { some: { user_id } } }
 			},
 			take: 1,
@@ -923,7 +922,7 @@ export class SqlTiddlerDatabase extends DataChecks {
 	) {
 		return await this.engine.acl.findMany({
 			where: { entity_name, entity_type },
-			include: { role: true, permission: true }
+			include: { role: true }
 		});
 		// 	const checkACLExistsQuery = `
 		// 	SELECT *
@@ -1728,7 +1727,7 @@ export class SqlTiddlerDatabase extends DataChecks {
 		// 	$roleName: roleName
 		// });
 	}
-	getAdminRole(){
+	getAdminRole() {
 		return this.getRoleByName("ADMIN" as PrismaField<"roles", "role_name">);
 	}
 	updateRole(
@@ -1764,83 +1763,12 @@ export class SqlTiddlerDatabase extends DataChecks {
 		// 		SELECT * FROM roles ORDER BY role_name DESC
 		// `);
 	}
-	// Permission CRUD operations
-	async createPermission(
-		permissionName: PrismaField<"permissions", "permission_name">,
-		description: PrismaField<"permissions", "description">
-	) {
-		const e = await this.engine.permissions.create({
-			data: { permission_name: permissionName, description },
-		});
-		return e.permission_id;
-		// const result = this.engine.runStatement(`
-		// 	INSERT OR IGNORE INTO permissions (permission_name, description)
-		// 	VALUES ($permissionName, $description)
-		// `, {
-		// 	$permissionName: permissionName,
-		// 	$description: description
-		// });
-		// return result.lastInsertRowid;
-	}
-	getPermission(permissionId: PrismaField<"permissions", "permission_id">) {
-		return this.engine.permissions.findUnique({
-			where: { permission_id: permissionId }
-		});
-		// return this.engine.runStatementGet(`
-		// 		SELECT * FROM permissions WHERE permission_id = $permissionId
-		// `, {
-		// 	$permissionId: permissionId
-		// });
-	}
-	getPermissionByName(permissionName: PrismaField<"permissions", "permission_name">) {
-		return this.engine.permissions.findUnique({
-			where: { permission_name: permissionName }
-		});
-		// return this.engine.runStatementGet(`
-		// 		SELECT * FROM permissions WHERE permission_name = $permissionName
-		// `, {
-		// 	$permissionName: permissionName
-		// });
-	}
-	updatePermission(
-		permissionId: PrismaField<"permissions", "permission_id">,
-		permissionName: PrismaField<"permissions", "permission_name">,
-		description: PrismaField<"permissions", "description">
-	) {
-		return this.engine.permissions.update({
-			where: { permission_id: permissionId },
-			data: { permission_name: permissionName, description }
-		});
-		// this.engine.runStatement(`
-		// 		UPDATE permissions
-		// 		SET permission_name = $permissionName, description = $description
-		// 		WHERE permission_id = $permissionId
-		// `, {
-		// 	$permissionId: permissionId,
-		// 	$permissionName: permissionName,
-		// 	$description: description
-		// });
-	}
-	deletePermission(permissionId: PrismaField<"permissions", "permission_id">) {
-		return this.engine.permissions.delete({ where: { permission_id: permissionId } });
-		// this.engine.runStatement(`
-		// 		DELETE FROM permissions WHERE permission_id = $permissionId
-		// `, {
-		// 	$permissionId: permissionId
-		// });
-	}
-	listPermissions() {
-		return this.engine.permissions.findMany({ orderBy: { permission_name: "asc" } });
-		// return this.engine.runStatementGetAll(`
-		// 		SELECT * FROM permissions ORDER BY permission_name
-		// `);
-	}
 	// ACL CRUD operations
 	createACL<T extends EntityType>(
 		entityType: T,
 		entityName: EntityName<T>,
 		roleId: PrismaField<"roles", "role_id">,
-		permissionId: PrismaField<"permissions", "permission_id">
+		permission: ACLPermissionName
 	) {
 		if (entityName.startsWith("$:/")) return;
 		return this.engine.acl.create({
@@ -1848,7 +1776,7 @@ export class SqlTiddlerDatabase extends DataChecks {
 				entity_name: entityName,
 				entity_type: entityType,
 				role_id: roleId,
-				permission_id: permissionId
+				permission
 			}
 		}).then(e => e.acl_id);
 		// if (!entityName.startsWith("$:/")) {
@@ -1880,7 +1808,7 @@ export class SqlTiddlerDatabase extends DataChecks {
 		entityName: PrismaField<"acl", "entity_name">,
 		entityType: T,
 		roleId: PrismaField<"acl", "role_id">,
-		permissionId: PrismaField<"acl", "permission_id">
+		permission: ACLPermissionName
 	) {
 		return this.engine.acl.update({
 			where: { acl_id: aclId },
@@ -1888,7 +1816,7 @@ export class SqlTiddlerDatabase extends DataChecks {
 				entity_name: entityName,
 				entity_type: entityType,
 				role_id: roleId,
-				permission_id: permissionId
+				permission
 			}
 		});
 		// this.engine.runStatement(`

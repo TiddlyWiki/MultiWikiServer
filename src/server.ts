@@ -20,6 +20,15 @@ interface ListenerOptions {
   hostname?: string
 }
 
+declare module 'node:net' {
+  interface Socket {
+    /** Not defined on net.Socket instances. 
+     * 
+     * On tls.Socket instances,  */
+    encrypted?: boolean;
+  }
+}
+
 export const SYMBOL_IGNORE_ERROR: unique symbol = Symbol("IGNORE_ERROR");
 export const STREAM_ENDED: unique symbol = Symbol("STREAM_ENDED");
 
@@ -36,6 +45,7 @@ export class Streamer {
   urlInfo: URL;
   url: string;
   headers: IncomingHttpHeaders;
+  isSecure: boolean;
   constructor(
     private req: IncomingMessage | http2.Http2ServerRequest,
     private res: ServerResponse | http2.Http2ServerResponse,
@@ -47,6 +57,7 @@ export class Streamer {
     if (is<http2.Http2ServerRequest>(req, req.httpVersionMajor > 1)) {
       this.req.headers.host = req.headers[":authority"];
     }
+
     if (!req.headers.host) throw new Error("This should never happen");
     if (!req.method) throw new Error("This should never happen");
     if (!req.url?.startsWith("/")) throw new Error("This should never happen");
@@ -55,6 +66,7 @@ export class Streamer {
       throw this.sendString(501, {}, "Method not supported", "utf8");
     this.host = req.headers.host;
     this.method = req.method;
+    this.isSecure = !!req.socket.encrypted;
     this.urlInfo = new URL(`https://${req.headers.host}${req.url}`);
     req.complete
   }
@@ -211,6 +223,38 @@ export class Streamer {
       stream.pipe(this.res);
     });
   }
+
+  setCookie(name: string, value: string, options: {
+    domain?: string;
+    path?: string;
+    expires?: Date;
+    maxAge?: number;
+    secure?: boolean;
+    httpOnly?: boolean;
+    sameSite?: "Strict" | "Lax" | "None";
+  }) {
+    var cookie = `${name}=${encodeURIComponent(value)}`;
+    if (options.domain) cookie += `; Domain=${options.domain}`;
+    if (options.path) cookie += `; Path=${options.path}`;
+    if (options.expires) cookie += `; Expires=${options.expires.toUTCString()}`;
+    if (options.maxAge) cookie += `; Max-Age=${options.maxAge}`;
+    if (options.secure) cookie += `; Secure`;
+    if (options.httpOnly) cookie += `; HttpOnly`;
+    if (options.sameSite) cookie += `; SameSite=${options.sameSite}`;
+    this.appendHeader("Set-Cookie", cookie);
+  }
+
+  appendHeader(name: string, value: string): void {
+    const current = this.res.getHeader(name);
+    this.res.setHeader(name,
+      current
+        ? Array.isArray(current)
+          ? [...current as string[], value]
+          : [current as string, value]
+        : value
+    );
+  }
+
   setHeader(name: string, value: string): void {
     this.res.setHeader(name, value);
   }

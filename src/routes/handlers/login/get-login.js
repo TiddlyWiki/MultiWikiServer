@@ -10,25 +10,17 @@ GET /login
 /** @type {ServerRouteDefinition} */
 export const route = (root) => root.defineRoute({
 	method: ["GET"],
-	path: /^\/login$/,
+	path: /^\/login(\.json)?$/,
+	pathParams: ["format"],
 	useACL: {},
 }, async state => {
-	// Check if the user already has a valid session
-	if(state.authenticatedUser) {
-		// User is already logged in, redirect to home page
-		return state.redirect("/");
-	}
 
-	const loginTitle = "$:/plugins/tiddlywiki/multiwikiserver/auth/form/login";
-	var loginTiddler = state.store.adminWiki.getTiddler(loginTitle);
-
-	if(loginTiddler) {
-		state.writeHead(200, {"Content-Type": "text/html"});
-		state.write(state.store.adminWiki.renderTiddler("text/html", loginTiddler.fields.title));
-		return state.end();
+	if(state.pathParams.format) {
+		return state.sendJSON(200, {
+			isLoggedIn: !!state.authenticatedUser,
+		});
 	} else {
-		state.writeHead(500);
-		state.write("Login form is not set up correctly.");
-		return state.end();
+		return state.sendDevServer();
 	}
+
 });

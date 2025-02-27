@@ -5,6 +5,7 @@ import WikiCard from './WikiCard';
 import BagPill from './BagPill';
 import { useFormStatus } from 'react-dom';
 import { IndexJson } from '../helpers/server-types';
+import { useAsyncEffect } from '../helpers/useAsyncEffect';
 
 interface Recipe {
   recipe_name: string;
@@ -30,7 +31,18 @@ interface DashboardProps {
   initialAllowWrites: boolean;
 }
 
-const Dashboard: React.FC<IndexJson> = ({
+const Dashboard: React.FC<{}> = ({ }) => {
+  const [result, setResult] = useState<IndexJson | null>(null);
+
+  useAsyncEffect(async () => {
+    setResult(await (await fetch("/index.json")).json());
+  }, undefined, undefined, []);
+
+  return result ? <DashboardInner {...result} /> : null;
+
+}
+
+const DashboardInner: React.FC<IndexJson> = ({
   username,
   "recipe-list": initialRecipes,
   "bag-list": initialBags,

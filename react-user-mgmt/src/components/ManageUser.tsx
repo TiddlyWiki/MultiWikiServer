@@ -1,8 +1,8 @@
-import React, { PropsWithChildren, useState } from 'react';
+import React, { useState } from 'react';
 import Header from './Header';
-import { useFormStatus } from 'react-dom';
 import { useAsyncEffect } from '../helpers/useAsyncEffect';
-import { formDataToSearchParams } from '../helpers/utils';
+import { fetchPostSearchParams } from '../helpers/utils';
+import * as opaque from "@serenity-kit/opaque";
 
 interface Role {
   role_id: string;
@@ -98,10 +98,7 @@ const ManageUserInner: React.FC<ManageUserProps> = ({
 
   const handler = (endpoint: string, success: (msg: string) => void, error: (msg: string) => void) =>
     async (formData: FormData) => {
-      const res = await fetch(endpoint, {
-        method: 'POST',
-        body: formDataToSearchParams(formData),
-      });
+      const res = await fetchPostSearchParams(endpoint, formData);
       const body = await res.text();
 
       if (!res.ok)
@@ -113,12 +110,38 @@ const ManageUserInner: React.FC<ManageUserProps> = ({
     }
 
   const handleUpdateProfile = handler('/update-user-profile', setUpdateSuccess, setUpdateError);
-  const handleChangePassword = handler('/change-user-password', setPasswordSuccess, setPasswordError);
 
+  
   const handleDeleteAccount = async (formData: FormData) => {
     if (window.confirm('Are you sure you want to delete this user account? This action cannot be undone.'))
       await handler('/delete-user-account', () => location.pathname = '/admin/users', setDeleteError)(formData);
   };
+
+  const handleChangePassword = async (formData: FormData) => {
+    const userId = formData.get("userId");
+    const newPassword = formData.get("newPassword");
+    const confirmPassword = formData.get("confirmPassword");
+    if (!userId || !newPassword || !confirmPassword) return;
+
+    if (newPassword !== confirmPassword) {
+      setPasswordError("Passwords do not match.");
+      return;
+    }
+
+    const creator = PasswordCreation(userId as string, newPassword as string);
+
+    const registrationRequest = creator.next().value;
+
+    await fetchPostSearchParams('/change-user-password/1', { userId, registrationRequest, });
+
+    const registrationRecord = creator.next(registrationRequest).value;
+
+    await fetchPostSearchParams('/change-user-password/2', { userId, registrationRecord, });
+
+    setPasswordSuccess("Password successfully changed.");
+    setRefreshData({});
+
+  }
 
   return (
     <>
@@ -237,3 +260,22 @@ const ManageUserInner: React.FC<ManageUserProps> = ({
 };
 
 
+
+/**
+ * This code creates a password registration. It can be used for temporary passwords, if needed. 
+ */
+export function* PasswordCreation(userID: string, password: string): any {
+
+  const { clientRegistrationState, registrationRequest } = opaque.client.startRegistration({ password });
+
+  const registrationResponse = yield registrationRequest;
+
+  const { registrationRecord } = opaque.client.finishRegistration({
+    clientRegistrationState,
+    registrationResponse,
+    password,
+  });
+
+  return registrationRecord;
+
+}

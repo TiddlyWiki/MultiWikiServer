@@ -501,3 +501,77 @@ hr {
     width: 100%;
   }
 }
+
+/* react-user-mgmt/src/styles/login.css */
+.login-page {
+  font-family: Arial, sans-serif;
+  background-color: #f0f0f0;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+  width: 100vw;
+}
+.login-container {
+  max-width: 300px;
+  padding: 20px;
+  background-color: #ffffff;
+  border-radius: 5px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+}
+.login-container h1 {
+  text-align: center;
+  color: #333;
+  margin-bottom: 20px;
+}
+.login-form input {
+  width: 100%;
+  padding: 10px;
+  margin: 10px 0;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  box-sizing: border-box;
+}
+.login-form input[type=submit] {
+  background-color: #4CAF50;
+  color: white;
+  cursor: pointer;
+  border: none;
+}
+.login-form input[type=submit]:hover {
+  background-color: #45a049;
+}
+.tc-error-message {
+  color: #ff0000;
+  text-align: center;
+  margin-top: 10px;
+}
+.login-header {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  align-items: center;
+  justify-content: center;
+}
+.login-header h1 {
+  font-size: 30px;
+}
+.login-header h2 {
+  font-size: 28px;
+}
+.login-header h1,
+.login-header h2 {
+  font-weight: bold;
+}
+.login-header a {
+  padding: 10px 20px;
+  background-color: #1366a8;
+  color: #FFF;
+  text-decoration: none;
+  cursor: pointer;
+  border-radius: 5px;
+  width: 85%;
+  text-align: center;
+}

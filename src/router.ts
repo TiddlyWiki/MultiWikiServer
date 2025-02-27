@@ -1,5 +1,5 @@
 import { Streamer } from "./server";
-import { Authenticator, StateObject } from "./StateObject";
+import { StateObject } from "./StateObject";
 import RootRoute from "./routes";
 import * as z from "zod";
 import { createStrictAwaitProxy } from "./helpers";
@@ -15,6 +15,8 @@ import {
   RouteMatch,
 } from "./rootRoute";
 import { setupDevServer } from "./serve-esbuild";
+import { Authenticator, PasswordCreation } from "./Authenticator";
+import * as opaque from "@serenity-kit/opaque";
 
 export { RouteMatch, Route, rootRoute };
 
@@ -59,6 +61,9 @@ export class Router {
 
 
   static async makeRouter(wikiPath: string) {
+
+
+
     const rootRoute = defineRoute(ROOT_ROUTE, {
       useACL: { csrfDisable: true },
       method: AllowedMethods,
@@ -80,6 +85,8 @@ export class Router {
 
     const router = new Router(rootRoute, $tw, wikiPath, sendDevServer);
 
+    await Authenticator.ready;
+
     await this.initDatabase(router);
 
     return router;
@@ -99,7 +106,7 @@ export class Router {
     await router.engine.users.deleteMany();
     await router.engine.groups.deleteMany();
     await router.engine.roles.deleteMany();
-    await router.engine.permissions.deleteMany();
+    // await router.engine.permissions.deleteMany();
 
 
 
@@ -110,9 +117,18 @@ export class Router {
         { role_id: 2, role_name: "USER", description: "Basic User" },
       ]
     });
-    await router.engine.users.create({
-      data: { username: "admin", email: "", password: Authenticator.hashPassword("1234"), roles: { connect: { role_id: 1 } } }
+    const user = await router.engine.users.create({
+      data: { username: "admin", email: "", password: "", roles: { connect: { role_id: 1 } } },
+      select: { user_id: true }
+    });
+
+    const password = PasswordCreation(user.user_id.toString(), "1234");
+
+    await router.engine.users.update({
+      where: { user_id: user.user_id },
+      data: { password: password }
     })
+
   }
 
   engine: PrismaClient<{ datasourceUrl: string }, never, {
@@ -168,7 +184,11 @@ export class Router {
     // console.log(state.authenticatedUser)
 
     routePath.forEach(match => {
-      if (!this.csrfDisable && !match.route.useACL.csrfDisable && state.authLevelNeeded === "writers" && state.headers["x-requested-with"] !== "TiddlyWiki")
+      if (!this.csrfDisable
+        && !match.route.useACL.csrfDisable
+        && state.authLevelNeeded === "writers"
+        && state.headers["x-requested-with"] !== "TiddlyWiki"
+      )
         throw streamer.sendString(403, {}, "'X-Requested-With' header required to login to '" + this.servername + "'", "utf8");
     })
 
@@ -221,7 +241,7 @@ export class Router {
   async handleRoute(state: StateObject<BodyFormat>, route: RouteMatch[]) {
     ok(!state.authenticatedUser || state.authenticatedUser.user_id, "authenticatedUser must have a user_id");
     ok(!state.authenticatedUser || state.authenticatedUser.username, "authenticatedUser must have a username");
-  
+
 
     let result: any = state;
     for (const match of route) {
