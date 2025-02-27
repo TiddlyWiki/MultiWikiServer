@@ -1,6 +1,6 @@
 datasource db {
   provider = "sqlite"
-  url      = ""
+  url      = env("DATABASE_URL")
 }
 
 generator client {
@@ -121,8 +121,8 @@ model users {
   username   String     @unique
   email      String     @unique
   password   String
-  created_at String     @default("datetime('now')")
-  last_login String?
+  created_at DateTime     @default(now())
+  last_login DateTime?
   recipes    recipes[]
   sessions   sessions[]
   groups     groups[]

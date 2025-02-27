@@ -7,36 +7,17 @@ import "./src/startup";
 import * as z from "zod";
 import { StateObject } from "./src/StateObject";
 import { Http2ServerRequest, Http2ServerResponse } from "http2";
-import { AllowedMethod, BodyFormat, rootRoute } from "./src/router";
+import { AllowedMethod, BodyFormat, rootRoute, Router } from "./src/router";
 import { Wiki, Tiddler } from "tiddlywiki";
 
 
 declare global {
 
 
-  const $tw: {
-    // wiki: any;
-    boot: any;
-    sjcl: any;
-    utils: any;
-    config: any;
-    Tiddler: any;
-    loadTiddlersFromPath: any;
-  };
+  // const $tw: $TW
 
 
-  interface $TW {
-    // nothing is allowed to access the global. It must come from the state.
-    mws: never;
-    // mws: {
-    //   store: SqlTiddlerStore<unknown>;
-    //   serverManager: ServerManager;
-    //   router: Router;
-    //   connection: PrismaClient;
-    //   databasePath: string;
-    //   transaction: <T extends "DEFERRED" | "IMMEDIATE">(type: T, callback: (store: SqlTiddlerStore<T>) => Promise<void>) => Promise<void>;
-    // }
-  }
+
 
   interface $TW {
     loadTiddlersFromPath: any;
@@ -44,21 +25,34 @@ declare global {
     getLibraryItemSearchPaths: any;
     wiki: never;
     utils: {
-      [x: string]: any;
-      /** If you pass it null, it stringifies it as "null" */
-      decodeURIComponentSafe(str: string): string;
-      each<T>(object: T[], callback: (value: T, index: number, object: T[]) => void): void;
-      each<T>(object: Record<string, T>, callback: (value: T, key: string, object: Record<string, T>) => void): void;
-      parseJSONSafe(str: string, defaultJSON?: any): any;
-      /** `return parseFloat(str) || 0;` */
-      parseNumber(string: string): number;
-      /** `return parseFloat(str) || 0;` */
-      parseNumber(string: string | null): number;
+      // [x: string]: any;
+      /** Use Object.assign instead */
+      extend: never
+      /** Use Array.isArray instead */
+      isArray: never
+      /** use prismaField with a parse- option or z.uriComponent if possible */
+      decodeURIComponentSafe: never;
+      /**
+       * 
+      ```js
+      $tw.utils.stringifyDate = function(value) {
+        return value.getUTCFullYear() +
+            $tw.utils.pad(value.getUTCMonth() + 1) +
+            $tw.utils.pad(value.getUTCDate()) +
+            $tw.utils.pad(value.getUTCHours()) +
+            $tw.utils.pad(value.getUTCMinutes()) +
+            $tw.utils.pad(value.getUTCSeconds()) +
+            $tw.utils.pad(value.getUTCMilliseconds(),3);
+      };
+      ```
+       */
+      stringifyDate: never;
+      // parseJSONSafe(str: string, defaultJSON?: any): any;
+      // /** `return parseFloat(str) || 0;` */
+      // parseNumber(string: string): number;
+      // /** `return parseFloat(str) || 0;` */
+      // parseNumber(string: string | null): number;
     };
-    modules: {
-      [x: string]: any;
-      forEachModuleOfType: (moduleType: string, callback: (title: string, module: any) => void) => void;
-    }
     boot: any;
     config: any;
     node: any;
@@ -86,7 +80,7 @@ declare global {
 
   interface ServerResponse extends HTTPServerResponse { }
 
-  type PrismaTxnClient = Omit<StateObject["engine"], "$connect" | "$disconnect" | "$on" | "$transaction" | "$use" | "$extends">
+  type PrismaTxnClient = Omit<Router["engine"], "$connect" | "$disconnect" | "$on" | "$transaction" | "$use" | "$extends">
   interface ServerRoute {
     path: RegExp;
     handler: ServerRouteHandler<number>;
