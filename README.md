@@ -23,4 +23,5 @@ I work with React in most of my projects so it's also something I'm familiar wit
 
 ### This is a map of the current database layout.
 
-![prisma-editor (1)](https://github.com/user-attachments/assets/607868ac-5f5c-4e83-b1fe-4b1d37fdb3b4)
+![prisma-editor (3)](https://github.com/user-attachments/assets/295e243a-a1f4-4e2a-8ed8-7b05110703b2)
+
