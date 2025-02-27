@@ -29,13 +29,11 @@ export abstract class Commander {
 		}
 	) {
 		console.log(commandTokens);
-		var path = require("path");
 		this.commandTokens = commandTokens;
 		this.nextToken = 0;
 		this.callback = callback;
 		this.wiki = wiki;
 		this.streams = streams;
-
 		this.verbose = false;
 	}
 

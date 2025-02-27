@@ -67,6 +67,7 @@ export async function bootTiddlyWiki(createTables: boolean, commands: boolean, w
         }
       };
 
+      console.log($tw.config);
 
       $tw.mws.attachmentStore = new AttachmentStore(storePath, $tw.sjcl, $tw.config);
 

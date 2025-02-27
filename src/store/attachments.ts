@@ -31,7 +31,8 @@ store/
 "use strict";
 
 import { tryParseJSON } from "../helpers";
-
+import * as path from "path";
+import * as fs from "fs";
 /*
 Class to handle an attachment store. Options include:
 
@@ -64,7 +65,7 @@ export class AttachmentStore {
 	_canonical_uri: canonical uri of the content
 	*/
 	saveAttachment(options: { text: string | Buffer; type: string; reference?: string; _canonical_uri: string; }) {
-		const path = require("path"), fs = require("fs");
+
 		// Compute the content hash for naming the attachment
 		const contentHash = this.sjcl.codec.hex.fromBits(this.sjcl.hash.sha256.hash(options.text)).slice(0, 64).toString();
 		// Choose the best file extension for the attachment given its type
@@ -91,7 +92,7 @@ export class AttachmentStore {
 	Adopts an attachment file into the store
 	*/
 	adoptAttachment(incomingFilepath: string, type: string, hash: string, _canonical_uri: string) {
-		const path = require("path"), fs = require("fs");
+
 		// Choose the best file extension for the attachment given its type
 		const contentTypeInfo = this.config.contentTypeInfo[type] || this.config.contentTypeInfo["application/octet-stream"];
 		// Creat the attachment directory
@@ -119,7 +120,7 @@ export class AttachmentStore {
 	type: type of file
 	*/
 	getAttachmentStream(attachment_name: string) {
-		const path = require("path"), fs = require("fs");
+
 		// Check the attachment name
 		if (this.isValidAttachmentName(attachment_name)) {
 			// Construct the path to the attachment directory
@@ -150,7 +151,7 @@ export class AttachmentStore {
 	Returns the size in bytes, or null if the file doesn't exist.
 	*/
 	getAttachmentFileSize(contentHash: string) {
-		const path = require("path"), fs = require("fs");
+
 		// Construct the path to the attachment directory
 		const attachmentPath = path.resolve(this.storePath, "files", contentHash);
 		// Read the meta.json file
@@ -170,7 +171,7 @@ export class AttachmentStore {
 	}
 
 	getAttachmentMetadata(attachmentBlob: string) {
-		const path = require("path"), fs = require("fs");
+
 		const attachmentPath = path.resolve(this.storePath, "files", attachmentBlob);
 		const metaJsonPath = path.resolve(attachmentPath, "meta.json");
 		if (fs.existsSync(metaJsonPath)) {

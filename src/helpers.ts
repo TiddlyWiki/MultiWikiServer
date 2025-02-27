@@ -7,6 +7,8 @@ import { ok } from "node:assert";
 import { promisify } from "node:util";
 import { Router } from "./router";
 import { mkdirSync } from "node:fs";
+import * as fs from "node:fs";
+import * as path from "node:path";
 /**
 Options include:
 - `cbPartStart(headers,name,filename)` - invoked when a file starts being received
@@ -146,8 +148,6 @@ export async function processIncomingStream(
   bag_name: PrismaField<"bags", "bag_name">,
 ): Promise<string[]> {
   const state = this;
-  const path = require("path"),
-    fs = require("fs");
   // Process the incoming data
   const inboxName = new Date().toISOString().replace(/:/g, "-");
   const inboxPath = path.resolve(this.store.attachmentStore.storePath, "inbox", inboxName);

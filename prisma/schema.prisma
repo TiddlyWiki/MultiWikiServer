@@ -20,8 +20,7 @@ model acl {
   entity_name   String
   entity_type   String
   role_id       Int
-  permission_id Int
-  permission    permissions? @relation(fields: [permission_id], references: [permission_id], onDelete: NoAction, onUpdate: NoAction)
+  permission    String
   role          roles?       @relation(fields: [role_id], references: [role_id], onDelete: NoAction, onUpdate: NoAction)
 
   @@index([entity_name])
@@ -42,14 +41,6 @@ model groups {
   description String?
   roles       roles[]
   users       users[]
-}
-
-model permissions {
-  permission_id   Int     @id @default(autoincrement())
-  permission_name String  @unique
-  description     String?
-  acl             acl[]
-  roles           roles[]
 }
 
 model recipe_bags {
@@ -78,7 +69,6 @@ model roles {
   description String?
   acls        acl[]
   groups      groups[]
-  permissions permissions[]
   users       users[]
 }
 

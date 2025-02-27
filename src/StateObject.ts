@@ -488,19 +488,21 @@ export class StateObject<
 }
 
 export class Authenticator {
+  static hashPassword(password: string) {
+    return crypto.createHash("sha256").update(password).digest("hex");
+  }
+  hashPassword = Authenticator.hashPassword;
   sqlTiddlerDatabase;
   constructor(state: StateObject) {
     this.sqlTiddlerDatabase = state.store.sql;
   }
   /** this is null to improve constant time. we still hash the password even if we discard it. */
   verifyPassword(inputPassword: string, storedHash: string | null) {
-    var hashedInput = this.hashPassword(inputPassword);
+    var hashedInput = Authenticator.hashPassword(inputPassword);
     if (storedHash === null) return false;
     return hashedInput === storedHash;
   }
-  hashPassword(password: string) {
-    return crypto.createHash("sha256").update(password).digest("hex");
-  }
+
   async createSession(userId: PrismaField<"users", "user_id">) {
     var sessionId = crypto.randomBytes(16).toString("hex");
     // Store the session in your database or in-memory store

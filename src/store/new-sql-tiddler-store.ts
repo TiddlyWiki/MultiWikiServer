@@ -3,6 +3,8 @@ import { createStrictAwaitProxy } from "../helpers";
 import { StateObject } from "../StateObject";
 import { DataChecks } from "./data-checks";
 import { SqlTiddlerDatabase, TiddlerFields } from "./new-sql-tiddler-database";
+import { Readable } from "stream";
+import { resolve } from "path";
 
 
 interface SqlTiddlerStoreEvents {
@@ -31,7 +33,7 @@ export class SqlTiddlerStore extends DataChecks {
     public adminWiki: Wiki,
     public config: any
   ) {
-
+    ok(config);
     super();
     this.sqlTiddlerDatabase = sql;
 
@@ -191,8 +193,7 @@ export class SqlTiddlerStore extends DataChecks {
     // Clear out the bag
     await this.deleteAllTiddlersInBag(bag_name);
     // Get the tiddlers
-    var path = require("path");
-    var tiddlersFromPath = $tw.loadTiddlersFromPath(path.resolve($tw.boot.corePath, this.config.editionsPath, tiddler_files_path));
+    var tiddlersFromPath = $tw.loadTiddlersFromPath(resolve($tw.boot.corePath, this.config.editionsPath, tiddler_files_path));
     // Save the tiddlers
     for (const tiddlersFromFile of tiddlersFromPath) {
       for (const tiddler of tiddlersFromFile.tiddlers) {
@@ -351,6 +352,7 @@ export class SqlTiddlerStore extends DataChecks {
     title: PrismaField<"tiddlers", "title">,
     bag_name: PrismaField<"bags", "bag_name">
   ) {
+    const self = this;
     const tiddlerInfo = await this.sql.getBagTiddler(title, bag_name);
     if (tiddlerInfo) {
       if (tiddlerInfo.attachment_blob) {
@@ -363,12 +365,14 @@ export class SqlTiddlerStore extends DataChecks {
           }
         );
       } else {
-        const { Readable } = require('stream');
+        require
         const stream = new Readable();
+        const type = tiddlerInfo.tiddler.type || "text/plain";
+        const { encoding } = (this.config.contentTypeInfo[type] || { encoding: "utf8" });
         stream._read = function () {
           // Push data
-          const type = tiddlerInfo.tiddler.type || "text/plain";
-          stream.push(tiddlerInfo.tiddler.text || "", (this.config.contentTypeInfo[type] || { encoding: "utf8" }).encoding);
+
+          stream.push(tiddlerInfo.tiddler.text || "", encoding);
           // Push null to indicate the end of the stream
           stream.push(null);
         };
