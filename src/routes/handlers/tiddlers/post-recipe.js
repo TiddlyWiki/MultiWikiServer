@@ -28,7 +28,7 @@ export const route = (root) => root.defineRoute({
 	await state.checkACL("recipe", state.data.recipe_name, "WRITE");
 
 	if(state.data.recipe_name && state.data.bag_names) {
-		const result = await state.store.createRecipe(state.data.recipe_name, $tw.utils.parseStringArray(state.data.bag_names), state.data.description);
+		const result = await state.store.createRecipe(state.data.recipe_name, state.data.bag_names, state.data.description);
 		if(!result) {
 			if(state.authenticatedUser) {
 				await state.store.sql.assignRecipeToUser(state.data.recipe_name, state.authenticatedUser.user_id);

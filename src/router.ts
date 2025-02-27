@@ -10,11 +10,12 @@ import { AttachmentStore } from "./store/attachments";
 import { SqlTiddlerDatabase } from "./store/new-sql-tiddler-database";
 import { SqlTiddlerStore } from "./store/new-sql-tiddler-store";
 import { resolve } from "path";
-import { PrismaClient } from "@prisma/client";
+import { Prisma, PrismaClient } from "@prisma/client";
 import Database from "better-sqlite3";
 import { Commander } from "./commander";
 import { PrismaLibSQL } from '@prisma/adapter-libsql'
 import { createClient } from '@libsql/client'
+import { bootTiddlyWiki } from "./tiddlywiki";
 
 export const AllowedMethods = [...["GET", "HEAD", "OPTIONS", "POST", "PUT", "DELETE"] as const];
 export type AllowedMethod = typeof AllowedMethods[number];
@@ -56,129 +57,66 @@ export class Router {
   }
 
 
-  static async makeRouter() {
+  static async makeRouter(wikiPath: string) {
     const rootRoute = defineRoute(ROOT_ROUTE, {
       useACL: { csrfDisable: true },
       method: AllowedMethods,
       path: /^/,
       denyFinal: true,
     }, async (state: any) => state);
+
     await RootRoute(rootRoute);
 
-    const wikiPath = "./editions/mws";
+    const storePath = resolve(wikiPath, "store");
 
-    const $tw = (global as any).$tw = Router.makeTiddlyWiki();
-    const commands = false;
-    // tiddlywiki [+<pluginname> | ++<pluginpath>] [<wikipath>] ...[--command ...args]
-    $tw.boot.argv = [
-      "++plugins/client",
-      "++plugins/server",
-      "++src/commands",
-      wikiPath,
-      ...commands ? [
-        "--mws-load-plugin-bags",
-        "--build", "load-mws-demo-data",
-      ] : []
-      // "--mws-listen", "port=5001", "host=::"
-    ];
-    mkdirSync(resolve(wikiPath, "store"), { recursive: true });
-    const attachmentStore = new AttachmentStore({ storePath: resolve(wikiPath, "store/") });
+    const createTables = !existsSync(resolve(storePath, "database.sqlite"));
 
-    if (commands) $tw.modules.define("$:/plugins/tiddlywiki/multiwikiserver/startup.js", "startup", {
-      name: "multiwikiserver",
-      platforms: ["node"],
-      after: ["load-modules"],
-      before: ["story", "commands"],
-      synchronous: false,
-      startup: (callback: () => void) => Promise.resolve().then(async () => {
-        $tw.Commander = class Commander2 extends Commander {
-          get commands() { return $tw.commands; }
-          constructor(...args: ConstructorParameters<typeof Commander>) {
-            super(...args);
-          }
-        };
+    mkdirSync(storePath, { recursive: true });
 
+    const $tw = (global as any).$tw = await bootTiddlyWiki(createTables, createTables, wikiPath);
 
-        const libsql = createClient({ url: "file:" + resolve(wikiPath, "store/database.sqlite") });
-        // await libsql.executeMultiple(readFileSync("./prisma/schema.prisma.sql", "utf8"));
-        libsql.execute("pragma synchronous=off");
-        libsql.execute("pragma journal_mode=wal");
-        const adapter = new PrismaLibSQL(libsql)
-        const engine = new PrismaClient({ adapter, log: ["error", "warn", "info"] });
-        const sql = createStrictAwaitProxy(new SqlTiddlerDatabase(engine as any));
-        const store = createStrictAwaitProxy(new SqlTiddlerStore(sql, attachmentStore, $tw.wiki));
-        $tw.mws = { store };
+    const router = new Router(rootRoute, $tw, wikiPath);
 
-      }).then(callback)
-    });
+    await this.initDatabase(router);
 
-    await $tw.boot.boot();
-
-    if (commands) {
-      $tw.mws.store.sql.engine.$disconnect();
-      delete $tw.mws.store.sql.engine;
-      delete $tw.mws.store.sql;
-      delete $tw.mws.store;
-      delete $tw.mws;
-    }
-    console.log("booted")
-
-
-    return new Router(rootRoute, $tw, attachmentStore);
+    return router;
   }
 
-  static async makeStore($tw: any, wikiPath: string) {
+  static async initDatabase(router: Router) {
+    // delete these during dev stuff
+    await router.engine.users.deleteMany();
+    await router.engine.roles.deleteMany();
+    await router.engine.permissions.deleteMany();
+    await router.engine.groups.deleteMany();
 
+
+    await router.engine.sessions.deleteMany();
   }
-  static makeTiddlyWiki() {
-    const $tw = TiddlyWiki() as any;
 
-    $tw.boot.boot = async function () {
-      // Initialise crypto object
-      $tw.crypto = new $tw.utils.Crypto();
-      // Initialise password prompter
-      if ($tw.browser && !$tw.node) {
-        $tw.passwordPrompt = new $tw.utils.PasswordPrompt();
-      }
-      // Preload any encrypted tiddlers
-      await new Promise(resolve => $tw.boot.decryptEncryptedTiddlers(resolve));
-
-      // this part executes syncly
-      await new Promise(resolve => $tw.boot.startup({ callback: resolve }));
-    };
-    $tw.utils.eachAsync = async function (object: any, callback: any) {
-      var next, f, length;
-      if (object) {
-        if (Object.prototype.toString.call(object) == "[object Array]") {
-          for (f = 0, length = object.length; f < length; f++) {
-            next = await callback(object[f], f, object);
-            if (next === false) {
-              break;
-            }
-          }
-        } else {
-          var keys = Object.keys(object);
-          for (f = 0, length = keys.length; f < length; f++) {
-            var key = keys[f];
-            next = await callback(object[key], key, object);
-            if (next === false) {
-              break;
-            }
-          }
+  engine: PrismaClient<{ datasourceUrl: string }, never, {
+    result: {
+      [T in Prisma.ModelName]: {
+        [K in keyof PrismaPayloadScalars<T>]: () => {
+          compute: () => PrismaField<T, K>
         }
       }
-    };
-
-
-    return $tw;
-  }
-
+    },
+    client: {},
+    model: {},
+    query: {},
+  }>;
+  storePath: string;
+  databasePath: string;
+  attachmentStore: AttachmentStore
   constructor(
     private rootRoute: rootRoute,
     public $tw: any,
-    public attachmentStore: AttachmentStore
+    public wikiPath: string,
   ) {
-
+    this.attachmentStore = $tw.mws.attachmentStore;
+    this.storePath = resolve(wikiPath, "store");
+    this.databasePath = resolve(this.storePath, "database.sqlite");
+    this.engine = new PrismaClient({ datasourceUrl: "file:" + this.databasePath });
   }
 
   async handle(streamer: Streamer) {
@@ -196,6 +134,7 @@ export class Router {
     const bodyFormat = routePath.find(e => e.route.bodyFormat)?.route.bodyFormat || "buffer";
 
     type statetype = { [K in BodyFormat]: StateObject<K> }[BodyFormat]
+
 
     const state = createStrictAwaitProxy(
       new StateObject(streamer, routePath, bodyFormat, this) as statetype
@@ -593,3 +532,5 @@ function testroute(root: rootRoute) {
     state.isBodyFormat("string");
   })
 }
+
+

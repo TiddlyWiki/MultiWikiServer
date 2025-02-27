@@ -16,7 +16,7 @@ export const route = (root) => root.defineRoute({
 	method: ["GET"],
 	// not sure why there's allowed to be an unknown number of slashes between the recipe and bag names
 	// the original code was recipe_name.split("/"), then took the first and last (as in arr[arr.length-1])
-	path: /^\/admin\/acl\/([^\/]+)\/(?:[^\/]*\/)([^\/]+)$/,
+	path: /^\/admin\/acl\/([^\/]+)\/([^\/]+)$/,
 	pathParams: ["recipe_name", "bag_name"],
 	useACL: {},
 }, async state => {

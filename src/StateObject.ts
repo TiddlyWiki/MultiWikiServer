@@ -136,7 +136,10 @@ export class StateObject<
   databasePath
   attachmentStore
   adminWiki
-  engine
+  Tiddler
+  sjcl
+  config
+
   constructor(
     private streamer: Streamer,
     /** The array of Route tree nodes the request matched. */
@@ -146,24 +149,14 @@ export class StateObject<
     private router: Router
   ) {
     // this.store = this.router.$tw.mws.store;
-    this.databasePath = resolve(this.router.$tw.boot.wikiPath, "store/database.sqlite");
+    this.databasePath = this.router.databasePath;
     this.attachmentStore = this.router.attachmentStore;
     this.adminWiki = this.router.$tw.wiki;
+    this.store = this.createStore(this.router.engine);
 
-    this.engine = new PrismaClient<{ datasourceUrl: string }, never, {
-      result: {
-        [T in Prisma.ModelName]: {
-          [K in keyof PrismaPayloadScalars<T>]: () => {
-            compute: () => PrismaField<T, K>
-          }
-        }
-      },
-      client: {},
-      model: {},
-      query: {},
-    }>({ datasourceUrl: "file:" + this.databasePath });
-
-    this.store = this.createStore(this.engine);
+    this.Tiddler = this.router.$tw.Tiddler;
+    this.sjcl = this.router.$tw.sjcl;
+    this.config = this.router.$tw.config;
 
 
     this.readBody = this.streamer.readBody.bind(this.streamer);
@@ -205,7 +198,7 @@ export class StateObject<
 
   createStore(engine: PrismaTxnClient) {
     const sql = createStrictAwaitProxy(new SqlTiddlerDatabase(engine));
-    return createStrictAwaitProxy(new SqlTiddlerStore(sql, this.attachmentStore, this.adminWiki));
+    return createStrictAwaitProxy(new SqlTiddlerStore(sql, this.attachmentStore, this.adminWiki, this.router.$tw.config));
   }
 
   // $transaction = async <T>(fn: (store: SqlTiddlerStore) => Promise<T>): Promise<T> =>
@@ -236,7 +229,7 @@ export class StateObject<
     if (!user) {
       return null;
     }
-    
+
     // var admin = await this.store.sql.getRoleByName("ADMIN");
     // if (admin) { await this.store.sql.addRoleToUser(user.user_id, admin.role_id); }
     // console.log(admin, await this.store.sql.getUserRoles(user.user_id));
@@ -415,8 +408,8 @@ export class StateObject<
     if (entity?.owner_id) {
       if (this.authenticatedUser?.user_id && (this.authenticatedUser?.user_id !== entity.owner_id) || !this.authenticatedUser?.user_id && !hasAnonymousAccess) {
         const hasPermission = this.authenticatedUser?.user_id ?
-          entityType === 'recipe' ? await this.store.sql.hasRecipePermission(this.authenticatedUser?.user_id, decodedEntityName, isGetRequest ? 'READ' : 'WRITE')
-            : await this.store.sql.hasBagPermission(this.authenticatedUser?.user_id, decodedEntityName, isGetRequest ? 'READ' : 'WRITE')
+          entityType === 'recipe' ? await this.store.sql.hasRecipePermission(this.authenticatedUser?.user_id, decodedEntityName as any, isGetRequest ? 'READ' : 'WRITE')
+            : await this.store.sql.hasBagPermission(this.authenticatedUser?.user_id, decodedEntityName as any, isGetRequest ? 'READ' : 'WRITE')
           : false
         if (!hasPermission) {
           throw this.sendEmpty(403);
@@ -445,12 +438,12 @@ export class StateObject<
 
         // Check ACL permission
         var hasPermission = this.authenticatedUser && await this.store.sql.checkACLPermission(
-            this.authenticatedUser.user_id,
-            entityType,
-            decodedEntityName,
-            permissionName,
-            entity?.owner_id
-          );
+          this.authenticatedUser.user_id,
+          entityType,
+          decodedEntityName,
+          permissionName,
+          entity?.owner_id
+        );
 
         if (!hasPermission && !hasAnonymousAccess) {
           throw this.sendEmpty(403);
@@ -473,6 +466,25 @@ export class StateObject<
     return this.redirect(loginUrl);
 
   };
+
+
+  async mapAsync<T, U, V>(array: T[], callback: (this: V, value: T, index: number, array: T[]) => U, thisArg?: any): Promise<U[]> {
+    const results = new Array(array.length);
+    for (let index = 0; index < array.length; index++) {
+      results[index] = await callback.call(thisArg, array[index] as T, index, array);
+    }
+    return results;
+  };
+
+  async filterAsync<T, V>(array: T[], callback: (this: V, value: T, index: number, array: T[]) => Promise<boolean>, thisArg?: any): Promise<T[]> {
+    const results = [];
+    for (let index = 0; index < array.length; index++) {
+      if (await callback.call(thisArg, array[index] as T, index, array)) {
+        results.push(array[index]);
+      }
+    }
+    return results as any;
+  }
 }
 
 export class Authenticator {

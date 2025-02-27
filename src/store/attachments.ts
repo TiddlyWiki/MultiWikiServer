@@ -29,15 +29,22 @@ store/
 
 
 "use strict";
+
+import { tryParseJSON } from "../helpers";
+
 /*
 Class to handle an attachment store. Options include:
 
 storePath - path to the store
 */
 export class AttachmentStore {
-	storePath: string;
-	constructor(options: { storePath: string; }) {
-		this.storePath = options.storePath;
+
+	constructor(
+		public storePath: string,
+		public sjcl: any,
+		public config: any
+	) {
+
 	}
 
 	/*
@@ -59,20 +66,20 @@ export class AttachmentStore {
 	saveAttachment(options: { text: string | Buffer; type: string; reference?: string; _canonical_uri: string; }) {
 		const path = require("path"), fs = require("fs");
 		// Compute the content hash for naming the attachment
-		const contentHash = $tw.sjcl.codec.hex.fromBits($tw.sjcl.hash.sha256.hash(options.text)).slice(0, 64).toString();
+		const contentHash = this.sjcl.codec.hex.fromBits(this.sjcl.hash.sha256.hash(options.text)).slice(0, 64).toString();
 		// Choose the best file extension for the attachment given its type
-		const contentTypeInfo = $tw.config.contentTypeInfo[options.type] || $tw.config.contentTypeInfo["application/octet-stream"];
+		const contentTypeInfo = this.config.contentTypeInfo[options.type] || this.config.contentTypeInfo["application/octet-stream"];
 		// Creat the attachment directory
 		const attachmentPath = path.resolve(this.storePath, "files", contentHash);
-		$tw.utils.createDirectory(attachmentPath);
+		createDirectory(attachmentPath);
 		// Save the data file
 		const dataFilename = "data" + contentTypeInfo.extension;
 		fs.writeFileSync(path.resolve(attachmentPath, dataFilename), options.text, contentTypeInfo.encoding);
 		// Save the meta.json file
 		fs.writeFileSync(path.resolve(attachmentPath, "meta.json"), JSON.stringify({
 			_canonical_uri: options._canonical_uri,
-			created: $tw.utils.stringifyDate(new Date()),
-			modified: $tw.utils.stringifyDate(new Date()),
+			created: new Date().toISOString(),
+			modified: new Date().toISOString(),
 			contentHash: contentHash,
 			filename: dataFilename,
 			type: options.type
@@ -86,10 +93,10 @@ export class AttachmentStore {
 	adoptAttachment(incomingFilepath: string, type: string, hash: string, _canonical_uri: string) {
 		const path = require("path"), fs = require("fs");
 		// Choose the best file extension for the attachment given its type
-		const contentTypeInfo = $tw.config.contentTypeInfo[type] || $tw.config.contentTypeInfo["application/octet-stream"];
+		const contentTypeInfo = this.config.contentTypeInfo[type] || this.config.contentTypeInfo["application/octet-stream"];
 		// Creat the attachment directory
 		const attachmentPath = path.resolve(this.storePath, "files", hash);
-		$tw.utils.createDirectory(attachmentPath);
+		createDirectory(attachmentPath);
 		// Rename the data file
 		const dataFilename = "data" + contentTypeInfo.extension,
 			dataFilepath = path.resolve(attachmentPath, dataFilename);
@@ -97,8 +104,8 @@ export class AttachmentStore {
 		// Save the meta.json file
 		fs.writeFileSync(path.resolve(attachmentPath, "meta.json"), JSON.stringify({
 			_canonical_uri: _canonical_uri,
-			created: $tw.utils.stringifyDate(new Date()),
-			modified: $tw.utils.stringifyDate(new Date()),
+			created: new Date().toISOString(),
+			modified: new Date().toISOString(),
 			contentHash: hash,
 			filename: dataFilename,
 			type: type
@@ -120,7 +127,7 @@ export class AttachmentStore {
 			// Read the meta.json file
 			const metaJsonPath = path.resolve(attachmentPath, "meta.json");
 			if (fs.existsSync(metaJsonPath) && fs.statSync(metaJsonPath).isFile()) {
-				const meta = $tw.utils.parseJSONSafe(fs.readFileSync(metaJsonPath, "utf8"), function () { return null; });
+				const meta: any = tryParseJSON(fs.readFileSync(metaJsonPath, "utf8"));
 				if (meta) {
 					const dataFilepath = path.resolve(attachmentPath, meta.filename);
 					// Check if the data file exists
@@ -149,7 +156,7 @@ export class AttachmentStore {
 		// Read the meta.json file
 		const metaJsonPath = path.resolve(attachmentPath, "meta.json");
 		if (fs.existsSync(metaJsonPath) && fs.statSync(metaJsonPath).isFile()) {
-			const meta = $tw.utils.parseJSONSafe(fs.readFileSync(metaJsonPath, "utf8"), function () { return null; });
+			const meta = tryParseJSON<any>(fs.readFileSync(metaJsonPath, "utf8"));
 			if (meta) {
 				const dataFilepath = path.resolve(attachmentPath, meta.filename);
 				// Check if the data file exists and return its size

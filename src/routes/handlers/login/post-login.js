@@ -44,7 +44,7 @@ export const route = (root) => root.defineRoute({
 			return state.redirect(returnUrl || "/");
 		}
 	} else {
-		state.store.adminWiki.addTiddler(new $tw.Tiddler({
+		state.store.adminWiki.addTiddler(new state.Tiddler({
 			title: "$:/temp/mws/login/error",
 			text: "Invalid username or password"
 		}));

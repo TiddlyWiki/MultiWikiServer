@@ -6,6 +6,7 @@ import * as zlib from "node:zlib";
 import { ok } from "node:assert";
 import { promisify } from "node:util";
 import { Router } from "./router";
+import { mkdirSync } from "node:fs";
 /**
 Options include:
 - `cbPartStart(headers,name,filename)` - invoked when a file starts being received
@@ -144,13 +145,13 @@ export async function processIncomingStream(
   this: StateObject,
   bag_name: PrismaField<"bags", "bag_name">,
 ): Promise<string[]> {
-
+  const state = this;
   const path = require("path"),
     fs = require("fs");
   // Process the incoming data
-  const inboxName = $tw.utils.stringifyDate(new Date());
+  const inboxName = new Date().toISOString().replace(/:/g, "-");
   const inboxPath = path.resolve(this.store.attachmentStore.storePath, "inbox", inboxName);
-  $tw.utils.createDirectory(inboxPath);
+  createDirectory(inboxPath);
   let fileStream: { write: (arg0: any) => void; end: () => void; } | null = null; // Current file being written
   let hash: { update: (arg0: any) => void; finalize: () => any; } | null = null; // Accumulating hash of current part
   let length = 0; // Accumulating length of current part
@@ -160,7 +161,7 @@ export async function processIncomingStream(
   const options = { callback: {} }
   await this.readMultipartData({
     cbPartStart: function (headers, name, filename) {
-      const part = {
+      const part: any = {
         name: name,
         filename: filename,
         headers: headers
@@ -172,7 +173,7 @@ export async function processIncomingStream(
       } else {
         part.value = "";
       }
-      hash = new $tw.sjcl.hash.sha256();
+      hash = new state.sjcl.hash.sha256();
       length = 0;
       parts.push(part)
     },
@@ -183,14 +184,14 @@ export async function processIncomingStream(
         parts[parts.length - 1].value += chunk;
       }
       length = length + chunk.length;
-      hash.update(chunk);
+      hash!.update(chunk);
     },
     cbPartEnd: function () {
       if (fileStream) {
         fileStream.end();
       }
       fileStream = null;
-      parts[parts.length - 1].hash = $tw.sjcl.codec.hex.fromBits(hash.finalize()).slice(0, 64).toString();
+      parts[parts.length - 1].hash = state.sjcl.codec.hex.fromBits(hash!.finalize()).slice(0, 64).toString();
       hash = null;
     },
     // if an error is given here, it will also be thrown in the promise
@@ -209,7 +210,7 @@ export async function processIncomingStream(
   for (const part of parts) {
     const tiddlerFieldPrefix = "tiddler-field-";
     if (part.name.startsWith(tiddlerFieldPrefix)) {
-      tiddlerFields[part.name.slice(tiddlerFieldPrefix.length)] = part.value.trim();
+      (tiddlerFields as any)[part.name.slice(tiddlerFieldPrefix.length)] = part.value.trim();
     }
   }
 
@@ -217,8 +218,8 @@ export async function processIncomingStream(
     filepath: partFile.inboxFilename,
     type: type,
     hash: partFile.hash
-  }).then(() => {
-    $tw.utils.deleteDirectory(inboxPath);
+  } as any).then(() => {
+    deleteDirectory(inboxPath);
     return [tiddlerFields.title];
   }, err => {
     throw err;
@@ -411,3 +412,12 @@ export function createStrictAwaitProxy<T extends object>(instance: T): T {
     }
   });
 }
+
+export function tryParseJSON<T>(json: string): T | undefined {
+  try {
+    return JSON.parse(json);
+  } catch {
+    return undefined;
+  }
+}
+

@@ -15,7 +15,7 @@ export const route = (root) => root.defineRoute({
   useACL: {csrfDisable: true},
 }, async state => {
   if(!state.authenticatedUser) {
-    state.store.adminWiki.addTiddler(new $tw.Tiddler({
+    state.store.adminWiki.addTiddler(new state.Tiddler({
       title: "$:/temp/mws/login/error",
       text: "You must be logged in to update profiles"
     }));
@@ -41,7 +41,7 @@ export const route = (root) => root.defineRoute({
   if(!hasPermission) {
     // No idea why this is here. An access denied error should NEVER cause a state change.
     // I have to leave it here until I figure it out though
-    state.store.adminWiki.addTiddler(new $tw.Tiddler({
+    state.store.adminWiki.addTiddler(new state.Tiddler({
       title: "$:/temp/mws/update-profile/" + userId + "/error",
       text: "You don't have permission to update this profile"
     }));
@@ -51,18 +51,19 @@ export const route = (root) => root.defineRoute({
   if(!state.authenticatedUser.isAdmin) {
     var userRole = await state.store.sql.getUserRoles(userId);
     // TODO: why is this being overwritten?
+    //@ts-ignore
     roleId = userRole?.roles[0]?.role_id;
   }
 
   var result = await state.store.sql.updateUser(userId, username, email, roleId);
 
   if(result.success) {
-    state.store.adminWiki.addTiddler(new $tw.Tiddler({
+    state.store.adminWiki.addTiddler(new state.Tiddler({
       title: "$:/temp/mws/update-profile/" + userId + "/success",
       text: result.message
     }));
   } else {
-    state.store.adminWiki.addTiddler(new $tw.Tiddler({
+    state.store.adminWiki.addTiddler(new state.Tiddler({
       title: "$:/temp/mws/update-profile/" + userId + "/error",
       text: result.message
     }));

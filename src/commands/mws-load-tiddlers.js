@@ -31,7 +31,7 @@ Command.prototype.execute = async function() {
 	}
 	var tiddlersPath = this.params[0],
 		bagName = this.params[1];
-	await $tw.mws.store.saveTiddlersFromPath(tiddlersPath,bagName);
+	await $tw.mws.store.saveTiddlersFromPath($tw, tiddlersPath,bagName);
 	return null;
 };
 

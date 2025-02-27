@@ -44,10 +44,10 @@ export const route = (root) => root.defineRoute({
 
   var currentUserId = state.authenticatedUser.user_id;
 
-  var hasPermission = ($tw.utils.parseInt(userId) === currentUserId) || state.authenticatedUser.isAdmin;
+  var hasPermission = ((parseInt(userId ?? "") || 0) === currentUserId) || state.authenticatedUser.isAdmin;
 
   if(!hasPermission) {
-    state.store.adminWiki.addTiddler(new $tw.Tiddler({
+    state.store.adminWiki.addTiddler(new state.Tiddler({
       title: "$:/temp/mws/change-password/" + userId + "/error",
       text: "You don't have permission to change this user's password"
     }));
@@ -55,17 +55,17 @@ export const route = (root) => root.defineRoute({
   }
 
   if(newPassword !== confirmPassword) {
-    state.store.adminWiki.addTiddler(new $tw.Tiddler({
+    state.store.adminWiki.addTiddler(new state.Tiddler({
       title: "$:/temp/mws/change-password/" + userId + "/error",
       text: "New passwords do not match"
     }));
     return state.redirect("/admin/users/" + userId);
   }
 
-  var userData = await state.store.sql.getUser($tw.utils.parseInt(userId));
+  var userData = await state.store.sql.getUser(asPrismaField("users", "user_id", parseInt(userId ?? "") || 0));
 
   if(!userData) {
-    state.store.adminWiki.addTiddler(new $tw.Tiddler({
+    state.store.adminWiki.addTiddler(new state.Tiddler({
       title: "$:/temp/mws/change-password/" + userId + "/error",
       text: "User not found"
     }));
@@ -73,10 +73,11 @@ export const route = (root) => root.defineRoute({
   }
 
   var newHash = state.auth.hashPassword(newPassword);
-  var result = await state.store.sql.updateUserPassword($tw.utils.parseInt(userId), newHash);
+  var result = await state.store.sql.updateUserPassword(
+    asPrismaField("users", "user_id", parseInt(userId ?? "") || 0), newHash);
 
   // set success regardless of whether it actually succeeded?
-  state.store.adminWiki.addTiddler(new $tw.Tiddler({
+  state.store.adminWiki.addTiddler(new state.Tiddler({
     title: "$:/temp/mws/change-password/" + userId + "/success",
     text: result.message
   }));

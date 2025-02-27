@@ -304,9 +304,13 @@ async function setupServers(useHTTPS: boolean, port: number) {
   // await lazy-loaded or async models
   await opaque.ready;
 
+  const router = await Router.makeRouter("./editions/mws");
+
   const { server } = useHTTPS
-    ? new ListenerHTTPS(await Router.makeRouter(), readFileSync("./localhost.key"), readFileSync("./localhost.crt"))
-    : new ListenerHTTP(await Router.makeRouter());
+    ? new ListenerHTTPS(router,
+      readFileSync("./localhost.key"),
+      readFileSync("./localhost.crt")
+    ) : new ListenerHTTP(router);
   server.on('error', errorHandler(server, port));
   server.on('listening', listenHandler(server));
   server.listen(port, "::");

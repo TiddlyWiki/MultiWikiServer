@@ -13,10 +13,11 @@ export abstract class Commander {
 	callback
 	wiki
 	streams
-	outputPath
+	abstract outputPath: string;
 	verbose
 
-	abstract get commands(): any;
+	// abstract get commands(): any;
+	abstract get $tw(): any;
 
 	constructor(
 		commandTokens: string[],
@@ -34,7 +35,7 @@ export abstract class Commander {
 		this.callback = callback;
 		this.wiki = wiki;
 		this.streams = streams;
-		this.outputPath = path.resolve($tw.boot.wikiPath, $tw.config.wikiOutputSubDir);
+
 		this.verbose = false;
 	}
 
@@ -104,7 +105,7 @@ export abstract class Commander {
 					params.push(this.commandTokens[this.nextToken++] as string);
 				}
 				// Get the command info
-				var command = this.commands[commandName], c, err;
+				var command = this.$tw.commands[commandName], c, err;
 				if (!command) {
 					this.callback("Unknown command: " + commandName);
 				} else {
@@ -185,16 +186,16 @@ export abstract class Commander {
 		mandatoryParameters = mandatoryParameters || [];
 		var errors: any[] = [], paramsByName = Object.create(null);
 		// Extract the parameters
-		$tw.utils.each(params, function (param: string) {
+		each(params, function (param: string) {
 			var index = param.indexOf("=");
 			if (index < 1) {
 				errors.push("malformed named parameter: '" + param + "'");
 			}
-			paramsByName[param.slice(0, index)] = $tw.utils.trim(param.slice(index + 1));
+			paramsByName[param.slice(0, index)] = param.slice(index + 1).trim();
 		});
 		// Check the mandatory parameters are present
-		$tw.utils.each(mandatoryParameters, function (mandatoryParameter: string) {
-			if (!$tw.utils.hop(paramsByName, mandatoryParameter)) {
+		each(mandatoryParameters, function (mandatoryParameter: string) {
+			if (!hop(paramsByName, mandatoryParameter)) {
 				errors.push("missing mandatory parameter: '" + mandatoryParameter + "'");
 			}
 		});

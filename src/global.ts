@@ -2,15 +2,25 @@ import { bigint, z, ZodEffects, ZodNumber, ZodString, ZodType, ZodTypeAny } from
 import { StateObject } from "./StateObject";
 import { rootRoute } from "./router";
 import * as sql from "./store/new-sql-tiddler-database";
+import * as path from "path";
+import * as fs from "fs";
 import * as assert from "assert";
 import "../jsglobal";
 import { Prisma } from "@prisma/client";
 
-(global as any).asPrismaKey = function (table: string, field: string, value: any) { };
+(global as any).asPrismaKey = function (table: string, field: string, value: any) { return value; };
+(global as any).asPrismaField = function (table: string, field: string, value: any) { return value; };
+(global as any).hop = function (object: any, property: any) {
+  return object ? Object.prototype.hasOwnProperty.call(object, property) : false;
+};
 
 // type PrismaPayload<T extends Prisma.ModelName> = Prisma.TypeMap["model"][T]["payload"];
 declare global {
 
+  function hop(object: any, property: any): boolean;
+  function asPrismaKey<T extends Prisma.ModelName, K extends keyof PrismaPayloadScalars<T>>(
+    table: T, field: K, value: PrismaPayloadScalars<T>[K]
+  ): PrismaKey<T, K, PrismaPayloadScalars<T>[K]>;
   /** 
    * If you assign values like `5 as PrismaField<"bags", "bag_name">`, 
    * this will result in a type error on the as keyword, 
@@ -309,3 +319,101 @@ function uriComponent(allowZeroLength?: boolean) {
   );
 
 }
+
+declare global {
+  function each<T>(object: T[], callback: (value: T, index: number, object: T[]) => void): void;
+  function each<T>(object: Record<string, T>, callback: (value: T, key: string, object: Record<string, T>) => void): void;
+  function eachAsync<T>(object: T[], callback: (value: T, index: number, object: T[]) => void): void;
+  function eachAsync<T>(object: Record<string, T>, callback: (value: T, key: string, object: Record<string, T>) => void): void;
+}
+
+(global as any).eachAsync = async function (object: any, callback: any) {
+  var next, f, length;
+  if (object) {
+    if (Object.prototype.toString.call(object) == "[object Array]") {
+      for (f = 0, length = object.length; f < length; f++) {
+        next = await callback(object[f], f, object);
+        if (next === false) {
+          break;
+        }
+      }
+    } else {
+      var keys = Object.keys(object);
+      for (f = 0, length = keys.length; f < length; f++) {
+        var key = keys[f];
+        next = await callback(object[key as string], key, object);
+        if (next === false) {
+          break;
+        }
+      }
+    }
+  }
+};
+(global as any).each = function (object: any, callback: any) {
+  var next, f, length;
+  if (object) {
+    if (Object.prototype.toString.call(object) == "[object Array]") {
+      for (f = 0, length = object.length; f < length; f++) {
+        next = callback(object[f], f, object);
+        if (next === false) {
+          break;
+        }
+      }
+    } else {
+      var keys = Object.keys(object);
+      for (f = 0, length = keys.length; f < length; f++) {
+        var key = keys[f];
+        next = callback(object[key as string], key, object);
+        if (next === false) {
+          break;
+        }
+      }
+    }
+  }
+};
+
+declare global {
+  function createDirectory(dirPath: string): void;
+  function deleteDirectory(dirPath: string): void;
+}
+(global as any).createDirectory = function (dirPath: string) {
+  if (dirPath.substr(dirPath.length - 1, 1) !== path.sep) {
+    dirPath = dirPath + path.sep;
+  }
+  var pos = 1;
+  pos = dirPath.indexOf(path.sep, pos);
+  while (pos !== -1) {
+    var subDirPath = dirPath.substr(0, pos);
+    if (!(fs.existsSync(subDirPath) && fs.statSync(subDirPath).isDirectory())) {
+      try {
+        fs.mkdirSync(subDirPath);
+      } catch (e) {
+        return "Error creating directory '" + subDirPath + "'";
+      }
+    }
+    pos = dirPath.indexOf(path.sep, pos + 1);
+  }
+  return null;
+};
+
+(global as any).deleteDirectory = function deleteDirectory(dirPath: string) {
+  if (fs.existsSync(dirPath)) {
+    var entries = fs.readdirSync(dirPath);
+    for (var entryIndex = 0; entryIndex < entries.length; entryIndex++) {
+      var currPath = dirPath + path.sep + entries[entryIndex];
+      if (fs.lstatSync(currPath).isDirectory()) {
+        deleteDirectory(currPath);
+      } else {
+        fs.unlinkSync(currPath);
+      }
+    }
+    fs.rmdirSync(dirPath);
+  }
+  return null;
+};
+declare global { function encodeURIComponentExtended(s: string): string; }
+(global as any).encodeURIComponentExtended = function (s: string) {
+  return encodeURIComponent(s).replace(/[!'()*]/g, function (c) {
+    return "%" + c.charCodeAt(0).toString(16).toUpperCase();
+  });
+};

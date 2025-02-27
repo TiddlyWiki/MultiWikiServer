@@ -46,12 +46,13 @@ export const route = (root) => root.defineRoute({
 	}
 
 	// Check if the user is trying to access their own profile or is an admin
-	var hasPermission = ($tw.utils.parseInt(user_id) === state.authenticatedUser?.user_id) || state.authenticatedUser?.isAdmin;
+	var hasPermission = (user_id === state.authenticatedUser?.user_id) || state.authenticatedUser?.isAdmin;
 	if(!hasPermission) {
 		return state.sendEmpty(403, {"Content-Type": "text/plain"});
 	}
 
 	// Convert dates to strings and ensure all necessary fields are present
+	console.log(userData);
 	var user = {
 		user_id: userData.user_id || "",
 		username: userData.username || "",
@@ -69,7 +70,7 @@ export const route = (root) => root.defineRoute({
 		return (userRole?.roles.some(e => e.role_id === a.role_id) ? -1 : 1)
 	});
 
-	state.store.adminWiki.addTiddler(new $tw.Tiddler({
+	state.store.adminWiki.addTiddler(new state.Tiddler({
 		title: "$:/temp/mws/user-info/" + user_id + "/preview-user-id",
 		text: user_id
 	}));
@@ -87,7 +88,7 @@ export const route = (root) => root.defineRoute({
 			"user-role": JSON.stringify(userRole),
 			"all-roles": JSON.stringify(allRoles),
 			"first-guest-user": state.firstGuestUser ? "yes" : "no",
-			"is-current-user-profile": state.authenticatedUser && state.authenticatedUser.user_id === $tw.utils.parseInt(user_id, 10) ? "yes" : "no",
+			"is-current-user-profile": (state.authenticatedUser && state.authenticatedUser.user_id === user_id) ? "yes" : "no",
 			"username": state.authenticatedUser ? state.authenticatedUser.username : state.firstGuestUser ? "Anonymous User" : "Guest",
 			"user-is-admin": state.authenticatedUser && state.authenticatedUser.isAdmin ? "yes" : "no",
 			"user-id": user_id,

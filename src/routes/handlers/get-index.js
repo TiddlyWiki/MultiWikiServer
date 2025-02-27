@@ -28,7 +28,7 @@ export const route = (root) => root.defineRoute({
 			"Content-Type": "text/html"
 		});
 		// filter bags and recipies by user's read access from ACL
-		const allowedRecipes = await filterAsync(recipeList, async recipe =>
+		const allowedRecipes = await state.filterAsync(recipeList, async recipe =>
 			recipe.recipe_name.startsWith("$:/")
 			|| state.authenticatedUser?.isAdmin
 			|| state.authenticatedUser
@@ -40,7 +40,7 @@ export const route = (root) => root.defineRoute({
 			|| state.allowAnon && state.allowAnonReads
 		);
 
-		const allowedBags = await filterAsync(bagList, async bag =>
+		const allowedBags = await state.filterAsync(bagList, async bag =>
 			bag.bag_name.startsWith("$:/")
 			|| state.authenticatedUser?.isAdmin
 			|| state.authenticatedUser && await state.store.sql.hasBagPermission(
@@ -51,7 +51,7 @@ export const route = (root) => root.defineRoute({
 			|| state.allowAnon && state.allowAnonReads
 		);
 
-		const allowedRecipesWithWrite = await mapAsync(allowedRecipes, async recipe => ({
+		const allowedRecipesWithWrite = await state.mapAsync(allowedRecipes, async recipe => ({
 			...recipe,
 			has_acl_access: state.authenticatedUser && (
 				state.authenticatedUser.isAdmin
@@ -86,58 +86,4 @@ export const route = (root) => root.defineRoute({
 		return state.end();
 	}
 });
-
-/**
- * @template T
- * @template U
- * @template V
- * 
- * @overload
- * @param {T[]} array 
- * @param {(this: V, value: T, index: number, array: T[]) => U} callback 
- * @param {V} [thisArg]
- * @returns {Promise<U[]>}
- * 
- * @param {T[]} array 
- * @param {(this: V, value: T, index: number, array: T[]) => U} callback 
- * @param {any} [thisArg]
- * @returns {Promise<U[]>}
- */
-async function mapAsync(array, callback, thisArg) {
-	const results = new Array(array.length);
-	for(let index = 0; index < array.length; index++) {
-		results[index] = await callback.call(thisArg, array[index], index, array);
-	}
-	return results;
-};
-/**
- * @template T
- * @template U
- * 
- * @overload
- * @param {T[]} array
- * @param {(this: U, value: T, index: number, array: T[]) => Promise<boolean>} callback
- * @param {U} [thisArg]
- * @returns {Promise<T[]>}
- * 
- * @overload
- * @param {T[]} array
- * @param {(this: U, value: T, index: number, array: T[]) => Promise<boolean>} callback
- * @returns {Promise<T[]>}
- * 
- * @param {T[]} array
- * @param {(this: U, value: T, index: number, array: T[]) => Promise<boolean>} callback
- * @param {any} [thisArg]
- * @returns {Promise<T[]>}
- */
-async function filterAsync(array, callback, thisArg) {
-	const results = [];
-	for(let index = 0; index < array.length; index++) {
-		if(await callback.call(thisArg, array[index], index, array)) {
-			results.push(array[index]);
-		}
-	}
-	return results;
-}
-
 

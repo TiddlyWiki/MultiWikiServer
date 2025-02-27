@@ -40,7 +40,7 @@ export const route = (root) => root.defineRoute({
   if(!state.authenticatedUser && !state.firstGuestUser) {
     // No idea why this is here. An access denied error should NEVER cause a state change. 
     // I have to leave it here until I figure it out though.
-    state.store.adminWiki.addTiddler(new $tw.Tiddler({
+    state.store.adminWiki.addTiddler(new state.Tiddler({
       title: "$:/temp/mws/post-user/error",
       text: "Unauthorized access"
     }));
@@ -51,11 +51,11 @@ export const route = (root) => root.defineRoute({
 
   if(!username || !email || !password || !confirmPassword) {
     // no idea what's going on here
-    state.store.adminWiki.addTiddler(new $tw.Tiddler({
+    state.store.adminWiki.addTiddler(new state.Tiddler({
       title: "$:/temp/mws/post-user/error",
       text: "All fields are required"
     }));
-    state.store.adminWiki.addTiddler(new $tw.Tiddler({
+    state.store.adminWiki.addTiddler(new state.Tiddler({
       title: queryParamsTiddlerTitle,
       username: username,
       email: email,
@@ -66,11 +66,11 @@ export const route = (root) => root.defineRoute({
   }
 
   if(password !== confirmPassword) {
-    state.store.adminWiki.addTiddler(new $tw.Tiddler({
+    state.store.adminWiki.addTiddler(new state.Tiddler({
       title: "$:/temp/mws/post-user/error",
       text: "Passwords do not match"
     }));
-    state.store.adminWiki.addTiddler(new $tw.Tiddler({
+    state.store.adminWiki.addTiddler(new state.Tiddler({
       title: "$:/temp/mws/queryParams",
       username: username,
       email: email,
@@ -86,17 +86,17 @@ export const route = (root) => root.defineRoute({
     var existingUserByEmail = await sqlTiddlerDatabase.getUserByEmail(email);
 
     if(existingUser || existingUserByEmail) {
-      state.store.adminWiki.addTiddler(new $tw.Tiddler({
+      state.store.adminWiki.addTiddler(new state.Tiddler({
         title: "$:/temp/mws/post-user/error",
         text: existingUser ? "User with this username already exists" : "User account with this email already exists"
       }));
-      state.store.adminWiki.addTiddler(new $tw.Tiddler({
+      state.store.adminWiki.addTiddler(new state.Tiddler({
         title: queryParamsTiddlerTitle,
         username: username,
         email: email,
       }));
 
-      state.store.adminWiki.addTiddler(new $tw.Tiddler({
+      state.store.adminWiki.addTiddler(new state.Tiddler({
         title: "$:/temp/mws/queryParams",
         username: username,
         email: email,
@@ -120,7 +120,7 @@ export const route = (root) => root.defineRoute({
         // Create a session for the new admin user
         var sessionId = await state.auth.createSession(userId);
 
-        state.store.adminWiki.addTiddler(new $tw.Tiddler({
+        state.store.adminWiki.addTiddler(new state.Tiddler({
           title: "$:/temp/mws/post-user/success",
           text: "Admin user created successfully"
         }));
@@ -130,11 +130,11 @@ export const route = (root) => root.defineRoute({
         deleteTempTiddlers();
         return;
       } catch(adminError) {
-        state.store.adminWiki.addTiddler(new $tw.Tiddler({
+        state.store.adminWiki.addTiddler(new state.Tiddler({
           title: "$:/temp/mws/post-user/error",
           text: "Error creating admin user"
         }));
-        state.store.adminWiki.addTiddler(new $tw.Tiddler({
+        state.store.adminWiki.addTiddler(new state.Tiddler({
           title: queryParamsTiddlerTitle,
           username: username,
           email: email,
@@ -145,11 +145,11 @@ export const route = (root) => root.defineRoute({
         return;
       }
     } else {
-      state.store.adminWiki.addTiddler(new $tw.Tiddler({
+      state.store.adminWiki.addTiddler(new state.Tiddler({
         title: "$:/temp/mws/post-user/success",
         text: "User created successfully"
       }));
-      state.store.adminWiki.addTiddler(new $tw.Tiddler({
+      state.store.adminWiki.addTiddler(new state.Tiddler({
         title: queryParamsTiddlerTitle,
         username: username,
         email: email,
@@ -167,11 +167,11 @@ export const route = (root) => root.defineRoute({
       deleteTempTiddlers();
     }
   } catch(error) {
-    state.store.adminWiki.addTiddler(new $tw.Tiddler({
+    state.store.adminWiki.addTiddler(new state.Tiddler({
       title: "$:/temp/mws/post-user/error",
       text: `Error creating user: ${error}`
     }));
-    state.store.adminWiki.addTiddler(new $tw.Tiddler({
+    state.store.adminWiki.addTiddler(new state.Tiddler({
       title: queryParamsTiddlerTitle,
       username: username,
       email: email,

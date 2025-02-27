@@ -36,7 +36,7 @@ export const route = (root) => root.defineRoute({
 		let text = tiddler.fields.text || "";
 		const sysFileType = tiddler.fields["system-file-type"];
 		const type = typeof sysFileType === "string" && sysFileType || tiddler.fields.type || "text/plain",
-			encoding = ($tw.config.contentTypeInfo[type] || {encoding: "utf8"}).encoding;
+			encoding = (state.config.contentTypeInfo[type] || {encoding: "utf8"}).encoding;
 		if(isSystemFileWikified) {
 			text = state.store.adminWiki.renderTiddler("text/plain", title);
 		}

@@ -1728,6 +1728,9 @@ export class SqlTiddlerDatabase extends DataChecks {
 		// 	$roleName: roleName
 		// });
 	}
+	getAdminRole(){
+		return this.getRoleByName("ADMIN" as PrismaField<"roles", "role_name">);
+	}
 	updateRole(
 		roleId: PrismaField<"roles", "role_id">,
 		roleName: PrismaField<"roles", "role_name">,

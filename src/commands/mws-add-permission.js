@@ -40,7 +40,7 @@ Command to create a permission
 		var description = this.params[1];
 
 		await $tw.mws.store.sqlTiddlerDatabase.createPermission(permission_name, description)
-			.catch(e => console.log(e instanceof PrismaClientKnownRequestError ? e.stack : e));
+			.then(e => e, e => console.log(e instanceof PrismaClientKnownRequestError ? e.stack : e));
 
 		self.callback();
 		return null;

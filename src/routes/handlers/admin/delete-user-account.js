@@ -28,7 +28,7 @@ export const route = (root) => root.defineRoute({
 
 	// Check if user is admin
 	if(!state.authenticatedUser || !state.authenticatedUser.isAdmin) {
-		state.store.adminWiki.addTiddler(new $tw.Tiddler({
+		state.store.adminWiki.addTiddler(new state.Tiddler({
 			title: "$:/temp/mws/delete-user/error",
 			text: "You must be an administrator to delete user accounts"
 		}));
@@ -37,7 +37,7 @@ export const route = (root) => root.defineRoute({
 
 	// Prevent admin from deleting their own account
 	if(state.authenticatedUser.user_id === userId) {
-		state.store.adminWiki.addTiddler(new $tw.Tiddler({
+		state.store.adminWiki.addTiddler(new state.Tiddler({
 			title: "$:/temp/mws/delete-user/error",
 			text: "Cannot delete your own account"
 		}));
@@ -47,7 +47,7 @@ export const route = (root) => root.defineRoute({
 	// Check if the user exists
 	var user = await state.store.sql.getUser(userId);
 	if(!user) {
-		state.store.adminWiki.addTiddler(new $tw.Tiddler({
+		state.store.adminWiki.addTiddler(new state.Tiddler({
 			title: "$:/temp/mws/delete-user/error",
 			text: "User not found"
 		}));
@@ -55,9 +55,9 @@ export const route = (root) => root.defineRoute({
 	}
 
 	// Check if this is the last admin account
-	var adminRole = await state.store.sql.getRoleByName("ADMIN");
+	var adminRole = await state.store.sql.getAdminRole();
 	if(!adminRole) {
-		state.store.adminWiki.addTiddler(new $tw.Tiddler({
+		state.store.adminWiki.addTiddler(new state.Tiddler({
 			title: "$:/temp/mws/delete-user/error",
 			text: "Admin role not found"
 		}));
@@ -66,7 +66,7 @@ export const route = (root) => root.defineRoute({
 
 	var adminUsers = await state.store.sql.listUsersByRoleId(adminRole.role_id);
 	if(adminUsers.length <= 1 && adminUsers.some(admin => admin.user_id === userId)) {
-		state.store.adminWiki.addTiddler(new $tw.Tiddler({
+		state.store.adminWiki.addTiddler(new state.Tiddler({
 			title: "$:/temp/mws/delete-user/error",
 			text: "Cannot delete the last admin account"
 		}));

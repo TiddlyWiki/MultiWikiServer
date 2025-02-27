@@ -84,7 +84,7 @@ async function loadWikiFolder(options) {
 		// Create the recipe
 		recipeList.push(options.bagName);
 		await $tw.mws.store.createRecipe(options.recipeName,recipeList,options.recipeDescription);
-		await $tw.mws.store.saveTiddlersFromPath(path.resolve(options.wikiPath,$tw.config.wikiTiddlersSubDir),options.bagName);
+		await $tw.mws.store.saveTiddlersFromPath($tw, path.resolve(options.wikiPath,$tw.config.wikiTiddlersSubDir),options.bagName);
 	}
 }
 

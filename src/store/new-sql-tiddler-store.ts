@@ -28,7 +28,8 @@ export class SqlTiddlerStore extends DataChecks {
   constructor(
     public sql: SqlTiddlerDatabase,
     public attachmentStore: any,
-    public adminWiki: Wiki
+    public adminWiki: Wiki,
+    public config: any
   ) {
 
     super();
@@ -54,7 +55,7 @@ export class SqlTiddlerStore extends DataChecks {
   dispatchEvent<K extends keyof SqlTiddlerStoreEvents>(type: K, ...args: SqlTiddlerStoreEvents[K]) {
     const self = this;
     if (!this.eventOutstanding[type]) {
-      $tw.utils.nextTick(function () {
+      process.nextTick(function () {
         self.eventOutstanding[type] = false;
         const listeners = self.eventListeners[type];
         if (listeners) {
@@ -93,7 +94,7 @@ export class SqlTiddlerStore extends DataChecks {
   Returns null if the argument is an array of valid bag/recipe names, or a string error message if not
   */
   validateItemNames(names: string[], allowPrivilegedCharacters: boolean) {
-    if (!$tw.utils.isArray(names)) {
+    if (!Array.isArray(names)) {
       return "Not a valid array";
     }
     var errors = [];
@@ -122,9 +123,9 @@ export class SqlTiddlerStore extends DataChecks {
     attachment_blob: PrismaField<"tiddlers", "attachment_blob"> | null
   ) {
     if (attachment_blob !== null) {
-      return $tw.utils.extend({}, tiddlerFields, {
+      return Object.assign({}, tiddlerFields, {
         text: undefined,
-        _canonical_uri: `/bags/${$tw.utils.encodeURIComponentExtended(bag_name)}/tiddlers/${$tw.utils.encodeURIComponentExtended(tiddlerFields.title)}/blob`
+        _canonical_uri: `/bags/${encodeURIComponentExtended(bag_name)}/tiddlers/${encodeURIComponentExtended(tiddlerFields.title)}/blob`
       }
       );
     } else {
@@ -138,12 +139,12 @@ export class SqlTiddlerStore extends DataChecks {
     existing_attachment_blob: PrismaField<"tiddlers", "attachment_blob">,
     existing_canonical_uri: string | undefined,
   ) {
-    let attachmentSizeLimit = $tw.utils.parseNumber(this.adminWiki.getTiddlerText("$:/config/MultiWikiServer/AttachmentSizeLimit"));
+    let attachmentSizeLimit = parseFloat(this.adminWiki.getTiddlerText("$:/config/MultiWikiServer/AttachmentSizeLimit") ?? "") || 0;
     if (attachmentSizeLimit < 100 * 1024) {
       attachmentSizeLimit = 100 * 1024;
     }
     const attachmentsEnabled = this.adminWiki.getTiddlerText("$:/config/MultiWikiServer/EnableAttachments", "yes") === "yes";
-    const contentTypeInfo = $tw.config.contentTypeInfo[tiddlerFields.type || "text/vnd.tiddlywiki"];
+    const contentTypeInfo = this.config.contentTypeInfo[tiddlerFields.type || "text/vnd.tiddlywiki"];
     const isBinary = !!contentTypeInfo && contentTypeInfo.encoding === "base64";
 
     let shouldProcessAttachment = tiddlerFields.text && tiddlerFields.text.length > attachmentSizeLimit;
@@ -183,14 +184,15 @@ export class SqlTiddlerStore extends DataChecks {
       };
     }
   }
-  async saveTiddlersFromPath(tiddler_files_path: string, bag_name: PrismaField<"bags", "bag_name">) {
+  /** For backward-compatibility reasons, this is retained, but the $tw global is required to be passed in. */
+  async saveTiddlersFromPath($tw: any, tiddler_files_path: string, bag_name: PrismaField<"bags", "bag_name">) {
     // var self = this;
     // await this.sql.$transaction(async store => {
     // Clear out the bag
     await this.deleteAllTiddlersInBag(bag_name);
     // Get the tiddlers
     var path = require("path");
-    var tiddlersFromPath = $tw.loadTiddlersFromPath(path.resolve($tw.boot.corePath, $tw.config.editionsPath, tiddler_files_path));
+    var tiddlersFromPath = $tw.loadTiddlersFromPath(path.resolve($tw.boot.corePath, this.config.editionsPath, tiddler_files_path));
     // Save the tiddlers
     for (const tiddlersFromFile of tiddlersFromPath) {
       for (const tiddler of tiddlersFromFile.tiddlers) {
@@ -263,7 +265,7 @@ export class SqlTiddlerStore extends DataChecks {
     let _canonical_uri;
     const existing_attachment_blob = await this.sql.getBagTiddlerAttachmentBlob(incomingTiddlerFields.title as PrismaField<"tiddlers", "title">, bag_name);
     if (existing_attachment_blob) {
-      _canonical_uri = `/bags/${$tw.utils.encodeURIComponentExtended(bag_name)}/tiddlers/${$tw.utils.encodeURIComponentExtended(incomingTiddlerFields.title)}/blob`;
+      _canonical_uri = `/bags/${encodeURIComponentExtended(bag_name)}/tiddlers/${encodeURIComponentExtended(incomingTiddlerFields.title)}/blob`;
     }
     const { tiddlerFields, attachment_blob } = await this.processIncomingTiddler(incomingTiddlerFields, existing_attachment_blob, _canonical_uri);
     const result = this.sql.saveBagTiddler(tiddlerFields, bag_name, attachment_blob);
@@ -352,7 +354,7 @@ export class SqlTiddlerStore extends DataChecks {
     const tiddlerInfo = await this.sql.getBagTiddler(title, bag_name);
     if (tiddlerInfo) {
       if (tiddlerInfo.attachment_blob) {
-        return $tw.utils.extend(
+        return Object.assign(
           {},
           this.attachmentStore.getAttachmentStream(tiddlerInfo.attachment_blob),
           {
@@ -366,7 +368,7 @@ export class SqlTiddlerStore extends DataChecks {
         stream._read = function () {
           // Push data
           const type = tiddlerInfo.tiddler.type || "text/plain";
-          stream.push(tiddlerInfo.tiddler.text || "", ($tw.config.contentTypeInfo[type] || { encoding: "utf8" }).encoding);
+          stream.push(tiddlerInfo.tiddler.text || "", (this.config.contentTypeInfo[type] || { encoding: "utf8" }).encoding);
           // Push null to indicate the end of the stream
           stream.push(null);
         };
