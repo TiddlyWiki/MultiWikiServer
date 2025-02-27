@@ -47,18 +47,7 @@ async function importEsbuild(root: rootRoute) {
   // "build": "tsc -b; esbuild main=src/main.tsx 
   // --outdir=public --bundle --target=es2020 
   // --platform=browser --jsx=automatic"
-  let ctx = await esbuild.context({
-    entryPoints: ['react-user-mgmt/src/main.tsx'],
-    bundle: true,
-    target: 'es2020',
-    platform: 'browser',
-    jsx: 'automatic',
-    outdir: 'react-user-mgmt/public',
-  })
-
-  const { port } = await ctx.serve({
-    servedir: 'react-user-mgmt/public',
-  })
+  
 
   root.defineRoute({
     method: ['GET'],
@@ -67,26 +56,6 @@ async function importEsbuild(root: rootRoute) {
     bodyFormat: "stream",
     useACL: {},
   }, async state => {
-    const proxyRes = await new Promise<import("http").IncomingMessage>((resolve, reject) => {
-      const headers = { ...state.headers };
-      delete headers[":method"];
-      delete headers[":path"];
-      delete headers[":authority"];
-      delete headers[":scheme"];
-      headers.host = "localhost";
-      const proxyReq = request({
-        hostname: "localhost",
-        port: port,
-        path: state.url,
-        method: state.method,
-        headers,
-      }, resolve);
-      state.reader.pipe(proxyReq, { end: true });
-    });
-    if (proxyRes.statusCode === 404 || !proxyRes.statusCode) {
-      return state.sendEmpty(404, { 'Content-Type': 'text/html' })
-    }
-    return state.sendStream(proxyRes.statusCode, proxyRes.headers, proxyRes)
-
+    await state.sendDevServer();
   });
 }

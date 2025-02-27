@@ -13,7 +13,7 @@ type PrismaPayloadScalars<T extends Prisma.ModelName>
   = Prisma.TypeMap["model"][T]["payload"]["scalars"]
 
 
-
+// at some point I'll probably replace this with a direct reference to the server types
 const listBags = proxy.bags.findMany({
   select: {
     bag_id: true,
@@ -42,7 +42,8 @@ const listRecipes = proxy.recipes.findMany({
 }).then(recipes => recipes.map(recipe => ({
   ...recipe,
   recipe_bags: undefined,
-  bag_names: recipe.recipe_bags.map(e => e.bag.bag_name)
+  bag_names: recipe.recipe_bags.map(e => e.bag.bag_name),
+  has_acl_access: true,
 })));
 
 export type ListRecipesResult = Awaited<typeof listRecipes>;

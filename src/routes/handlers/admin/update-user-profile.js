@@ -14,60 +14,31 @@ export const route = (root) => root.defineRoute({
   bodyFormat: "www-form-urlencoded",
   useACL: {csrfDisable: true},
 }, async state => {
-  if(!state.authenticatedUser) {
-    state.store.adminWiki.addTiddler(new state.Tiddler({
-      title: "$:/temp/mws/login/error",
-      text: "You must be logged in to update profiles"
-    }));
-    return state.redirect("/login");
-  }
+
+  if(!state.authenticatedUser)
+    throw state.sendSimple(401, "You must be logged in to update profiles");
+
 
   zodAssert.data(state, z => z.object({
     userId: z.prismaField("users", "user_id", "parse-number"),
     username: z.prismaField("users", "username", "string"),
     email: z.prismaField("users", "email", "string"),
-    role: z.prismaField("roles", "role_id", "parse-number"),
+    role: z.prismaField("roles", "role_id", "parse-number").optional(),
   }));
 
-  var userId = state.data.userId;
-  var username = state.data.username;
-  var email = state.data.email;
+  const {userId, username, email} = state.data;
+
   var roleId = state.data.role;
 
-  var currentUserId = state.authenticatedUser.user_id;
-
-  var hasPermission = (userId === currentUserId) || state.authenticatedUser.isAdmin;
-
-  if(!hasPermission) {
-    // No idea why this is here. An access denied error should NEVER cause a state change.
-    // I have to leave it here until I figure it out though
-    state.store.adminWiki.addTiddler(new state.Tiddler({
-      title: "$:/temp/mws/update-profile/" + userId + "/error",
-      text: "You don't have permission to update this profile"
-    }));
-    return state.redirect("/admin/users/" + userId);
-  }
-
-  if(!state.authenticatedUser.isAdmin) {
-    var userRole = await state.store.sql.getUserRoles(userId);
-    // TODO: why is this being overwritten?
-    //@ts-ignore
-    roleId = userRole?.roles[0]?.role_id;
-  }
+  // users cannot change their own role
+  if(userId === state.authenticatedUser.user_id)
+    roleId = undefined;
+  // only admins can change other users' profiles
+  else if(!state.authenticatedUser.isAdmin)
+    return state.sendSimple(403, "You don't have permission to update this profile");
 
   var result = await state.store.sql.updateUser(userId, username, email, roleId);
 
-  if(result.success) {
-    state.store.adminWiki.addTiddler(new state.Tiddler({
-      title: "$:/temp/mws/update-profile/" + userId + "/success",
-      text: result.message
-    }));
-  } else {
-    state.store.adminWiki.addTiddler(new state.Tiddler({
-      title: "$:/temp/mws/update-profile/" + userId + "/error",
-      text: result.message
-    }));
-  }
+  return state.sendSimple(result.success ? 200 : 400, result.message);
 
-  return state.redirect("/admin/users/" + userId);
 });

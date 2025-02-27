@@ -4,7 +4,8 @@ import Dashboard from './components/Dashboard';
 import './styles/index.css';
 import { createRoot } from 'react-dom/client';
 import { useAsyncEffect } from './helpers/useAsyncEffect';
-
+// import UserProfileManagement from './components/UserProfileManagement';
+import ManageUser from './components/ManageUser';
 
 // const dummyProps = {
 //   username: 'Guest',
@@ -26,7 +27,8 @@ function App() {
 
   return (
     <StrictMode>
-      <Dashboard {...result} />
+      {location.pathname === "/" && <Dashboard {...result} />}
+      {location.pathname.startsWith("/admin/users/") && <ManageUser />}
     </StrictMode>
   );
 }

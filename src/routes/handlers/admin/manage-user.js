@@ -10,13 +10,20 @@ GET /admin/users/:user_id
 /** @type {ServerRouteDefinition} */
 export const route = (root) => root.defineRoute({
 	method: ["GET"],
-	path: /^\/admin\/users\/([^\/]+)\/?$/,
-	pathParams: ["user_id"],
+	path: /^\/admin\/users\/(\d+)(\/?|\.json)$/,
+	pathParams: ["user_id", "ending"],
 	useACL: {},
 }, async state => {
+
+
 	zodAssert.pathParams(state, z => ({
 		user_id: z.prismaField("users", "user_id", "parse-number"),
+		ending: z.string().optional(),
 	}));
+
+	if(state.pathParams.ending !== ".json") {
+		return await state.sendDevServer();
+	}
 
 	var user_id = state.pathParams.user_id;
 	var userData = await state.store.sql.getUser(user_id);
@@ -35,14 +42,7 @@ export const route = (root) => root.defineRoute({
 	}
 
 	if(!userData) {
-		state.writeHead(404, {"Content-Type": "text/html"});
-		var errorHtml = state.store.adminWiki.renderTiddler("text/plain", "$:/plugins/tiddlywiki/multiwikiserver/templates/error", {
-			variables: {
-				"error-message": "User not found"
-			}
-		});
-		state.write(errorHtml);
-		return state.end();
+		return state.sendEmpty(404, {"Content-Type": "text/plain"});
 	}
 
 	// Check if the user is trying to access their own profile or is an admin
@@ -52,7 +52,6 @@ export const route = (root) => root.defineRoute({
 	}
 
 	// Convert dates to strings and ensure all necessary fields are present
-	console.log(userData);
 	var user = {
 		user_id: userData.user_id || "",
 		username: userData.username || "",
@@ -70,32 +69,42 @@ export const route = (root) => root.defineRoute({
 		return (userRole?.roles.some(e => e.role_id === a.role_id) ? -1 : 1)
 	});
 
-	state.store.adminWiki.addTiddler(new state.Tiddler({
-		title: "$:/temp/mws/user-info/" + user_id + "/preview-user-id",
-		text: user_id
-	}));
+	// state.store.adminWiki.addTiddler(new state.Tiddler({
+	// 	title: "$:/temp/mws/user-info/" + user_id + "/preview-user-id",
+	// 	text: user_id
+	// }));
+
+	const variables = {
+		"page-content": "$:/plugins/tiddlywiki/multiwikiserver/templates/manage-user",
+		"user": JSON.stringify(user),
+		"user-initials": user.username.split(" ").map(name => name[0]).join(""),
+		"user-role": JSON.stringify(userRole),
+		"all-roles": JSON.stringify(allRoles),
+		"first-guest-user": state.firstGuestUser ? "yes" : "no",
+		"is-current-user-profile": (state.authenticatedUser && state.authenticatedUser.user_id === user_id) ? "yes" : "no",
+		"username": state.authenticatedUser ? state.authenticatedUser.username : state.firstGuestUser ? "Anonymous User" : "Guest",
+		"user-is-admin": state.authenticatedUser && state.authenticatedUser.isAdmin ? "yes" : "no",
+		"user-id": user_id,
+		"user-is-logged-in": !!state.authenticatedUser ? "yes" : "no",
+		"has-profile-access": !!state.authenticatedUser ? "yes" : "no"
+	};
+
 
 	state.writeHead(200, {
-		"Content-Type": "text/html"
+		"Content-Type": "application/json"
 	});
-
-	// Render the html
-	var html = state.store.adminWiki.renderTiddler("text/plain", "$:/plugins/tiddlywiki/multiwikiserver/templates/page", {
-		variables: {
-			"page-content": "$:/plugins/tiddlywiki/multiwikiserver/templates/manage-user",
-			"user": JSON.stringify(user),
-			"user-initials": user.username.split(" ").map(name => name[0]).join(""),
-			"user-role": JSON.stringify(userRole),
-			"all-roles": JSON.stringify(allRoles),
-			"first-guest-user": state.firstGuestUser ? "yes" : "no",
-			"is-current-user-profile": (state.authenticatedUser && state.authenticatedUser.user_id === user_id) ? "yes" : "no",
-			"username": state.authenticatedUser ? state.authenticatedUser.username : state.firstGuestUser ? "Anonymous User" : "Guest",
-			"user-is-admin": state.authenticatedUser && state.authenticatedUser.isAdmin ? "yes" : "no",
-			"user-id": user_id,
-			"user-is-logged-in": !!state.authenticatedUser ? "yes" : "no",
-			"has-profile-access": !!state.authenticatedUser ? "yes" : "no"
-		}
-	});
-	state.write(html);
+	state.write(JSON.stringify(variables));
 	return state.end();
+
+
+	// state.writeHead(200, {
+	// 	"Content-Type": "text/html"
+	// });
+
+	// // Render the html
+	// var html = state.store.adminWiki.renderTiddler("text/plain", "$:/plugins/tiddlywiki/multiwikiserver/templates/page", {
+	// 	variables
+	// });
+	// state.write(html);
+	// return state.end();
 });

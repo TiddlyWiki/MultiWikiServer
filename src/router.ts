@@ -14,6 +14,7 @@ import {
   RouteOptAny,
   RouteMatch,
 } from "./rootRoute";
+import { setupDevServer } from "./serve-esbuild";
 
 export { RouteMatch, Route, rootRoute };
 
@@ -75,7 +76,9 @@ export class Router {
 
     const $tw = (global as any).$tw = await bootTiddlyWiki(createTables, createTables, wikiPath);
 
-    const router = new Router(rootRoute, $tw, wikiPath);
+    const sendDevServer = await setupDevServer();
+
+    const router = new Router(rootRoute, $tw, wikiPath, sendDevServer);
 
     await this.initDatabase(router);
 
@@ -108,7 +111,7 @@ export class Router {
       ]
     });
     await router.engine.users.create({
-      data: { username: "admin", email: "", password: Authenticator.hashPassword("1234") }
+      data: { username: "admin", email: "", password: Authenticator.hashPassword("1234"), roles: { connect: { role_id: 1 } } }
     })
   }
 
@@ -131,6 +134,7 @@ export class Router {
     private rootRoute: rootRoute,
     public $tw: any,
     public wikiPath: string,
+    public sendDevServer: (this: Router, state: StateObject) => Promise<symbol>,
   ) {
     this.attachmentStore = $tw.mws.attachmentStore;
     this.storePath = resolve(wikiPath, "store");
@@ -215,18 +219,20 @@ export class Router {
 
 
   async handleRoute(state: StateObject<BodyFormat>, route: RouteMatch[]) {
+    ok(!state.authenticatedUser || state.authenticatedUser.user_id, "authenticatedUser must have a user_id");
+    ok(!state.authenticatedUser || state.authenticatedUser.username, "authenticatedUser must have a username");
+  
 
-    {
-      let result: any = state;
-      for (const match of route) {
-        await match.route.handler(result);
-        if (state.headersSent) return;
-      }
-      if (!state.headersSent) {
-        state.sendEmpty(404, {});
-        console.log("No handler sent headers before the promise resolved.");
-      }
+    let result: any = state;
+    for (const match of route) {
+      await match.route.handler(result);
+      if (state.headersSent) return;
     }
+    if (!state.headersSent) {
+      state.sendEmpty(404, {});
+      console.log("No handler sent headers before the promise resolved.");
+    }
+
   }
 
   findRouteRecursive(

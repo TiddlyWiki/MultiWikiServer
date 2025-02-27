@@ -22,61 +22,35 @@ export const route = (root) => root.defineRoute({
 		userId: z.prismaField("users", "user_id", "parse-number"),
 	}));
 
+	const userId = state.data.userId;
 
-	var userId = state.data.userId;
-
-
-	// Check if user is admin
-	if(!state.authenticatedUser || !state.authenticatedUser.isAdmin) {
-		state.store.adminWiki.addTiddler(new state.Tiddler({
-			title: "$:/temp/mws/delete-user/error",
-			text: "You must be an administrator to delete user accounts"
-		}));
-		return state.redirect('/admin/users/' + userId);
+	if(!state.authenticatedUser?.isAdmin) {
+		return state.sendSimple(403, "You don't have permission to delete user accounts");
 	}
 
-	// Prevent admin from deleting their own account
 	if(state.authenticatedUser.user_id === userId) {
-		state.store.adminWiki.addTiddler(new state.Tiddler({
-			title: "$:/temp/mws/delete-user/error",
-			text: "Cannot delete your own account"
-		}));
-		return state.redirect('/admin/users/' + userId);
+		return state.sendSimple(403, "You cannot delete your own account");
 	}
 
-	// Check if the user exists
 	var user = await state.store.sql.getUser(userId);
 	if(!user) {
-		state.store.adminWiki.addTiddler(new state.Tiddler({
-			title: "$:/temp/mws/delete-user/error",
-			text: "User not found"
-		}));
-		return state.redirect('/admin/users/' + userId);
+		return state.sendSimple(404, "User not found");
 	}
 
 	// Check if this is the last admin account
-	var adminRole = await state.store.sql.getAdminRole();
-	if(!adminRole) {
-		state.store.adminWiki.addTiddler(new state.Tiddler({
-			title: "$:/temp/mws/delete-user/error",
-			text: "Admin role not found"
-		}));
-		return state.redirect('/admin/users/' + userId);
-	}
+	const adminRole = await state.store.sql.getAdminRole();
 
-	var adminUsers = await state.store.sql.listUsersByRoleId(adminRole.role_id);
+	ok(adminRole);
+
+	const adminUsers = await state.store.sql.listUsersByRoleId(adminRole.role_id);
+
 	if(adminUsers.length <= 1 && adminUsers.some(admin => admin.user_id === userId)) {
-		state.store.adminWiki.addTiddler(new state.Tiddler({
-			title: "$:/temp/mws/delete-user/error",
-			text: "Cannot delete the last admin account"
-		}));
-		return state.redirect('/admin/users/' + userId);
+		return state.sendSimple(403, "Cannot delete the last admin account");
 	}
 
 	await state.store.sql.deleteUserRolesByUserId(userId);
 	await state.store.sql.deleteUserSessions(userId);
 	await state.store.sql.deleteUser(userId);
 
-	// Redirect back to the users management page
-	return state.redirect('/admin/users');
+	return state.sendSimple(200, "User account deleted");
 });

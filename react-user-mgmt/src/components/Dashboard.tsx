@@ -34,7 +34,7 @@ const Dashboard: React.FC<IndexJson> = ({
   username,
   "recipe-list": initialRecipes,
   "bag-list": initialBags,
-  "user-is-admin": userIsAdmin = false,
+  "user-is-admin": userIsAdmin,
   "user-is-logged-in": userIsLoggedIn,
   "first-guest-user": firstGuestUser,
   user,
@@ -42,14 +42,12 @@ const Dashboard: React.FC<IndexJson> = ({
   allowWrites,
 
 }) => {
-  const [recipes, setRecipes] = useState<Recipe[]>([
-    { recipe_name: 'Home', description: 'Home page', has_acl_access: false, bag_names: ["home", '$:/config'], },
-    { recipe_name: 'Dev', description: 'Dev docs', has_acl_access: false, bag_names: ["dev", '$:/config'], },
-  ]);
-
-  const [bags, setBags] = useState<Bag[]>(initialBags);
+  const [recipes, setRecipes] = useState<IndexJson["recipe-list"]>(initialRecipes);
+  const [bags, setBags] = useState<IndexJson["bag-list"]>(initialBags);
   const [showSystem, setShowSystem] = useState(false);
   const [showAnonConfig, setShowAnonConfig] = useState(false);
+
+  userIsAdmin = userIsAdmin || false;
 
   const userId = user?.user_id;
 

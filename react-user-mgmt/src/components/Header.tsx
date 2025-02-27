@@ -6,7 +6,7 @@ interface HeaderProps {
   userIsAdmin: boolean;
   userIsLoggedIn: boolean;
   firstGuestUser: boolean;
-  userId?: string;
+  userId?: number;
   setShowAnonConfig: (show: boolean) => void;
 }
 

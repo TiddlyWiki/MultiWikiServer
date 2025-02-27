@@ -1573,9 +1573,9 @@
           info || (parentType = getComponentNameFromType(parentType)) && (info = "\n\nCheck the top-level render call using <" + parentType + ">.");
           return info;
         }
-        var React4 = require_react(), REACT_ELEMENT_TYPE = Symbol.for("react.transitional.element"), REACT_PORTAL_TYPE = Symbol.for("react.portal"), REACT_FRAGMENT_TYPE = Symbol.for("react.fragment"), REACT_STRICT_MODE_TYPE = Symbol.for("react.strict_mode"), REACT_PROFILER_TYPE = Symbol.for("react.profiler");
+        var React5 = require_react(), REACT_ELEMENT_TYPE = Symbol.for("react.transitional.element"), REACT_PORTAL_TYPE = Symbol.for("react.portal"), REACT_FRAGMENT_TYPE = Symbol.for("react.fragment"), REACT_STRICT_MODE_TYPE = Symbol.for("react.strict_mode"), REACT_PROFILER_TYPE = Symbol.for("react.profiler");
         Symbol.for("react.provider");
-        var REACT_CONSUMER_TYPE = Symbol.for("react.consumer"), REACT_CONTEXT_TYPE = Symbol.for("react.context"), REACT_FORWARD_REF_TYPE = Symbol.for("react.forward_ref"), REACT_SUSPENSE_TYPE = Symbol.for("react.suspense"), REACT_SUSPENSE_LIST_TYPE = Symbol.for("react.suspense_list"), REACT_MEMO_TYPE = Symbol.for("react.memo"), REACT_LAZY_TYPE = Symbol.for("react.lazy"), REACT_OFFSCREEN_TYPE = Symbol.for("react.offscreen"), MAYBE_ITERATOR_SYMBOL = Symbol.iterator, REACT_CLIENT_REFERENCE$2 = Symbol.for("react.client.reference"), ReactSharedInternals = React4.__CLIENT_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE, hasOwnProperty = Object.prototype.hasOwnProperty, assign = Object.assign, REACT_CLIENT_REFERENCE$1 = Symbol.for("react.client.reference"), isArrayImpl = Array.isArray, disabledDepth = 0, prevLog, prevInfo, prevWarn, prevError, prevGroup, prevGroupCollapsed, prevGroupEnd;
+        var REACT_CONSUMER_TYPE = Symbol.for("react.consumer"), REACT_CONTEXT_TYPE = Symbol.for("react.context"), REACT_FORWARD_REF_TYPE = Symbol.for("react.forward_ref"), REACT_SUSPENSE_TYPE = Symbol.for("react.suspense"), REACT_SUSPENSE_LIST_TYPE = Symbol.for("react.suspense_list"), REACT_MEMO_TYPE = Symbol.for("react.memo"), REACT_LAZY_TYPE = Symbol.for("react.lazy"), REACT_OFFSCREEN_TYPE = Symbol.for("react.offscreen"), MAYBE_ITERATOR_SYMBOL = Symbol.iterator, REACT_CLIENT_REFERENCE$2 = Symbol.for("react.client.reference"), ReactSharedInternals = React5.__CLIENT_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE, hasOwnProperty = Object.prototype.hasOwnProperty, assign = Object.assign, REACT_CLIENT_REFERENCE$1 = Symbol.for("react.client.reference"), isArrayImpl = Array.isArray, disabledDepth = 0, prevLog, prevInfo, prevWarn, prevError, prevGroup, prevGroupCollapsed, prevGroupEnd;
         disabledLog.__reactDisabledLog = true;
         var prefix, suffix, reentry = false;
         var componentFrameCache = new ("function" === typeof WeakMap ? WeakMap : Map)();
@@ -1654,7 +1654,7 @@
           return dispatcher;
         }
         "undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__ && "function" === typeof __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStart && __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStart(Error());
-        var React4 = require_react(), Internals = {
+        var React5 = require_react(), Internals = {
           d: {
             f: noop,
             r: function() {
@@ -1672,7 +1672,7 @@
           },
           p: 0,
           findDOMNode: null
-        }, REACT_PORTAL_TYPE = Symbol.for("react.portal"), ReactSharedInternals = React4.__CLIENT_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE;
+        }, REACT_PORTAL_TYPE = Symbol.for("react.portal"), ReactSharedInternals = React5.__CLIENT_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE;
         "function" === typeof Map && null != Map.prototype && "function" === typeof Map.prototype.forEach && "function" === typeof Set && null != Set.prototype && "function" === typeof Set.prototype.clear && "function" === typeof Set.prototype.forEach || console.error(
           "React depends on Map and Set built-in types. Make sure that you load a polyfill in older browsers. https://reactjs.org/link/react-polyfills"
         );
@@ -3408,7 +3408,7 @@
           "number" === type && getActiveElement(node.ownerDocument) === node || node.defaultValue === "" + value || (node.defaultValue = "" + value);
         }
         function validateOptionProps(element, props) {
-          null == props.value && ("object" === typeof props.children && null !== props.children ? React4.Children.forEach(props.children, function(child) {
+          null == props.value && ("object" === typeof props.children && null !== props.children ? React5.Children.forEach(props.children, function(child) {
             null == child || "string" === typeof child || "number" === typeof child || "bigint" === typeof child || didWarnInvalidChild || (didWarnInvalidChild = true, console.error(
               "Cannot infer the option value of complex children. Pass a `value` prop or use a plain string as children to <option>."
             ));
@@ -16878,13 +16878,13 @@
           ));
         }
         "undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__ && "function" === typeof __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStart && __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStart(Error());
-        var Scheduler = require_scheduler(), React4 = require_react(), ReactDOM = require_react_dom(), REACT_LEGACY_ELEMENT_TYPE = Symbol.for("react.element"), REACT_ELEMENT_TYPE = Symbol.for("react.transitional.element"), REACT_PORTAL_TYPE = Symbol.for("react.portal"), REACT_FRAGMENT_TYPE = Symbol.for("react.fragment"), REACT_STRICT_MODE_TYPE = Symbol.for("react.strict_mode"), REACT_PROFILER_TYPE = Symbol.for("react.profiler"), REACT_PROVIDER_TYPE = Symbol.for("react.provider"), REACT_CONSUMER_TYPE = Symbol.for("react.consumer"), REACT_CONTEXT_TYPE = Symbol.for("react.context"), REACT_FORWARD_REF_TYPE = Symbol.for("react.forward_ref"), REACT_SUSPENSE_TYPE = Symbol.for("react.suspense"), REACT_SUSPENSE_LIST_TYPE = Symbol.for("react.suspense_list"), REACT_MEMO_TYPE = Symbol.for("react.memo"), REACT_LAZY_TYPE = Symbol.for("react.lazy");
+        var Scheduler = require_scheduler(), React5 = require_react(), ReactDOM = require_react_dom(), REACT_LEGACY_ELEMENT_TYPE = Symbol.for("react.element"), REACT_ELEMENT_TYPE = Symbol.for("react.transitional.element"), REACT_PORTAL_TYPE = Symbol.for("react.portal"), REACT_FRAGMENT_TYPE = Symbol.for("react.fragment"), REACT_STRICT_MODE_TYPE = Symbol.for("react.strict_mode"), REACT_PROFILER_TYPE = Symbol.for("react.profiler"), REACT_PROVIDER_TYPE = Symbol.for("react.provider"), REACT_CONSUMER_TYPE = Symbol.for("react.consumer"), REACT_CONTEXT_TYPE = Symbol.for("react.context"), REACT_FORWARD_REF_TYPE = Symbol.for("react.forward_ref"), REACT_SUSPENSE_TYPE = Symbol.for("react.suspense"), REACT_SUSPENSE_LIST_TYPE = Symbol.for("react.suspense_list"), REACT_MEMO_TYPE = Symbol.for("react.memo"), REACT_LAZY_TYPE = Symbol.for("react.lazy");
         Symbol.for("react.scope");
         Symbol.for("react.debug_trace_mode");
         var REACT_OFFSCREEN_TYPE = Symbol.for("react.offscreen");
         Symbol.for("react.legacy_hidden");
         Symbol.for("react.tracing_marker");
-        var REACT_MEMO_CACHE_SENTINEL = Symbol.for("react.memo_cache_sentinel"), MAYBE_ITERATOR_SYMBOL = Symbol.iterator, REACT_CLIENT_REFERENCE = Symbol.for("react.client.reference"), ReactSharedInternals = React4.__CLIENT_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE, assign = Object.assign, disabledDepth = 0, prevLog, prevInfo, prevWarn, prevError, prevGroup, prevGroupCollapsed, prevGroupEnd;
+        var REACT_MEMO_CACHE_SENTINEL = Symbol.for("react.memo_cache_sentinel"), MAYBE_ITERATOR_SYMBOL = Symbol.iterator, REACT_CLIENT_REFERENCE = Symbol.for("react.client.reference"), ReactSharedInternals = React5.__CLIENT_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE, assign = Object.assign, disabledDepth = 0, prevLog, prevInfo, prevWarn, prevError, prevGroup, prevGroupCollapsed, prevGroupEnd;
         disabledLog.__reactDisabledLog = true;
         var prefix, suffix, reentry = false;
         var componentFrameCache = new ("function" === typeof WeakMap ? WeakMap : Map)();
@@ -19604,7 +19604,7 @@
           }
         };
         (function() {
-          var isomorphicReactPackageVersion = React4.version;
+          var isomorphicReactPackageVersion = React5.version;
           if ("19.0.0" !== isomorphicReactPackageVersion)
             throw Error(
               'Incompatible React versions: The "react" and "react-dom" packages must have the exact same version. Instead got:\n  - react:      ' + (isomorphicReactPackageVersion + "\n  - react-dom:  19.0.0\nLearn more: https://react.dev/warnings/version-mismatch")
@@ -19746,7 +19746,7 @@
   });
 
   // react-user-mgmt/src/main.tsx
-  var import_react5 = __toESM(require_react(), 1);
+  var import_react6 = __toESM(require_react(), 1);
 
   // react-user-mgmt/src/components/Dashboard.tsx
   var import_react3 = __toESM(require_react(), 1);
@@ -20017,20 +20017,18 @@
     username,
     "recipe-list": initialRecipes,
     "bag-list": initialBags,
-    "user-is-admin": userIsAdmin = false,
+    "user-is-admin": userIsAdmin,
     "user-is-logged-in": userIsLoggedIn,
     "first-guest-user": firstGuestUser,
     user,
     allowReads,
     allowWrites
   }) => {
-    const [recipes, setRecipes] = (0, import_react3.useState)([
-      { recipe_name: "Home", description: "Home page", has_acl_access: false, bag_names: ["home", "$:/config"] },
-      { recipe_name: "Dev", description: "Dev docs", has_acl_access: false, bag_names: ["dev", "$:/config"] }
-    ]);
+    const [recipes, setRecipes] = (0, import_react3.useState)(initialRecipes);
     const [bags, setBags] = (0, import_react3.useState)(initialBags);
     const [showSystem, setShowSystem] = (0, import_react3.useState)(false);
     const [showAnonConfig, setShowAnonConfig] = (0, import_react3.useState)(false);
+    userIsAdmin = userIsAdmin || false;
     const userId = user?.user_id;
     const filteredBags = showSystem ? bags : bags.filter((bag) => !bag.bag_name.startsWith("$:/"));
     const handleRecipeSubmit = async (e) => {
@@ -20260,16 +20258,181 @@
   _reject = new WeakMap();
   _done = new WeakMap();
 
-  // react-user-mgmt/src/main.tsx
+  // react-user-mgmt/src/components/ManageUser.tsx
+  var import_react5 = __toESM(require_react(), 1);
+
+  // react-user-mgmt/src/helpers/utils.tsx
+  function formDataToSearchParams(formData) {
+    const data = [...formData.entries()].filter((e) => {
+      if (typeof e[1] !== "string") throw new Error("Invalid form data");
+      return true;
+    });
+    return new URLSearchParams(data);
+  }
+
+  // react-user-mgmt/src/components/ManageUser.tsx
   var import_jsx_runtime6 = __toESM(require_jsx_runtime(), 1);
+  function ManageUser() {
+    const [refreshData, setRefreshData] = (0, import_react5.useState)({});
+    const [result, setResult] = (0, import_react5.useState)(null);
+    useAsyncEffect(async () => {
+      const res = await fetch(location.pathname + ".json", {});
+      if (res.status !== 200) throw new Error("Failed to fetch user data");
+      setResult(await res.json());
+    }, void 0, void 0, [refreshData]);
+    if (!result) return null;
+    return /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(ManageUserInner, { ...{
+      user: JSON.parse(result.user),
+      userRole: JSON.parse(result["user-role"]).roles[0],
+      allRoles: JSON.parse(result["all-roles"]),
+      userIsAdmin: result["user-is-admin"] === "yes",
+      isCurrentUserProfile: result["is-current-user-profile"] === "yes",
+      username: result.username,
+      firstGuestUser: result["first-guest-user"] === "yes",
+      userIsLoggedIn: result["user-is-logged-in"] === "yes",
+      setRefreshData
+    } });
+  }
+  var ManageUserInner = ({
+    user,
+    userRole,
+    allRoles,
+    userIsAdmin,
+    isCurrentUserProfile,
+    username,
+    firstGuestUser = false,
+    userIsLoggedIn = true,
+    setRefreshData
+  }) => {
+    const [updateError, setUpdateError] = (0, import_react5.useState)(null);
+    const [updateSuccess, setUpdateSuccess] = (0, import_react5.useState)(null);
+    const [passwordError, setPasswordError] = (0, import_react5.useState)(null);
+    const [passwordSuccess, setPasswordSuccess] = (0, import_react5.useState)(null);
+    const [deleteError, setDeleteError] = (0, import_react5.useState)(null);
+    const userInitials = user.username?.[0].toUpperCase();
+    const handler = (endpoint, success, error) => async (formData) => {
+      const res = await fetch(endpoint, {
+        method: "POST",
+        body: formDataToSearchParams(formData)
+      });
+      const body = await res.text();
+      if (!res.ok)
+        error(body);
+      else {
+        success(body);
+        setRefreshData({});
+      }
+    };
+    const handleUpdateProfile = handler("/update-user-profile", setUpdateSuccess, setUpdateError);
+    const handleChangePassword = handler("/change-user-password", setPasswordSuccess, setPasswordError);
+    const handleDeleteAccount = async (formData) => {
+      if (window.confirm("Are you sure you want to delete this user account? This action cannot be undone."))
+        await handler("/delete-user-account", () => location.pathname = "/admin/users", setDeleteError)(formData);
+    };
+    return /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)(import_jsx_runtime6.Fragment, { children: [
+      /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(
+        Header_default,
+        {
+          pageTitle: "User Profile",
+          username: username || "",
+          userIsAdmin,
+          userIsLoggedIn,
+          firstGuestUser,
+          userId: +user?.user_id,
+          setShowAnonConfig: () => {
+          }
+        }
+      ),
+      /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("div", { className: "mws-main-wrapper", children: [
+        /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("div", { className: "mws-user-profile-container", children: [
+          /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("div", { className: "mws-user-profile-header", children: [
+            /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("div", { className: "mws-user-profile-avatar", children: userInitials }),
+            /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("h1", { className: "mws-user-profile-name", children: user.username }),
+            /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("p", { className: "mws-user-profile-email", children: user.email })
+          ] }),
+          /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("div", { className: "mws-user-profile-details", children: [
+            /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("div", { className: "mws-user-profile-item", children: [
+              /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("span", { className: "mws-user-profile-label", children: "User ID:" }),
+              /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("span", { className: "mws-user-profile-value", children: user.user_id })
+            ] }),
+            /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("div", { className: "mws-user-profile-item", children: [
+              /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("span", { className: "mws-user-profile-label", children: "Created At:" }),
+              /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("span", { className: "mws-user-profile-value", children: user.created_at?.split("T")[0] })
+            ] }),
+            /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("div", { className: "mws-user-profile-item", children: [
+              /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("span", { className: "mws-user-profile-label", children: "Last Login:" }),
+              /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("span", { className: "mws-user-profile-value", children: user.last_login?.split("T")[0] })
+            ] }),
+            /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("div", { className: "mws-user-profile-roles", children: [
+              /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("h2", { children: "User Role" }),
+              /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("ul", { children: /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("li", { children: userRole.role_name }) })
+            ] })
+          ] })
+        ] }),
+        (userIsAdmin || isCurrentUserProfile) && /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("div", { className: "mws-user-profile-management", children: [
+          /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("h2", { children: "Manage Account" }),
+          /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("form", { className: "mws-user-profile-form", action: handleUpdateProfile, children: [
+            /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("input", { type: "hidden", name: "userId", value: user.user_id }),
+            /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("div", { className: "mws-form-group", children: [
+              /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("label", { htmlFor: "username", children: "Username:" }),
+              /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("input", { type: "text", id: "username", name: "username", defaultValue: user.username, required: true })
+            ] }),
+            /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("div", { className: "mws-form-group", children: [
+              /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("label", { htmlFor: "email", children: "Email:" }),
+              /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("input", { type: "email", id: "email", name: "email", defaultValue: user.email, required: true })
+            ] }),
+            userIsAdmin && /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("div", { className: "mws-form-group", children: [
+              /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("label", { htmlFor: "role", children: "Role:" }),
+              /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("select", { id: "role", name: "role", defaultValue: userRole.role_id, required: true, children: allRoles.map((role) => /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("option", { value: role.role_id, children: role.role_name }, role.role_id)) })
+            ] }),
+            /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("button", { type: "submit", className: "mws-update-profile-btn", children: "Update Profile" }),
+            updateError && /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("div", { className: "mws-error-message", children: updateError }),
+            updateSuccess && /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("div", { className: "mws-success-message", children: updateSuccess })
+          ] }),
+          userIsAdmin && !isCurrentUserProfile && /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)(import_jsx_runtime6.Fragment, { children: [
+            /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("hr", {}),
+            /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("form", { className: "mws-user-profile-form", action: handleDeleteAccount, children: [
+              /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("input", { type: "hidden", name: "userId", value: user.user_id }),
+              /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("button", { type: "submit", className: "mws-delete-account-btn", children: "Delete User Account" }),
+              deleteError && /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("div", { className: "mws-error-message", children: deleteError })
+            ] })
+          ] }),
+          isCurrentUserProfile && /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)(import_jsx_runtime6.Fragment, { children: [
+            /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("hr", {}),
+            /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("h2", { children: "Change Password" }),
+            /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("form", { className: "mws-user-profile-form", action: handleChangePassword, children: [
+              /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("input", { type: "hidden", name: "userId", value: user.user_id }),
+              /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("div", { className: "mws-form-group", children: [
+                /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("label", { htmlFor: "new-password", children: "New Password:" }),
+                /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("input", { type: "password", id: "new-password", name: "newPassword", required: true })
+              ] }),
+              /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("div", { className: "mws-form-group", children: [
+                /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("label", { htmlFor: "confirm-password", children: "Confirm New Password:" }),
+                /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("input", { type: "password", id: "confirm-password", name: "confirmPassword", required: true })
+              ] }),
+              /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("button", { type: "submit", className: "mws-update-password-btn", children: "Change Password" }),
+              passwordError && /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("div", { className: "mws-error-message", children: passwordError }),
+              passwordSuccess && /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("div", { className: "mws-success-message", children: passwordSuccess })
+            ] })
+          ] })
+        ] })
+      ] })
+    ] });
+  };
+
+  // react-user-mgmt/src/main.tsx
+  var import_jsx_runtime7 = __toESM(require_jsx_runtime(), 1);
   function App() {
     const { loading, result } = useAsyncEffect(async () => {
       return await (await fetch("/index.json")).json();
     }, void 0, void 0, []);
     if (loading) return null;
-    return /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(import_react5.StrictMode, { children: /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(Dashboard_default, { ...result }) });
+    return /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)(import_react6.StrictMode, { children: [
+      location.pathname === "/" && /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(Dashboard_default, { ...result }),
+      location.pathname.startsWith("/admin/users/") && /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(ManageUser, {})
+    ] });
   }
-  (0, import_client.createRoot)(document.getElementById("root")).render(/* @__PURE__ */ (0, import_jsx_runtime6.jsx)(App, {}));
+  (0, import_client.createRoot)(document.getElementById("root")).render(/* @__PURE__ */ (0, import_jsx_runtime7.jsx)(App, {}));
 })();
 /*! Bundled license information:
 

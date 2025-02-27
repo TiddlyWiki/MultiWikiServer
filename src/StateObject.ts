@@ -122,7 +122,6 @@ export class StateObject<
     sessionId: PrismaField<"sessions", "session_id">,
   } | null = null;
 
-  authenticatedUsername: string | null = null;
   anonAccessConfigured: boolean = false;
   allowAnon: boolean = false;
   allowAnonReads: boolean = false;
@@ -139,6 +138,8 @@ export class StateObject<
   Tiddler
   sjcl
   config
+
+  sendDevServer
 
   constructor(
     private streamer: Streamer,
@@ -172,6 +173,8 @@ export class StateObject<
     this.writeHead = this.streamer.writeHead.bind(this.streamer);
     this.write = this.streamer.write.bind(this.streamer);
     this.end = this.streamer.end.bind(this.streamer);
+
+    this.sendDevServer = this.router.sendDevServer.bind(this.router, this);
 
     this.pathParams = Object.fromEntries<string | undefined>(routePath.map(r =>
       r.route.pathParams
@@ -262,12 +265,10 @@ export class StateObject<
     // const state: any = {};
     // Authenticate the user
     const authenticatedUser = await this.authUser();
-    const authenticatedUsername = authenticatedUser?.username;
     var { allowReads, allowWrites, isEnabled, showAnonConfig } = this.getAnonymousAccessConfig();
 
     return {
       authenticatedUser,
-      authenticatedUsername,
       anonAccessConfigured: isEnabled,
       allowAnon: isEnabled && (this.method === 'GET' ? allowReads : allowWrites),
       allowAnonReads: allowReads,
@@ -429,7 +430,7 @@ export class StateObject<
         // ACL Middleware will only apply if the entity has a middleware record
         if (aclRecord && aclRecord?.permission_id === permission?.permission_id) {
           // If not authenticated and anonymous access is not allowed, request authentication
-          if (!this.authenticatedUsername && !this.allowAnon) {
+          if (!this.authenticatedUser && !this.allowAnon) {
             if (this.urlInfo.pathname !== '/login') {
               throw this.redirectToLogin(this.url);
             }
