@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { fetchPostSearchParams } from '../helpers/utils';
 import { useAsyncEffect } from '../helpers/useAsyncEffect';
 import * as opaque from "@serenity-kit/opaque";
+import { IndexJson, useIndexJson } from '../helpers/server-types';
 
 const LOGIN_FAILED = 'Login failed. Please check your credentials.';
 
@@ -31,37 +32,28 @@ async function loginWithOpaque(username: string, password: string) {
 
 const Login: React.FC<{}> = () => {
 
+  const { "user-is-logged-in": isLoggedIn } = useIndexJson();
+
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
 
   const returnUrl = new URLSearchParams(location.search).get('returnUrl') || '/';
 
-  useAsyncEffect(async () => {
-
-    const response = await fetch('/login.json', { method: 'GET' });
-    const json = await response.json();
-    await opaque.ready;
-    setIsLoggedIn(json.isLoggedIn);
-  }, undefined, undefined, []);
-
-
   const handleSubmit = async (formData: FormData) => {
+
     setErrorMessage(null);
 
     const username = formData.get('username') as string;
     const password = formData.get('password') as string;
 
-    if (!username || !password) {
-      setErrorMessage('Please enter a username and password.');
-      return;
-    }
+    if (!username || !password)
+      return setErrorMessage('Please enter a username and password.');
 
     await loginWithOpaque(username, password).then(e => {
-      setIsLoggedIn(true);
-      console.log(e);
+      location.href = "/";
     }, e => {
       setErrorMessage(`${e}`);
-    })
+    });
+
   };
 
   return (
@@ -91,44 +83,3 @@ const Login: React.FC<{}> = () => {
 };
 
 export default Login;
-
-async function* OPAQUE2(registrationRecord: string) {
-  await opaque.ready;
-  const serverSetup = opaque.server.createSetup();
-  // client
-  const password = "sup-krah.42-UOI"; // user password
-
-  const { clientLoginState, startLoginRequest } = opaque.client.startLogin({ password });
-
-  // server
-  const userIdentifier = "20e14cd8-ab09-4f4b-87a8-06d2e2e9ff68"; // userId/email/username
-
-  const { serverLoginState, loginResponse } = opaque.server.startLogin({
-    serverSetup,
-    userIdentifier,
-    registrationRecord,
-    startLoginRequest,
-  });
-
-  // client
-  const loginResult = opaque.client.finishLogin({
-    clientLoginState,
-    loginResponse,
-    password,
-  });
-  if (!loginResult) {
-    throw new Error("Login failed");
-  }
-  const { finishLoginRequest, sessionKey } = loginResult;
-
-  // server
-  // the server session key is only returned after verifying the client's response, 
-  // which validates that the client actually has the session key.
-  const { sessionKey: serversessionkey } = opaque.server.finishLogin({
-    finishLoginRequest,
-    serverLoginState,
-  });
-
-  ok(sessionKey === serversessionkey);
-
-}

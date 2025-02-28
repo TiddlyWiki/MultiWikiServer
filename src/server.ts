@@ -89,13 +89,14 @@ export class Streamer {
     if (error === STREAM_ENDED) return;
     const tag = this.urlInfo.href;
     console.error(tag, error);
+    if (!this.headersSent) this.sendEmpty(500, { "x-reason": "Internal Server Error (catcher)" });
   }
 
   checkHeadersSentBy(setError: boolean) {
     if (this.headersSent && this.headersSentBy) console.log(this.headersSentBy);
     else if (this.res.headersSent) console.log("Headers were sent by an unknown source.");
     // queue up the error in case there is a second attempt.
-    else this.headersSentBy = new Error("You are appear to be sending headers more than once. The first attempt was here. Does it need to throw or return?")
+    else this.headersSentBy = new Error("You appear to be sending headers more than once. The first attempt was here. Does it need to throw or return?")
   }
 
 

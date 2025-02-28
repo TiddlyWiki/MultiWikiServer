@@ -9,6 +9,7 @@
   var __typeError = (msg) => {
     throw TypeError(msg);
   };
+  var __defNormalProp = (obj, key, value) => key in obj ? __defProp(obj, key, { enumerable: true, configurable: true, writable: true, value }) : obj[key] = value;
   var __commonJS = (cb, mod) => function __require() {
     return mod || (0, cb[__getOwnPropNames(cb)[0]])((mod = { exports: {} }).exports, mod), mod.exports;
   };
@@ -28,6 +29,7 @@
     isNodeMode || !mod || !mod.__esModule ? __defProp(target, "default", { value: mod, enumerable: true }) : target,
     mod
   ));
+  var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "symbol" ? key + "" : key, value);
   var __accessCheck = (obj, member, msg) => member.has(obj) || __typeError("Cannot " + msg);
   var __privateGet = (obj, member, getter) => (__accessCheck(obj, member, "read from private field"), getter ? getter.call(obj) : member.get(obj));
   var __privateAdd = (obj, member, value) => member.has(obj) ? __typeError("Cannot add the same private member more than once") : member instanceof WeakSet ? member.add(obj) : member.set(obj, value);
@@ -1152,716 +1154,6 @@
     }
   });
 
-  // react-user-mgmt/node_modules/react/cjs/react-jsx-runtime.development.js
-  var require_react_jsx_runtime_development = __commonJS({
-    "react-user-mgmt/node_modules/react/cjs/react-jsx-runtime.development.js"(exports) {
-      "use strict";
-      (function() {
-        function getComponentNameFromType(type) {
-          if (null == type) return null;
-          if ("function" === typeof type)
-            return type.$$typeof === REACT_CLIENT_REFERENCE$2 ? null : type.displayName || type.name || null;
-          if ("string" === typeof type) return type;
-          switch (type) {
-            case REACT_FRAGMENT_TYPE:
-              return "Fragment";
-            case REACT_PORTAL_TYPE:
-              return "Portal";
-            case REACT_PROFILER_TYPE:
-              return "Profiler";
-            case REACT_STRICT_MODE_TYPE:
-              return "StrictMode";
-            case REACT_SUSPENSE_TYPE:
-              return "Suspense";
-            case REACT_SUSPENSE_LIST_TYPE:
-              return "SuspenseList";
-          }
-          if ("object" === typeof type)
-            switch ("number" === typeof type.tag && console.error(
-              "Received an unexpected object in getComponentNameFromType(). This is likely a bug in React. Please file an issue."
-            ), type.$$typeof) {
-              case REACT_CONTEXT_TYPE:
-                return (type.displayName || "Context") + ".Provider";
-              case REACT_CONSUMER_TYPE:
-                return (type._context.displayName || "Context") + ".Consumer";
-              case REACT_FORWARD_REF_TYPE:
-                var innerType = type.render;
-                type = type.displayName;
-                type || (type = innerType.displayName || innerType.name || "", type = "" !== type ? "ForwardRef(" + type + ")" : "ForwardRef");
-                return type;
-              case REACT_MEMO_TYPE:
-                return innerType = type.displayName || null, null !== innerType ? innerType : getComponentNameFromType(type.type) || "Memo";
-              case REACT_LAZY_TYPE:
-                innerType = type._payload;
-                type = type._init;
-                try {
-                  return getComponentNameFromType(type(innerType));
-                } catch (x) {
-                }
-            }
-          return null;
-        }
-        function testStringCoercion(value) {
-          return "" + value;
-        }
-        function checkKeyStringCoercion(value) {
-          try {
-            testStringCoercion(value);
-            var JSCompiler_inline_result = false;
-          } catch (e) {
-            JSCompiler_inline_result = true;
-          }
-          if (JSCompiler_inline_result) {
-            JSCompiler_inline_result = console;
-            var JSCompiler_temp_const = JSCompiler_inline_result.error;
-            var JSCompiler_inline_result$jscomp$0 = "function" === typeof Symbol && Symbol.toStringTag && value[Symbol.toStringTag] || value.constructor.name || "Object";
-            JSCompiler_temp_const.call(
-              JSCompiler_inline_result,
-              "The provided key is an unsupported type %s. This value must be coerced to a string before using it here.",
-              JSCompiler_inline_result$jscomp$0
-            );
-            return testStringCoercion(value);
-          }
-        }
-        function disabledLog() {
-        }
-        function disableLogs() {
-          if (0 === disabledDepth) {
-            prevLog = console.log;
-            prevInfo = console.info;
-            prevWarn = console.warn;
-            prevError = console.error;
-            prevGroup = console.group;
-            prevGroupCollapsed = console.groupCollapsed;
-            prevGroupEnd = console.groupEnd;
-            var props = {
-              configurable: true,
-              enumerable: true,
-              value: disabledLog,
-              writable: true
-            };
-            Object.defineProperties(console, {
-              info: props,
-              log: props,
-              warn: props,
-              error: props,
-              group: props,
-              groupCollapsed: props,
-              groupEnd: props
-            });
-          }
-          disabledDepth++;
-        }
-        function reenableLogs() {
-          disabledDepth--;
-          if (0 === disabledDepth) {
-            var props = { configurable: true, enumerable: true, writable: true };
-            Object.defineProperties(console, {
-              log: assign({}, props, { value: prevLog }),
-              info: assign({}, props, { value: prevInfo }),
-              warn: assign({}, props, { value: prevWarn }),
-              error: assign({}, props, { value: prevError }),
-              group: assign({}, props, { value: prevGroup }),
-              groupCollapsed: assign({}, props, { value: prevGroupCollapsed }),
-              groupEnd: assign({}, props, { value: prevGroupEnd })
-            });
-          }
-          0 > disabledDepth && console.error(
-            "disabledDepth fell below zero. This is a bug in React. Please file an issue."
-          );
-        }
-        function describeBuiltInComponentFrame(name) {
-          if (void 0 === prefix)
-            try {
-              throw Error();
-            } catch (x) {
-              var match = x.stack.trim().match(/\n( *(at )?)/);
-              prefix = match && match[1] || "";
-              suffix = -1 < x.stack.indexOf("\n    at") ? " (<anonymous>)" : -1 < x.stack.indexOf("@") ? "@unknown:0:0" : "";
-            }
-          return "\n" + prefix + name + suffix;
-        }
-        function describeNativeComponentFrame(fn, construct) {
-          if (!fn || reentry) return "";
-          var frame = componentFrameCache.get(fn);
-          if (void 0 !== frame) return frame;
-          reentry = true;
-          frame = Error.prepareStackTrace;
-          Error.prepareStackTrace = void 0;
-          var previousDispatcher = null;
-          previousDispatcher = ReactSharedInternals.H;
-          ReactSharedInternals.H = null;
-          disableLogs();
-          try {
-            var RunInRootFrame = {
-              DetermineComponentFrameRoot: function() {
-                try {
-                  if (construct) {
-                    var Fake = function() {
-                      throw Error();
-                    };
-                    Object.defineProperty(Fake.prototype, "props", {
-                      set: function() {
-                        throw Error();
-                      }
-                    });
-                    if ("object" === typeof Reflect && Reflect.construct) {
-                      try {
-                        Reflect.construct(Fake, []);
-                      } catch (x) {
-                        var control = x;
-                      }
-                      Reflect.construct(fn, [], Fake);
-                    } else {
-                      try {
-                        Fake.call();
-                      } catch (x$0) {
-                        control = x$0;
-                      }
-                      fn.call(Fake.prototype);
-                    }
-                  } else {
-                    try {
-                      throw Error();
-                    } catch (x$1) {
-                      control = x$1;
-                    }
-                    (Fake = fn()) && "function" === typeof Fake.catch && Fake.catch(function() {
-                    });
-                  }
-                } catch (sample) {
-                  if (sample && control && "string" === typeof sample.stack)
-                    return [sample.stack, control.stack];
-                }
-                return [null, null];
-              }
-            };
-            RunInRootFrame.DetermineComponentFrameRoot.displayName = "DetermineComponentFrameRoot";
-            var namePropDescriptor = Object.getOwnPropertyDescriptor(
-              RunInRootFrame.DetermineComponentFrameRoot,
-              "name"
-            );
-            namePropDescriptor && namePropDescriptor.configurable && Object.defineProperty(
-              RunInRootFrame.DetermineComponentFrameRoot,
-              "name",
-              { value: "DetermineComponentFrameRoot" }
-            );
-            var _RunInRootFrame$Deter = RunInRootFrame.DetermineComponentFrameRoot(), sampleStack = _RunInRootFrame$Deter[0], controlStack = _RunInRootFrame$Deter[1];
-            if (sampleStack && controlStack) {
-              var sampleLines = sampleStack.split("\n"), controlLines = controlStack.split("\n");
-              for (_RunInRootFrame$Deter = namePropDescriptor = 0; namePropDescriptor < sampleLines.length && !sampleLines[namePropDescriptor].includes(
-                "DetermineComponentFrameRoot"
-              ); )
-                namePropDescriptor++;
-              for (; _RunInRootFrame$Deter < controlLines.length && !controlLines[_RunInRootFrame$Deter].includes(
-                "DetermineComponentFrameRoot"
-              ); )
-                _RunInRootFrame$Deter++;
-              if (namePropDescriptor === sampleLines.length || _RunInRootFrame$Deter === controlLines.length)
-                for (namePropDescriptor = sampleLines.length - 1, _RunInRootFrame$Deter = controlLines.length - 1; 1 <= namePropDescriptor && 0 <= _RunInRootFrame$Deter && sampleLines[namePropDescriptor] !== controlLines[_RunInRootFrame$Deter]; )
-                  _RunInRootFrame$Deter--;
-              for (; 1 <= namePropDescriptor && 0 <= _RunInRootFrame$Deter; namePropDescriptor--, _RunInRootFrame$Deter--)
-                if (sampleLines[namePropDescriptor] !== controlLines[_RunInRootFrame$Deter]) {
-                  if (1 !== namePropDescriptor || 1 !== _RunInRootFrame$Deter) {
-                    do
-                      if (namePropDescriptor--, _RunInRootFrame$Deter--, 0 > _RunInRootFrame$Deter || sampleLines[namePropDescriptor] !== controlLines[_RunInRootFrame$Deter]) {
-                        var _frame = "\n" + sampleLines[namePropDescriptor].replace(
-                          " at new ",
-                          " at "
-                        );
-                        fn.displayName && _frame.includes("<anonymous>") && (_frame = _frame.replace("<anonymous>", fn.displayName));
-                        "function" === typeof fn && componentFrameCache.set(fn, _frame);
-                        return _frame;
-                      }
-                    while (1 <= namePropDescriptor && 0 <= _RunInRootFrame$Deter);
-                  }
-                  break;
-                }
-            }
-          } finally {
-            reentry = false, ReactSharedInternals.H = previousDispatcher, reenableLogs(), Error.prepareStackTrace = frame;
-          }
-          sampleLines = (sampleLines = fn ? fn.displayName || fn.name : "") ? describeBuiltInComponentFrame(sampleLines) : "";
-          "function" === typeof fn && componentFrameCache.set(fn, sampleLines);
-          return sampleLines;
-        }
-        function describeUnknownElementTypeFrameInDEV(type) {
-          if (null == type) return "";
-          if ("function" === typeof type) {
-            var prototype = type.prototype;
-            return describeNativeComponentFrame(
-              type,
-              !(!prototype || !prototype.isReactComponent)
-            );
-          }
-          if ("string" === typeof type) return describeBuiltInComponentFrame(type);
-          switch (type) {
-            case REACT_SUSPENSE_TYPE:
-              return describeBuiltInComponentFrame("Suspense");
-            case REACT_SUSPENSE_LIST_TYPE:
-              return describeBuiltInComponentFrame("SuspenseList");
-          }
-          if ("object" === typeof type)
-            switch (type.$$typeof) {
-              case REACT_FORWARD_REF_TYPE:
-                return type = describeNativeComponentFrame(type.render, false), type;
-              case REACT_MEMO_TYPE:
-                return describeUnknownElementTypeFrameInDEV(type.type);
-              case REACT_LAZY_TYPE:
-                prototype = type._payload;
-                type = type._init;
-                try {
-                  return describeUnknownElementTypeFrameInDEV(type(prototype));
-                } catch (x) {
-                }
-            }
-          return "";
-        }
-        function getOwner() {
-          var dispatcher = ReactSharedInternals.A;
-          return null === dispatcher ? null : dispatcher.getOwner();
-        }
-        function hasValidKey(config) {
-          if (hasOwnProperty.call(config, "key")) {
-            var getter = Object.getOwnPropertyDescriptor(config, "key").get;
-            if (getter && getter.isReactWarning) return false;
-          }
-          return void 0 !== config.key;
-        }
-        function defineKeyPropWarningGetter(props, displayName) {
-          function warnAboutAccessingKey() {
-            specialPropKeyWarningShown || (specialPropKeyWarningShown = true, console.error(
-              "%s: `key` is not a prop. Trying to access it will result in `undefined` being returned. If you need to access the same value within the child component, you should pass it as a different prop. (https://react.dev/link/special-props)",
-              displayName
-            ));
-          }
-          warnAboutAccessingKey.isReactWarning = true;
-          Object.defineProperty(props, "key", {
-            get: warnAboutAccessingKey,
-            configurable: true
-          });
-        }
-        function elementRefGetterWithDeprecationWarning() {
-          var componentName = getComponentNameFromType(this.type);
-          didWarnAboutElementRef[componentName] || (didWarnAboutElementRef[componentName] = true, console.error(
-            "Accessing element.ref was removed in React 19. ref is now a regular prop. It will be removed from the JSX Element type in a future release."
-          ));
-          componentName = this.props.ref;
-          return void 0 !== componentName ? componentName : null;
-        }
-        function ReactElement(type, key, self2, source, owner, props) {
-          self2 = props.ref;
-          type = {
-            $$typeof: REACT_ELEMENT_TYPE,
-            type,
-            key,
-            props,
-            _owner: owner
-          };
-          null !== (void 0 !== self2 ? self2 : null) ? Object.defineProperty(type, "ref", {
-            enumerable: false,
-            get: elementRefGetterWithDeprecationWarning
-          }) : Object.defineProperty(type, "ref", { enumerable: false, value: null });
-          type._store = {};
-          Object.defineProperty(type._store, "validated", {
-            configurable: false,
-            enumerable: false,
-            writable: true,
-            value: 0
-          });
-          Object.defineProperty(type, "_debugInfo", {
-            configurable: false,
-            enumerable: false,
-            writable: true,
-            value: null
-          });
-          Object.freeze && (Object.freeze(type.props), Object.freeze(type));
-          return type;
-        }
-        function jsxDEVImpl(type, config, maybeKey, isStaticChildren, source, self2) {
-          if ("string" === typeof type || "function" === typeof type || type === REACT_FRAGMENT_TYPE || type === REACT_PROFILER_TYPE || type === REACT_STRICT_MODE_TYPE || type === REACT_SUSPENSE_TYPE || type === REACT_SUSPENSE_LIST_TYPE || type === REACT_OFFSCREEN_TYPE || "object" === typeof type && null !== type && (type.$$typeof === REACT_LAZY_TYPE || type.$$typeof === REACT_MEMO_TYPE || type.$$typeof === REACT_CONTEXT_TYPE || type.$$typeof === REACT_CONSUMER_TYPE || type.$$typeof === REACT_FORWARD_REF_TYPE || type.$$typeof === REACT_CLIENT_REFERENCE$1 || void 0 !== type.getModuleId)) {
-            var children = config.children;
-            if (void 0 !== children)
-              if (isStaticChildren)
-                if (isArrayImpl(children)) {
-                  for (isStaticChildren = 0; isStaticChildren < children.length; isStaticChildren++)
-                    validateChildKeys(children[isStaticChildren], type);
-                  Object.freeze && Object.freeze(children);
-                } else
-                  console.error(
-                    "React.jsx: Static children should always be an array. You are likely explicitly calling React.jsxs or React.jsxDEV. Use the Babel transform instead."
-                  );
-              else validateChildKeys(children, type);
-          } else {
-            children = "";
-            if (void 0 === type || "object" === typeof type && null !== type && 0 === Object.keys(type).length)
-              children += " You likely forgot to export your component from the file it's defined in, or you might have mixed up default and named imports.";
-            null === type ? isStaticChildren = "null" : isArrayImpl(type) ? isStaticChildren = "array" : void 0 !== type && type.$$typeof === REACT_ELEMENT_TYPE ? (isStaticChildren = "<" + (getComponentNameFromType(type.type) || "Unknown") + " />", children = " Did you accidentally export a JSX literal instead of a component?") : isStaticChildren = typeof type;
-            console.error(
-              "React.jsx: type is invalid -- expected a string (for built-in components) or a class/function (for composite components) but got: %s.%s",
-              isStaticChildren,
-              children
-            );
-          }
-          if (hasOwnProperty.call(config, "key")) {
-            children = getComponentNameFromType(type);
-            var keys = Object.keys(config).filter(function(k) {
-              return "key" !== k;
-            });
-            isStaticChildren = 0 < keys.length ? "{key: someKey, " + keys.join(": ..., ") + ": ...}" : "{key: someKey}";
-            didWarnAboutKeySpread[children + isStaticChildren] || (keys = 0 < keys.length ? "{" + keys.join(": ..., ") + ": ...}" : "{}", console.error(
-              'A props object containing a "key" prop is being spread into JSX:\n  let props = %s;\n  <%s {...props} />\nReact keys must be passed directly to JSX without using spread:\n  let props = %s;\n  <%s key={someKey} {...props} />',
-              isStaticChildren,
-              children,
-              keys,
-              children
-            ), didWarnAboutKeySpread[children + isStaticChildren] = true);
-          }
-          children = null;
-          void 0 !== maybeKey && (checkKeyStringCoercion(maybeKey), children = "" + maybeKey);
-          hasValidKey(config) && (checkKeyStringCoercion(config.key), children = "" + config.key);
-          if ("key" in config) {
-            maybeKey = {};
-            for (var propName in config)
-              "key" !== propName && (maybeKey[propName] = config[propName]);
-          } else maybeKey = config;
-          children && defineKeyPropWarningGetter(
-            maybeKey,
-            "function" === typeof type ? type.displayName || type.name || "Unknown" : type
-          );
-          return ReactElement(type, children, self2, source, getOwner(), maybeKey);
-        }
-        function validateChildKeys(node, parentType) {
-          if ("object" === typeof node && node && node.$$typeof !== REACT_CLIENT_REFERENCE) {
-            if (isArrayImpl(node))
-              for (var i = 0; i < node.length; i++) {
-                var child = node[i];
-                isValidElement(child) && validateExplicitKey(child, parentType);
-              }
-            else if (isValidElement(node))
-              node._store && (node._store.validated = 1);
-            else if (null === node || "object" !== typeof node ? i = null : (i = MAYBE_ITERATOR_SYMBOL && node[MAYBE_ITERATOR_SYMBOL] || node["@@iterator"], i = "function" === typeof i ? i : null), "function" === typeof i && i !== node.entries && (i = i.call(node), i !== node))
-              for (; !(node = i.next()).done; )
-                isValidElement(node.value) && validateExplicitKey(node.value, parentType);
-          }
-        }
-        function isValidElement(object) {
-          return "object" === typeof object && null !== object && object.$$typeof === REACT_ELEMENT_TYPE;
-        }
-        function validateExplicitKey(element, parentType) {
-          if (element._store && !element._store.validated && null == element.key && (element._store.validated = 1, parentType = getCurrentComponentErrorInfo(parentType), !ownerHasKeyUseWarning[parentType])) {
-            ownerHasKeyUseWarning[parentType] = true;
-            var childOwner = "";
-            element && null != element._owner && element._owner !== getOwner() && (childOwner = null, "number" === typeof element._owner.tag ? childOwner = getComponentNameFromType(element._owner.type) : "string" === typeof element._owner.name && (childOwner = element._owner.name), childOwner = " It was passed a child from " + childOwner + ".");
-            var prevGetCurrentStack = ReactSharedInternals.getCurrentStack;
-            ReactSharedInternals.getCurrentStack = function() {
-              var stack = describeUnknownElementTypeFrameInDEV(element.type);
-              prevGetCurrentStack && (stack += prevGetCurrentStack() || "");
-              return stack;
-            };
-            console.error(
-              'Each child in a list should have a unique "key" prop.%s%s See https://react.dev/link/warning-keys for more information.',
-              parentType,
-              childOwner
-            );
-            ReactSharedInternals.getCurrentStack = prevGetCurrentStack;
-          }
-        }
-        function getCurrentComponentErrorInfo(parentType) {
-          var info = "", owner = getOwner();
-          owner && (owner = getComponentNameFromType(owner.type)) && (info = "\n\nCheck the render method of `" + owner + "`.");
-          info || (parentType = getComponentNameFromType(parentType)) && (info = "\n\nCheck the top-level render call using <" + parentType + ">.");
-          return info;
-        }
-        var React5 = require_react(), REACT_ELEMENT_TYPE = Symbol.for("react.transitional.element"), REACT_PORTAL_TYPE = Symbol.for("react.portal"), REACT_FRAGMENT_TYPE = Symbol.for("react.fragment"), REACT_STRICT_MODE_TYPE = Symbol.for("react.strict_mode"), REACT_PROFILER_TYPE = Symbol.for("react.profiler");
-        Symbol.for("react.provider");
-        var REACT_CONSUMER_TYPE = Symbol.for("react.consumer"), REACT_CONTEXT_TYPE = Symbol.for("react.context"), REACT_FORWARD_REF_TYPE = Symbol.for("react.forward_ref"), REACT_SUSPENSE_TYPE = Symbol.for("react.suspense"), REACT_SUSPENSE_LIST_TYPE = Symbol.for("react.suspense_list"), REACT_MEMO_TYPE = Symbol.for("react.memo"), REACT_LAZY_TYPE = Symbol.for("react.lazy"), REACT_OFFSCREEN_TYPE = Symbol.for("react.offscreen"), MAYBE_ITERATOR_SYMBOL = Symbol.iterator, REACT_CLIENT_REFERENCE$2 = Symbol.for("react.client.reference"), ReactSharedInternals = React5.__CLIENT_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE, hasOwnProperty = Object.prototype.hasOwnProperty, assign = Object.assign, REACT_CLIENT_REFERENCE$1 = Symbol.for("react.client.reference"), isArrayImpl = Array.isArray, disabledDepth = 0, prevLog, prevInfo, prevWarn, prevError, prevGroup, prevGroupCollapsed, prevGroupEnd;
-        disabledLog.__reactDisabledLog = true;
-        var prefix, suffix, reentry = false;
-        var componentFrameCache = new ("function" === typeof WeakMap ? WeakMap : Map)();
-        var REACT_CLIENT_REFERENCE = Symbol.for("react.client.reference"), specialPropKeyWarningShown;
-        var didWarnAboutElementRef = {};
-        var didWarnAboutKeySpread = {}, ownerHasKeyUseWarning = {};
-        exports.Fragment = REACT_FRAGMENT_TYPE;
-        exports.jsx = function(type, config, maybeKey, source, self2) {
-          return jsxDEVImpl(type, config, maybeKey, false, source, self2);
-        };
-        exports.jsxs = function(type, config, maybeKey, source, self2) {
-          return jsxDEVImpl(type, config, maybeKey, true, source, self2);
-        };
-      })();
-    }
-  });
-
-  // react-user-mgmt/node_modules/react/jsx-runtime.js
-  var require_jsx_runtime = __commonJS({
-    "react-user-mgmt/node_modules/react/jsx-runtime.js"(exports, module2) {
-      "use strict";
-      if (false) {
-        module2.exports = null;
-      } else {
-        module2.exports = require_react_jsx_runtime_development();
-      }
-    }
-  });
-
-  // react-user-mgmt/node_modules/react-dom/cjs/react-dom.development.js
-  var require_react_dom_development = __commonJS({
-    "react-user-mgmt/node_modules/react-dom/cjs/react-dom.development.js"(exports) {
-      "use strict";
-      (function() {
-        function noop() {
-        }
-        function testStringCoercion(value) {
-          return "" + value;
-        }
-        function createPortal$1(children, containerInfo, implementation) {
-          var key = 3 < arguments.length && void 0 !== arguments[3] ? arguments[3] : null;
-          try {
-            testStringCoercion(key);
-            var JSCompiler_inline_result = false;
-          } catch (e) {
-            JSCompiler_inline_result = true;
-          }
-          JSCompiler_inline_result && (console.error(
-            "The provided key is an unsupported type %s. This value must be coerced to a string before using it here.",
-            "function" === typeof Symbol && Symbol.toStringTag && key[Symbol.toStringTag] || key.constructor.name || "Object"
-          ), testStringCoercion(key));
-          return {
-            $$typeof: REACT_PORTAL_TYPE,
-            key: null == key ? null : "" + key,
-            children,
-            containerInfo,
-            implementation
-          };
-        }
-        function getCrossOriginStringAs(as, input) {
-          if ("font" === as) return "";
-          if ("string" === typeof input)
-            return "use-credentials" === input ? input : "";
-        }
-        function getValueDescriptorExpectingObjectForWarning(thing) {
-          return null === thing ? "`null`" : void 0 === thing ? "`undefined`" : "" === thing ? "an empty string" : 'something with type "' + typeof thing + '"';
-        }
-        function getValueDescriptorExpectingEnumForWarning(thing) {
-          return null === thing ? "`null`" : void 0 === thing ? "`undefined`" : "" === thing ? "an empty string" : "string" === typeof thing ? JSON.stringify(thing) : "number" === typeof thing ? "`" + thing + "`" : 'something with type "' + typeof thing + '"';
-        }
-        function resolveDispatcher() {
-          var dispatcher = ReactSharedInternals.H;
-          null === dispatcher && console.error(
-            "Invalid hook call. Hooks can only be called inside of the body of a function component. This could happen for one of the following reasons:\n1. You might have mismatching versions of React and the renderer (such as React DOM)\n2. You might be breaking the Rules of Hooks\n3. You might have more than one copy of React in the same app\nSee https://react.dev/link/invalid-hook-call for tips about how to debug and fix this problem."
-          );
-          return dispatcher;
-        }
-        "undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__ && "function" === typeof __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStart && __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStart(Error());
-        var React5 = require_react(), Internals = {
-          d: {
-            f: noop,
-            r: function() {
-              throw Error(
-                "Invalid form element. requestFormReset must be passed a form that was rendered by React."
-              );
-            },
-            D: noop,
-            C: noop,
-            L: noop,
-            m: noop,
-            X: noop,
-            S: noop,
-            M: noop
-          },
-          p: 0,
-          findDOMNode: null
-        }, REACT_PORTAL_TYPE = Symbol.for("react.portal"), ReactSharedInternals = React5.__CLIENT_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE;
-        "function" === typeof Map && null != Map.prototype && "function" === typeof Map.prototype.forEach && "function" === typeof Set && null != Set.prototype && "function" === typeof Set.prototype.clear && "function" === typeof Set.prototype.forEach || console.error(
-          "React depends on Map and Set built-in types. Make sure that you load a polyfill in older browsers. https://reactjs.org/link/react-polyfills"
-        );
-        exports.__DOM_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE = Internals;
-        exports.createPortal = function(children, container) {
-          var key = 2 < arguments.length && void 0 !== arguments[2] ? arguments[2] : null;
-          if (!container || 1 !== container.nodeType && 9 !== container.nodeType && 11 !== container.nodeType)
-            throw Error("Target container is not a DOM element.");
-          return createPortal$1(children, container, null, key);
-        };
-        exports.flushSync = function(fn) {
-          var previousTransition = ReactSharedInternals.T, previousUpdatePriority = Internals.p;
-          try {
-            if (ReactSharedInternals.T = null, Internals.p = 2, fn)
-              return fn();
-          } finally {
-            ReactSharedInternals.T = previousTransition, Internals.p = previousUpdatePriority, Internals.d.f() && console.error(
-              "flushSync was called from inside a lifecycle method. React cannot flush when React is already rendering. Consider moving this call to a scheduler task or micro task."
-            );
-          }
-        };
-        exports.preconnect = function(href, options) {
-          "string" === typeof href && href ? null != options && "object" !== typeof options ? console.error(
-            "ReactDOM.preconnect(): Expected the `options` argument (second) to be an object but encountered %s instead. The only supported option at this time is `crossOrigin` which accepts a string.",
-            getValueDescriptorExpectingEnumForWarning(options)
-          ) : null != options && "string" !== typeof options.crossOrigin && console.error(
-            "ReactDOM.preconnect(): Expected the `crossOrigin` option (second argument) to be a string but encountered %s instead. Try removing this option or passing a string value instead.",
-            getValueDescriptorExpectingObjectForWarning(options.crossOrigin)
-          ) : console.error(
-            "ReactDOM.preconnect(): Expected the `href` argument (first) to be a non-empty string but encountered %s instead.",
-            getValueDescriptorExpectingObjectForWarning(href)
-          );
-          "string" === typeof href && (options ? (options = options.crossOrigin, options = "string" === typeof options ? "use-credentials" === options ? options : "" : void 0) : options = null, Internals.d.C(href, options));
-        };
-        exports.prefetchDNS = function(href) {
-          if ("string" !== typeof href || !href)
-            console.error(
-              "ReactDOM.prefetchDNS(): Expected the `href` argument (first) to be a non-empty string but encountered %s instead.",
-              getValueDescriptorExpectingObjectForWarning(href)
-            );
-          else if (1 < arguments.length) {
-            var options = arguments[1];
-            "object" === typeof options && options.hasOwnProperty("crossOrigin") ? console.error(
-              "ReactDOM.prefetchDNS(): Expected only one argument, `href`, but encountered %s as a second argument instead. This argument is reserved for future options and is currently disallowed. It looks like the you are attempting to set a crossOrigin property for this DNS lookup hint. Browsers do not perform DNS queries using CORS and setting this attribute on the resource hint has no effect. Try calling ReactDOM.prefetchDNS() with just a single string argument, `href`.",
-              getValueDescriptorExpectingEnumForWarning(options)
-            ) : console.error(
-              "ReactDOM.prefetchDNS(): Expected only one argument, `href`, but encountered %s as a second argument instead. This argument is reserved for future options and is currently disallowed. Try calling ReactDOM.prefetchDNS() with just a single string argument, `href`.",
-              getValueDescriptorExpectingEnumForWarning(options)
-            );
-          }
-          "string" === typeof href && Internals.d.D(href);
-        };
-        exports.preinit = function(href, options) {
-          "string" === typeof href && href ? null == options || "object" !== typeof options ? console.error(
-            "ReactDOM.preinit(): Expected the `options` argument (second) to be an object with an `as` property describing the type of resource to be preinitialized but encountered %s instead.",
-            getValueDescriptorExpectingEnumForWarning(options)
-          ) : "style" !== options.as && "script" !== options.as && console.error(
-            'ReactDOM.preinit(): Expected the `as` property in the `options` argument (second) to contain a valid value describing the type of resource to be preinitialized but encountered %s instead. Valid values for `as` are "style" and "script".',
-            getValueDescriptorExpectingEnumForWarning(options.as)
-          ) : console.error(
-            "ReactDOM.preinit(): Expected the `href` argument (first) to be a non-empty string but encountered %s instead.",
-            getValueDescriptorExpectingObjectForWarning(href)
-          );
-          if ("string" === typeof href && options && "string" === typeof options.as) {
-            var as = options.as, crossOrigin = getCrossOriginStringAs(as, options.crossOrigin), integrity = "string" === typeof options.integrity ? options.integrity : void 0, fetchPriority = "string" === typeof options.fetchPriority ? options.fetchPriority : void 0;
-            "style" === as ? Internals.d.S(
-              href,
-              "string" === typeof options.precedence ? options.precedence : void 0,
-              {
-                crossOrigin,
-                integrity,
-                fetchPriority
-              }
-            ) : "script" === as && Internals.d.X(href, {
-              crossOrigin,
-              integrity,
-              fetchPriority,
-              nonce: "string" === typeof options.nonce ? options.nonce : void 0
-            });
-          }
-        };
-        exports.preinitModule = function(href, options) {
-          var encountered = "";
-          "string" === typeof href && href || (encountered += " The `href` argument encountered was " + getValueDescriptorExpectingObjectForWarning(href) + ".");
-          void 0 !== options && "object" !== typeof options ? encountered += " The `options` argument encountered was " + getValueDescriptorExpectingObjectForWarning(options) + "." : options && "as" in options && "script" !== options.as && (encountered += " The `as` option encountered was " + getValueDescriptorExpectingEnumForWarning(options.as) + ".");
-          if (encountered)
-            console.error(
-              "ReactDOM.preinitModule(): Expected up to two arguments, a non-empty `href` string and, optionally, an `options` object with a valid `as` property.%s",
-              encountered
-            );
-          else
-            switch (encountered = options && "string" === typeof options.as ? options.as : "script", encountered) {
-              case "script":
-                break;
-              default:
-                encountered = getValueDescriptorExpectingEnumForWarning(encountered), console.error(
-                  'ReactDOM.preinitModule(): Currently the only supported "as" type for this function is "script" but received "%s" instead. This warning was generated for `href` "%s". In the future other module types will be supported, aligning with the import-attributes proposal. Learn more here: (https://github.com/tc39/proposal-import-attributes)',
-                  encountered,
-                  href
-                );
-            }
-          if ("string" === typeof href)
-            if ("object" === typeof options && null !== options) {
-              if (null == options.as || "script" === options.as)
-                encountered = getCrossOriginStringAs(
-                  options.as,
-                  options.crossOrigin
-                ), Internals.d.M(href, {
-                  crossOrigin: encountered,
-                  integrity: "string" === typeof options.integrity ? options.integrity : void 0,
-                  nonce: "string" === typeof options.nonce ? options.nonce : void 0
-                });
-            } else null == options && Internals.d.M(href);
-        };
-        exports.preload = function(href, options) {
-          var encountered = "";
-          "string" === typeof href && href || (encountered += " The `href` argument encountered was " + getValueDescriptorExpectingObjectForWarning(href) + ".");
-          null == options || "object" !== typeof options ? encountered += " The `options` argument encountered was " + getValueDescriptorExpectingObjectForWarning(options) + "." : "string" === typeof options.as && options.as || (encountered += " The `as` option encountered was " + getValueDescriptorExpectingObjectForWarning(options.as) + ".");
-          encountered && console.error(
-            'ReactDOM.preload(): Expected two arguments, a non-empty `href` string and an `options` object with an `as` property valid for a `<link rel="preload" as="..." />` tag.%s',
-            encountered
-          );
-          if ("string" === typeof href && "object" === typeof options && null !== options && "string" === typeof options.as) {
-            encountered = options.as;
-            var crossOrigin = getCrossOriginStringAs(
-              encountered,
-              options.crossOrigin
-            );
-            Internals.d.L(href, encountered, {
-              crossOrigin,
-              integrity: "string" === typeof options.integrity ? options.integrity : void 0,
-              nonce: "string" === typeof options.nonce ? options.nonce : void 0,
-              type: "string" === typeof options.type ? options.type : void 0,
-              fetchPriority: "string" === typeof options.fetchPriority ? options.fetchPriority : void 0,
-              referrerPolicy: "string" === typeof options.referrerPolicy ? options.referrerPolicy : void 0,
-              imageSrcSet: "string" === typeof options.imageSrcSet ? options.imageSrcSet : void 0,
-              imageSizes: "string" === typeof options.imageSizes ? options.imageSizes : void 0,
-              media: "string" === typeof options.media ? options.media : void 0
-            });
-          }
-        };
-        exports.preloadModule = function(href, options) {
-          var encountered = "";
-          "string" === typeof href && href || (encountered += " The `href` argument encountered was " + getValueDescriptorExpectingObjectForWarning(href) + ".");
-          void 0 !== options && "object" !== typeof options ? encountered += " The `options` argument encountered was " + getValueDescriptorExpectingObjectForWarning(options) + "." : options && "as" in options && "string" !== typeof options.as && (encountered += " The `as` option encountered was " + getValueDescriptorExpectingObjectForWarning(options.as) + ".");
-          encountered && console.error(
-            'ReactDOM.preloadModule(): Expected two arguments, a non-empty `href` string and, optionally, an `options` object with an `as` property valid for a `<link rel="modulepreload" as="..." />` tag.%s',
-            encountered
-          );
-          "string" === typeof href && (options ? (encountered = getCrossOriginStringAs(
-            options.as,
-            options.crossOrigin
-          ), Internals.d.m(href, {
-            as: "string" === typeof options.as && "script" !== options.as ? options.as : void 0,
-            crossOrigin: encountered,
-            integrity: "string" === typeof options.integrity ? options.integrity : void 0
-          })) : Internals.d.m(href));
-        };
-        exports.requestFormReset = function(form) {
-          Internals.d.r(form);
-        };
-        exports.unstable_batchedUpdates = function(fn, a) {
-          return fn(a);
-        };
-        exports.useFormState = function(action, initialState, permalink) {
-          return resolveDispatcher().useFormState(action, initialState, permalink);
-        };
-        exports.useFormStatus = function() {
-          return resolveDispatcher().useHostTransitionStatus();
-        };
-        exports.version = "19.0.0";
-        "undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__ && "function" === typeof __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStop && __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStop(Error());
-      })();
-    }
-  });
-
-  // react-user-mgmt/node_modules/react-dom/index.js
-  var require_react_dom = __commonJS({
-    "react-user-mgmt/node_modules/react-dom/index.js"(exports, module2) {
-      "use strict";
-      if (false) {
-        checkDCE();
-        module2.exports = null;
-      } else {
-        module2.exports = require_react_dom_development();
-      }
-    }
-  });
-
   // react-user-mgmt/node_modules/scheduler/cjs/scheduler.development.js
   var require_scheduler_development = __commonJS({
     "react-user-mgmt/node_modules/scheduler/cjs/scheduler.development.js"(exports) {
@@ -2142,6 +1434,263 @@
     }
   });
 
+  // react-user-mgmt/node_modules/react-dom/cjs/react-dom.development.js
+  var require_react_dom_development = __commonJS({
+    "react-user-mgmt/node_modules/react-dom/cjs/react-dom.development.js"(exports) {
+      "use strict";
+      (function() {
+        function noop() {
+        }
+        function testStringCoercion(value) {
+          return "" + value;
+        }
+        function createPortal$1(children, containerInfo, implementation) {
+          var key = 3 < arguments.length && void 0 !== arguments[3] ? arguments[3] : null;
+          try {
+            testStringCoercion(key);
+            var JSCompiler_inline_result = false;
+          } catch (e) {
+            JSCompiler_inline_result = true;
+          }
+          JSCompiler_inline_result && (console.error(
+            "The provided key is an unsupported type %s. This value must be coerced to a string before using it here.",
+            "function" === typeof Symbol && Symbol.toStringTag && key[Symbol.toStringTag] || key.constructor.name || "Object"
+          ), testStringCoercion(key));
+          return {
+            $$typeof: REACT_PORTAL_TYPE,
+            key: null == key ? null : "" + key,
+            children,
+            containerInfo,
+            implementation
+          };
+        }
+        function getCrossOriginStringAs(as, input) {
+          if ("font" === as) return "";
+          if ("string" === typeof input)
+            return "use-credentials" === input ? input : "";
+        }
+        function getValueDescriptorExpectingObjectForWarning(thing) {
+          return null === thing ? "`null`" : void 0 === thing ? "`undefined`" : "" === thing ? "an empty string" : 'something with type "' + typeof thing + '"';
+        }
+        function getValueDescriptorExpectingEnumForWarning(thing) {
+          return null === thing ? "`null`" : void 0 === thing ? "`undefined`" : "" === thing ? "an empty string" : "string" === typeof thing ? JSON.stringify(thing) : "number" === typeof thing ? "`" + thing + "`" : 'something with type "' + typeof thing + '"';
+        }
+        function resolveDispatcher() {
+          var dispatcher = ReactSharedInternals.H;
+          null === dispatcher && console.error(
+            "Invalid hook call. Hooks can only be called inside of the body of a function component. This could happen for one of the following reasons:\n1. You might have mismatching versions of React and the renderer (such as React DOM)\n2. You might be breaking the Rules of Hooks\n3. You might have more than one copy of React in the same app\nSee https://react.dev/link/invalid-hook-call for tips about how to debug and fix this problem."
+          );
+          return dispatcher;
+        }
+        "undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__ && "function" === typeof __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStart && __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStart(Error());
+        var React10 = require_react(), Internals = {
+          d: {
+            f: noop,
+            r: function() {
+              throw Error(
+                "Invalid form element. requestFormReset must be passed a form that was rendered by React."
+              );
+            },
+            D: noop,
+            C: noop,
+            L: noop,
+            m: noop,
+            X: noop,
+            S: noop,
+            M: noop
+          },
+          p: 0,
+          findDOMNode: null
+        }, REACT_PORTAL_TYPE = Symbol.for("react.portal"), ReactSharedInternals = React10.__CLIENT_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE;
+        "function" === typeof Map && null != Map.prototype && "function" === typeof Map.prototype.forEach && "function" === typeof Set && null != Set.prototype && "function" === typeof Set.prototype.clear && "function" === typeof Set.prototype.forEach || console.error(
+          "React depends on Map and Set built-in types. Make sure that you load a polyfill in older browsers. https://reactjs.org/link/react-polyfills"
+        );
+        exports.__DOM_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE = Internals;
+        exports.createPortal = function(children, container) {
+          var key = 2 < arguments.length && void 0 !== arguments[2] ? arguments[2] : null;
+          if (!container || 1 !== container.nodeType && 9 !== container.nodeType && 11 !== container.nodeType)
+            throw Error("Target container is not a DOM element.");
+          return createPortal$1(children, container, null, key);
+        };
+        exports.flushSync = function(fn) {
+          var previousTransition = ReactSharedInternals.T, previousUpdatePriority = Internals.p;
+          try {
+            if (ReactSharedInternals.T = null, Internals.p = 2, fn)
+              return fn();
+          } finally {
+            ReactSharedInternals.T = previousTransition, Internals.p = previousUpdatePriority, Internals.d.f() && console.error(
+              "flushSync was called from inside a lifecycle method. React cannot flush when React is already rendering. Consider moving this call to a scheduler task or micro task."
+            );
+          }
+        };
+        exports.preconnect = function(href, options) {
+          "string" === typeof href && href ? null != options && "object" !== typeof options ? console.error(
+            "ReactDOM.preconnect(): Expected the `options` argument (second) to be an object but encountered %s instead. The only supported option at this time is `crossOrigin` which accepts a string.",
+            getValueDescriptorExpectingEnumForWarning(options)
+          ) : null != options && "string" !== typeof options.crossOrigin && console.error(
+            "ReactDOM.preconnect(): Expected the `crossOrigin` option (second argument) to be a string but encountered %s instead. Try removing this option or passing a string value instead.",
+            getValueDescriptorExpectingObjectForWarning(options.crossOrigin)
+          ) : console.error(
+            "ReactDOM.preconnect(): Expected the `href` argument (first) to be a non-empty string but encountered %s instead.",
+            getValueDescriptorExpectingObjectForWarning(href)
+          );
+          "string" === typeof href && (options ? (options = options.crossOrigin, options = "string" === typeof options ? "use-credentials" === options ? options : "" : void 0) : options = null, Internals.d.C(href, options));
+        };
+        exports.prefetchDNS = function(href) {
+          if ("string" !== typeof href || !href)
+            console.error(
+              "ReactDOM.prefetchDNS(): Expected the `href` argument (first) to be a non-empty string but encountered %s instead.",
+              getValueDescriptorExpectingObjectForWarning(href)
+            );
+          else if (1 < arguments.length) {
+            var options = arguments[1];
+            "object" === typeof options && options.hasOwnProperty("crossOrigin") ? console.error(
+              "ReactDOM.prefetchDNS(): Expected only one argument, `href`, but encountered %s as a second argument instead. This argument is reserved for future options and is currently disallowed. It looks like the you are attempting to set a crossOrigin property for this DNS lookup hint. Browsers do not perform DNS queries using CORS and setting this attribute on the resource hint has no effect. Try calling ReactDOM.prefetchDNS() with just a single string argument, `href`.",
+              getValueDescriptorExpectingEnumForWarning(options)
+            ) : console.error(
+              "ReactDOM.prefetchDNS(): Expected only one argument, `href`, but encountered %s as a second argument instead. This argument is reserved for future options and is currently disallowed. Try calling ReactDOM.prefetchDNS() with just a single string argument, `href`.",
+              getValueDescriptorExpectingEnumForWarning(options)
+            );
+          }
+          "string" === typeof href && Internals.d.D(href);
+        };
+        exports.preinit = function(href, options) {
+          "string" === typeof href && href ? null == options || "object" !== typeof options ? console.error(
+            "ReactDOM.preinit(): Expected the `options` argument (second) to be an object with an `as` property describing the type of resource to be preinitialized but encountered %s instead.",
+            getValueDescriptorExpectingEnumForWarning(options)
+          ) : "style" !== options.as && "script" !== options.as && console.error(
+            'ReactDOM.preinit(): Expected the `as` property in the `options` argument (second) to contain a valid value describing the type of resource to be preinitialized but encountered %s instead. Valid values for `as` are "style" and "script".',
+            getValueDescriptorExpectingEnumForWarning(options.as)
+          ) : console.error(
+            "ReactDOM.preinit(): Expected the `href` argument (first) to be a non-empty string but encountered %s instead.",
+            getValueDescriptorExpectingObjectForWarning(href)
+          );
+          if ("string" === typeof href && options && "string" === typeof options.as) {
+            var as = options.as, crossOrigin = getCrossOriginStringAs(as, options.crossOrigin), integrity = "string" === typeof options.integrity ? options.integrity : void 0, fetchPriority = "string" === typeof options.fetchPriority ? options.fetchPriority : void 0;
+            "style" === as ? Internals.d.S(
+              href,
+              "string" === typeof options.precedence ? options.precedence : void 0,
+              {
+                crossOrigin,
+                integrity,
+                fetchPriority
+              }
+            ) : "script" === as && Internals.d.X(href, {
+              crossOrigin,
+              integrity,
+              fetchPriority,
+              nonce: "string" === typeof options.nonce ? options.nonce : void 0
+            });
+          }
+        };
+        exports.preinitModule = function(href, options) {
+          var encountered = "";
+          "string" === typeof href && href || (encountered += " The `href` argument encountered was " + getValueDescriptorExpectingObjectForWarning(href) + ".");
+          void 0 !== options && "object" !== typeof options ? encountered += " The `options` argument encountered was " + getValueDescriptorExpectingObjectForWarning(options) + "." : options && "as" in options && "script" !== options.as && (encountered += " The `as` option encountered was " + getValueDescriptorExpectingEnumForWarning(options.as) + ".");
+          if (encountered)
+            console.error(
+              "ReactDOM.preinitModule(): Expected up to two arguments, a non-empty `href` string and, optionally, an `options` object with a valid `as` property.%s",
+              encountered
+            );
+          else
+            switch (encountered = options && "string" === typeof options.as ? options.as : "script", encountered) {
+              case "script":
+                break;
+              default:
+                encountered = getValueDescriptorExpectingEnumForWarning(encountered), console.error(
+                  'ReactDOM.preinitModule(): Currently the only supported "as" type for this function is "script" but received "%s" instead. This warning was generated for `href` "%s". In the future other module types will be supported, aligning with the import-attributes proposal. Learn more here: (https://github.com/tc39/proposal-import-attributes)',
+                  encountered,
+                  href
+                );
+            }
+          if ("string" === typeof href)
+            if ("object" === typeof options && null !== options) {
+              if (null == options.as || "script" === options.as)
+                encountered = getCrossOriginStringAs(
+                  options.as,
+                  options.crossOrigin
+                ), Internals.d.M(href, {
+                  crossOrigin: encountered,
+                  integrity: "string" === typeof options.integrity ? options.integrity : void 0,
+                  nonce: "string" === typeof options.nonce ? options.nonce : void 0
+                });
+            } else null == options && Internals.d.M(href);
+        };
+        exports.preload = function(href, options) {
+          var encountered = "";
+          "string" === typeof href && href || (encountered += " The `href` argument encountered was " + getValueDescriptorExpectingObjectForWarning(href) + ".");
+          null == options || "object" !== typeof options ? encountered += " The `options` argument encountered was " + getValueDescriptorExpectingObjectForWarning(options) + "." : "string" === typeof options.as && options.as || (encountered += " The `as` option encountered was " + getValueDescriptorExpectingObjectForWarning(options.as) + ".");
+          encountered && console.error(
+            'ReactDOM.preload(): Expected two arguments, a non-empty `href` string and an `options` object with an `as` property valid for a `<link rel="preload" as="..." />` tag.%s',
+            encountered
+          );
+          if ("string" === typeof href && "object" === typeof options && null !== options && "string" === typeof options.as) {
+            encountered = options.as;
+            var crossOrigin = getCrossOriginStringAs(
+              encountered,
+              options.crossOrigin
+            );
+            Internals.d.L(href, encountered, {
+              crossOrigin,
+              integrity: "string" === typeof options.integrity ? options.integrity : void 0,
+              nonce: "string" === typeof options.nonce ? options.nonce : void 0,
+              type: "string" === typeof options.type ? options.type : void 0,
+              fetchPriority: "string" === typeof options.fetchPriority ? options.fetchPriority : void 0,
+              referrerPolicy: "string" === typeof options.referrerPolicy ? options.referrerPolicy : void 0,
+              imageSrcSet: "string" === typeof options.imageSrcSet ? options.imageSrcSet : void 0,
+              imageSizes: "string" === typeof options.imageSizes ? options.imageSizes : void 0,
+              media: "string" === typeof options.media ? options.media : void 0
+            });
+          }
+        };
+        exports.preloadModule = function(href, options) {
+          var encountered = "";
+          "string" === typeof href && href || (encountered += " The `href` argument encountered was " + getValueDescriptorExpectingObjectForWarning(href) + ".");
+          void 0 !== options && "object" !== typeof options ? encountered += " The `options` argument encountered was " + getValueDescriptorExpectingObjectForWarning(options) + "." : options && "as" in options && "string" !== typeof options.as && (encountered += " The `as` option encountered was " + getValueDescriptorExpectingObjectForWarning(options.as) + ".");
+          encountered && console.error(
+            'ReactDOM.preloadModule(): Expected two arguments, a non-empty `href` string and, optionally, an `options` object with an `as` property valid for a `<link rel="modulepreload" as="..." />` tag.%s',
+            encountered
+          );
+          "string" === typeof href && (options ? (encountered = getCrossOriginStringAs(
+            options.as,
+            options.crossOrigin
+          ), Internals.d.m(href, {
+            as: "string" === typeof options.as && "script" !== options.as ? options.as : void 0,
+            crossOrigin: encountered,
+            integrity: "string" === typeof options.integrity ? options.integrity : void 0
+          })) : Internals.d.m(href));
+        };
+        exports.requestFormReset = function(form) {
+          Internals.d.r(form);
+        };
+        exports.unstable_batchedUpdates = function(fn, a) {
+          return fn(a);
+        };
+        exports.useFormState = function(action, initialState, permalink) {
+          return resolveDispatcher().useFormState(action, initialState, permalink);
+        };
+        exports.useFormStatus = function() {
+          return resolveDispatcher().useHostTransitionStatus();
+        };
+        exports.version = "19.0.0";
+        "undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__ && "function" === typeof __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStop && __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStop(Error());
+      })();
+    }
+  });
+
+  // react-user-mgmt/node_modules/react-dom/index.js
+  var require_react_dom = __commonJS({
+    "react-user-mgmt/node_modules/react-dom/index.js"(exports, module2) {
+      "use strict";
+      if (false) {
+        checkDCE();
+        module2.exports = null;
+      } else {
+        module2.exports = require_react_dom_development();
+      }
+    }
+  });
+
   // react-user-mgmt/node_modules/react-dom/cjs/react-dom-client.development.js
   var require_react_dom_client_development = __commonJS({
     "react-user-mgmt/node_modules/react-dom/cjs/react-dom-client.development.js"(exports) {
@@ -2212,9 +1761,9 @@
         }
         function warnForMissingKey() {
         }
-        function setToSortedString(set) {
+        function setToSortedString(set2) {
           var array = [];
-          set.forEach(function(value) {
+          set2.forEach(function(value) {
             array.push(value);
           });
           return array.sort().join(", ");
@@ -3300,16 +2849,16 @@
           checkFormFieldValueStringCoercion(node[valueField]);
           var currentValue = "" + node[valueField];
           if (!node.hasOwnProperty(valueField) && "undefined" !== typeof descriptor && "function" === typeof descriptor.get && "function" === typeof descriptor.set) {
-            var get = descriptor.get, set = descriptor.set;
+            var get2 = descriptor.get, set2 = descriptor.set;
             Object.defineProperty(node, valueField, {
               configurable: true,
               get: function() {
-                return get.call(this);
+                return get2.call(this);
               },
               set: function(value) {
                 checkFormFieldValueStringCoercion(value);
                 currentValue = "" + value;
-                set.call(this, value);
+                set2.call(this, value);
               }
             });
             Object.defineProperty(node, valueField, {
@@ -3408,7 +2957,7 @@
           "number" === type && getActiveElement(node.ownerDocument) === node || node.defaultValue === "" + value || (node.defaultValue = "" + value);
         }
         function validateOptionProps(element, props) {
-          null == props.value && ("object" === typeof props.children && null !== props.children ? React5.Children.forEach(props.children, function(child) {
+          null == props.value && ("object" === typeof props.children && null !== props.children ? React10.Children.forEach(props.children, function(child) {
             null == child || "string" === typeof child || "number" === typeof child || "bigint" === typeof child || didWarnInvalidChild || (didWarnInvalidChild = true, console.error(
               "Cannot infer the option value of complex children. Pass a `value` prop or use a plain string as children to <option>."
             ));
@@ -16878,13 +16427,13 @@
           ));
         }
         "undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__ && "function" === typeof __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStart && __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStart(Error());
-        var Scheduler = require_scheduler(), React5 = require_react(), ReactDOM = require_react_dom(), REACT_LEGACY_ELEMENT_TYPE = Symbol.for("react.element"), REACT_ELEMENT_TYPE = Symbol.for("react.transitional.element"), REACT_PORTAL_TYPE = Symbol.for("react.portal"), REACT_FRAGMENT_TYPE = Symbol.for("react.fragment"), REACT_STRICT_MODE_TYPE = Symbol.for("react.strict_mode"), REACT_PROFILER_TYPE = Symbol.for("react.profiler"), REACT_PROVIDER_TYPE = Symbol.for("react.provider"), REACT_CONSUMER_TYPE = Symbol.for("react.consumer"), REACT_CONTEXT_TYPE = Symbol.for("react.context"), REACT_FORWARD_REF_TYPE = Symbol.for("react.forward_ref"), REACT_SUSPENSE_TYPE = Symbol.for("react.suspense"), REACT_SUSPENSE_LIST_TYPE = Symbol.for("react.suspense_list"), REACT_MEMO_TYPE = Symbol.for("react.memo"), REACT_LAZY_TYPE = Symbol.for("react.lazy");
+        var Scheduler = require_scheduler(), React10 = require_react(), ReactDOM = require_react_dom(), REACT_LEGACY_ELEMENT_TYPE = Symbol.for("react.element"), REACT_ELEMENT_TYPE = Symbol.for("react.transitional.element"), REACT_PORTAL_TYPE = Symbol.for("react.portal"), REACT_FRAGMENT_TYPE = Symbol.for("react.fragment"), REACT_STRICT_MODE_TYPE = Symbol.for("react.strict_mode"), REACT_PROFILER_TYPE = Symbol.for("react.profiler"), REACT_PROVIDER_TYPE = Symbol.for("react.provider"), REACT_CONSUMER_TYPE = Symbol.for("react.consumer"), REACT_CONTEXT_TYPE = Symbol.for("react.context"), REACT_FORWARD_REF_TYPE = Symbol.for("react.forward_ref"), REACT_SUSPENSE_TYPE = Symbol.for("react.suspense"), REACT_SUSPENSE_LIST_TYPE = Symbol.for("react.suspense_list"), REACT_MEMO_TYPE = Symbol.for("react.memo"), REACT_LAZY_TYPE = Symbol.for("react.lazy");
         Symbol.for("react.scope");
         Symbol.for("react.debug_trace_mode");
         var REACT_OFFSCREEN_TYPE = Symbol.for("react.offscreen");
         Symbol.for("react.legacy_hidden");
         Symbol.for("react.tracing_marker");
-        var REACT_MEMO_CACHE_SENTINEL = Symbol.for("react.memo_cache_sentinel"), MAYBE_ITERATOR_SYMBOL = Symbol.iterator, REACT_CLIENT_REFERENCE = Symbol.for("react.client.reference"), ReactSharedInternals = React5.__CLIENT_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE, assign = Object.assign, disabledDepth = 0, prevLog, prevInfo, prevWarn, prevError, prevGroup, prevGroupCollapsed, prevGroupEnd;
+        var REACT_MEMO_CACHE_SENTINEL = Symbol.for("react.memo_cache_sentinel"), MAYBE_ITERATOR_SYMBOL = Symbol.iterator, REACT_CLIENT_REFERENCE = Symbol.for("react.client.reference"), ReactSharedInternals = React10.__CLIENT_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE, assign = Object.assign, disabledDepth = 0, prevLog, prevInfo, prevWarn, prevError, prevGroup, prevGroupCollapsed, prevGroupEnd;
         disabledLog.__reactDisabledLog = true;
         var prefix, suffix, reentry = false;
         var componentFrameCache = new ("function" === typeof WeakMap ? WeakMap : Map)();
@@ -19604,7 +19153,7 @@
           }
         };
         (function() {
-          var isomorphicReactPackageVersion = React5.version;
+          var isomorphicReactPackageVersion = React10.version;
           if ("19.0.0" !== isomorphicReactPackageVersion)
             throw Error(
               'Incompatible React versions: The "react" and "react-dom" packages must have the exact same version. Instead got:\n  - react:      ' + (isomorphicReactPackageVersion + "\n  - react-dom:  19.0.0\nLearn more: https://react.dev/warnings/version-mismatch")
@@ -19745,548 +19294,1617 @@
     }
   });
 
-  // react-user-mgmt/src/main.tsx
-  var import_react7 = __toESM(require_react(), 1);
-
-  // react-user-mgmt/src/components/Dashboard.tsx
-  var import_react4 = __toESM(require_react(), 1);
-
-  // react-user-mgmt/src/components/Header.tsx
-  var import_react = __toESM(require_react(), 1);
-  var import_jsx_runtime = __toESM(require_jsx_runtime(), 1);
-  var Header = ({
-    pageTitle,
-    username,
-    userIsAdmin,
-    userIsLoggedIn,
-    firstGuestUser,
-    userId,
-    setShowAnonConfig
-  }) => {
-    const [isLoggingOut, setIsLoggingOut] = (0, import_react.useState)(false);
-    const navigateTo = (path) => {
-      window.location.href = path;
-    };
-    const handleManageUsers = () => {
-      navigateTo("/admin/users?q=*");
-    };
-    const handleManageRoles = () => {
-      navigateTo("/admin/roles?q=*");
-    };
-    const handleAnonConfig = async () => {
-      setShowAnonConfig(true);
-    };
-    const handleLogout = async () => {
-      setIsLoggingOut(true);
-      try {
-        const response = await fetch("/logout", { method: "POST" });
-        if (response.ok) {
-          window.location.href = "/";
-        }
-      } catch (error) {
-        console.error("Error logging out:", error);
-        setIsLoggingOut(false);
+  // node_modules/@prisma/client/runtime/index-browser.js
+  var require_index_browser = __commonJS({
+    "node_modules/@prisma/client/runtime/index-browser.js"(exports, module2) {
+      "use strict";
+      var he = Object.defineProperty;
+      var We = Object.getOwnPropertyDescriptor;
+      var Ge = Object.getOwnPropertyNames;
+      var Je = Object.prototype.hasOwnProperty;
+      var Me = (e, n) => {
+        for (var i in n) he(e, i, { get: n[i], enumerable: true });
+      };
+      var Xe = (e, n, i, t) => {
+        if (n && typeof n == "object" || typeof n == "function") for (let r of Ge(n)) !Je.call(e, r) && r !== i && he(e, r, { get: () => n[r], enumerable: !(t = We(n, r)) || t.enumerable });
+        return e;
+      };
+      var Ke = (e) => Xe(he({}, "__esModule", { value: true }), e);
+      var Xn = {};
+      Me(Xn, { Decimal: () => je, Public: () => pe, getRuntime: () => Re, makeStrictEnum: () => Pe, objectEnumValues: () => Oe });
+      module2.exports = Ke(Xn);
+      var pe = {};
+      Me(pe, { validator: () => Ce });
+      function Ce(...e) {
+        return (n) => n;
       }
-    };
-    return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "mws-header", children: [
-      /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("h1", { children: [
-        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("a", { href: "/", children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "mws-logo", children: "\u{1F3E0}" }) }),
-        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "divider", children: "|" }),
-        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: pageTitle })
-      ] }),
-      /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "mws-user-info", children: [
-        /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { children: [
-          "Hello, ",
-          username
-        ] }),
-        userIsAdmin && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "mws-admin-dropdown", children: [
-          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { className: "mws-admin-dropbtn", children: "\u2699\uFE0F" }),
-          /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "mws-admin-dropdown-content", children: [
-            /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { onClick: handleManageUsers, className: "mws-admin-form-button", children: "Manage Users" }),
-            /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { onClick: handleManageRoles, className: "mws-admin-form-button", children: "Manage Roles" }),
-            /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { onClick: handleAnonConfig, className: "mws-admin-form-button", children: "Reconfigure Anonymous Access" })
-          ] })
-        ] }),
-        userIsLoggedIn && !firstGuestUser && !userIsAdmin && userId && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
-          "button",
-          {
-            onClick: () => navigateTo(`/admin/users/${userId}`),
-            className: "mws-profile-btn",
-            children: "Profile"
+      var ne = Symbol();
+      var ge = /* @__PURE__ */ new WeakMap();
+      var me = class {
+        constructor(n) {
+          n === ne ? ge.set(this, "Prisma.".concat(this._getName())) : ge.set(this, "new Prisma.".concat(this._getNamespace(), ".").concat(this._getName(), "()"));
+        }
+        _getName() {
+          return this.constructor.name;
+        }
+        toString() {
+          return ge.get(this);
+        }
+      };
+      var G = class extends me {
+        _getNamespace() {
+          return "NullTypes";
+        }
+      };
+      var J = class extends G {
+      };
+      we(J, "DbNull");
+      var X = class extends G {
+      };
+      we(X, "JsonNull");
+      var K = class extends G {
+      };
+      we(K, "AnyNull");
+      var Oe = { classes: { DbNull: J, JsonNull: X, AnyNull: K }, instances: { DbNull: new J(ne), JsonNull: new X(ne), AnyNull: new K(ne) } };
+      function we(e, n) {
+        Object.defineProperty(e, "name", { value: n, configurable: true });
+      }
+      var xe = /* @__PURE__ */ new Set(["toJSON", "$$typeof", "asymmetricMatch", Symbol.iterator, Symbol.toStringTag, Symbol.isConcatSpreadable, Symbol.toPrimitive]);
+      function Pe(e) {
+        return new Proxy(e, { get(n, i) {
+          if (i in n) return n[i];
+          if (!xe.has(i)) throw new TypeError("Invalid enum value: ".concat(String(i)));
+        } });
+      }
+      var Qe = "Cloudflare-Workers";
+      var Ye = "node";
+      function be() {
+        var e, n, i;
+        return typeof Netlify == "object" ? "netlify" : typeof EdgeRuntime == "string" ? "edge-light" : ((e = globalThis.navigator) == null ? void 0 : e.userAgent) === Qe ? "workerd" : globalThis.Deno ? "deno" : globalThis.__lagon__ ? "lagon" : ((i = (n = globalThis.process) == null ? void 0 : n.release) == null ? void 0 : i.name) === Ye ? "node" : globalThis.Bun ? "bun" : globalThis.fastly ? "fastly" : "unknown";
+      }
+      var ze = { node: "Node.js", workerd: "Cloudflare Workers", deno: "Deno and Deno Deploy", netlify: "Netlify Edge Functions", "edge-light": "Edge Runtime (Vercel Edge Functions, Vercel Edge Middleware, Next.js (Pages Router) Edge API Routes, Next.js (App Router) Edge Route Handlers or Next.js Middleware)" };
+      function Re() {
+        let e = be();
+        return { id: e, prettyName: ze[e] || e, isEdge: ["workerd", "deno", "netlify", "edge-light"].includes(e) };
+      }
+      var H = 9e15;
+      var $ = 1e9;
+      var Ne = "0123456789abcdef";
+      var re = "2.3025850929940456840179914546843642076011014886287729760333279009675726096773524802359972050895982983419677840422862486334095254650828067566662873690987816894829072083255546808437998948262331985283935053089653777326288461633662222876982198867465436674744042432743651550489343149393914796194044002221051017141748003688084012647080685567743216228355220114804663715659121373450747856947683463616792101806445070648000277502684916746550586856935673420670581136429224554405758925724208241314695689016758940256776311356919292033376587141660230105703089634572075440370847469940168269282808481184289314848524948644871927809676271275775397027668605952496716674183485704422507197965004714951050492214776567636938662976979522110718264549734772662425709429322582798502585509785265383207606726317164309505995087807523710333101197857547331541421808427543863591778117054309827482385045648019095610299291824318237525357709750539565187697510374970888692180205189339507238539205144634197265287286965110862571492198849978748873771345686209167058";
+      var se = "3.1415926535897932384626433832795028841971693993751058209749445923078164062862089986280348253421170679821480865132823066470938446095505822317253594081284811174502841027019385211055596446229489549303819644288109756659334461284756482337867831652712019091456485669234603486104543266482133936072602491412737245870066063155881748815209209628292540917153643678925903600113305305488204665213841469519415116094330572703657595919530921861173819326117931051185480744623799627495673518857527248912279381830119491298336733624406566430860213949463952247371907021798609437027705392171762931767523846748184676694051320005681271452635608277857713427577896091736371787214684409012249534301465495853710507922796892589235420199561121290219608640344181598136297747713099605187072113499999983729780499510597317328160963185950244594553469083026425223082533446850352619311881710100031378387528865875332083814206171776691473035982534904287554687311595628638823537875937519577818577805321712268066130019278766111959092164201989380952572010654858632789";
+      var ve = { precision: 20, rounding: 4, modulo: 1, toExpNeg: -7, toExpPos: 21, minE: -H, maxE: H, crypto: false };
+      var Te;
+      var Z;
+      var w = true;
+      var ue = "[DecimalError] ";
+      var V = ue + "Invalid argument: ";
+      var Le = ue + "Precision limit exceeded";
+      var De = ue + "crypto unavailable";
+      var Fe = "[object Decimal]";
+      var R = Math.floor;
+      var C = Math.pow;
+      var ye = /^0b([01]+(\.[01]*)?|\.[01]+)(p[+-]?\d+)?$/i;
+      var en = /^0x([0-9a-f]+(\.[0-9a-f]*)?|\.[0-9a-f]+)(p[+-]?\d+)?$/i;
+      var nn = /^0o([0-7]+(\.[0-7]*)?|\.[0-7]+)(p[+-]?\d+)?$/i;
+      var Ie = /^(\d+(\.\d*)?|\.\d+)(e[+-]?\d+)?$/i;
+      var L = 1e7;
+      var m = 7;
+      var tn = 9007199254740991;
+      var rn = re.length - 1;
+      var Ee = se.length - 1;
+      var h = { toStringTag: Fe };
+      h.absoluteValue = h.abs = function() {
+        var e = new this.constructor(this);
+        return e.s < 0 && (e.s = 1), p(e);
+      };
+      h.ceil = function() {
+        return p(new this.constructor(this), this.e + 1, 2);
+      };
+      h.clampedTo = h.clamp = function(e, n) {
+        var i, t = this, r = t.constructor;
+        if (e = new r(e), n = new r(n), !e.s || !n.s) return new r(NaN);
+        if (e.gt(n)) throw Error(V + n);
+        return i = t.cmp(e), i < 0 ? e : t.cmp(n) > 0 ? n : new r(t);
+      };
+      h.comparedTo = h.cmp = function(e) {
+        var n, i, t, r, s = this, o = s.d, u = (e = new s.constructor(e)).d, l = s.s, f = e.s;
+        if (!o || !u) return !l || !f ? NaN : l !== f ? l : o === u ? 0 : !o ^ l < 0 ? 1 : -1;
+        if (!o[0] || !u[0]) return o[0] ? l : u[0] ? -f : 0;
+        if (l !== f) return l;
+        if (s.e !== e.e) return s.e > e.e ^ l < 0 ? 1 : -1;
+        for (t = o.length, r = u.length, n = 0, i = t < r ? t : r; n < i; ++n) if (o[n] !== u[n]) return o[n] > u[n] ^ l < 0 ? 1 : -1;
+        return t === r ? 0 : t > r ^ l < 0 ? 1 : -1;
+      };
+      h.cosine = h.cos = function() {
+        var e, n, i = this, t = i.constructor;
+        return i.d ? i.d[0] ? (e = t.precision, n = t.rounding, t.precision = e + Math.max(i.e, i.sd()) + m, t.rounding = 1, i = sn(t, $e(t, i)), t.precision = e, t.rounding = n, p(Z == 2 || Z == 3 ? i.neg() : i, e, n, true)) : new t(1) : new t(NaN);
+      };
+      h.cubeRoot = h.cbrt = function() {
+        var e, n, i, t, r, s, o, u, l, f, c = this, a = c.constructor;
+        if (!c.isFinite() || c.isZero()) return new a(c);
+        for (w = false, s = c.s * C(c.s * c, 1 / 3), !s || Math.abs(s) == 1 / 0 ? (i = O(c.d), e = c.e, (s = (e - i.length + 1) % 3) && (i += s == 1 || s == -2 ? "0" : "00"), s = C(i, 1 / 3), e = R((e + 1) / 3) - (e % 3 == (e < 0 ? -1 : 2)), s == 1 / 0 ? i = "5e" + e : (i = s.toExponential(), i = i.slice(0, i.indexOf("e") + 1) + e), t = new a(i), t.s = c.s) : t = new a(s.toString()), o = (e = a.precision) + 3; ; ) if (u = t, l = u.times(u).times(u), f = l.plus(c), t = S(f.plus(c).times(u), f.plus(l), o + 2, 1), O(u.d).slice(0, o) === (i = O(t.d)).slice(0, o)) if (i = i.slice(o - 3, o + 1), i == "9999" || !r && i == "4999") {
+          if (!r && (p(u, e + 1, 0), u.times(u).times(u).eq(c))) {
+            t = u;
+            break;
           }
-        ),
-        userIsLoggedIn ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
-          "button",
-          {
-            onClick: handleLogout,
-            className: "mws-logout-button",
-            disabled: isLoggingOut,
-            children: isLoggingOut ? "Logging out..." : "Logout"
-          }
-        ) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
-          "button",
-          {
-            onClick: () => navigateTo("/login"),
-            className: "mws-login-btn",
-            children: "Login"
-          }
-        )
-      ] })
-    ] });
-  };
-  var Header_default = Header;
-
-  // react-user-mgmt/src/components/AnonConfigModal.tsx
-  var import_react2 = __toESM(require_react(), 1);
-  var import_jsx_runtime2 = __toESM(require_jsx_runtime(), 1);
-  function toParams(obj) {
-    const entries = Object.entries(obj).map(([key, value]) => {
-      if (typeof value === "object" && value !== null)
-        throw new Error("Cannot convert object to URLSearchParams");
-      if (typeof value === "function")
-        throw new Error("Cannot convert function to URLSearchParams");
-      if (typeof value === "symbol")
-        throw new Error("Cannot convert symbol to URLSearchParams");
-      if (value === void 0 || value === null)
-        return [key, ""];
-      return [key, value];
-    });
-    return new URLSearchParams(entries.map(([key, value]) => [key, `${value}`]));
-  }
-  var AnonConfigModal = ({
-    initialAllowReads,
-    initialAllowWrites,
-    onClose
-  }) => {
-    const [allowReads, setAllowReads] = (0, import_react2.useState)(initialAllowReads);
-    const [allowWrites, setAllowWrites] = (0, import_react2.useState)(initialAllowWrites);
-    const [isSaving, setIsSaving] = (0, import_react2.useState)(false);
-    const handleSubmit = async (e) => {
-      e.preventDefault();
-      setIsSaving(true);
-      try {
-        const response = await fetch("/admin/post-anon-config", {
-          method: "POST",
-          body: toParams({ allowReads, allowWrites }),
-          headers: { "Content-Type": "application/json" }
-        });
-        if (response.ok) {
-          onClose();
+          o += 4, r = 1;
         } else {
-          console.error("Failed to save anonymous config");
+          (!+i || !+i.slice(1) && i.charAt(0) == "5") && (p(t, e + 1, 1), n = !t.times(t).times(t).eq(c));
+          break;
         }
-      } catch (error) {
-        console.error("Error saving anonymous config:", error);
-      } finally {
-        setIsSaving(false);
-      }
-    };
-    return /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { className: "mws-modal-container", children: /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { className: "mws-modal-content", children: [
-      /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("h1", { children: "Anonymous Access Configuration" }),
-      /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("p", { children: "This configuration allows anonymous users to read and write to the wiki." }),
-      /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("form", { className: "mws-anon-config-form", onSubmit: handleSubmit, children: [
-        /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { className: "mws-modal-section", children: [
-          /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
-            "input",
-            {
-              type: "checkbox",
-              name: "allowReads",
-              checked: allowReads,
-              onChange: (e) => setAllowReads(e.target.checked)
-            }
-          ),
-          " Allow anonymous reads"
-        ] }),
-        /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { className: "mws-modal-section", children: [
-          /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
-            "input",
-            {
-              type: "checkbox",
-              name: "allowWrites",
-              checked: allowWrites,
-              onChange: (e) => setAllowWrites(e.target.checked)
-            }
-          ),
-          " Allow anonymous writes"
-        ] }),
-        /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { className: "mws-modal-buttons", children: /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
-          "button",
-          {
-            type: "submit",
-            className: "mws-modal-button-primary",
-            disabled: isSaving,
-            children: isSaving ? "Saving..." : "Save Changes"
-          }
-        ) })
-      ] })
-    ] }) });
-  };
-  var AnonConfigModal_default = AnonConfigModal;
-
-  // react-user-mgmt/src/components/BagPill.tsx
-  var import_jsx_runtime3 = __toESM(require_jsx_runtime(), 1);
-  var BagPill = ({
-    bagName,
-    isTopmost = false,
-    elementTag = "span"
-  }) => {
-    const Component = elementTag;
-    const className = `mws-bag-pill ${isTopmost ? "mws-bag-pill-topmost" : ""}`;
-    return /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Component, { className, children: /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("a", { className: "mws-bag-pill-link", href: `/bags/${encodeURIComponent(bagName)}`, rel: "noopener noreferrer", target: "_blank", children: [
-      /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
-        "img",
-        {
-          src: `/bags/${encodeURIComponent(bagName)}/tiddlers/%24%3A%2Ffavicon.ico?fallback=/.system/missing-favicon.png`,
-          className: "mws-favicon-small",
-          alt: "",
-          onError: ({ currentTarget }) => {
-            currentTarget.onerror = null;
-            currentTarget.src = "/missing-favicon.png";
-          }
-        }
-      ),
-      /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { className: "mws-bag-pill-label", children: bagName })
-    ] }) });
-  };
-  var BagPill_default = BagPill;
-
-  // react-user-mgmt/src/components/WikiCard.tsx
-  var import_jsx_runtime4 = __toESM(require_jsx_runtime(), 1);
-  var WikiCard = ({
-    recipeName,
-    description,
-    bagNames,
-    hasAclAccess,
-    showSystem
-  }) => {
-    const filteredBags = showSystem ? bagNames : bagNames.filter((bag) => !bag.startsWith("$:/"));
-    return /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("div", { className: "mws-wiki-card", children: [
-      /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("div", { className: "mws-wiki-card-image", children: /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(
-        "img",
-        {
-          src: `/recipes/${encodeURIComponent(recipeName)}/tiddlers/%24%3A%2Ffavicon.ico?fallback=/.system/missing-favicon.png`,
-          className: "mws-favicon",
-          alt: "",
-          onError: ({ currentTarget }) => {
-            currentTarget.onerror = null;
-            currentTarget.src = "/missing-favicon.png";
-          }
-        }
-      ) }),
-      /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("div", { className: "mws-wiki-card-content", children: [
-        /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("div", { className: "mws-wiki-card-header", children: /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(
-          "a",
-          {
-            href: `/wiki/${encodeURIComponent(recipeName)}`,
-            rel: "noopener noreferrer",
-            target: "_blank",
-            children: recipeName
-          }
-        ) }),
-        /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("div", { className: "mws-wiki-card-meta", children: filteredBags.length > 0 ? /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("ol", { className: "mws-vertical-list", children: filteredBags.reverse().map((bagName, index) => /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(
-          BagPill_default,
-          {
-            bagName,
-            isTopmost: index === 0,
-            elementTag: "li"
-          },
-          bagName
-        )) }) : "(no bags defined)" }),
-        /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("div", { className: "mws-wiki-card-description", children: description })
-      ] }),
-      /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("div", { className: "mws-wiki-card-actions", children: hasAclAccess && /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(
-        "a",
-        {
-          href: `/admin/acl/${recipeName}/${bagNames[bagNames.length - 1]}`,
-          className: "mws-wiki-card-action",
-          title: "Manage ACL",
-          children: /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("svg", { xmlns: "http://www.w3.org/2000/svg", viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2", strokeLinecap: "round", strokeLinejoin: "round", children: [
-            /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("rect", { x: "3", y: "11", width: "18", height: "11", rx: "2", ry: "2" }),
-            /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("path", { d: "M7 11V7a5 5 0 0 1 10 0v4" })
-          ] })
-        }
-      ) })
-    ] });
-  };
-  var WikiCard_default = WikiCard;
-
-  // react-user-mgmt/src/components/Dashboard.tsx
-  var import_react_dom = __toESM(require_react_dom(), 1);
-
-  // react-user-mgmt/src/helpers/useAsyncEffect.tsx
-  var import_react3 = __toESM(require_react(), 1);
-  var catcher = (point, error) => {
-    console.log(point, error);
-  };
-  function useAsyncEffect(mount, unmount = async () => {
-  }, cancel = async () => {
-  }, deps = []) {
-    const componentActive = (0, import_react3.useRef)(false);
-    const [loading, setLoading] = (0, import_react3.useState)(true);
-    const [promise, setPromise] = (0, import_react3.useState)(new PromiseSubject());
-    const [error, setError] = (0, import_react3.useState)();
-    const [result, setResult] = (0, import_react3.useState)();
-    (0, import_react3.useEffect)(() => {
-      componentActive.current = true;
-      return () => {
-        componentActive.current = false;
+        return w = true, p(t, e, a.rounding, n);
       };
-    }, []);
-    (0, import_react3.useEffect)(() => {
-      let depsChanged = false;
-      let mountStarted = false;
-      let mountFinished = false;
-      let mountSucceeded = false;
-      let mountFailed = false;
-      (async () => {
-        await Promise.resolve();
-        if (!componentActive.current || depsChanged) {
-          return;
+      h.decimalPlaces = h.dp = function() {
+        var e, n = this.d, i = NaN;
+        if (n) {
+          if (e = n.length - 1, i = (e - R(this.e / m)) * m, e = n[e], e) for (; e % 10 == 0; e /= 10) i--;
+          i < 0 && (i = 0);
         }
-        setLoading(true);
-        try {
-          mountStarted = true;
-          const result2 = await mount();
-          promise.resolve(result2);
-          mountSucceeded = true;
-          if (componentActive.current && !depsChanged) {
-            setError(void 0);
-            setResult(result2);
-            setLoading(false);
+        return i;
+      };
+      h.dividedBy = h.div = function(e) {
+        return S(this, new this.constructor(e));
+      };
+      h.dividedToIntegerBy = h.divToInt = function(e) {
+        var n = this, i = n.constructor;
+        return p(S(n, new i(e), 0, 1, 1), i.precision, i.rounding);
+      };
+      h.equals = h.eq = function(e) {
+        return this.cmp(e) === 0;
+      };
+      h.floor = function() {
+        return p(new this.constructor(this), this.e + 1, 3);
+      };
+      h.greaterThan = h.gt = function(e) {
+        return this.cmp(e) > 0;
+      };
+      h.greaterThanOrEqualTo = h.gte = function(e) {
+        var n = this.cmp(e);
+        return n == 1 || n === 0;
+      };
+      h.hyperbolicCosine = h.cosh = function() {
+        var e, n, i, t, r, s = this, o = s.constructor, u = new o(1);
+        if (!s.isFinite()) return new o(s.s ? 1 / 0 : NaN);
+        if (s.isZero()) return u;
+        i = o.precision, t = o.rounding, o.precision = i + Math.max(s.e, s.sd()) + 4, o.rounding = 1, r = s.d.length, r < 32 ? (e = Math.ceil(r / 3), n = (1 / le(4, e)).toString()) : (e = 16, n = "2.3283064365386962890625e-10"), s = j(o, 1, s.times(n), new o(1), true);
+        for (var l, f = e, c = new o(8); f--; ) l = s.times(s), s = u.minus(l.times(c.minus(l.times(c))));
+        return p(s, o.precision = i, o.rounding = t, true);
+      };
+      h.hyperbolicSine = h.sinh = function() {
+        var e, n, i, t, r = this, s = r.constructor;
+        if (!r.isFinite() || r.isZero()) return new s(r);
+        if (n = s.precision, i = s.rounding, s.precision = n + Math.max(r.e, r.sd()) + 4, s.rounding = 1, t = r.d.length, t < 3) r = j(s, 2, r, r, true);
+        else {
+          e = 1.4 * Math.sqrt(t), e = e > 16 ? 16 : e | 0, r = r.times(1 / le(5, e)), r = j(s, 2, r, r, true);
+          for (var o, u = new s(5), l = new s(16), f = new s(20); e--; ) o = r.times(r), r = r.times(u.plus(o.times(l.times(o).plus(f))));
+        }
+        return s.precision = n, s.rounding = i, p(r, n, i, true);
+      };
+      h.hyperbolicTangent = h.tanh = function() {
+        var e, n, i = this, t = i.constructor;
+        return i.isFinite() ? i.isZero() ? new t(i) : (e = t.precision, n = t.rounding, t.precision = e + 7, t.rounding = 1, S(i.sinh(), i.cosh(), t.precision = e, t.rounding = n)) : new t(i.s);
+      };
+      h.inverseCosine = h.acos = function() {
+        var e = this, n = e.constructor, i = e.abs().cmp(1), t = n.precision, r = n.rounding;
+        return i !== -1 ? i === 0 ? e.isNeg() ? D(n, t, r) : new n(0) : new n(NaN) : e.isZero() ? D(n, t + 4, r).times(0.5) : (n.precision = t + 6, n.rounding = 1, e = new n(1).minus(e).div(e.plus(1)).sqrt().atan(), n.precision = t, n.rounding = r, e.times(2));
+      };
+      h.inverseHyperbolicCosine = h.acosh = function() {
+        var e, n, i = this, t = i.constructor;
+        return i.lte(1) ? new t(i.eq(1) ? 0 : NaN) : i.isFinite() ? (e = t.precision, n = t.rounding, t.precision = e + Math.max(Math.abs(i.e), i.sd()) + 4, t.rounding = 1, w = false, i = i.times(i).minus(1).sqrt().plus(i), w = true, t.precision = e, t.rounding = n, i.ln()) : new t(i);
+      };
+      h.inverseHyperbolicSine = h.asinh = function() {
+        var e, n, i = this, t = i.constructor;
+        return !i.isFinite() || i.isZero() ? new t(i) : (e = t.precision, n = t.rounding, t.precision = e + 2 * Math.max(Math.abs(i.e), i.sd()) + 6, t.rounding = 1, w = false, i = i.times(i).plus(1).sqrt().plus(i), w = true, t.precision = e, t.rounding = n, i.ln());
+      };
+      h.inverseHyperbolicTangent = h.atanh = function() {
+        var e, n, i, t, r = this, s = r.constructor;
+        return r.isFinite() ? r.e >= 0 ? new s(r.abs().eq(1) ? r.s / 0 : r.isZero() ? r : NaN) : (e = s.precision, n = s.rounding, t = r.sd(), Math.max(t, e) < 2 * -r.e - 1 ? p(new s(r), e, n, true) : (s.precision = i = t - r.e, r = S(r.plus(1), new s(1).minus(r), i + e, 1), s.precision = e + 4, s.rounding = 1, r = r.ln(), s.precision = e, s.rounding = n, r.times(0.5))) : new s(NaN);
+      };
+      h.inverseSine = h.asin = function() {
+        var e, n, i, t, r = this, s = r.constructor;
+        return r.isZero() ? new s(r) : (n = r.abs().cmp(1), i = s.precision, t = s.rounding, n !== -1 ? n === 0 ? (e = D(s, i + 4, t).times(0.5), e.s = r.s, e) : new s(NaN) : (s.precision = i + 6, s.rounding = 1, r = r.div(new s(1).minus(r.times(r)).sqrt().plus(1)).atan(), s.precision = i, s.rounding = t, r.times(2)));
+      };
+      h.inverseTangent = h.atan = function() {
+        var e, n, i, t, r, s, o, u, l, f = this, c = f.constructor, a = c.precision, d = c.rounding;
+        if (f.isFinite()) {
+          if (f.isZero()) return new c(f);
+          if (f.abs().eq(1) && a + 4 <= Ee) return o = D(c, a + 4, d).times(0.25), o.s = f.s, o;
+        } else {
+          if (!f.s) return new c(NaN);
+          if (a + 4 <= Ee) return o = D(c, a + 4, d).times(0.5), o.s = f.s, o;
+        }
+        for (c.precision = u = a + 10, c.rounding = 1, i = Math.min(28, u / m + 2 | 0), e = i; e; --e) f = f.div(f.times(f).plus(1).sqrt().plus(1));
+        for (w = false, n = Math.ceil(u / m), t = 1, l = f.times(f), o = new c(f), r = f; e !== -1; ) if (r = r.times(l), s = o.minus(r.div(t += 2)), r = r.times(l), o = s.plus(r.div(t += 2)), o.d[n] !== void 0) for (e = n; o.d[e] === s.d[e] && e--; ) ;
+        return i && (o = o.times(2 << i - 1)), w = true, p(o, c.precision = a, c.rounding = d, true);
+      };
+      h.isFinite = function() {
+        return !!this.d;
+      };
+      h.isInteger = h.isInt = function() {
+        return !!this.d && R(this.e / m) > this.d.length - 2;
+      };
+      h.isNaN = function() {
+        return !this.s;
+      };
+      h.isNegative = h.isNeg = function() {
+        return this.s < 0;
+      };
+      h.isPositive = h.isPos = function() {
+        return this.s > 0;
+      };
+      h.isZero = function() {
+        return !!this.d && this.d[0] === 0;
+      };
+      h.lessThan = h.lt = function(e) {
+        return this.cmp(e) < 0;
+      };
+      h.lessThanOrEqualTo = h.lte = function(e) {
+        return this.cmp(e) < 1;
+      };
+      h.logarithm = h.log = function(e) {
+        var n, i, t, r, s, o, u, l, f = this, c = f.constructor, a = c.precision, d = c.rounding, g = 5;
+        if (e == null) e = new c(10), n = true;
+        else {
+          if (e = new c(e), i = e.d, e.s < 0 || !i || !i[0] || e.eq(1)) return new c(NaN);
+          n = e.eq(10);
+        }
+        if (i = f.d, f.s < 0 || !i || !i[0] || f.eq(1)) return new c(i && !i[0] ? -1 / 0 : f.s != 1 ? NaN : i ? 0 : 1 / 0);
+        if (n) if (i.length > 1) s = true;
+        else {
+          for (r = i[0]; r % 10 === 0; ) r /= 10;
+          s = r !== 1;
+        }
+        if (w = false, u = a + g, o = B(f, u), t = n ? oe(c, u + 10) : B(e, u), l = S(o, t, u, 1), x(l.d, r = a, d)) do
+          if (u += 10, o = B(f, u), t = n ? oe(c, u + 10) : B(e, u), l = S(o, t, u, 1), !s) {
+            +O(l.d).slice(r + 1, r + 15) + 1 == 1e14 && (l = p(l, a + 1, 0));
+            break;
+          }
+        while (x(l.d, r += 10, d));
+        return w = true, p(l, a, d);
+      };
+      h.minus = h.sub = function(e) {
+        var n, i, t, r, s, o, u, l, f, c, a, d, g = this, v = g.constructor;
+        if (e = new v(e), !g.d || !e.d) return !g.s || !e.s ? e = new v(NaN) : g.d ? e.s = -e.s : e = new v(e.d || g.s !== e.s ? g : NaN), e;
+        if (g.s != e.s) return e.s = -e.s, g.plus(e);
+        if (f = g.d, d = e.d, u = v.precision, l = v.rounding, !f[0] || !d[0]) {
+          if (d[0]) e.s = -e.s;
+          else if (f[0]) e = new v(g);
+          else return new v(l === 3 ? -0 : 0);
+          return w ? p(e, u, l) : e;
+        }
+        if (i = R(e.e / m), c = R(g.e / m), f = f.slice(), s = c - i, s) {
+          for (a = s < 0, a ? (n = f, s = -s, o = d.length) : (n = d, i = c, o = f.length), t = Math.max(Math.ceil(u / m), o) + 2, s > t && (s = t, n.length = 1), n.reverse(), t = s; t--; ) n.push(0);
+          n.reverse();
+        } else {
+          for (t = f.length, o = d.length, a = t < o, a && (o = t), t = 0; t < o; t++) if (f[t] != d[t]) {
+            a = f[t] < d[t];
+            break;
+          }
+          s = 0;
+        }
+        for (a && (n = f, f = d, d = n, e.s = -e.s), o = f.length, t = d.length - o; t > 0; --t) f[o++] = 0;
+        for (t = d.length; t > s; ) {
+          if (f[--t] < d[t]) {
+            for (r = t; r && f[--r] === 0; ) f[r] = L - 1;
+            --f[r], f[t] += L;
+          }
+          f[t] -= d[t];
+        }
+        for (; f[--o] === 0; ) f.pop();
+        for (; f[0] === 0; f.shift()) --i;
+        return f[0] ? (e.d = f, e.e = fe(f, i), w ? p(e, u, l) : e) : new v(l === 3 ? -0 : 0);
+      };
+      h.modulo = h.mod = function(e) {
+        var n, i = this, t = i.constructor;
+        return e = new t(e), !i.d || !e.s || e.d && !e.d[0] ? new t(NaN) : !e.d || i.d && !i.d[0] ? p(new t(i), t.precision, t.rounding) : (w = false, t.modulo == 9 ? (n = S(i, e.abs(), 0, 3, 1), n.s *= e.s) : n = S(i, e, 0, t.modulo, 1), n = n.times(e), w = true, i.minus(n));
+      };
+      h.naturalExponential = h.exp = function() {
+        return Se(this);
+      };
+      h.naturalLogarithm = h.ln = function() {
+        return B(this);
+      };
+      h.negated = h.neg = function() {
+        var e = new this.constructor(this);
+        return e.s = -e.s, p(e);
+      };
+      h.plus = h.add = function(e) {
+        var n, i, t, r, s, o, u, l, f, c, a = this, d = a.constructor;
+        if (e = new d(e), !a.d || !e.d) return !a.s || !e.s ? e = new d(NaN) : a.d || (e = new d(e.d || a.s === e.s ? a : NaN)), e;
+        if (a.s != e.s) return e.s = -e.s, a.minus(e);
+        if (f = a.d, c = e.d, u = d.precision, l = d.rounding, !f[0] || !c[0]) return c[0] || (e = new d(a)), w ? p(e, u, l) : e;
+        if (s = R(a.e / m), t = R(e.e / m), f = f.slice(), r = s - t, r) {
+          for (r < 0 ? (i = f, r = -r, o = c.length) : (i = c, t = s, o = f.length), s = Math.ceil(u / m), o = s > o ? s + 1 : o + 1, r > o && (r = o, i.length = 1), i.reverse(); r--; ) i.push(0);
+          i.reverse();
+        }
+        for (o = f.length, r = c.length, o - r < 0 && (r = o, i = c, c = f, f = i), n = 0; r; ) n = (f[--r] = f[r] + c[r] + n) / L | 0, f[r] %= L;
+        for (n && (f.unshift(n), ++t), o = f.length; f[--o] == 0; ) f.pop();
+        return e.d = f, e.e = fe(f, t), w ? p(e, u, l) : e;
+      };
+      h.precision = h.sd = function(e) {
+        var n, i = this;
+        if (e !== void 0 && e !== !!e && e !== 1 && e !== 0) throw Error(V + e);
+        return i.d ? (n = Ze(i.d), e && i.e + 1 > n && (n = i.e + 1)) : n = NaN, n;
+      };
+      h.round = function() {
+        var e = this, n = e.constructor;
+        return p(new n(e), e.e + 1, n.rounding);
+      };
+      h.sine = h.sin = function() {
+        var e, n, i = this, t = i.constructor;
+        return i.isFinite() ? i.isZero() ? new t(i) : (e = t.precision, n = t.rounding, t.precision = e + Math.max(i.e, i.sd()) + m, t.rounding = 1, i = un(t, $e(t, i)), t.precision = e, t.rounding = n, p(Z > 2 ? i.neg() : i, e, n, true)) : new t(NaN);
+      };
+      h.squareRoot = h.sqrt = function() {
+        var e, n, i, t, r, s, o = this, u = o.d, l = o.e, f = o.s, c = o.constructor;
+        if (f !== 1 || !u || !u[0]) return new c(!f || f < 0 && (!u || u[0]) ? NaN : u ? o : 1 / 0);
+        for (w = false, f = Math.sqrt(+o), f == 0 || f == 1 / 0 ? (n = O(u), (n.length + l) % 2 == 0 && (n += "0"), f = Math.sqrt(n), l = R((l + 1) / 2) - (l < 0 || l % 2), f == 1 / 0 ? n = "5e" + l : (n = f.toExponential(), n = n.slice(0, n.indexOf("e") + 1) + l), t = new c(n)) : t = new c(f.toString()), i = (l = c.precision) + 3; ; ) if (s = t, t = s.plus(S(o, s, i + 2, 1)).times(0.5), O(s.d).slice(0, i) === (n = O(t.d)).slice(0, i)) if (n = n.slice(i - 3, i + 1), n == "9999" || !r && n == "4999") {
+          if (!r && (p(s, l + 1, 0), s.times(s).eq(o))) {
+            t = s;
+            break;
+          }
+          i += 4, r = 1;
+        } else {
+          (!+n || !+n.slice(1) && n.charAt(0) == "5") && (p(t, l + 1, 1), e = !t.times(t).eq(o));
+          break;
+        }
+        return w = true, p(t, l, c.rounding, e);
+      };
+      h.tangent = h.tan = function() {
+        var e, n, i = this, t = i.constructor;
+        return i.isFinite() ? i.isZero() ? new t(i) : (e = t.precision, n = t.rounding, t.precision = e + 10, t.rounding = 1, i = i.sin(), i.s = 1, i = S(i, new t(1).minus(i.times(i)).sqrt(), e + 10, 0), t.precision = e, t.rounding = n, p(Z == 2 || Z == 4 ? i.neg() : i, e, n, true)) : new t(NaN);
+      };
+      h.times = h.mul = function(e) {
+        var n, i, t, r, s, o, u, l, f, c = this, a = c.constructor, d = c.d, g = (e = new a(e)).d;
+        if (e.s *= c.s, !d || !d[0] || !g || !g[0]) return new a(!e.s || d && !d[0] && !g || g && !g[0] && !d ? NaN : !d || !g ? e.s / 0 : e.s * 0);
+        for (i = R(c.e / m) + R(e.e / m), l = d.length, f = g.length, l < f && (s = d, d = g, g = s, o = l, l = f, f = o), s = [], o = l + f, t = o; t--; ) s.push(0);
+        for (t = f; --t >= 0; ) {
+          for (n = 0, r = l + t; r > t; ) u = s[r] + g[t] * d[r - t - 1] + n, s[r--] = u % L | 0, n = u / L | 0;
+          s[r] = (s[r] + n) % L | 0;
+        }
+        for (; !s[--o]; ) s.pop();
+        return n ? ++i : s.shift(), e.d = s, e.e = fe(s, i), w ? p(e, a.precision, a.rounding) : e;
+      };
+      h.toBinary = function(e, n) {
+        return ke(this, 2, e, n);
+      };
+      h.toDecimalPlaces = h.toDP = function(e, n) {
+        var i = this, t = i.constructor;
+        return i = new t(i), e === void 0 ? i : (_(e, 0, $), n === void 0 ? n = t.rounding : _(n, 0, 8), p(i, e + i.e + 1, n));
+      };
+      h.toExponential = function(e, n) {
+        var i, t = this, r = t.constructor;
+        return e === void 0 ? i = F(t, true) : (_(e, 0, $), n === void 0 ? n = r.rounding : _(n, 0, 8), t = p(new r(t), e + 1, n), i = F(t, true, e + 1)), t.isNeg() && !t.isZero() ? "-" + i : i;
+      };
+      h.toFixed = function(e, n) {
+        var i, t, r = this, s = r.constructor;
+        return e === void 0 ? i = F(r) : (_(e, 0, $), n === void 0 ? n = s.rounding : _(n, 0, 8), t = p(new s(r), e + r.e + 1, n), i = F(t, false, e + t.e + 1)), r.isNeg() && !r.isZero() ? "-" + i : i;
+      };
+      h.toFraction = function(e) {
+        var n, i, t, r, s, o, u, l, f, c, a, d, g = this, v = g.d, N = g.constructor;
+        if (!v) return new N(g);
+        if (f = i = new N(1), t = l = new N(0), n = new N(t), s = n.e = Ze(v) - g.e - 1, o = s % m, n.d[0] = C(10, o < 0 ? m + o : o), e == null) e = s > 0 ? n : f;
+        else {
+          if (u = new N(e), !u.isInt() || u.lt(f)) throw Error(V + u);
+          e = u.gt(n) ? s > 0 ? n : f : u;
+        }
+        for (w = false, u = new N(O(v)), c = N.precision, N.precision = s = v.length * m * 2; a = S(u, n, 0, 1, 1), r = i.plus(a.times(t)), r.cmp(e) != 1; ) i = t, t = r, r = f, f = l.plus(a.times(r)), l = r, r = n, n = u.minus(a.times(r)), u = r;
+        return r = S(e.minus(i), t, 0, 1, 1), l = l.plus(r.times(f)), i = i.plus(r.times(t)), l.s = f.s = g.s, d = S(f, t, s, 1).minus(g).abs().cmp(S(l, i, s, 1).minus(g).abs()) < 1 ? [f, t] : [l, i], N.precision = c, w = true, d;
+      };
+      h.toHexadecimal = h.toHex = function(e, n) {
+        return ke(this, 16, e, n);
+      };
+      h.toNearest = function(e, n) {
+        var i = this, t = i.constructor;
+        if (i = new t(i), e == null) {
+          if (!i.d) return i;
+          e = new t(1), n = t.rounding;
+        } else {
+          if (e = new t(e), n === void 0 ? n = t.rounding : _(n, 0, 8), !i.d) return e.s ? i : e;
+          if (!e.d) return e.s && (e.s = i.s), e;
+        }
+        return e.d[0] ? (w = false, i = S(i, e, 0, n, 1).times(e), w = true, p(i)) : (e.s = i.s, i = e), i;
+      };
+      h.toNumber = function() {
+        return +this;
+      };
+      h.toOctal = function(e, n) {
+        return ke(this, 8, e, n);
+      };
+      h.toPower = h.pow = function(e) {
+        var n, i, t, r, s, o, u = this, l = u.constructor, f = +(e = new l(e));
+        if (!u.d || !e.d || !u.d[0] || !e.d[0]) return new l(C(+u, f));
+        if (u = new l(u), u.eq(1)) return u;
+        if (t = l.precision, s = l.rounding, e.eq(1)) return p(u, t, s);
+        if (n = R(e.e / m), n >= e.d.length - 1 && (i = f < 0 ? -f : f) <= tn) return r = Ue(l, u, i, t), e.s < 0 ? new l(1).div(r) : p(r, t, s);
+        if (o = u.s, o < 0) {
+          if (n < e.d.length - 1) return new l(NaN);
+          if (e.d[n] & 1 || (o = 1), u.e == 0 && u.d[0] == 1 && u.d.length == 1) return u.s = o, u;
+        }
+        return i = C(+u, f), n = i == 0 || !isFinite(i) ? R(f * (Math.log("0." + O(u.d)) / Math.LN10 + u.e + 1)) : new l(i + "").e, n > l.maxE + 1 || n < l.minE - 1 ? new l(n > 0 ? o / 0 : 0) : (w = false, l.rounding = u.s = 1, i = Math.min(12, (n + "").length), r = Se(e.times(B(u, t + i)), t), r.d && (r = p(r, t + 5, 1), x(r.d, t, s) && (n = t + 10, r = p(Se(e.times(B(u, n + i)), n), n + 5, 1), +O(r.d).slice(t + 1, t + 15) + 1 == 1e14 && (r = p(r, t + 1, 0)))), r.s = o, w = true, l.rounding = s, p(r, t, s));
+      };
+      h.toPrecision = function(e, n) {
+        var i, t = this, r = t.constructor;
+        return e === void 0 ? i = F(t, t.e <= r.toExpNeg || t.e >= r.toExpPos) : (_(e, 1, $), n === void 0 ? n = r.rounding : _(n, 0, 8), t = p(new r(t), e, n), i = F(t, e <= t.e || t.e <= r.toExpNeg, e)), t.isNeg() && !t.isZero() ? "-" + i : i;
+      };
+      h.toSignificantDigits = h.toSD = function(e, n) {
+        var i = this, t = i.constructor;
+        return e === void 0 ? (e = t.precision, n = t.rounding) : (_(e, 1, $), n === void 0 ? n = t.rounding : _(n, 0, 8)), p(new t(i), e, n);
+      };
+      h.toString = function() {
+        var e = this, n = e.constructor, i = F(e, e.e <= n.toExpNeg || e.e >= n.toExpPos);
+        return e.isNeg() && !e.isZero() ? "-" + i : i;
+      };
+      h.truncated = h.trunc = function() {
+        return p(new this.constructor(this), this.e + 1, 1);
+      };
+      h.valueOf = h.toJSON = function() {
+        var e = this, n = e.constructor, i = F(e, e.e <= n.toExpNeg || e.e >= n.toExpPos);
+        return e.isNeg() ? "-" + i : i;
+      };
+      function O(e) {
+        var n, i, t, r = e.length - 1, s = "", o = e[0];
+        if (r > 0) {
+          for (s += o, n = 1; n < r; n++) t = e[n] + "", i = m - t.length, i && (s += U(i)), s += t;
+          o = e[n], t = o + "", i = m - t.length, i && (s += U(i));
+        } else if (o === 0) return "0";
+        for (; o % 10 === 0; ) o /= 10;
+        return s + o;
+      }
+      function _(e, n, i) {
+        if (e !== ~~e || e < n || e > i) throw Error(V + e);
+      }
+      function x(e, n, i, t) {
+        var r, s, o, u;
+        for (s = e[0]; s >= 10; s /= 10) --n;
+        return --n < 0 ? (n += m, r = 0) : (r = Math.ceil((n + 1) / m), n %= m), s = C(10, m - n), u = e[r] % s | 0, t == null ? n < 3 ? (n == 0 ? u = u / 100 | 0 : n == 1 && (u = u / 10 | 0), o = i < 4 && u == 99999 || i > 3 && u == 49999 || u == 5e4 || u == 0) : o = (i < 4 && u + 1 == s || i > 3 && u + 1 == s / 2) && (e[r + 1] / s / 100 | 0) == C(10, n - 2) - 1 || (u == s / 2 || u == 0) && (e[r + 1] / s / 100 | 0) == 0 : n < 4 ? (n == 0 ? u = u / 1e3 | 0 : n == 1 ? u = u / 100 | 0 : n == 2 && (u = u / 10 | 0), o = (t || i < 4) && u == 9999 || !t && i > 3 && u == 4999) : o = ((t || i < 4) && u + 1 == s || !t && i > 3 && u + 1 == s / 2) && (e[r + 1] / s / 1e3 | 0) == C(10, n - 3) - 1, o;
+      }
+      function ie(e, n, i) {
+        for (var t, r = [0], s, o = 0, u = e.length; o < u; ) {
+          for (s = r.length; s--; ) r[s] *= n;
+          for (r[0] += Ne.indexOf(e.charAt(o++)), t = 0; t < r.length; t++) r[t] > i - 1 && (r[t + 1] === void 0 && (r[t + 1] = 0), r[t + 1] += r[t] / i | 0, r[t] %= i);
+        }
+        return r.reverse();
+      }
+      function sn(e, n) {
+        var i, t, r;
+        if (n.isZero()) return n;
+        t = n.d.length, t < 32 ? (i = Math.ceil(t / 3), r = (1 / le(4, i)).toString()) : (i = 16, r = "2.3283064365386962890625e-10"), e.precision += i, n = j(e, 1, n.times(r), new e(1));
+        for (var s = i; s--; ) {
+          var o = n.times(n);
+          n = o.times(o).minus(o).times(8).plus(1);
+        }
+        return e.precision -= i, n;
+      }
+      var S = /* @__PURE__ */ function() {
+        function e(t, r, s) {
+          var o, u = 0, l = t.length;
+          for (t = t.slice(); l--; ) o = t[l] * r + u, t[l] = o % s | 0, u = o / s | 0;
+          return u && t.unshift(u), t;
+        }
+        function n(t, r, s, o) {
+          var u, l;
+          if (s != o) l = s > o ? 1 : -1;
+          else for (u = l = 0; u < s; u++) if (t[u] != r[u]) {
+            l = t[u] > r[u] ? 1 : -1;
+            break;
+          }
+          return l;
+        }
+        function i(t, r, s, o) {
+          for (var u = 0; s--; ) t[s] -= u, u = t[s] < r[s] ? 1 : 0, t[s] = u * o + t[s] - r[s];
+          for (; !t[0] && t.length > 1; ) t.shift();
+        }
+        return function(t, r, s, o, u, l) {
+          var f, c, a, d, g, v, N, A, M, q, E, P, Y, I, ce, z, W, ae, T, y, ee = t.constructor, de = t.s == r.s ? 1 : -1, b = t.d, k = r.d;
+          if (!b || !b[0] || !k || !k[0]) return new ee(!t.s || !r.s || (b ? k && b[0] == k[0] : !k) ? NaN : b && b[0] == 0 || !k ? de * 0 : de / 0);
+          for (l ? (g = 1, c = t.e - r.e) : (l = L, g = m, c = R(t.e / g) - R(r.e / g)), T = k.length, W = b.length, M = new ee(de), q = M.d = [], a = 0; k[a] == (b[a] || 0); a++) ;
+          if (k[a] > (b[a] || 0) && c--, s == null ? (I = s = ee.precision, o = ee.rounding) : u ? I = s + (t.e - r.e) + 1 : I = s, I < 0) q.push(1), v = true;
+          else {
+            if (I = I / g + 2 | 0, a = 0, T == 1) {
+              for (d = 0, k = k[0], I++; (a < W || d) && I--; a++) ce = d * l + (b[a] || 0), q[a] = ce / k | 0, d = ce % k | 0;
+              v = d || a < W;
+            } else {
+              for (d = l / (k[0] + 1) | 0, d > 1 && (k = e(k, d, l), b = e(b, d, l), T = k.length, W = b.length), z = T, E = b.slice(0, T), P = E.length; P < T; ) E[P++] = 0;
+              y = k.slice(), y.unshift(0), ae = k[0], k[1] >= l / 2 && ++ae;
+              do
+                d = 0, f = n(k, E, T, P), f < 0 ? (Y = E[0], T != P && (Y = Y * l + (E[1] || 0)), d = Y / ae | 0, d > 1 ? (d >= l && (d = l - 1), N = e(k, d, l), A = N.length, P = E.length, f = n(N, E, A, P), f == 1 && (d--, i(N, T < A ? y : k, A, l))) : (d == 0 && (f = d = 1), N = k.slice()), A = N.length, A < P && N.unshift(0), i(E, N, P, l), f == -1 && (P = E.length, f = n(k, E, T, P), f < 1 && (d++, i(E, T < P ? y : k, P, l))), P = E.length) : f === 0 && (d++, E = [0]), q[a++] = d, f && E[0] ? E[P++] = b[z] || 0 : (E = [b[z]], P = 1);
+              while ((z++ < W || E[0] !== void 0) && I--);
+              v = E[0] !== void 0;
+            }
+            q[0] || q.shift();
+          }
+          if (g == 1) M.e = c, Te = v;
+          else {
+            for (a = 1, d = q[0]; d >= 10; d /= 10) a++;
+            M.e = a + c * g - 1, p(M, u ? s + M.e + 1 : s, o, v);
+          }
+          return M;
+        };
+      }();
+      function p(e, n, i, t) {
+        var r, s, o, u, l, f, c, a, d, g = e.constructor;
+        e: if (n != null) {
+          if (a = e.d, !a) return e;
+          for (r = 1, u = a[0]; u >= 10; u /= 10) r++;
+          if (s = n - r, s < 0) s += m, o = n, c = a[d = 0], l = c / C(10, r - o - 1) % 10 | 0;
+          else if (d = Math.ceil((s + 1) / m), u = a.length, d >= u) if (t) {
+            for (; u++ <= d; ) a.push(0);
+            c = l = 0, r = 1, s %= m, o = s - m + 1;
+          } else break e;
+          else {
+            for (c = u = a[d], r = 1; u >= 10; u /= 10) r++;
+            s %= m, o = s - m + r, l = o < 0 ? 0 : c / C(10, r - o - 1) % 10 | 0;
+          }
+          if (t = t || n < 0 || a[d + 1] !== void 0 || (o < 0 ? c : c % C(10, r - o - 1)), f = i < 4 ? (l || t) && (i == 0 || i == (e.s < 0 ? 3 : 2)) : l > 5 || l == 5 && (i == 4 || t || i == 6 && (s > 0 ? o > 0 ? c / C(10, r - o) : 0 : a[d - 1]) % 10 & 1 || i == (e.s < 0 ? 8 : 7)), n < 1 || !a[0]) return a.length = 0, f ? (n -= e.e + 1, a[0] = C(10, (m - n % m) % m), e.e = -n || 0) : a[0] = e.e = 0, e;
+          if (s == 0 ? (a.length = d, u = 1, d--) : (a.length = d + 1, u = C(10, m - s), a[d] = o > 0 ? (c / C(10, r - o) % C(10, o) | 0) * u : 0), f) for (; ; ) if (d == 0) {
+            for (s = 1, o = a[0]; o >= 10; o /= 10) s++;
+            for (o = a[0] += u, u = 1; o >= 10; o /= 10) u++;
+            s != u && (e.e++, a[0] == L && (a[0] = 1));
+            break;
           } else {
-            unmount();
+            if (a[d] += u, a[d] != L) break;
+            a[d--] = 0, u = 1;
           }
-        } catch (error2) {
-          if (!componentActive.current) return;
-          mountFailed = true;
-          catcher("mount", error2);
-          setLoading(false);
-          setError(error2);
-          promise.reject(error2);
-        } finally {
-          mountFinished = true;
+          for (s = a.length; a[--s] === 0; ) a.pop();
         }
-      })();
-      return () => {
-        depsChanged = true;
-        (async () => {
-          if (mountSucceeded) {
-            try {
-              await unmount();
-              if (!componentActive.current) return;
-              setResult(void 0);
-            } catch (error2) {
-              if (!componentActive.current) return;
-              catcher("unmount", error2);
-            }
-          } else if (mountStarted && !mountFailed) {
-            try {
-              await cancel();
-            } catch (error2) {
-              if (!componentActive.current) return;
-              catcher("cancel", error2);
-            }
-          }
-        })();
-        setPromise(new PromiseSubject());
-      };
-    }, deps);
-    return { error, loading, result, promise };
-  }
-  var _resolve, _reject, _done;
-  var PromiseSubject = class extends Promise {
-    constructor(executor) {
-      let _resolve2, _reject2;
-      super((resolve, reject) => {
-        _resolve2 = resolve;
-        _reject2 = reject;
-        if (typeof executor === "function") executor(resolve, reject);
-      });
-      __privateAdd(this, _resolve);
-      __privateAdd(this, _reject);
-      __privateAdd(this, _done, false);
-      this.resolve = _resolve2;
-      this.reject = _reject2;
-      if (executor instanceof Promise) executor.then((e) => this.resolve(e));
-    }
-    get done() {
-      return __privateGet(this, _done);
-    }
-    resolve(a) {
-      if (__privateGet(this, _done)) return;
-      __privateSet(this, _done, true);
-      __privateGet(this, _resolve).call(this, a);
-    }
-    reject(a) {
-      if (__privateGet(this, _done)) return;
-      __privateSet(this, _done, true);
-      __privateGet(this, _reject).call(this, a);
-    }
-  };
-  _resolve = new WeakMap();
-  _reject = new WeakMap();
-  _done = new WeakMap();
-
-  // react-user-mgmt/src/components/Dashboard.tsx
-  var import_jsx_runtime5 = __toESM(require_jsx_runtime(), 1);
-  var Dashboard = ({}) => {
-    const [result, setResult] = (0, import_react4.useState)(null);
-    useAsyncEffect(async () => {
-      setResult(await (await fetch("/index.json")).json());
-    }, void 0, void 0, []);
-    return result ? /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(DashboardInner, { ...result }) : null;
-  };
-  var DashboardInner = ({
-    username,
-    "recipe-list": initialRecipes,
-    "bag-list": initialBags,
-    "user-is-admin": userIsAdmin,
-    "user-is-logged-in": userIsLoggedIn,
-    "first-guest-user": firstGuestUser,
-    user,
-    allowReads,
-    allowWrites
-  }) => {
-    const [recipes, setRecipes] = (0, import_react4.useState)(initialRecipes);
-    const [bags, setBags] = (0, import_react4.useState)(initialBags);
-    const [showSystem, setShowSystem] = (0, import_react4.useState)(false);
-    const [showAnonConfig, setShowAnonConfig] = (0, import_react4.useState)(false);
-    userIsAdmin = userIsAdmin || false;
-    const userId = user?.user_id;
-    const filteredBags = showSystem ? bags : bags.filter((bag) => !bag.bag_name.startsWith("$:/"));
-    const handleRecipeSubmit = async (e) => {
-      const formData = Object.fromEntries(e.entries());
-      formData.bag_names = formData.bag_names.split(" ");
-      console.log(formData);
-      await new Promise((resolve) => setTimeout(resolve, 1e3));
-      setRecipes((prev) => [...prev, formData]);
-    };
-    const handleBagSubmit = async (e) => {
-      const formData = Object.fromEntries(e.entries());
-      console.log(formData);
-      await new Promise((resolve) => setTimeout(resolve, 1e3));
-      setBags((prev) => [...prev, formData]);
-    };
-    const handleShowSystemChange = (e) => {
-      const newShowSystem = e.target.checked;
-      setShowSystem(newShowSystem);
-      try {
-        const url = new URL(window.location.href);
-        url.searchParams.set("show_system", newShowSystem ? "on" : "off");
-        window.history.replaceState({}, "", url.toString());
-      } catch (error) {
-        console.error("Error updating URL:", error);
+        return w && (e.e > g.maxE ? (e.d = null, e.e = NaN) : e.e < g.minE && (e.e = 0, e.d = [0])), e;
       }
-    };
-    return /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)(import_jsx_runtime5.Fragment, { children: [
-      /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(
-        Header_default,
-        {
-          pageTitle: "Wikis Available Here",
-          username,
-          userIsAdmin,
-          userIsLoggedIn,
-          firstGuestUser,
-          userId,
-          setShowAnonConfig
+      function F(e, n, i) {
+        if (!e.isFinite()) return Ve(e);
+        var t, r = e.e, s = O(e.d), o = s.length;
+        return n ? (i && (t = i - o) > 0 ? s = s.charAt(0) + "." + s.slice(1) + U(t) : o > 1 && (s = s.charAt(0) + "." + s.slice(1)), s = s + (e.e < 0 ? "e" : "e+") + e.e) : r < 0 ? (s = "0." + U(-r - 1) + s, i && (t = i - o) > 0 && (s += U(t))) : r >= o ? (s += U(r + 1 - o), i && (t = i - r - 1) > 0 && (s = s + "." + U(t))) : ((t = r + 1) < o && (s = s.slice(0, t) + "." + s.slice(t)), i && (t = i - o) > 0 && (r + 1 === o && (s += "."), s += U(t))), s;
+      }
+      function fe(e, n) {
+        var i = e[0];
+        for (n *= m; i >= 10; i /= 10) n++;
+        return n;
+      }
+      function oe(e, n, i) {
+        if (n > rn) throw w = true, i && (e.precision = i), Error(Le);
+        return p(new e(re), n, 1, true);
+      }
+      function D(e, n, i) {
+        if (n > Ee) throw Error(Le);
+        return p(new e(se), n, i, true);
+      }
+      function Ze(e) {
+        var n = e.length - 1, i = n * m + 1;
+        if (n = e[n], n) {
+          for (; n % 10 == 0; n /= 10) i--;
+          for (n = e[0]; n >= 10; n /= 10) i++;
         }
-      ),
-      firstGuestUser && /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("div", { className: "mws-security-warning", children: /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)("div", { className: "mws-security-warning-content", children: [
-        /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("div", { className: "mws-security-warning-icon", children: "\u26A0\uFE0F" }),
-        /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)("div", { className: "mws-security-warning-text", children: [
-          /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("strong", { children: "Warning:" }),
-          " TiddlyWiki is currently running in anonymous access mode which allows anyone with access to the server to read and modify data."
-        ] }),
-        /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("div", { className: "mws-security-warning-action", children: /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("a", { href: "/admin/users", className: "mws-security-warning-button", children: "Add Admin Account" }) })
-      ] }) }),
-      showAnonConfig && /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(
-        AnonConfigModal_default,
-        {
-          initialAllowReads: allowReads,
-          initialAllowWrites: allowWrites,
-          onClose: () => setShowAnonConfig(false)
-        }
-      ),
-      /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("ul", { className: "mws-vertical-list", children: recipes.map((recipe) => /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("li", { children: /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(
-        WikiCard_default,
-        {
-          recipeName: recipe.recipe_name,
-          description: recipe.description,
-          bagNames: recipe.bag_names,
-          hasAclAccess: recipe.has_acl_access,
-          showSystem
-        }
-      ) }, recipe.recipe_name)) }),
-      /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("form", { className: "mws-form", action: handleRecipeSubmit, children: /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)(MwsFormChild, { title: "Create a new recipe or modify an existing one", submitText: "Create or Update Recipe", children: [
-        /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(FormField, { name: "recipe_name", children: "Recipe name" }),
-        /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(FormField, { name: "description", children: "Recipe description" }),
-        /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(FormField, { name: "bag_names", children: "Bags in recipe (space separated)" })
-      ] }) }),
-      /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("h1", { children: "Bags" }),
-      /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("ul", { className: "mws-vertical-list", children: filteredBags.map((bag) => /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)("li", { className: "mws-wiki-card", children: [
-        /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(BagPill_default, { bagName: bag.bag_name }),
-        /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("span", { children: bag.description })
-      ] }, bag.bag_name)) }),
-      /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("form", { className: "mws-form", action: handleBagSubmit, children: /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)(MwsFormChild, { title: "Create a new bag or modify an existing one", submitText: "Create or Update Bag", children: [
-        /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(FormField, { name: "bag_name", children: "Bag name" }),
-        /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(FormField, { name: "description", children: "Bag description" })
-      ] }) }),
-      /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("h1", { children: "Advanced" }),
-      /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)("div", { id: "checkboxForm", children: [
-        /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(
-          "input",
-          {
-            type: "checkbox",
-            id: "chkShowSystem",
-            name: "show_system",
-            value: "on",
-            checked: showSystem,
-            onChange: handleShowSystemChange
+        return i;
+      }
+      function U(e) {
+        for (var n = ""; e--; ) n += "0";
+        return n;
+      }
+      function Ue(e, n, i, t) {
+        var r, s = new e(1), o = Math.ceil(t / m + 4);
+        for (w = false; ; ) {
+          if (i % 2 && (s = s.times(n), _e(s.d, o) && (r = true)), i = R(i / 2), i === 0) {
+            i = s.d.length - 1, r && s.d[i] === 0 && ++s.d[i];
+            break;
           }
-        ),
-        /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("label", { htmlFor: "chkShowSystem", children: "Show system bags" })
-      ] })
-    ] });
-  };
-  function MwsFormChild({ title, submitText, children }) {
-    const status = (0, import_react_dom.useFormStatus)();
-    return /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)(import_jsx_runtime5.Fragment, { children: [
-      /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("div", { className: "mws-form-heading", children: title }),
-      /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("div", { className: "mws-form-fields", children }),
-      /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("div", { className: "mws-form-buttons", children: /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("button", { type: "submit", disabled: status.pending, children: status.pending ? "Processing..." : submitText }) })
-    ] });
-  }
-  function FormField({ name, children }) {
-    return /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)("div", { className: "mws-form-field", children: [
-      /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("label", { className: "mws-form-field-description", children }),
-      /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("input", { name, type: "text", required: true })
-    ] }, name);
-  }
-  var Dashboard_default = Dashboard;
+          n = n.times(n), _e(n.d, o);
+        }
+        return w = true, s;
+      }
+      function Ae(e) {
+        return e.d[e.d.length - 1] & 1;
+      }
+      function Be(e, n, i) {
+        for (var t, r, s = new e(n[0]), o = 0; ++o < n.length; ) {
+          if (r = new e(n[o]), !r.s) {
+            s = r;
+            break;
+          }
+          t = s.cmp(r), (t === i || t === 0 && s.s === i) && (s = r);
+        }
+        return s;
+      }
+      function Se(e, n) {
+        var i, t, r, s, o, u, l, f = 0, c = 0, a = 0, d = e.constructor, g = d.rounding, v = d.precision;
+        if (!e.d || !e.d[0] || e.e > 17) return new d(e.d ? e.d[0] ? e.s < 0 ? 0 : 1 / 0 : 1 : e.s ? e.s < 0 ? 0 : e : NaN);
+        for (n == null ? (w = false, l = v) : l = n, u = new d(0.03125); e.e > -2; ) e = e.times(u), a += 5;
+        for (t = Math.log(C(2, a)) / Math.LN10 * 2 + 5 | 0, l += t, i = s = o = new d(1), d.precision = l; ; ) {
+          if (s = p(s.times(e), l, 1), i = i.times(++c), u = o.plus(S(s, i, l, 1)), O(u.d).slice(0, l) === O(o.d).slice(0, l)) {
+            for (r = a; r--; ) o = p(o.times(o), l, 1);
+            if (n == null) if (f < 3 && x(o.d, l - t, g, f)) d.precision = l += 10, i = s = u = new d(1), c = 0, f++;
+            else return p(o, d.precision = v, g, w = true);
+            else return d.precision = v, o;
+          }
+          o = u;
+        }
+      }
+      function B(e, n) {
+        var i, t, r, s, o, u, l, f, c, a, d, g = 1, v = 10, N = e, A = N.d, M = N.constructor, q = M.rounding, E = M.precision;
+        if (N.s < 0 || !A || !A[0] || !N.e && A[0] == 1 && A.length == 1) return new M(A && !A[0] ? -1 / 0 : N.s != 1 ? NaN : A ? 0 : N);
+        if (n == null ? (w = false, c = E) : c = n, M.precision = c += v, i = O(A), t = i.charAt(0), Math.abs(s = N.e) < 15e14) {
+          for (; t < 7 && t != 1 || t == 1 && i.charAt(1) > 3; ) N = N.times(e), i = O(N.d), t = i.charAt(0), g++;
+          s = N.e, t > 1 ? (N = new M("0." + i), s++) : N = new M(t + "." + i.slice(1));
+        } else return f = oe(M, c + 2, E).times(s + ""), N = B(new M(t + "." + i.slice(1)), c - v).plus(f), M.precision = E, n == null ? p(N, E, q, w = true) : N;
+        for (a = N, l = o = N = S(N.minus(1), N.plus(1), c, 1), d = p(N.times(N), c, 1), r = 3; ; ) {
+          if (o = p(o.times(d), c, 1), f = l.plus(S(o, new M(r), c, 1)), O(f.d).slice(0, c) === O(l.d).slice(0, c)) if (l = l.times(2), s !== 0 && (l = l.plus(oe(M, c + 2, E).times(s + ""))), l = S(l, new M(g), c, 1), n == null) if (x(l.d, c - v, q, u)) M.precision = c += v, f = o = N = S(a.minus(1), a.plus(1), c, 1), d = p(N.times(N), c, 1), r = u = 1;
+          else return p(l, M.precision = E, q, w = true);
+          else return M.precision = E, l;
+          l = f, r += 2;
+        }
+      }
+      function Ve(e) {
+        return String(e.s * e.s / 0);
+      }
+      function te(e, n) {
+        var i, t, r;
+        for ((i = n.indexOf(".")) > -1 && (n = n.replace(".", "")), (t = n.search(/e/i)) > 0 ? (i < 0 && (i = t), i += +n.slice(t + 1), n = n.substring(0, t)) : i < 0 && (i = n.length), t = 0; n.charCodeAt(t) === 48; t++) ;
+        for (r = n.length; n.charCodeAt(r - 1) === 48; --r) ;
+        if (n = n.slice(t, r), n) {
+          if (r -= t, e.e = i = i - t - 1, e.d = [], t = (i + 1) % m, i < 0 && (t += m), t < r) {
+            for (t && e.d.push(+n.slice(0, t)), r -= m; t < r; ) e.d.push(+n.slice(t, t += m));
+            n = n.slice(t), t = m - n.length;
+          } else t -= r;
+          for (; t--; ) n += "0";
+          e.d.push(+n), w && (e.e > e.constructor.maxE ? (e.d = null, e.e = NaN) : e.e < e.constructor.minE && (e.e = 0, e.d = [0]));
+        } else e.e = 0, e.d = [0];
+        return e;
+      }
+      function on(e, n) {
+        var i, t, r, s, o, u, l, f, c;
+        if (n.indexOf("_") > -1) {
+          if (n = n.replace(/(\d)_(?=\d)/g, "$1"), Ie.test(n)) return te(e, n);
+        } else if (n === "Infinity" || n === "NaN") return +n || (e.s = NaN), e.e = NaN, e.d = null, e;
+        if (en.test(n)) i = 16, n = n.toLowerCase();
+        else if (ye.test(n)) i = 2;
+        else if (nn.test(n)) i = 8;
+        else throw Error(V + n);
+        for (s = n.search(/p/i), s > 0 ? (l = +n.slice(s + 1), n = n.substring(2, s)) : n = n.slice(2), s = n.indexOf("."), o = s >= 0, t = e.constructor, o && (n = n.replace(".", ""), u = n.length, s = u - s, r = Ue(t, new t(i), s, s * 2)), f = ie(n, i, L), c = f.length - 1, s = c; f[s] === 0; --s) f.pop();
+        return s < 0 ? new t(e.s * 0) : (e.e = fe(f, c), e.d = f, w = false, o && (e = S(e, r, u * 4)), l && (e = e.times(Math.abs(l) < 54 ? C(2, l) : Q.pow(2, l))), w = true, e);
+      }
+      function un(e, n) {
+        var i, t = n.d.length;
+        if (t < 3) return n.isZero() ? n : j(e, 2, n, n);
+        i = 1.4 * Math.sqrt(t), i = i > 16 ? 16 : i | 0, n = n.times(1 / le(5, i)), n = j(e, 2, n, n);
+        for (var r, s = new e(5), o = new e(16), u = new e(20); i--; ) r = n.times(n), n = n.times(s.plus(r.times(o.times(r).minus(u))));
+        return n;
+      }
+      function j(e, n, i, t, r) {
+        var s, o, u, l, f = 1, c = e.precision, a = Math.ceil(c / m);
+        for (w = false, l = i.times(i), u = new e(t); ; ) {
+          if (o = S(u.times(l), new e(n++ * n++), c, 1), u = r ? t.plus(o) : t.minus(o), t = S(o.times(l), new e(n++ * n++), c, 1), o = u.plus(t), o.d[a] !== void 0) {
+            for (s = a; o.d[s] === u.d[s] && s--; ) ;
+            if (s == -1) break;
+          }
+          s = u, u = t, t = o, o = s, f++;
+        }
+        return w = true, o.d.length = a + 1, o;
+      }
+      function le(e, n) {
+        for (var i = e; --n; ) i *= e;
+        return i;
+      }
+      function $e(e, n) {
+        var i, t = n.s < 0, r = D(e, e.precision, 1), s = r.times(0.5);
+        if (n = n.abs(), n.lte(s)) return Z = t ? 4 : 1, n;
+        if (i = n.divToInt(r), i.isZero()) Z = t ? 3 : 2;
+        else {
+          if (n = n.minus(i.times(r)), n.lte(s)) return Z = Ae(i) ? t ? 2 : 3 : t ? 4 : 1, n;
+          Z = Ae(i) ? t ? 1 : 4 : t ? 3 : 2;
+        }
+        return n.minus(r).abs();
+      }
+      function ke(e, n, i, t) {
+        var r, s, o, u, l, f, c, a, d, g = e.constructor, v = i !== void 0;
+        if (v ? (_(i, 1, $), t === void 0 ? t = g.rounding : _(t, 0, 8)) : (i = g.precision, t = g.rounding), !e.isFinite()) c = Ve(e);
+        else {
+          for (c = F(e), o = c.indexOf("."), v ? (r = 2, n == 16 ? i = i * 4 - 3 : n == 8 && (i = i * 3 - 2)) : r = n, o >= 0 && (c = c.replace(".", ""), d = new g(1), d.e = c.length - o, d.d = ie(F(d), 10, r), d.e = d.d.length), a = ie(c, 10, r), s = l = a.length; a[--l] == 0; ) a.pop();
+          if (!a[0]) c = v ? "0p+0" : "0";
+          else {
+            if (o < 0 ? s-- : (e = new g(e), e.d = a, e.e = s, e = S(e, d, i, t, 0, r), a = e.d, s = e.e, f = Te), o = a[i], u = r / 2, f = f || a[i + 1] !== void 0, f = t < 4 ? (o !== void 0 || f) && (t === 0 || t === (e.s < 0 ? 3 : 2)) : o > u || o === u && (t === 4 || f || t === 6 && a[i - 1] & 1 || t === (e.s < 0 ? 8 : 7)), a.length = i, f) for (; ++a[--i] > r - 1; ) a[i] = 0, i || (++s, a.unshift(1));
+            for (l = a.length; !a[l - 1]; --l) ;
+            for (o = 0, c = ""; o < l; o++) c += Ne.charAt(a[o]);
+            if (v) {
+              if (l > 1) if (n == 16 || n == 8) {
+                for (o = n == 16 ? 4 : 3, --l; l % o; l++) c += "0";
+                for (a = ie(c, r, n), l = a.length; !a[l - 1]; --l) ;
+                for (o = 1, c = "1."; o < l; o++) c += Ne.charAt(a[o]);
+              } else c = c.charAt(0) + "." + c.slice(1);
+              c = c + (s < 0 ? "p" : "p+") + s;
+            } else if (s < 0) {
+              for (; ++s; ) c = "0" + c;
+              c = "0." + c;
+            } else if (++s > l) for (s -= l; s--; ) c += "0";
+            else s < l && (c = c.slice(0, s) + "." + c.slice(s));
+          }
+          c = (n == 16 ? "0x" : n == 2 ? "0b" : n == 8 ? "0o" : "") + c;
+        }
+        return e.s < 0 ? "-" + c : c;
+      }
+      function _e(e, n) {
+        if (e.length > n) return e.length = n, true;
+      }
+      function fn(e) {
+        return new this(e).abs();
+      }
+      function ln(e) {
+        return new this(e).acos();
+      }
+      function cn(e) {
+        return new this(e).acosh();
+      }
+      function an(e, n) {
+        return new this(e).plus(n);
+      }
+      function dn(e) {
+        return new this(e).asin();
+      }
+      function hn(e) {
+        return new this(e).asinh();
+      }
+      function pn(e) {
+        return new this(e).atan();
+      }
+      function gn(e) {
+        return new this(e).atanh();
+      }
+      function mn(e, n) {
+        e = new this(e), n = new this(n);
+        var i, t = this.precision, r = this.rounding, s = t + 4;
+        return !e.s || !n.s ? i = new this(NaN) : !e.d && !n.d ? (i = D(this, s, 1).times(n.s > 0 ? 0.25 : 0.75), i.s = e.s) : !n.d || e.isZero() ? (i = n.s < 0 ? D(this, t, r) : new this(0), i.s = e.s) : !e.d || n.isZero() ? (i = D(this, s, 1).times(0.5), i.s = e.s) : n.s < 0 ? (this.precision = s, this.rounding = 1, i = this.atan(S(e, n, s, 1)), n = D(this, s, 1), this.precision = t, this.rounding = r, i = e.s < 0 ? i.minus(n) : i.plus(n)) : i = this.atan(S(e, n, s, 1)), i;
+      }
+      function wn(e) {
+        return new this(e).cbrt();
+      }
+      function Nn(e) {
+        return p(e = new this(e), e.e + 1, 2);
+      }
+      function vn(e, n, i) {
+        return new this(e).clamp(n, i);
+      }
+      function En(e) {
+        if (!e || typeof e != "object") throw Error(ue + "Object expected");
+        var n, i, t, r = e.defaults === true, s = ["precision", 1, $, "rounding", 0, 8, "toExpNeg", -H, 0, "toExpPos", 0, H, "maxE", 0, H, "minE", -H, 0, "modulo", 0, 9];
+        for (n = 0; n < s.length; n += 3) if (i = s[n], r && (this[i] = ve[i]), (t = e[i]) !== void 0) if (R(t) === t && t >= s[n + 1] && t <= s[n + 2]) this[i] = t;
+        else throw Error(V + i + ": " + t);
+        if (i = "crypto", r && (this[i] = ve[i]), (t = e[i]) !== void 0) if (t === true || t === false || t === 0 || t === 1) if (t) if (typeof crypto < "u" && crypto && (crypto.getRandomValues || crypto.randomBytes)) this[i] = true;
+        else throw Error(De);
+        else this[i] = false;
+        else throw Error(V + i + ": " + t);
+        return this;
+      }
+      function Sn(e) {
+        return new this(e).cos();
+      }
+      function kn(e) {
+        return new this(e).cosh();
+      }
+      function He(e) {
+        var n, i, t;
+        function r(s) {
+          var o, u, l, f = this;
+          if (!(f instanceof r)) return new r(s);
+          if (f.constructor = r, qe(s)) {
+            f.s = s.s, w ? !s.d || s.e > r.maxE ? (f.e = NaN, f.d = null) : s.e < r.minE ? (f.e = 0, f.d = [0]) : (f.e = s.e, f.d = s.d.slice()) : (f.e = s.e, f.d = s.d ? s.d.slice() : s.d);
+            return;
+          }
+          if (l = typeof s, l === "number") {
+            if (s === 0) {
+              f.s = 1 / s < 0 ? -1 : 1, f.e = 0, f.d = [0];
+              return;
+            }
+            if (s < 0 ? (s = -s, f.s = -1) : f.s = 1, s === ~~s && s < 1e7) {
+              for (o = 0, u = s; u >= 10; u /= 10) o++;
+              w ? o > r.maxE ? (f.e = NaN, f.d = null) : o < r.minE ? (f.e = 0, f.d = [0]) : (f.e = o, f.d = [s]) : (f.e = o, f.d = [s]);
+              return;
+            }
+            if (s * 0 !== 0) {
+              s || (f.s = NaN), f.e = NaN, f.d = null;
+              return;
+            }
+            return te(f, s.toString());
+          }
+          if (l === "string") return (u = s.charCodeAt(0)) === 45 ? (s = s.slice(1), f.s = -1) : (u === 43 && (s = s.slice(1)), f.s = 1), Ie.test(s) ? te(f, s) : on(f, s);
+          if (l === "bigint") return s < 0 ? (s = -s, f.s = -1) : f.s = 1, te(f, s.toString());
+          throw Error(V + s);
+        }
+        if (r.prototype = h, r.ROUND_UP = 0, r.ROUND_DOWN = 1, r.ROUND_CEIL = 2, r.ROUND_FLOOR = 3, r.ROUND_HALF_UP = 4, r.ROUND_HALF_DOWN = 5, r.ROUND_HALF_EVEN = 6, r.ROUND_HALF_CEIL = 7, r.ROUND_HALF_FLOOR = 8, r.EUCLID = 9, r.config = r.set = En, r.clone = He, r.isDecimal = qe, r.abs = fn, r.acos = ln, r.acosh = cn, r.add = an, r.asin = dn, r.asinh = hn, r.atan = pn, r.atanh = gn, r.atan2 = mn, r.cbrt = wn, r.ceil = Nn, r.clamp = vn, r.cos = Sn, r.cosh = kn, r.div = Mn, r.exp = Cn, r.floor = On, r.hypot = Pn, r.ln = bn, r.log = Rn, r.log10 = _n, r.log2 = An, r.max = qn, r.min = Tn, r.mod = Ln, r.mul = Dn, r.pow = Fn, r.random = In, r.round = Zn, r.sign = Un, r.sin = Bn, r.sinh = Vn, r.sqrt = $n, r.sub = Hn, r.sum = jn, r.tan = Wn, r.tanh = Gn, r.trunc = Jn, e === void 0 && (e = {}), e && e.defaults !== true) for (t = ["precision", "rounding", "toExpNeg", "toExpPos", "maxE", "minE", "modulo", "crypto"], n = 0; n < t.length; ) e.hasOwnProperty(i = t[n++]) || (e[i] = this[i]);
+        return r.config(e), r;
+      }
+      function Mn(e, n) {
+        return new this(e).div(n);
+      }
+      function Cn(e) {
+        return new this(e).exp();
+      }
+      function On(e) {
+        return p(e = new this(e), e.e + 1, 3);
+      }
+      function Pn() {
+        var e, n, i = new this(0);
+        for (w = false, e = 0; e < arguments.length; ) if (n = new this(arguments[e++]), n.d) i.d && (i = i.plus(n.times(n)));
+        else {
+          if (n.s) return w = true, new this(1 / 0);
+          i = n;
+        }
+        return w = true, i.sqrt();
+      }
+      function qe(e) {
+        return e instanceof Q || e && e.toStringTag === Fe || false;
+      }
+      function bn(e) {
+        return new this(e).ln();
+      }
+      function Rn(e, n) {
+        return new this(e).log(n);
+      }
+      function An(e) {
+        return new this(e).log(2);
+      }
+      function _n(e) {
+        return new this(e).log(10);
+      }
+      function qn() {
+        return Be(this, arguments, -1);
+      }
+      function Tn() {
+        return Be(this, arguments, 1);
+      }
+      function Ln(e, n) {
+        return new this(e).mod(n);
+      }
+      function Dn(e, n) {
+        return new this(e).mul(n);
+      }
+      function Fn(e, n) {
+        return new this(e).pow(n);
+      }
+      function In(e) {
+        var n, i, t, r, s = 0, o = new this(1), u = [];
+        if (e === void 0 ? e = this.precision : _(e, 1, $), t = Math.ceil(e / m), this.crypto) if (crypto.getRandomValues) for (n = crypto.getRandomValues(new Uint32Array(t)); s < t; ) r = n[s], r >= 429e7 ? n[s] = crypto.getRandomValues(new Uint32Array(1))[0] : u[s++] = r % 1e7;
+        else if (crypto.randomBytes) {
+          for (n = crypto.randomBytes(t *= 4); s < t; ) r = n[s] + (n[s + 1] << 8) + (n[s + 2] << 16) + ((n[s + 3] & 127) << 24), r >= 214e7 ? crypto.randomBytes(4).copy(n, s) : (u.push(r % 1e7), s += 4);
+          s = t / 4;
+        } else throw Error(De);
+        else for (; s < t; ) u[s++] = Math.random() * 1e7 | 0;
+        for (t = u[--s], e %= m, t && e && (r = C(10, m - e), u[s] = (t / r | 0) * r); u[s] === 0; s--) u.pop();
+        if (s < 0) i = 0, u = [0];
+        else {
+          for (i = -1; u[0] === 0; i -= m) u.shift();
+          for (t = 1, r = u[0]; r >= 10; r /= 10) t++;
+          t < m && (i -= m - t);
+        }
+        return o.e = i, o.d = u, o;
+      }
+      function Zn(e) {
+        return p(e = new this(e), e.e + 1, this.rounding);
+      }
+      function Un(e) {
+        return e = new this(e), e.d ? e.d[0] ? e.s : 0 * e.s : e.s || NaN;
+      }
+      function Bn(e) {
+        return new this(e).sin();
+      }
+      function Vn(e) {
+        return new this(e).sinh();
+      }
+      function $n(e) {
+        return new this(e).sqrt();
+      }
+      function Hn(e, n) {
+        return new this(e).sub(n);
+      }
+      function jn() {
+        var e = 0, n = arguments, i = new this(n[e]);
+        for (w = false; i.s && ++e < n.length; ) i = i.plus(n[e]);
+        return w = true, p(i, this.precision, this.rounding);
+      }
+      function Wn(e) {
+        return new this(e).tan();
+      }
+      function Gn(e) {
+        return new this(e).tanh();
+      }
+      function Jn(e) {
+        return p(e = new this(e), e.e + 1, 1);
+      }
+      h[Symbol.for("nodejs.util.inspect.custom")] = h.toString;
+      h[Symbol.toStringTag] = "Decimal";
+      var Q = h.constructor = He(ve);
+      re = new Q(re);
+      se = new Q(se);
+      var je = Q;
+    }
+  });
+
+  // node_modules/.prisma/client/index-browser.js
+  var require_index_browser2 = __commonJS({
+    "node_modules/.prisma/client/index-browser.js"(exports) {
+      Object.defineProperty(exports, "__esModule", { value: true });
+      var {
+        Decimal: Decimal2,
+        objectEnumValues: objectEnumValues2,
+        makeStrictEnum: makeStrictEnum2,
+        Public: Public2,
+        getRuntime: getRuntime2,
+        skip
+      } = require_index_browser();
+      var Prisma2 = {};
+      exports.Prisma = Prisma2;
+      exports.$Enums = {};
+      Prisma2.prismaVersion = {
+        client: "6.4.0",
+        engine: "a9055b89e58b4b5bfb59600785423b1db3d0e75d"
+      };
+      Prisma2.PrismaClientKnownRequestError = () => {
+        const runtimeName = getRuntime2().prettyName;
+        throw new Error(
+          `PrismaClientKnownRequestError is unable to run in this browser environment, or has been bundled for the browser (running in ${runtimeName}).
+In case this error is unexpected for you, please report it in https://pris.ly/prisma-prisma-bug-report`
+        );
+      };
+      Prisma2.PrismaClientUnknownRequestError = () => {
+        const runtimeName = getRuntime2().prettyName;
+        throw new Error(
+          `PrismaClientUnknownRequestError is unable to run in this browser environment, or has been bundled for the browser (running in ${runtimeName}).
+In case this error is unexpected for you, please report it in https://pris.ly/prisma-prisma-bug-report`
+        );
+      };
+      Prisma2.PrismaClientRustPanicError = () => {
+        const runtimeName = getRuntime2().prettyName;
+        throw new Error(
+          `PrismaClientRustPanicError is unable to run in this browser environment, or has been bundled for the browser (running in ${runtimeName}).
+In case this error is unexpected for you, please report it in https://pris.ly/prisma-prisma-bug-report`
+        );
+      };
+      Prisma2.PrismaClientInitializationError = () => {
+        const runtimeName = getRuntime2().prettyName;
+        throw new Error(
+          `PrismaClientInitializationError is unable to run in this browser environment, or has been bundled for the browser (running in ${runtimeName}).
+In case this error is unexpected for you, please report it in https://pris.ly/prisma-prisma-bug-report`
+        );
+      };
+      Prisma2.PrismaClientValidationError = () => {
+        const runtimeName = getRuntime2().prettyName;
+        throw new Error(
+          `PrismaClientValidationError is unable to run in this browser environment, or has been bundled for the browser (running in ${runtimeName}).
+In case this error is unexpected for you, please report it in https://pris.ly/prisma-prisma-bug-report`
+        );
+      };
+      Prisma2.Decimal = Decimal2;
+      Prisma2.sql = () => {
+        const runtimeName = getRuntime2().prettyName;
+        throw new Error(
+          `sqltag is unable to run in this browser environment, or has been bundled for the browser (running in ${runtimeName}).
+In case this error is unexpected for you, please report it in https://pris.ly/prisma-prisma-bug-report`
+        );
+      };
+      Prisma2.empty = () => {
+        const runtimeName = getRuntime2().prettyName;
+        throw new Error(
+          `empty is unable to run in this browser environment, or has been bundled for the browser (running in ${runtimeName}).
+In case this error is unexpected for you, please report it in https://pris.ly/prisma-prisma-bug-report`
+        );
+      };
+      Prisma2.join = () => {
+        const runtimeName = getRuntime2().prettyName;
+        throw new Error(
+          `join is unable to run in this browser environment, or has been bundled for the browser (running in ${runtimeName}).
+In case this error is unexpected for you, please report it in https://pris.ly/prisma-prisma-bug-report`
+        );
+      };
+      Prisma2.raw = () => {
+        const runtimeName = getRuntime2().prettyName;
+        throw new Error(
+          `raw is unable to run in this browser environment, or has been bundled for the browser (running in ${runtimeName}).
+In case this error is unexpected for you, please report it in https://pris.ly/prisma-prisma-bug-report`
+        );
+      };
+      Prisma2.validator = Public2.validator;
+      Prisma2.getExtensionContext = () => {
+        const runtimeName = getRuntime2().prettyName;
+        throw new Error(
+          `Extensions.getExtensionContext is unable to run in this browser environment, or has been bundled for the browser (running in ${runtimeName}).
+In case this error is unexpected for you, please report it in https://pris.ly/prisma-prisma-bug-report`
+        );
+      };
+      Prisma2.defineExtension = () => {
+        const runtimeName = getRuntime2().prettyName;
+        throw new Error(
+          `Extensions.defineExtension is unable to run in this browser environment, or has been bundled for the browser (running in ${runtimeName}).
+In case this error is unexpected for you, please report it in https://pris.ly/prisma-prisma-bug-report`
+        );
+      };
+      Prisma2.DbNull = objectEnumValues2.instances.DbNull;
+      Prisma2.JsonNull = objectEnumValues2.instances.JsonNull;
+      Prisma2.AnyNull = objectEnumValues2.instances.AnyNull;
+      Prisma2.NullTypes = {
+        DbNull: objectEnumValues2.classes.DbNull,
+        JsonNull: objectEnumValues2.classes.JsonNull,
+        AnyNull: objectEnumValues2.classes.AnyNull
+      };
+      exports.Prisma.TransactionIsolationLevel = makeStrictEnum2({
+        Serializable: "Serializable"
+      });
+      exports.Prisma.ConfigScalarFieldEnum = {
+        realm_id: "realm_id",
+        allowReads: "allowReads",
+        allowWrites: "allowWrites"
+      };
+      exports.Prisma.AclScalarFieldEnum = {
+        acl_id: "acl_id",
+        entity_name: "entity_name",
+        entity_type: "entity_type",
+        role_id: "role_id",
+        permission: "permission"
+      };
+      exports.Prisma.BagsScalarFieldEnum = {
+        bag_id: "bag_id",
+        bag_name: "bag_name",
+        accesscontrol: "accesscontrol",
+        description: "description"
+      };
+      exports.Prisma.GroupsScalarFieldEnum = {
+        group_id: "group_id",
+        group_name: "group_name",
+        description: "description"
+      };
+      exports.Prisma.Recipe_bagsScalarFieldEnum = {
+        recipe_id: "recipe_id",
+        bag_id: "bag_id",
+        position: "position"
+      };
+      exports.Prisma.RecipesScalarFieldEnum = {
+        recipe_id: "recipe_id",
+        recipe_name: "recipe_name",
+        description: "description",
+        owner_id: "owner_id"
+      };
+      exports.Prisma.RolesScalarFieldEnum = {
+        role_id: "role_id",
+        role_name: "role_name",
+        description: "description"
+      };
+      exports.Prisma.SessionsScalarFieldEnum = {
+        session_id: "session_id",
+        created_at: "created_at",
+        last_accessed: "last_accessed",
+        session_key: "session_key",
+        session_login_state: "session_login_state",
+        user_id: "user_id"
+      };
+      exports.Prisma.TiddlersScalarFieldEnum = {
+        tiddler_id: "tiddler_id",
+        bag_id: "bag_id",
+        title: "title",
+        is_deleted: "is_deleted",
+        attachment_blob: "attachment_blob"
+      };
+      exports.Prisma.FieldsScalarFieldEnum = {
+        tiddler_id: "tiddler_id",
+        field_name: "field_name",
+        field_value: "field_value"
+      };
+      exports.Prisma.UsersScalarFieldEnum = {
+        user_id: "user_id",
+        username: "username",
+        email: "email",
+        password: "password",
+        created_at: "created_at",
+        last_login: "last_login"
+      };
+      exports.Prisma.SortOrder = {
+        asc: "asc",
+        desc: "desc"
+      };
+      exports.Prisma.NullsOrder = {
+        first: "first",
+        last: "last"
+      };
+      exports.Prisma.ModelName = {
+        config: "config",
+        acl: "acl",
+        bags: "bags",
+        groups: "groups",
+        recipe_bags: "recipe_bags",
+        recipes: "recipes",
+        roles: "roles",
+        sessions: "sessions",
+        tiddlers: "tiddlers",
+        fields: "fields",
+        users: "users"
+      };
+      var PrismaClient2 = class {
+        constructor() {
+          return new Proxy(this, {
+            get(target, prop) {
+              let message;
+              const runtime = getRuntime2();
+              if (runtime.isEdge) {
+                message = `PrismaClient is not configured to run in ${runtime.prettyName}. In order to run Prisma Client on edge runtime, either:
+- Use Prisma Accelerate: https://pris.ly/d/accelerate
+- Use Driver Adapters: https://pris.ly/d/driver-adapters
+`;
+              } else {
+                message = "PrismaClient is unable to run in this browser environment, or has been bundled for the browser (running in `" + runtime.prettyName + "`).";
+              }
+              message += `
+If this is unexpected, please open an issue: https://pris.ly/prisma-prisma-bug-report`;
+              throw new Error(message);
+            }
+          });
+        }
+      };
+      exports.PrismaClient = PrismaClient2;
+      Object.assign(exports, Prisma2);
+    }
+  });
+
+  // node_modules/@prisma/client/index-browser.js
+  var require_index_browser3 = __commonJS({
+    "node_modules/@prisma/client/index-browser.js"(exports, module2) {
+      var prisma = require_index_browser2();
+      module2.exports = prisma;
+    }
+  });
+
+  // react-user-mgmt/node_modules/react/cjs/react-jsx-runtime.development.js
+  var require_react_jsx_runtime_development = __commonJS({
+    "react-user-mgmt/node_modules/react/cjs/react-jsx-runtime.development.js"(exports) {
+      "use strict";
+      (function() {
+        function getComponentNameFromType(type) {
+          if (null == type) return null;
+          if ("function" === typeof type)
+            return type.$$typeof === REACT_CLIENT_REFERENCE$2 ? null : type.displayName || type.name || null;
+          if ("string" === typeof type) return type;
+          switch (type) {
+            case REACT_FRAGMENT_TYPE:
+              return "Fragment";
+            case REACT_PORTAL_TYPE:
+              return "Portal";
+            case REACT_PROFILER_TYPE:
+              return "Profiler";
+            case REACT_STRICT_MODE_TYPE:
+              return "StrictMode";
+            case REACT_SUSPENSE_TYPE:
+              return "Suspense";
+            case REACT_SUSPENSE_LIST_TYPE:
+              return "SuspenseList";
+          }
+          if ("object" === typeof type)
+            switch ("number" === typeof type.tag && console.error(
+              "Received an unexpected object in getComponentNameFromType(). This is likely a bug in React. Please file an issue."
+            ), type.$$typeof) {
+              case REACT_CONTEXT_TYPE:
+                return (type.displayName || "Context") + ".Provider";
+              case REACT_CONSUMER_TYPE:
+                return (type._context.displayName || "Context") + ".Consumer";
+              case REACT_FORWARD_REF_TYPE:
+                var innerType = type.render;
+                type = type.displayName;
+                type || (type = innerType.displayName || innerType.name || "", type = "" !== type ? "ForwardRef(" + type + ")" : "ForwardRef");
+                return type;
+              case REACT_MEMO_TYPE:
+                return innerType = type.displayName || null, null !== innerType ? innerType : getComponentNameFromType(type.type) || "Memo";
+              case REACT_LAZY_TYPE:
+                innerType = type._payload;
+                type = type._init;
+                try {
+                  return getComponentNameFromType(type(innerType));
+                } catch (x) {
+                }
+            }
+          return null;
+        }
+        function testStringCoercion(value) {
+          return "" + value;
+        }
+        function checkKeyStringCoercion(value) {
+          try {
+            testStringCoercion(value);
+            var JSCompiler_inline_result = false;
+          } catch (e) {
+            JSCompiler_inline_result = true;
+          }
+          if (JSCompiler_inline_result) {
+            JSCompiler_inline_result = console;
+            var JSCompiler_temp_const = JSCompiler_inline_result.error;
+            var JSCompiler_inline_result$jscomp$0 = "function" === typeof Symbol && Symbol.toStringTag && value[Symbol.toStringTag] || value.constructor.name || "Object";
+            JSCompiler_temp_const.call(
+              JSCompiler_inline_result,
+              "The provided key is an unsupported type %s. This value must be coerced to a string before using it here.",
+              JSCompiler_inline_result$jscomp$0
+            );
+            return testStringCoercion(value);
+          }
+        }
+        function disabledLog() {
+        }
+        function disableLogs() {
+          if (0 === disabledDepth) {
+            prevLog = console.log;
+            prevInfo = console.info;
+            prevWarn = console.warn;
+            prevError = console.error;
+            prevGroup = console.group;
+            prevGroupCollapsed = console.groupCollapsed;
+            prevGroupEnd = console.groupEnd;
+            var props = {
+              configurable: true,
+              enumerable: true,
+              value: disabledLog,
+              writable: true
+            };
+            Object.defineProperties(console, {
+              info: props,
+              log: props,
+              warn: props,
+              error: props,
+              group: props,
+              groupCollapsed: props,
+              groupEnd: props
+            });
+          }
+          disabledDepth++;
+        }
+        function reenableLogs() {
+          disabledDepth--;
+          if (0 === disabledDepth) {
+            var props = { configurable: true, enumerable: true, writable: true };
+            Object.defineProperties(console, {
+              log: assign({}, props, { value: prevLog }),
+              info: assign({}, props, { value: prevInfo }),
+              warn: assign({}, props, { value: prevWarn }),
+              error: assign({}, props, { value: prevError }),
+              group: assign({}, props, { value: prevGroup }),
+              groupCollapsed: assign({}, props, { value: prevGroupCollapsed }),
+              groupEnd: assign({}, props, { value: prevGroupEnd })
+            });
+          }
+          0 > disabledDepth && console.error(
+            "disabledDepth fell below zero. This is a bug in React. Please file an issue."
+          );
+        }
+        function describeBuiltInComponentFrame(name) {
+          if (void 0 === prefix)
+            try {
+              throw Error();
+            } catch (x) {
+              var match = x.stack.trim().match(/\n( *(at )?)/);
+              prefix = match && match[1] || "";
+              suffix = -1 < x.stack.indexOf("\n    at") ? " (<anonymous>)" : -1 < x.stack.indexOf("@") ? "@unknown:0:0" : "";
+            }
+          return "\n" + prefix + name + suffix;
+        }
+        function describeNativeComponentFrame(fn, construct) {
+          if (!fn || reentry) return "";
+          var frame = componentFrameCache.get(fn);
+          if (void 0 !== frame) return frame;
+          reentry = true;
+          frame = Error.prepareStackTrace;
+          Error.prepareStackTrace = void 0;
+          var previousDispatcher = null;
+          previousDispatcher = ReactSharedInternals.H;
+          ReactSharedInternals.H = null;
+          disableLogs();
+          try {
+            var RunInRootFrame = {
+              DetermineComponentFrameRoot: function() {
+                try {
+                  if (construct) {
+                    var Fake = function() {
+                      throw Error();
+                    };
+                    Object.defineProperty(Fake.prototype, "props", {
+                      set: function() {
+                        throw Error();
+                      }
+                    });
+                    if ("object" === typeof Reflect && Reflect.construct) {
+                      try {
+                        Reflect.construct(Fake, []);
+                      } catch (x) {
+                        var control = x;
+                      }
+                      Reflect.construct(fn, [], Fake);
+                    } else {
+                      try {
+                        Fake.call();
+                      } catch (x$0) {
+                        control = x$0;
+                      }
+                      fn.call(Fake.prototype);
+                    }
+                  } else {
+                    try {
+                      throw Error();
+                    } catch (x$1) {
+                      control = x$1;
+                    }
+                    (Fake = fn()) && "function" === typeof Fake.catch && Fake.catch(function() {
+                    });
+                  }
+                } catch (sample) {
+                  if (sample && control && "string" === typeof sample.stack)
+                    return [sample.stack, control.stack];
+                }
+                return [null, null];
+              }
+            };
+            RunInRootFrame.DetermineComponentFrameRoot.displayName = "DetermineComponentFrameRoot";
+            var namePropDescriptor = Object.getOwnPropertyDescriptor(
+              RunInRootFrame.DetermineComponentFrameRoot,
+              "name"
+            );
+            namePropDescriptor && namePropDescriptor.configurable && Object.defineProperty(
+              RunInRootFrame.DetermineComponentFrameRoot,
+              "name",
+              { value: "DetermineComponentFrameRoot" }
+            );
+            var _RunInRootFrame$Deter = RunInRootFrame.DetermineComponentFrameRoot(), sampleStack = _RunInRootFrame$Deter[0], controlStack = _RunInRootFrame$Deter[1];
+            if (sampleStack && controlStack) {
+              var sampleLines = sampleStack.split("\n"), controlLines = controlStack.split("\n");
+              for (_RunInRootFrame$Deter = namePropDescriptor = 0; namePropDescriptor < sampleLines.length && !sampleLines[namePropDescriptor].includes(
+                "DetermineComponentFrameRoot"
+              ); )
+                namePropDescriptor++;
+              for (; _RunInRootFrame$Deter < controlLines.length && !controlLines[_RunInRootFrame$Deter].includes(
+                "DetermineComponentFrameRoot"
+              ); )
+                _RunInRootFrame$Deter++;
+              if (namePropDescriptor === sampleLines.length || _RunInRootFrame$Deter === controlLines.length)
+                for (namePropDescriptor = sampleLines.length - 1, _RunInRootFrame$Deter = controlLines.length - 1; 1 <= namePropDescriptor && 0 <= _RunInRootFrame$Deter && sampleLines[namePropDescriptor] !== controlLines[_RunInRootFrame$Deter]; )
+                  _RunInRootFrame$Deter--;
+              for (; 1 <= namePropDescriptor && 0 <= _RunInRootFrame$Deter; namePropDescriptor--, _RunInRootFrame$Deter--)
+                if (sampleLines[namePropDescriptor] !== controlLines[_RunInRootFrame$Deter]) {
+                  if (1 !== namePropDescriptor || 1 !== _RunInRootFrame$Deter) {
+                    do
+                      if (namePropDescriptor--, _RunInRootFrame$Deter--, 0 > _RunInRootFrame$Deter || sampleLines[namePropDescriptor] !== controlLines[_RunInRootFrame$Deter]) {
+                        var _frame = "\n" + sampleLines[namePropDescriptor].replace(
+                          " at new ",
+                          " at "
+                        );
+                        fn.displayName && _frame.includes("<anonymous>") && (_frame = _frame.replace("<anonymous>", fn.displayName));
+                        "function" === typeof fn && componentFrameCache.set(fn, _frame);
+                        return _frame;
+                      }
+                    while (1 <= namePropDescriptor && 0 <= _RunInRootFrame$Deter);
+                  }
+                  break;
+                }
+            }
+          } finally {
+            reentry = false, ReactSharedInternals.H = previousDispatcher, reenableLogs(), Error.prepareStackTrace = frame;
+          }
+          sampleLines = (sampleLines = fn ? fn.displayName || fn.name : "") ? describeBuiltInComponentFrame(sampleLines) : "";
+          "function" === typeof fn && componentFrameCache.set(fn, sampleLines);
+          return sampleLines;
+        }
+        function describeUnknownElementTypeFrameInDEV(type) {
+          if (null == type) return "";
+          if ("function" === typeof type) {
+            var prototype = type.prototype;
+            return describeNativeComponentFrame(
+              type,
+              !(!prototype || !prototype.isReactComponent)
+            );
+          }
+          if ("string" === typeof type) return describeBuiltInComponentFrame(type);
+          switch (type) {
+            case REACT_SUSPENSE_TYPE:
+              return describeBuiltInComponentFrame("Suspense");
+            case REACT_SUSPENSE_LIST_TYPE:
+              return describeBuiltInComponentFrame("SuspenseList");
+          }
+          if ("object" === typeof type)
+            switch (type.$$typeof) {
+              case REACT_FORWARD_REF_TYPE:
+                return type = describeNativeComponentFrame(type.render, false), type;
+              case REACT_MEMO_TYPE:
+                return describeUnknownElementTypeFrameInDEV(type.type);
+              case REACT_LAZY_TYPE:
+                prototype = type._payload;
+                type = type._init;
+                try {
+                  return describeUnknownElementTypeFrameInDEV(type(prototype));
+                } catch (x) {
+                }
+            }
+          return "";
+        }
+        function getOwner() {
+          var dispatcher = ReactSharedInternals.A;
+          return null === dispatcher ? null : dispatcher.getOwner();
+        }
+        function hasValidKey(config) {
+          if (hasOwnProperty.call(config, "key")) {
+            var getter = Object.getOwnPropertyDescriptor(config, "key").get;
+            if (getter && getter.isReactWarning) return false;
+          }
+          return void 0 !== config.key;
+        }
+        function defineKeyPropWarningGetter(props, displayName) {
+          function warnAboutAccessingKey() {
+            specialPropKeyWarningShown || (specialPropKeyWarningShown = true, console.error(
+              "%s: `key` is not a prop. Trying to access it will result in `undefined` being returned. If you need to access the same value within the child component, you should pass it as a different prop. (https://react.dev/link/special-props)",
+              displayName
+            ));
+          }
+          warnAboutAccessingKey.isReactWarning = true;
+          Object.defineProperty(props, "key", {
+            get: warnAboutAccessingKey,
+            configurable: true
+          });
+        }
+        function elementRefGetterWithDeprecationWarning() {
+          var componentName = getComponentNameFromType(this.type);
+          didWarnAboutElementRef[componentName] || (didWarnAboutElementRef[componentName] = true, console.error(
+            "Accessing element.ref was removed in React 19. ref is now a regular prop. It will be removed from the JSX Element type in a future release."
+          ));
+          componentName = this.props.ref;
+          return void 0 !== componentName ? componentName : null;
+        }
+        function ReactElement(type, key, self2, source, owner, props) {
+          self2 = props.ref;
+          type = {
+            $$typeof: REACT_ELEMENT_TYPE,
+            type,
+            key,
+            props,
+            _owner: owner
+          };
+          null !== (void 0 !== self2 ? self2 : null) ? Object.defineProperty(type, "ref", {
+            enumerable: false,
+            get: elementRefGetterWithDeprecationWarning
+          }) : Object.defineProperty(type, "ref", { enumerable: false, value: null });
+          type._store = {};
+          Object.defineProperty(type._store, "validated", {
+            configurable: false,
+            enumerable: false,
+            writable: true,
+            value: 0
+          });
+          Object.defineProperty(type, "_debugInfo", {
+            configurable: false,
+            enumerable: false,
+            writable: true,
+            value: null
+          });
+          Object.freeze && (Object.freeze(type.props), Object.freeze(type));
+          return type;
+        }
+        function jsxDEVImpl(type, config, maybeKey, isStaticChildren, source, self2) {
+          if ("string" === typeof type || "function" === typeof type || type === REACT_FRAGMENT_TYPE || type === REACT_PROFILER_TYPE || type === REACT_STRICT_MODE_TYPE || type === REACT_SUSPENSE_TYPE || type === REACT_SUSPENSE_LIST_TYPE || type === REACT_OFFSCREEN_TYPE || "object" === typeof type && null !== type && (type.$$typeof === REACT_LAZY_TYPE || type.$$typeof === REACT_MEMO_TYPE || type.$$typeof === REACT_CONTEXT_TYPE || type.$$typeof === REACT_CONSUMER_TYPE || type.$$typeof === REACT_FORWARD_REF_TYPE || type.$$typeof === REACT_CLIENT_REFERENCE$1 || void 0 !== type.getModuleId)) {
+            var children = config.children;
+            if (void 0 !== children)
+              if (isStaticChildren)
+                if (isArrayImpl(children)) {
+                  for (isStaticChildren = 0; isStaticChildren < children.length; isStaticChildren++)
+                    validateChildKeys(children[isStaticChildren], type);
+                  Object.freeze && Object.freeze(children);
+                } else
+                  console.error(
+                    "React.jsx: Static children should always be an array. You are likely explicitly calling React.jsxs or React.jsxDEV. Use the Babel transform instead."
+                  );
+              else validateChildKeys(children, type);
+          } else {
+            children = "";
+            if (void 0 === type || "object" === typeof type && null !== type && 0 === Object.keys(type).length)
+              children += " You likely forgot to export your component from the file it's defined in, or you might have mixed up default and named imports.";
+            null === type ? isStaticChildren = "null" : isArrayImpl(type) ? isStaticChildren = "array" : void 0 !== type && type.$$typeof === REACT_ELEMENT_TYPE ? (isStaticChildren = "<" + (getComponentNameFromType(type.type) || "Unknown") + " />", children = " Did you accidentally export a JSX literal instead of a component?") : isStaticChildren = typeof type;
+            console.error(
+              "React.jsx: type is invalid -- expected a string (for built-in components) or a class/function (for composite components) but got: %s.%s",
+              isStaticChildren,
+              children
+            );
+          }
+          if (hasOwnProperty.call(config, "key")) {
+            children = getComponentNameFromType(type);
+            var keys = Object.keys(config).filter(function(k) {
+              return "key" !== k;
+            });
+            isStaticChildren = 0 < keys.length ? "{key: someKey, " + keys.join(": ..., ") + ": ...}" : "{key: someKey}";
+            didWarnAboutKeySpread[children + isStaticChildren] || (keys = 0 < keys.length ? "{" + keys.join(": ..., ") + ": ...}" : "{}", console.error(
+              'A props object containing a "key" prop is being spread into JSX:\n  let props = %s;\n  <%s {...props} />\nReact keys must be passed directly to JSX without using spread:\n  let props = %s;\n  <%s key={someKey} {...props} />',
+              isStaticChildren,
+              children,
+              keys,
+              children
+            ), didWarnAboutKeySpread[children + isStaticChildren] = true);
+          }
+          children = null;
+          void 0 !== maybeKey && (checkKeyStringCoercion(maybeKey), children = "" + maybeKey);
+          hasValidKey(config) && (checkKeyStringCoercion(config.key), children = "" + config.key);
+          if ("key" in config) {
+            maybeKey = {};
+            for (var propName in config)
+              "key" !== propName && (maybeKey[propName] = config[propName]);
+          } else maybeKey = config;
+          children && defineKeyPropWarningGetter(
+            maybeKey,
+            "function" === typeof type ? type.displayName || type.name || "Unknown" : type
+          );
+          return ReactElement(type, children, self2, source, getOwner(), maybeKey);
+        }
+        function validateChildKeys(node, parentType) {
+          if ("object" === typeof node && node && node.$$typeof !== REACT_CLIENT_REFERENCE) {
+            if (isArrayImpl(node))
+              for (var i = 0; i < node.length; i++) {
+                var child = node[i];
+                isValidElement(child) && validateExplicitKey(child, parentType);
+              }
+            else if (isValidElement(node))
+              node._store && (node._store.validated = 1);
+            else if (null === node || "object" !== typeof node ? i = null : (i = MAYBE_ITERATOR_SYMBOL && node[MAYBE_ITERATOR_SYMBOL] || node["@@iterator"], i = "function" === typeof i ? i : null), "function" === typeof i && i !== node.entries && (i = i.call(node), i !== node))
+              for (; !(node = i.next()).done; )
+                isValidElement(node.value) && validateExplicitKey(node.value, parentType);
+          }
+        }
+        function isValidElement(object) {
+          return "object" === typeof object && null !== object && object.$$typeof === REACT_ELEMENT_TYPE;
+        }
+        function validateExplicitKey(element, parentType) {
+          if (element._store && !element._store.validated && null == element.key && (element._store.validated = 1, parentType = getCurrentComponentErrorInfo(parentType), !ownerHasKeyUseWarning[parentType])) {
+            ownerHasKeyUseWarning[parentType] = true;
+            var childOwner = "";
+            element && null != element._owner && element._owner !== getOwner() && (childOwner = null, "number" === typeof element._owner.tag ? childOwner = getComponentNameFromType(element._owner.type) : "string" === typeof element._owner.name && (childOwner = element._owner.name), childOwner = " It was passed a child from " + childOwner + ".");
+            var prevGetCurrentStack = ReactSharedInternals.getCurrentStack;
+            ReactSharedInternals.getCurrentStack = function() {
+              var stack = describeUnknownElementTypeFrameInDEV(element.type);
+              prevGetCurrentStack && (stack += prevGetCurrentStack() || "");
+              return stack;
+            };
+            console.error(
+              'Each child in a list should have a unique "key" prop.%s%s See https://react.dev/link/warning-keys for more information.',
+              parentType,
+              childOwner
+            );
+            ReactSharedInternals.getCurrentStack = prevGetCurrentStack;
+          }
+        }
+        function getCurrentComponentErrorInfo(parentType) {
+          var info = "", owner = getOwner();
+          owner && (owner = getComponentNameFromType(owner.type)) && (info = "\n\nCheck the render method of `" + owner + "`.");
+          info || (parentType = getComponentNameFromType(parentType)) && (info = "\n\nCheck the top-level render call using <" + parentType + ">.");
+          return info;
+        }
+        var React10 = require_react(), REACT_ELEMENT_TYPE = Symbol.for("react.transitional.element"), REACT_PORTAL_TYPE = Symbol.for("react.portal"), REACT_FRAGMENT_TYPE = Symbol.for("react.fragment"), REACT_STRICT_MODE_TYPE = Symbol.for("react.strict_mode"), REACT_PROFILER_TYPE = Symbol.for("react.profiler");
+        Symbol.for("react.provider");
+        var REACT_CONSUMER_TYPE = Symbol.for("react.consumer"), REACT_CONTEXT_TYPE = Symbol.for("react.context"), REACT_FORWARD_REF_TYPE = Symbol.for("react.forward_ref"), REACT_SUSPENSE_TYPE = Symbol.for("react.suspense"), REACT_SUSPENSE_LIST_TYPE = Symbol.for("react.suspense_list"), REACT_MEMO_TYPE = Symbol.for("react.memo"), REACT_LAZY_TYPE = Symbol.for("react.lazy"), REACT_OFFSCREEN_TYPE = Symbol.for("react.offscreen"), MAYBE_ITERATOR_SYMBOL = Symbol.iterator, REACT_CLIENT_REFERENCE$2 = Symbol.for("react.client.reference"), ReactSharedInternals = React10.__CLIENT_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE, hasOwnProperty = Object.prototype.hasOwnProperty, assign = Object.assign, REACT_CLIENT_REFERENCE$1 = Symbol.for("react.client.reference"), isArrayImpl = Array.isArray, disabledDepth = 0, prevLog, prevInfo, prevWarn, prevError, prevGroup, prevGroupCollapsed, prevGroupEnd;
+        disabledLog.__reactDisabledLog = true;
+        var prefix, suffix, reentry = false;
+        var componentFrameCache = new ("function" === typeof WeakMap ? WeakMap : Map)();
+        var REACT_CLIENT_REFERENCE = Symbol.for("react.client.reference"), specialPropKeyWarningShown;
+        var didWarnAboutElementRef = {};
+        var didWarnAboutKeySpread = {}, ownerHasKeyUseWarning = {};
+        exports.Fragment = REACT_FRAGMENT_TYPE;
+        exports.jsx = function(type, config, maybeKey, source, self2) {
+          return jsxDEVImpl(type, config, maybeKey, false, source, self2);
+        };
+        exports.jsxs = function(type, config, maybeKey, source, self2) {
+          return jsxDEVImpl(type, config, maybeKey, true, source, self2);
+        };
+      })();
+    }
+  });
+
+  // react-user-mgmt/node_modules/react/jsx-runtime.js
+  var require_jsx_runtime = __commonJS({
+    "react-user-mgmt/node_modules/react/jsx-runtime.js"(exports, module2) {
+      "use strict";
+      if (false) {
+        module2.exports = null;
+      } else {
+        module2.exports = require_react_jsx_runtime_development();
+      }
+    }
+  });
 
   // react-user-mgmt/src/main.tsx
-  var import_client = __toESM(require_client(), 1);
+  var import_react12 = __toESM(require_react(), 1);
+  var import_client2 = __toESM(require_client(), 1);
 
-  // react-user-mgmt/src/components/ManageUser.tsx
-  var import_react5 = __toESM(require_react(), 1);
-
-  // react-user-mgmt/src/helpers/utils.tsx
-  function toSearchParams(formData) {
-    const entries = formData.entries ? formData.entries() : Object.entries(formData);
-    const data = [...entries].filter((e) => {
-      if (typeof e[1] !== "string") throw new Error("Invalid form data");
-      return true;
-    });
-    return new URLSearchParams(data);
-  }
-  function fetchPostSearchParams(url, formData) {
-    return fetch(url, {
-      method: "POST",
-      redirect: "manual",
-      headers: { "Content-Type": "application/x-www-form-urlencoded", "X-Requested-With": "TiddlyWiki" },
-      body: toSearchParams(formData)
-    });
-  }
+  // react-user-mgmt/src/components/Login.tsx
+  var import_react2 = __toESM(require_react(), 1);
 
   // node_modules/@serenity-kit/opaque/esm/index.js
   function _loadWasmModule(sync, filepath, src, imports) {
@@ -20816,18 +21434,2268 @@ ${val.stack}`;
   var ready = __wbg_init(wasmData()).then(() => {
   });
 
-  // react-user-mgmt/src/components/ManageUser.tsx
+  // react-user-mgmt/src/helpers/utils.tsx
+  function toSearchParams(formData) {
+    const entries = formData.entries ? formData.entries() : Object.entries(formData);
+    const data = [...entries].filter((e, i) => {
+      if (typeof e[1] !== "string") throw console.error(formData);
+      return true;
+    });
+    return new URLSearchParams(data);
+  }
+  function fetchPostSearchParams(url, formData) {
+    return fetch(url, {
+      method: "POST",
+      redirect: "manual",
+      headers: { "Content-Type": "application/x-www-form-urlencoded", "X-Requested-With": "TiddlyWiki" },
+      body: toSearchParams(formData)
+    });
+  }
+  var changePassword = async (userId, password) => {
+    const { clientRegistrationState, registrationRequest } = client.startRegistration({ password });
+    const register1 = await fetchPostSearchParams("/change-user-password/1", { userId, registrationRequest });
+    const registrationResponse = await register1.text();
+    if (!register1.ok) throw registrationResponse;
+    const { registrationRecord } = client.finishRegistration({
+      clientRegistrationState,
+      registrationResponse,
+      password
+    });
+    const register2 = await fetchPostSearchParams("/change-user-password/2", { userId, registrationRecord });
+    if (!register2.ok) throw await register2.text();
+  };
+
+  // react-user-mgmt/src/helpers/prisma-proxy.ts
+  var import_client = __toESM(require_index_browser3(), 1);
+  var _error;
+  var ProxyPromise = class {
+    constructor({ action, table, arg }) {
+      __publicField(this, "action");
+      __publicField(this, "table");
+      __publicField(this, "arg");
+      __privateAdd(this, _error, new Error("An error occured for this request"));
+      this.action = action;
+      this.table = table;
+      this.arg = arg;
+      Object.defineProperty(this, "toJSON", {
+        configurable: true,
+        enumerable: true,
+        value: () => ({
+          action: this.action,
+          table: this.table,
+          arg: this.arg,
+          dbnulls: this.arg.data && findValueInObject(this.arg.data, (e) => e === import_client.Prisma.DbNull),
+          jsnulls: this.arg.data && findValueInObject(this.arg.data, (e) => e === import_client.Prisma.JsonNull)
+        })
+      });
+    }
+    static getErrorStack(t) {
+      return __privateGet(t, _error).stack;
+    }
+  };
+  _error = new WeakMap();
+  function findValueInObject(val, predicate, keys = [], paths = []) {
+    if (predicate(val)) {
+      paths.push(keys.join("/"));
+      return paths;
+    }
+    if (val && typeof val === "object") {
+      for (const key of Object.keys(val)) {
+        if (!val.hasOwnProperty(key)) continue;
+        findValueInObject(val[key], predicate, [...keys, key], paths);
+      }
+    }
+    console.log(paths, keys);
+    return paths;
+  }
+  function capitalize(table) {
+    return table.slice(0, 1).toUpperCase() + table.slice(1);
+  }
+  var proxy = (() => new Proxy({}, {
+    get(target, table) {
+      return target[table] = target[table] || new Proxy({}, {
+        get(target2, action) {
+          return target2[action] = target2[action] || ((arg) => {
+            return new ProxyPromise({ action, table: capitalize(table), arg });
+          });
+        }
+      });
+    }
+  }))();
+
+  // react-user-mgmt/src/helpers/server-types.ts
+  var import_react = __toESM(require_react(), 1);
+  var IndexJsonContext = import_react.default.createContext(null);
+  function useIndexJson() {
+    return import_react.default.useContext(IndexJsonContext);
+  }
+
+  // react-user-mgmt/src/components/Login.tsx
+  var import_jsx_runtime = __toESM(require_jsx_runtime(), 1);
+  var LOGIN_FAILED = "Login failed. Please check your credentials.";
+  async function loginWithOpaque(username, password) {
+    const { clientLoginState, startLoginRequest } = client.startLogin({ password });
+    const login1 = await fetchPostSearchParams("/login/1", { username, startLoginRequest });
+    if (!login1.ok) throw await login1.text() || LOGIN_FAILED;
+    const loginResponse = await login1.text();
+    const loginResult = client.finishLogin({ clientLoginState, loginResponse, password });
+    if (!loginResult) throw LOGIN_FAILED;
+    const { finishLoginRequest, sessionKey, exportKey, serverStaticPublicKey } = loginResult;
+    const login2 = await fetchPostSearchParams("/login/2", { username, finishLoginRequest });
+    if (!login2.ok) throw await login2.text() || LOGIN_FAILED;
+    return { username, sessionKey, exportKey, serverStaticPublicKey };
+  }
+  var Login = () => {
+    const { "user-is-logged-in": isLoggedIn } = useIndexJson();
+    const [errorMessage, setErrorMessage] = (0, import_react2.useState)(null);
+    const returnUrl = new URLSearchParams(location.search).get("returnUrl") || "/";
+    const handleSubmit = async (formData) => {
+      setErrorMessage(null);
+      const username = formData.get("username");
+      const password = formData.get("password");
+      if (!username || !password)
+        return setErrorMessage("Please enter a username and password.");
+      await loginWithOpaque(username, password).then((e) => {
+        location.href = "/";
+      }, (e) => {
+        setErrorMessage(`${e}`);
+      });
+    };
+    return /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "login-page", children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "login-container", children: [
+      /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "login-header", children: [
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("h1", { children: "Be our Guest" }),
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("a", { href: "/", children: "Explore as Guest" }),
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("h2", { children: "TiddlyWiki Login" })
+      ] }),
+      isLoggedIn ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)(import_jsx_runtime.Fragment, { children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "mws-success-message", children: "You are logged in!" }) }) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)(import_jsx_runtime.Fragment, { children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("form", { className: "login-form", action: handleSubmit, children: [
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("input", { type: "hidden", name: "returnUrl", value: returnUrl }),
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("input", { type: "text", name: "username", placeholder: "Username", required: true }),
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("input", { type: "password", name: "password", placeholder: "Password", required: true }),
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("input", { type: "submit", value: "Log In" })
+      ] }) }),
+      errorMessage && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "mws-error-message", children: errorMessage })
+    ] }) });
+  };
+  var Login_default = Login;
+
+  // react-user-mgmt/src/components/Frame.tsx
+  var import_react11 = __toESM(require_react(), 1);
+
+  // react-user-mgmt/src/components/Header.tsx
+  var import_react3 = __toESM(require_react(), 1);
+  var import_jsx_runtime2 = __toESM(require_jsx_runtime(), 1);
+  var Header = ({
+    pageTitle,
+    username,
+    userIsAdmin,
+    userIsLoggedIn,
+    firstGuestUser,
+    userId,
+    setShowAnonConfig
+  }) => {
+    const [isLoggingOut, setIsLoggingOut] = (0, import_react3.useState)(false);
+    const navigateTo = (path) => {
+      window.location.href = path;
+    };
+    const handleManageUsers = () => {
+      navigateTo("/admin/users?q=*");
+    };
+    const handleManageRoles = () => {
+      navigateTo("/admin/roles?q=*");
+    };
+    const handleAnonConfig = async () => {
+      setShowAnonConfig(true);
+    };
+    const handleLogout = async () => {
+      setIsLoggingOut(true);
+      try {
+        const response = await fetch("/logout", { method: "POST" });
+        if (response.ok) {
+          window.location.href = "/";
+        }
+      } catch (error) {
+        console.error("Error logging out:", error);
+        setIsLoggingOut(false);
+      }
+    };
+    return /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { className: "mws-header", children: [
+      /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("h1", { children: [
+        /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("a", { href: "/", children: /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { className: "mws-logo", children: "\u{1F3E0}" }) }),
+        /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { className: "divider", children: "|" }),
+        /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { children: pageTitle })
+      ] }),
+      /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { className: "mws-user-info", children: [
+        /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("span", { children: [
+          "Hello, ",
+          username
+        ] }),
+        userIsAdmin && /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { className: "mws-admin-dropdown", children: [
+          /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("button", { className: "mws-admin-dropbtn", children: "\u2699\uFE0F" }),
+          /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { className: "mws-admin-dropdown-content", children: [
+            /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("button", { onClick: handleManageUsers, className: "mws-admin-form-button", children: "Manage Users" }),
+            /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("button", { onClick: handleManageRoles, className: "mws-admin-form-button", children: "Manage Roles" }),
+            /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("button", { onClick: handleAnonConfig, className: "mws-admin-form-button", children: "Reconfigure Anonymous Access" })
+          ] })
+        ] }),
+        userIsLoggedIn && !firstGuestUser && !userIsAdmin && userId && /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
+          "button",
+          {
+            onClick: () => navigateTo(`/admin/users/${userId}`),
+            className: "mws-profile-btn",
+            children: "Profile"
+          }
+        ),
+        userIsLoggedIn ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
+          "button",
+          {
+            onClick: handleLogout,
+            className: "mws-logout-button",
+            disabled: isLoggingOut,
+            children: isLoggingOut ? "Logging out..." : "Logout"
+          }
+        ) : /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
+          "button",
+          {
+            onClick: () => navigateTo("/login"),
+            className: "mws-login-btn",
+            children: "Login"
+          }
+        )
+      ] })
+    ] });
+  };
+  var Header_default = Header;
+
+  // react-user-mgmt/src/components/AnonConfigModal.tsx
+  var import_react4 = __toESM(require_react(), 1);
+  var import_jsx_runtime3 = __toESM(require_jsx_runtime(), 1);
+  function toParams(obj) {
+    const entries = Object.entries(obj).map(([key, value]) => {
+      if (typeof value === "object" && value !== null)
+        throw new Error("Cannot convert object to URLSearchParams");
+      if (typeof value === "function")
+        throw new Error("Cannot convert function to URLSearchParams");
+      if (typeof value === "symbol")
+        throw new Error("Cannot convert symbol to URLSearchParams");
+      if (value === void 0 || value === null)
+        return [key, ""];
+      return [key, value];
+    });
+    return new URLSearchParams(entries.map(([key, value]) => [key, `${value}`]));
+  }
+  var AnonConfigModal = ({
+    initialAllowReads,
+    initialAllowWrites,
+    onClose
+  }) => {
+    const [allowReads, setAllowReads] = (0, import_react4.useState)(initialAllowReads);
+    const [allowWrites, setAllowWrites] = (0, import_react4.useState)(initialAllowWrites);
+    const [isSaving, setIsSaving] = (0, import_react4.useState)(false);
+    const handleSubmit = async (e) => {
+      e.preventDefault();
+      setIsSaving(true);
+      try {
+        const response = await fetch("/admin/post-anon-config", {
+          method: "POST",
+          body: toParams({ allowReads, allowWrites }),
+          headers: { "Content-Type": "application/json" }
+        });
+        if (response.ok) {
+          onClose();
+        } else {
+          console.error("Failed to save anonymous config");
+        }
+      } catch (error) {
+        console.error("Error saving anonymous config:", error);
+      } finally {
+        setIsSaving(false);
+      }
+    };
+    return /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { className: "mws-modal-container", children: /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "mws-modal-content", children: [
+      /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("h1", { children: "Anonymous Access Configuration" }),
+      /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("p", { children: "This configuration allows anonymous users to read and write to the wiki." }),
+      /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("form", { className: "mws-anon-config-form", onSubmit: handleSubmit, children: [
+        /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "mws-modal-section", children: [
+          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+            "input",
+            {
+              type: "checkbox",
+              name: "allowReads",
+              checked: allowReads,
+              onChange: (e) => setAllowReads(e.target.checked)
+            }
+          ),
+          " Allow anonymous reads"
+        ] }),
+        /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "mws-modal-section", children: [
+          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+            "input",
+            {
+              type: "checkbox",
+              name: "allowWrites",
+              checked: allowWrites,
+              onChange: (e) => setAllowWrites(e.target.checked)
+            }
+          ),
+          " Allow anonymous writes"
+        ] }),
+        /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { className: "mws-modal-buttons", children: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+          "button",
+          {
+            type: "submit",
+            className: "mws-modal-button-primary",
+            disabled: isSaving,
+            children: isSaving ? "Saving..." : "Save Changes"
+          }
+        ) })
+      ] })
+    ] }) });
+  };
+  var AnonConfigModal_default = AnonConfigModal;
+
+  // react-user-mgmt/src/components/Dashboard.tsx
+  var import_react6 = __toESM(require_react(), 1);
+
+  // react-user-mgmt/src/components/BagPill.tsx
+  var import_jsx_runtime4 = __toESM(require_jsx_runtime(), 1);
+  var BagPill = ({
+    bagName,
+    isTopmost = false,
+    elementTag = "span"
+  }) => {
+    const Component = elementTag;
+    const className = `mws-bag-pill ${isTopmost ? "mws-bag-pill-topmost" : ""}`;
+    return /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(Component, { className, children: /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("a", { className: "mws-bag-pill-link", href: `/bags/${encodeURIComponent(bagName)}`, rel: "noopener noreferrer", target: "_blank", children: [
+      /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(
+        "img",
+        {
+          src: `/bags/${encodeURIComponent(bagName)}/tiddlers/%24%3A%2Ffavicon.ico?fallback=/.system/missing-favicon.png`,
+          className: "mws-favicon-small",
+          alt: "",
+          onError: ({ currentTarget }) => {
+            currentTarget.onerror = null;
+            currentTarget.src = "/missing-favicon.png";
+          }
+        }
+      ),
+      /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("span", { className: "mws-bag-pill-label", children: bagName })
+    ] }) });
+  };
+  var BagPill_default = BagPill;
+
+  // react-user-mgmt/src/components/WikiCard.tsx
+  var import_jsx_runtime5 = __toESM(require_jsx_runtime(), 1);
+  var WikiCard = ({
+    recipeName,
+    description,
+    bagNames,
+    hasAclAccess,
+    showSystem
+  }) => {
+    const filteredBags = showSystem ? bagNames : bagNames.filter((bag) => !bag.startsWith("$:/"));
+    return /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)("div", { className: "mws-wiki-card", children: [
+      /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("div", { className: "mws-wiki-card-image", children: /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(
+        "img",
+        {
+          src: `/recipes/${encodeURIComponent(recipeName)}/tiddlers/%24%3A%2Ffavicon.ico?fallback=/.system/missing-favicon.png`,
+          className: "mws-favicon",
+          alt: "",
+          onError: ({ currentTarget }) => {
+            currentTarget.onerror = null;
+            currentTarget.src = "/missing-favicon.png";
+          }
+        }
+      ) }),
+      /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)("div", { className: "mws-wiki-card-content", children: [
+        /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("div", { className: "mws-wiki-card-header", children: /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(
+          "a",
+          {
+            href: `/wiki/${encodeURIComponent(recipeName)}`,
+            rel: "noopener noreferrer",
+            target: "_blank",
+            children: recipeName
+          }
+        ) }),
+        /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("div", { className: "mws-wiki-card-meta", children: filteredBags.length > 0 ? /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("ol", { className: "mws-vertical-list", children: filteredBags.reverse().map((bagName, index) => /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(
+          BagPill_default,
+          {
+            bagName,
+            isTopmost: index === 0,
+            elementTag: "li"
+          },
+          bagName
+        )) }) : "(no bags defined)" }),
+        /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("div", { className: "mws-wiki-card-description", children: description })
+      ] }),
+      /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("div", { className: "mws-wiki-card-actions", children: hasAclAccess && /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(
+        "a",
+        {
+          href: `/admin/acl/${recipeName}/${bagNames[bagNames.length - 1]}`,
+          className: "mws-wiki-card-action",
+          title: "Manage ACL",
+          children: /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)("svg", { xmlns: "http://www.w3.org/2000/svg", viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2", strokeLinecap: "round", strokeLinejoin: "round", children: [
+            /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("rect", { x: "3", y: "11", width: "18", height: "11", rx: "2", ry: "2" }),
+            /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("path", { d: "M7 11V7a5 5 0 0 1 10 0v4" })
+          ] })
+        }
+      ) })
+    ] });
+  };
+  var WikiCard_default = WikiCard;
+
+  // react-user-mgmt/src/components/Dashboard.tsx
+  var import_react_dom = __toESM(require_react_dom(), 1);
+
+  // react-user-mgmt/src/helpers/useAsyncEffect.tsx
+  var import_react5 = __toESM(require_react(), 1);
+  var catcher = (point, error) => {
+    console.log(point, error);
+  };
+  function useAsyncEffect(mount, unmount = async () => {
+  }, cancel = async () => {
+  }, deps = []) {
+    const componentActive = (0, import_react5.useRef)(false);
+    const [loading, setLoading] = (0, import_react5.useState)(true);
+    const [promise, setPromise] = (0, import_react5.useState)(new PromiseSubject());
+    const [error, setError] = (0, import_react5.useState)();
+    const [result, setResult] = (0, import_react5.useState)();
+    (0, import_react5.useEffect)(() => {
+      componentActive.current = true;
+      return () => {
+        componentActive.current = false;
+      };
+    }, []);
+    (0, import_react5.useEffect)(() => {
+      let depsChanged = false;
+      let mountStarted = false;
+      let mountFinished = false;
+      let mountSucceeded = false;
+      let mountFailed = false;
+      (async () => {
+        await Promise.resolve();
+        if (!componentActive.current || depsChanged) {
+          return;
+        }
+        setLoading(true);
+        try {
+          mountStarted = true;
+          const result2 = await mount();
+          promise.resolve(result2);
+          mountSucceeded = true;
+          if (componentActive.current && !depsChanged) {
+            setError(void 0);
+            setResult(result2);
+            setLoading(false);
+          } else {
+            unmount();
+          }
+        } catch (error2) {
+          if (!componentActive.current) return;
+          mountFailed = true;
+          catcher("mount", error2);
+          setLoading(false);
+          setError(error2);
+          promise.reject(error2);
+        } finally {
+          mountFinished = true;
+        }
+      })();
+      return () => {
+        depsChanged = true;
+        (async () => {
+          if (mountSucceeded) {
+            try {
+              await unmount();
+              if (!componentActive.current) return;
+              setResult(void 0);
+            } catch (error2) {
+              if (!componentActive.current) return;
+              catcher("unmount", error2);
+            }
+          } else if (mountStarted && !mountFailed) {
+            try {
+              await cancel();
+            } catch (error2) {
+              if (!componentActive.current) return;
+              catcher("cancel", error2);
+            }
+          }
+        })();
+        setPromise(new PromiseSubject());
+      };
+    }, deps);
+    return { error, loading, result, promise };
+  }
+  var _resolve, _reject, _done;
+  var PromiseSubject = class extends Promise {
+    constructor(executor) {
+      let _resolve2, _reject2;
+      super((resolve, reject) => {
+        _resolve2 = resolve;
+        _reject2 = reject;
+        if (typeof executor === "function") executor(resolve, reject);
+      });
+      __privateAdd(this, _resolve);
+      __privateAdd(this, _reject);
+      __privateAdd(this, _done, false);
+      this.resolve = _resolve2;
+      this.reject = _reject2;
+      if (executor instanceof Promise) executor.then((e) => this.resolve(e));
+    }
+    get done() {
+      return __privateGet(this, _done);
+    }
+    resolve(a) {
+      if (__privateGet(this, _done)) return;
+      __privateSet(this, _done, true);
+      __privateGet(this, _resolve).call(this, a);
+    }
+    reject(a) {
+      if (__privateGet(this, _done)) return;
+      __privateSet(this, _done, true);
+      __privateGet(this, _reject).call(this, a);
+    }
+  };
+  _resolve = new WeakMap();
+  _reject = new WeakMap();
+  _done = new WeakMap();
+
+  // react-user-mgmt/src/components/Dashboard.tsx
   var import_jsx_runtime6 = __toESM(require_jsx_runtime(), 1);
+  var Dashboard = ({}) => {
+    const [result, setResult] = (0, import_react6.useState)(null);
+    useAsyncEffect(async () => {
+      setResult(await (await fetch("/index.json")).json());
+    }, void 0, void 0, []);
+    return result ? /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(DashboardInner, { ...result }) : null;
+  };
+  var DashboardInner = ({
+    username,
+    "recipe-list": initialRecipes,
+    "bag-list": initialBags,
+    "user-is-admin": userIsAdmin,
+    "user-is-logged-in": userIsLoggedIn,
+    "first-guest-user": firstGuestUser,
+    user,
+    allowReads,
+    allowWrites
+  }) => {
+    const [recipes, setRecipes] = (0, import_react6.useState)(initialRecipes);
+    const [bags, setBags] = (0, import_react6.useState)(initialBags);
+    const [showSystem, setShowSystem] = (0, import_react6.useState)(false);
+    const [showAnonConfig, setShowAnonConfig] = (0, import_react6.useState)(false);
+    userIsAdmin = userIsAdmin || false;
+    const userId = user?.user_id;
+    const filteredBags = showSystem ? bags : bags.filter((bag) => !bag.bag_name.startsWith("$:/"));
+    const handleRecipeSubmit = async (e) => {
+      const formData = Object.fromEntries(e.entries());
+      formData.bag_names = formData.bag_names.split(" ");
+      console.log(formData);
+      await new Promise((resolve) => setTimeout(resolve, 1e3));
+      setRecipes((prev) => [...prev, formData]);
+    };
+    const handleBagSubmit = async (e) => {
+      const formData = Object.fromEntries(e.entries());
+      console.log(formData);
+      await new Promise((resolve) => setTimeout(resolve, 1e3));
+      setBags((prev) => [...prev, formData]);
+    };
+    const handleShowSystemChange = (e) => {
+      const newShowSystem = e.target.checked;
+      setShowSystem(newShowSystem);
+      try {
+        const url = new URL(window.location.href);
+        url.searchParams.set("show_system", newShowSystem ? "on" : "off");
+        window.history.replaceState({}, "", url.toString());
+      } catch (error) {
+        console.error("Error updating URL:", error);
+      }
+    };
+    return /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)(import_jsx_runtime6.Fragment, { children: [
+      /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("ul", { className: "mws-vertical-list", children: recipes.map((recipe) => /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("li", { children: /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(
+        WikiCard_default,
+        {
+          recipeName: recipe.recipe_name,
+          description: recipe.description,
+          bagNames: recipe.bag_names,
+          hasAclAccess: recipe.has_acl_access,
+          showSystem
+        }
+      ) }, recipe.recipe_name)) }),
+      /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("form", { className: "mws-form", action: handleRecipeSubmit, children: /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)(MwsFormChild, { title: "Create a new recipe or modify an existing one", submitText: "Create or Update Recipe", children: [
+        /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(FormField, { name: "recipe_name", children: "Recipe name" }),
+        /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(FormField, { name: "description", children: "Recipe description" }),
+        /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(FormField, { name: "bag_names", children: "Bags in recipe (space separated)" })
+      ] }) }),
+      /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("h1", { children: "Bags" }),
+      /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("ul", { className: "mws-vertical-list", children: filteredBags.map((bag) => /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("li", { className: "mws-wiki-card", children: [
+        /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(BagPill_default, { bagName: bag.bag_name }),
+        /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("span", { children: bag.description })
+      ] }, bag.bag_name)) }),
+      /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("form", { className: "mws-form", action: handleBagSubmit, children: /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)(MwsFormChild, { title: "Create a new bag or modify an existing one", submitText: "Create or Update Bag", children: [
+        /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(FormField, { name: "bag_name", children: "Bag name" }),
+        /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(FormField, { name: "description", children: "Bag description" })
+      ] }) }),
+      /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("h1", { children: "Advanced" }),
+      /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("div", { id: "checkboxForm", children: [
+        /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(
+          "input",
+          {
+            type: "checkbox",
+            id: "chkShowSystem",
+            name: "show_system",
+            value: "on",
+            checked: showSystem,
+            onChange: handleShowSystemChange
+          }
+        ),
+        /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("label", { htmlFor: "chkShowSystem", children: "Show system bags" })
+      ] })
+    ] });
+  };
+  function MwsFormChild({ title, submitText, children }) {
+    const status = (0, import_react_dom.useFormStatus)();
+    return /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)(import_jsx_runtime6.Fragment, { children: [
+      /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("div", { className: "mws-form-heading", children: title }),
+      /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("div", { className: "mws-form-fields", children }),
+      /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("div", { className: "mws-form-buttons", children: /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("button", { type: "submit", disabled: status.pending, children: status.pending ? "Processing..." : submitText }) })
+    ] });
+  }
+  function FormField({ name, children }) {
+    return /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("div", { className: "mws-form-field", children: [
+      /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("label", { className: "mws-form-field-description", children }),
+      /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("input", { name, type: "text", required: true })
+    ] }, name);
+  }
+  var Dashboard_default = Dashboard;
+
+  // react-user-mgmt/src/components/UserManagement.tsx
+  var import_react9 = __toESM(require_react(), 1);
+
+  // react-user-mgmt/src/components/AddUserForm.tsx
+  var import_react8 = __toESM(require_react(), 1);
+
+  // react-user-mgmt/node_modules/react-hook-form/dist/index.esm.mjs
+  var import_react7 = __toESM(require_react(), 1);
+  var isCheckBoxInput = (element) => element.type === "checkbox";
+  var isDateObject = (value) => value instanceof Date;
+  var isNullOrUndefined = (value) => value == null;
+  var isObjectType = (value) => typeof value === "object";
+  var isObject = (value) => !isNullOrUndefined(value) && !Array.isArray(value) && isObjectType(value) && !isDateObject(value);
+  var getEventValue = (event) => isObject(event) && event.target ? isCheckBoxInput(event.target) ? event.target.checked : event.target.value : event;
+  var getNodeParentName = (name) => name.substring(0, name.search(/\.\d+(\.|$)/)) || name;
+  var isNameInFieldArray = (names, name) => names.has(getNodeParentName(name));
+  var isPlainObject = (tempObject) => {
+    const prototypeCopy = tempObject.constructor && tempObject.constructor.prototype;
+    return isObject(prototypeCopy) && prototypeCopy.hasOwnProperty("isPrototypeOf");
+  };
+  var isWeb = typeof window !== "undefined" && typeof window.HTMLElement !== "undefined" && typeof document !== "undefined";
+  function cloneObject(data) {
+    let copy;
+    const isArray = Array.isArray(data);
+    const isFileListInstance = typeof FileList !== "undefined" ? data instanceof FileList : false;
+    if (data instanceof Date) {
+      copy = new Date(data);
+    } else if (data instanceof Set) {
+      copy = new Set(data);
+    } else if (!(isWeb && (data instanceof Blob || isFileListInstance)) && (isArray || isObject(data))) {
+      copy = isArray ? [] : {};
+      if (!isArray && !isPlainObject(data)) {
+        copy = data;
+      } else {
+        for (const key in data) {
+          if (data.hasOwnProperty(key)) {
+            copy[key] = cloneObject(data[key]);
+          }
+        }
+      }
+    } else {
+      return data;
+    }
+    return copy;
+  }
+  var compact = (value) => Array.isArray(value) ? value.filter(Boolean) : [];
+  var isUndefined = (val) => val === void 0;
+  var get = (object, path, defaultValue) => {
+    if (!path || !isObject(object)) {
+      return defaultValue;
+    }
+    const result = compact(path.split(/[,[\].]+?/)).reduce((result2, key) => isNullOrUndefined(result2) ? result2 : result2[key], object);
+    return isUndefined(result) || result === object ? isUndefined(object[path]) ? defaultValue : object[path] : result;
+  };
+  var isBoolean = (value) => typeof value === "boolean";
+  var isKey = (value) => /^\w*$/.test(value);
+  var stringToPath = (input) => compact(input.replace(/["|']|\]/g, "").split(/\.|\[/));
+  var set = (object, path, value) => {
+    let index = -1;
+    const tempPath = isKey(path) ? [path] : stringToPath(path);
+    const length = tempPath.length;
+    const lastIndex = length - 1;
+    while (++index < length) {
+      const key = tempPath[index];
+      let newValue = value;
+      if (index !== lastIndex) {
+        const objValue = object[key];
+        newValue = isObject(objValue) || Array.isArray(objValue) ? objValue : !isNaN(+tempPath[index + 1]) ? [] : {};
+      }
+      if (key === "__proto__" || key === "constructor" || key === "prototype") {
+        return;
+      }
+      object[key] = newValue;
+      object = object[key];
+    }
+    return object;
+  };
+  var EVENTS = {
+    BLUR: "blur",
+    FOCUS_OUT: "focusout",
+    CHANGE: "change"
+  };
+  var VALIDATION_MODE = {
+    onBlur: "onBlur",
+    onChange: "onChange",
+    onSubmit: "onSubmit",
+    onTouched: "onTouched",
+    all: "all"
+  };
+  var INPUT_VALIDATION_RULES = {
+    max: "max",
+    min: "min",
+    maxLength: "maxLength",
+    minLength: "minLength",
+    pattern: "pattern",
+    required: "required",
+    validate: "validate"
+  };
+  var HookFormContext = import_react7.default.createContext(null);
+  var getProxyFormState = (formState, control, localProxyFormState, isRoot = true) => {
+    const result = {
+      defaultValues: control._defaultValues
+    };
+    for (const key in formState) {
+      Object.defineProperty(result, key, {
+        get: () => {
+          const _key = key;
+          if (control._proxyFormState[_key] !== VALIDATION_MODE.all) {
+            control._proxyFormState[_key] = !isRoot || VALIDATION_MODE.all;
+          }
+          localProxyFormState && (localProxyFormState[_key] = true);
+          return formState[_key];
+        }
+      });
+    }
+    return result;
+  };
+  var isEmptyObject = (value) => isObject(value) && !Object.keys(value).length;
+  var shouldRenderFormState = (formStateData, _proxyFormState, updateFormState, isRoot) => {
+    updateFormState(formStateData);
+    const { name, ...formState } = formStateData;
+    return isEmptyObject(formState) || Object.keys(formState).length >= Object.keys(_proxyFormState).length || Object.keys(formState).find((key) => _proxyFormState[key] === (!isRoot || VALIDATION_MODE.all));
+  };
+  var convertToArrayPayload = (value) => Array.isArray(value) ? value : [value];
+  function useSubscribe(props) {
+    const _props = import_react7.default.useRef(props);
+    _props.current = props;
+    import_react7.default.useEffect(() => {
+      const subscription = !props.disabled && _props.current.subject && _props.current.subject.subscribe({
+        next: _props.current.next
+      });
+      return () => {
+        subscription && subscription.unsubscribe();
+      };
+    }, [props.disabled]);
+  }
+  var isString = (value) => typeof value === "string";
+  var generateWatchOutput = (names, _names, formValues, isGlobal, defaultValue) => {
+    if (isString(names)) {
+      isGlobal && _names.watch.add(names);
+      return get(formValues, names, defaultValue);
+    }
+    if (Array.isArray(names)) {
+      return names.map((fieldName) => (isGlobal && _names.watch.add(fieldName), get(formValues, fieldName)));
+    }
+    isGlobal && (_names.watchAll = true);
+    return formValues;
+  };
+  var appendErrors = (name, validateAllFieldCriteria, errors, type, message) => validateAllFieldCriteria ? {
+    ...errors[name],
+    types: {
+      ...errors[name] && errors[name].types ? errors[name].types : {},
+      [type]: message || true
+    }
+  } : {};
+  var getValidationModes = (mode) => ({
+    isOnSubmit: !mode || mode === VALIDATION_MODE.onSubmit,
+    isOnBlur: mode === VALIDATION_MODE.onBlur,
+    isOnChange: mode === VALIDATION_MODE.onChange,
+    isOnAll: mode === VALIDATION_MODE.all,
+    isOnTouch: mode === VALIDATION_MODE.onTouched
+  });
+  var isWatched = (name, _names, isBlurEvent) => !isBlurEvent && (_names.watchAll || _names.watch.has(name) || [..._names.watch].some((watchName) => name.startsWith(watchName) && /^\.\w+/.test(name.slice(watchName.length))));
+  var iterateFieldsByAction = (fields, action, fieldsNames, abortEarly) => {
+    for (const key of fieldsNames || Object.keys(fields)) {
+      const field = get(fields, key);
+      if (field) {
+        const { _f, ...currentField } = field;
+        if (_f) {
+          if (_f.refs && _f.refs[0] && action(_f.refs[0], key) && !abortEarly) {
+            return true;
+          } else if (_f.ref && action(_f.ref, _f.name) && !abortEarly) {
+            return true;
+          } else {
+            if (iterateFieldsByAction(currentField, action)) {
+              break;
+            }
+          }
+        } else if (isObject(currentField)) {
+          if (iterateFieldsByAction(currentField, action)) {
+            break;
+          }
+        }
+      }
+    }
+    return;
+  };
+  var updateFieldArrayRootError = (errors, error, name) => {
+    const fieldArrayErrors = convertToArrayPayload(get(errors, name));
+    set(fieldArrayErrors, "root", error[name]);
+    set(errors, name, fieldArrayErrors);
+    return errors;
+  };
+  var isFileInput = (element) => element.type === "file";
+  var isFunction = (value) => typeof value === "function";
+  var isHTMLElement = (value) => {
+    if (!isWeb) {
+      return false;
+    }
+    const owner = value ? value.ownerDocument : 0;
+    return value instanceof (owner && owner.defaultView ? owner.defaultView.HTMLElement : HTMLElement);
+  };
+  var isMessage = (value) => isString(value);
+  var isRadioInput = (element) => element.type === "radio";
+  var isRegex = (value) => value instanceof RegExp;
+  var defaultResult = {
+    value: false,
+    isValid: false
+  };
+  var validResult = { value: true, isValid: true };
+  var getCheckboxValue = (options) => {
+    if (Array.isArray(options)) {
+      if (options.length > 1) {
+        const values = options.filter((option) => option && option.checked && !option.disabled).map((option) => option.value);
+        return { value: values, isValid: !!values.length };
+      }
+      return options[0].checked && !options[0].disabled ? (
+        // @ts-expect-error expected to work in the browser
+        options[0].attributes && !isUndefined(options[0].attributes.value) ? isUndefined(options[0].value) || options[0].value === "" ? validResult : { value: options[0].value, isValid: true } : validResult
+      ) : defaultResult;
+    }
+    return defaultResult;
+  };
+  var defaultReturn = {
+    isValid: false,
+    value: null
+  };
+  var getRadioValue = (options) => Array.isArray(options) ? options.reduce((previous, option) => option && option.checked && !option.disabled ? {
+    isValid: true,
+    value: option.value
+  } : previous, defaultReturn) : defaultReturn;
+  function getValidateError(result, ref, type = "validate") {
+    if (isMessage(result) || Array.isArray(result) && result.every(isMessage) || isBoolean(result) && !result) {
+      return {
+        type,
+        message: isMessage(result) ? result : "",
+        ref
+      };
+    }
+  }
+  var getValueAndMessage = (validationData) => isObject(validationData) && !isRegex(validationData) ? validationData : {
+    value: validationData,
+    message: ""
+  };
+  var validateField = async (field, disabledFieldNames, formValues, validateAllFieldCriteria, shouldUseNativeValidation, isFieldArray) => {
+    const { ref, refs, required, maxLength, minLength, min, max, pattern, validate, name, valueAsNumber, mount } = field._f;
+    const inputValue = get(formValues, name);
+    if (!mount || disabledFieldNames.has(name)) {
+      return {};
+    }
+    const inputRef = refs ? refs[0] : ref;
+    const setCustomValidity = (message) => {
+      if (shouldUseNativeValidation && inputRef.reportValidity) {
+        inputRef.setCustomValidity(isBoolean(message) ? "" : message || "");
+        inputRef.reportValidity();
+      }
+    };
+    const error = {};
+    const isRadio = isRadioInput(ref);
+    const isCheckBox = isCheckBoxInput(ref);
+    const isRadioOrCheckbox2 = isRadio || isCheckBox;
+    const isEmpty = (valueAsNumber || isFileInput(ref)) && isUndefined(ref.value) && isUndefined(inputValue) || isHTMLElement(ref) && ref.value === "" || inputValue === "" || Array.isArray(inputValue) && !inputValue.length;
+    const appendErrorsCurry = appendErrors.bind(null, name, validateAllFieldCriteria, error);
+    const getMinMaxMessage = (exceedMax, maxLengthMessage, minLengthMessage, maxType = INPUT_VALIDATION_RULES.maxLength, minType = INPUT_VALIDATION_RULES.minLength) => {
+      const message = exceedMax ? maxLengthMessage : minLengthMessage;
+      error[name] = {
+        type: exceedMax ? maxType : minType,
+        message,
+        ref,
+        ...appendErrorsCurry(exceedMax ? maxType : minType, message)
+      };
+    };
+    if (isFieldArray ? !Array.isArray(inputValue) || !inputValue.length : required && (!isRadioOrCheckbox2 && (isEmpty || isNullOrUndefined(inputValue)) || isBoolean(inputValue) && !inputValue || isCheckBox && !getCheckboxValue(refs).isValid || isRadio && !getRadioValue(refs).isValid)) {
+      const { value, message } = isMessage(required) ? { value: !!required, message: required } : getValueAndMessage(required);
+      if (value) {
+        error[name] = {
+          type: INPUT_VALIDATION_RULES.required,
+          message,
+          ref: inputRef,
+          ...appendErrorsCurry(INPUT_VALIDATION_RULES.required, message)
+        };
+        if (!validateAllFieldCriteria) {
+          setCustomValidity(message);
+          return error;
+        }
+      }
+    }
+    if (!isEmpty && (!isNullOrUndefined(min) || !isNullOrUndefined(max))) {
+      let exceedMax;
+      let exceedMin;
+      const maxOutput = getValueAndMessage(max);
+      const minOutput = getValueAndMessage(min);
+      if (!isNullOrUndefined(inputValue) && !isNaN(inputValue)) {
+        const valueNumber = ref.valueAsNumber || (inputValue ? +inputValue : inputValue);
+        if (!isNullOrUndefined(maxOutput.value)) {
+          exceedMax = valueNumber > maxOutput.value;
+        }
+        if (!isNullOrUndefined(minOutput.value)) {
+          exceedMin = valueNumber < minOutput.value;
+        }
+      } else {
+        const valueDate = ref.valueAsDate || new Date(inputValue);
+        const convertTimeToDate = (time) => /* @__PURE__ */ new Date((/* @__PURE__ */ new Date()).toDateString() + " " + time);
+        const isTime = ref.type == "time";
+        const isWeek = ref.type == "week";
+        if (isString(maxOutput.value) && inputValue) {
+          exceedMax = isTime ? convertTimeToDate(inputValue) > convertTimeToDate(maxOutput.value) : isWeek ? inputValue > maxOutput.value : valueDate > new Date(maxOutput.value);
+        }
+        if (isString(minOutput.value) && inputValue) {
+          exceedMin = isTime ? convertTimeToDate(inputValue) < convertTimeToDate(minOutput.value) : isWeek ? inputValue < minOutput.value : valueDate < new Date(minOutput.value);
+        }
+      }
+      if (exceedMax || exceedMin) {
+        getMinMaxMessage(!!exceedMax, maxOutput.message, minOutput.message, INPUT_VALIDATION_RULES.max, INPUT_VALIDATION_RULES.min);
+        if (!validateAllFieldCriteria) {
+          setCustomValidity(error[name].message);
+          return error;
+        }
+      }
+    }
+    if ((maxLength || minLength) && !isEmpty && (isString(inputValue) || isFieldArray && Array.isArray(inputValue))) {
+      const maxLengthOutput = getValueAndMessage(maxLength);
+      const minLengthOutput = getValueAndMessage(minLength);
+      const exceedMax = !isNullOrUndefined(maxLengthOutput.value) && inputValue.length > +maxLengthOutput.value;
+      const exceedMin = !isNullOrUndefined(minLengthOutput.value) && inputValue.length < +minLengthOutput.value;
+      if (exceedMax || exceedMin) {
+        getMinMaxMessage(exceedMax, maxLengthOutput.message, minLengthOutput.message);
+        if (!validateAllFieldCriteria) {
+          setCustomValidity(error[name].message);
+          return error;
+        }
+      }
+    }
+    if (pattern && !isEmpty && isString(inputValue)) {
+      const { value: patternValue, message } = getValueAndMessage(pattern);
+      if (isRegex(patternValue) && !inputValue.match(patternValue)) {
+        error[name] = {
+          type: INPUT_VALIDATION_RULES.pattern,
+          message,
+          ref,
+          ...appendErrorsCurry(INPUT_VALIDATION_RULES.pattern, message)
+        };
+        if (!validateAllFieldCriteria) {
+          setCustomValidity(message);
+          return error;
+        }
+      }
+    }
+    if (validate) {
+      if (isFunction(validate)) {
+        const result = await validate(inputValue, formValues);
+        const validateError = getValidateError(result, inputRef);
+        if (validateError) {
+          error[name] = {
+            ...validateError,
+            ...appendErrorsCurry(INPUT_VALIDATION_RULES.validate, validateError.message)
+          };
+          if (!validateAllFieldCriteria) {
+            setCustomValidity(validateError.message);
+            return error;
+          }
+        }
+      } else if (isObject(validate)) {
+        let validationResult = {};
+        for (const key in validate) {
+          if (!isEmptyObject(validationResult) && !validateAllFieldCriteria) {
+            break;
+          }
+          const validateError = getValidateError(await validate[key](inputValue, formValues), inputRef, key);
+          if (validateError) {
+            validationResult = {
+              ...validateError,
+              ...appendErrorsCurry(key, validateError.message)
+            };
+            setCustomValidity(validateError.message);
+            if (validateAllFieldCriteria) {
+              error[name] = validationResult;
+            }
+          }
+        }
+        if (!isEmptyObject(validationResult)) {
+          error[name] = {
+            ref: inputRef,
+            ...validationResult
+          };
+          if (!validateAllFieldCriteria) {
+            return error;
+          }
+        }
+      }
+    }
+    setCustomValidity(true);
+    return error;
+  };
+  function baseGet(object, updatePath) {
+    const length = updatePath.slice(0, -1).length;
+    let index = 0;
+    while (index < length) {
+      object = isUndefined(object) ? index++ : object[updatePath[index++]];
+    }
+    return object;
+  }
+  function isEmptyArray(obj) {
+    for (const key in obj) {
+      if (obj.hasOwnProperty(key) && !isUndefined(obj[key])) {
+        return false;
+      }
+    }
+    return true;
+  }
+  function unset(object, path) {
+    const paths = Array.isArray(path) ? path : isKey(path) ? [path] : stringToPath(path);
+    const childObject = paths.length === 1 ? object : baseGet(object, paths);
+    const index = paths.length - 1;
+    const key = paths[index];
+    if (childObject) {
+      delete childObject[key];
+    }
+    if (index !== 0 && (isObject(childObject) && isEmptyObject(childObject) || Array.isArray(childObject) && isEmptyArray(childObject))) {
+      unset(object, paths.slice(0, -1));
+    }
+    return object;
+  }
+  var createSubject = () => {
+    let _observers = [];
+    const next = (value) => {
+      for (const observer of _observers) {
+        observer.next && observer.next(value);
+      }
+    };
+    const subscribe = (observer) => {
+      _observers.push(observer);
+      return {
+        unsubscribe: () => {
+          _observers = _observers.filter((o) => o !== observer);
+        }
+      };
+    };
+    const unsubscribe = () => {
+      _observers = [];
+    };
+    return {
+      get observers() {
+        return _observers;
+      },
+      next,
+      subscribe,
+      unsubscribe
+    };
+  };
+  var isPrimitive = (value) => isNullOrUndefined(value) || !isObjectType(value);
+  function deepEqual(object1, object2) {
+    if (isPrimitive(object1) || isPrimitive(object2)) {
+      return object1 === object2;
+    }
+    if (isDateObject(object1) && isDateObject(object2)) {
+      return object1.getTime() === object2.getTime();
+    }
+    const keys1 = Object.keys(object1);
+    const keys2 = Object.keys(object2);
+    if (keys1.length !== keys2.length) {
+      return false;
+    }
+    for (const key of keys1) {
+      const val1 = object1[key];
+      if (!keys2.includes(key)) {
+        return false;
+      }
+      if (key !== "ref") {
+        const val2 = object2[key];
+        if (isDateObject(val1) && isDateObject(val2) || isObject(val1) && isObject(val2) || Array.isArray(val1) && Array.isArray(val2) ? !deepEqual(val1, val2) : val1 !== val2) {
+          return false;
+        }
+      }
+    }
+    return true;
+  }
+  var isMultipleSelect = (element) => element.type === `select-multiple`;
+  var isRadioOrCheckbox = (ref) => isRadioInput(ref) || isCheckBoxInput(ref);
+  var live = (ref) => isHTMLElement(ref) && ref.isConnected;
+  var objectHasFunction = (data) => {
+    for (const key in data) {
+      if (isFunction(data[key])) {
+        return true;
+      }
+    }
+    return false;
+  };
+  function markFieldsDirty(data, fields = {}) {
+    const isParentNodeArray = Array.isArray(data);
+    if (isObject(data) || isParentNodeArray) {
+      for (const key in data) {
+        if (Array.isArray(data[key]) || isObject(data[key]) && !objectHasFunction(data[key])) {
+          fields[key] = Array.isArray(data[key]) ? [] : {};
+          markFieldsDirty(data[key], fields[key]);
+        } else if (!isNullOrUndefined(data[key])) {
+          fields[key] = true;
+        }
+      }
+    }
+    return fields;
+  }
+  function getDirtyFieldsFromDefaultValues(data, formValues, dirtyFieldsFromValues) {
+    const isParentNodeArray = Array.isArray(data);
+    if (isObject(data) || isParentNodeArray) {
+      for (const key in data) {
+        if (Array.isArray(data[key]) || isObject(data[key]) && !objectHasFunction(data[key])) {
+          if (isUndefined(formValues) || isPrimitive(dirtyFieldsFromValues[key])) {
+            dirtyFieldsFromValues[key] = Array.isArray(data[key]) ? markFieldsDirty(data[key], []) : { ...markFieldsDirty(data[key]) };
+          } else {
+            getDirtyFieldsFromDefaultValues(data[key], isNullOrUndefined(formValues) ? {} : formValues[key], dirtyFieldsFromValues[key]);
+          }
+        } else {
+          dirtyFieldsFromValues[key] = !deepEqual(data[key], formValues[key]);
+        }
+      }
+    }
+    return dirtyFieldsFromValues;
+  }
+  var getDirtyFields = (defaultValues, formValues) => getDirtyFieldsFromDefaultValues(defaultValues, formValues, markFieldsDirty(formValues));
+  var getFieldValueAs = (value, { valueAsNumber, valueAsDate, setValueAs }) => isUndefined(value) ? value : valueAsNumber ? value === "" ? NaN : value ? +value : value : valueAsDate && isString(value) ? new Date(value) : setValueAs ? setValueAs(value) : value;
+  function getFieldValue(_f) {
+    const ref = _f.ref;
+    if (isFileInput(ref)) {
+      return ref.files;
+    }
+    if (isRadioInput(ref)) {
+      return getRadioValue(_f.refs).value;
+    }
+    if (isMultipleSelect(ref)) {
+      return [...ref.selectedOptions].map(({ value }) => value);
+    }
+    if (isCheckBoxInput(ref)) {
+      return getCheckboxValue(_f.refs).value;
+    }
+    return getFieldValueAs(isUndefined(ref.value) ? _f.ref.value : ref.value, _f);
+  }
+  var getResolverOptions = (fieldsNames, _fields, criteriaMode, shouldUseNativeValidation) => {
+    const fields = {};
+    for (const name of fieldsNames) {
+      const field = get(_fields, name);
+      field && set(fields, name, field._f);
+    }
+    return {
+      criteriaMode,
+      names: [...fieldsNames],
+      fields,
+      shouldUseNativeValidation
+    };
+  };
+  var getRuleValue = (rule) => isUndefined(rule) ? rule : isRegex(rule) ? rule.source : isObject(rule) ? isRegex(rule.value) ? rule.value.source : rule.value : rule;
+  var ASYNC_FUNCTION = "AsyncFunction";
+  var hasPromiseValidation = (fieldReference) => !!fieldReference && !!fieldReference.validate && !!(isFunction(fieldReference.validate) && fieldReference.validate.constructor.name === ASYNC_FUNCTION || isObject(fieldReference.validate) && Object.values(fieldReference.validate).find((validateFunction) => validateFunction.constructor.name === ASYNC_FUNCTION));
+  var hasValidation = (options) => options.mount && (options.required || options.min || options.max || options.maxLength || options.minLength || options.pattern || options.validate);
+  function schemaErrorLookup(errors, _fields, name) {
+    const error = get(errors, name);
+    if (error || isKey(name)) {
+      return {
+        error,
+        name
+      };
+    }
+    const names = name.split(".");
+    while (names.length) {
+      const fieldName = names.join(".");
+      const field = get(_fields, fieldName);
+      const foundError = get(errors, fieldName);
+      if (field && !Array.isArray(field) && name !== fieldName) {
+        return { name };
+      }
+      if (foundError && foundError.type) {
+        return {
+          name: fieldName,
+          error: foundError
+        };
+      }
+      names.pop();
+    }
+    return {
+      name
+    };
+  }
+  var skipValidation = (isBlurEvent, isTouched, isSubmitted, reValidateMode, mode) => {
+    if (mode.isOnAll) {
+      return false;
+    } else if (!isSubmitted && mode.isOnTouch) {
+      return !(isTouched || isBlurEvent);
+    } else if (isSubmitted ? reValidateMode.isOnBlur : mode.isOnBlur) {
+      return !isBlurEvent;
+    } else if (isSubmitted ? reValidateMode.isOnChange : mode.isOnChange) {
+      return isBlurEvent;
+    }
+    return true;
+  };
+  var unsetEmptyArray = (ref, name) => !compact(get(ref, name)).length && unset(ref, name);
+  var defaultOptions = {
+    mode: VALIDATION_MODE.onSubmit,
+    reValidateMode: VALIDATION_MODE.onChange,
+    shouldFocusError: true
+  };
+  function createFormControl(props = {}) {
+    let _options = {
+      ...defaultOptions,
+      ...props
+    };
+    let _formState = {
+      submitCount: 0,
+      isDirty: false,
+      isLoading: isFunction(_options.defaultValues),
+      isValidating: false,
+      isSubmitted: false,
+      isSubmitting: false,
+      isSubmitSuccessful: false,
+      isValid: false,
+      touchedFields: {},
+      dirtyFields: {},
+      validatingFields: {},
+      errors: _options.errors || {},
+      disabled: _options.disabled || false
+    };
+    let _fields = {};
+    let _defaultValues = isObject(_options.defaultValues) || isObject(_options.values) ? cloneObject(_options.defaultValues || _options.values) || {} : {};
+    let _formValues = _options.shouldUnregister ? {} : cloneObject(_defaultValues);
+    let _state = {
+      action: false,
+      mount: false,
+      watch: false
+    };
+    let _names = {
+      mount: /* @__PURE__ */ new Set(),
+      disabled: /* @__PURE__ */ new Set(),
+      unMount: /* @__PURE__ */ new Set(),
+      array: /* @__PURE__ */ new Set(),
+      watch: /* @__PURE__ */ new Set()
+    };
+    let delayErrorCallback;
+    let timer = 0;
+    const _proxyFormState = {
+      isDirty: false,
+      dirtyFields: false,
+      validatingFields: false,
+      touchedFields: false,
+      isValidating: false,
+      isValid: false,
+      errors: false
+    };
+    const _subjects = {
+      values: createSubject(),
+      array: createSubject(),
+      state: createSubject()
+    };
+    const validationModeBeforeSubmit = getValidationModes(_options.mode);
+    const validationModeAfterSubmit = getValidationModes(_options.reValidateMode);
+    const shouldDisplayAllAssociatedErrors = _options.criteriaMode === VALIDATION_MODE.all;
+    const debounce = (callback) => (wait) => {
+      clearTimeout(timer);
+      timer = setTimeout(callback, wait);
+    };
+    const _updateValid = async (shouldUpdateValid) => {
+      if (!_options.disabled && (_proxyFormState.isValid || shouldUpdateValid)) {
+        const isValid = _options.resolver ? isEmptyObject((await _executeSchema()).errors) : await executeBuiltInValidation(_fields, true);
+        if (isValid !== _formState.isValid) {
+          _subjects.state.next({
+            isValid
+          });
+        }
+      }
+    };
+    const _updateIsValidating = (names, isValidating) => {
+      if (!_options.disabled && (_proxyFormState.isValidating || _proxyFormState.validatingFields)) {
+        (names || Array.from(_names.mount)).forEach((name) => {
+          if (name) {
+            isValidating ? set(_formState.validatingFields, name, isValidating) : unset(_formState.validatingFields, name);
+          }
+        });
+        _subjects.state.next({
+          validatingFields: _formState.validatingFields,
+          isValidating: !isEmptyObject(_formState.validatingFields)
+        });
+      }
+    };
+    const _updateFieldArray = (name, values = [], method, args, shouldSetValues = true, shouldUpdateFieldsAndState = true) => {
+      if (args && method && !_options.disabled) {
+        _state.action = true;
+        if (shouldUpdateFieldsAndState && Array.isArray(get(_fields, name))) {
+          const fieldValues = method(get(_fields, name), args.argA, args.argB);
+          shouldSetValues && set(_fields, name, fieldValues);
+        }
+        if (shouldUpdateFieldsAndState && Array.isArray(get(_formState.errors, name))) {
+          const errors = method(get(_formState.errors, name), args.argA, args.argB);
+          shouldSetValues && set(_formState.errors, name, errors);
+          unsetEmptyArray(_formState.errors, name);
+        }
+        if (_proxyFormState.touchedFields && shouldUpdateFieldsAndState && Array.isArray(get(_formState.touchedFields, name))) {
+          const touchedFields = method(get(_formState.touchedFields, name), args.argA, args.argB);
+          shouldSetValues && set(_formState.touchedFields, name, touchedFields);
+        }
+        if (_proxyFormState.dirtyFields) {
+          _formState.dirtyFields = getDirtyFields(_defaultValues, _formValues);
+        }
+        _subjects.state.next({
+          name,
+          isDirty: _getDirty(name, values),
+          dirtyFields: _formState.dirtyFields,
+          errors: _formState.errors,
+          isValid: _formState.isValid
+        });
+      } else {
+        set(_formValues, name, values);
+      }
+    };
+    const updateErrors = (name, error) => {
+      set(_formState.errors, name, error);
+      _subjects.state.next({
+        errors: _formState.errors
+      });
+    };
+    const _setErrors = (errors) => {
+      _formState.errors = errors;
+      _subjects.state.next({
+        errors: _formState.errors,
+        isValid: false
+      });
+    };
+    const updateValidAndValue = (name, shouldSkipSetValueAs, value, ref) => {
+      const field = get(_fields, name);
+      if (field) {
+        const defaultValue = get(_formValues, name, isUndefined(value) ? get(_defaultValues, name) : value);
+        isUndefined(defaultValue) || ref && ref.defaultChecked || shouldSkipSetValueAs ? set(_formValues, name, shouldSkipSetValueAs ? defaultValue : getFieldValue(field._f)) : setFieldValue(name, defaultValue);
+        _state.mount && _updateValid();
+      }
+    };
+    const updateTouchAndDirty = (name, fieldValue, isBlurEvent, shouldDirty, shouldRender) => {
+      let shouldUpdateField = false;
+      let isPreviousDirty = false;
+      const output = {
+        name
+      };
+      if (!_options.disabled) {
+        const disabledField = !!(get(_fields, name) && get(_fields, name)._f && get(_fields, name)._f.disabled);
+        if (!isBlurEvent || shouldDirty) {
+          if (_proxyFormState.isDirty) {
+            isPreviousDirty = _formState.isDirty;
+            _formState.isDirty = output.isDirty = _getDirty();
+            shouldUpdateField = isPreviousDirty !== output.isDirty;
+          }
+          const isCurrentFieldPristine = disabledField || deepEqual(get(_defaultValues, name), fieldValue);
+          isPreviousDirty = !!(!disabledField && get(_formState.dirtyFields, name));
+          isCurrentFieldPristine || disabledField ? unset(_formState.dirtyFields, name) : set(_formState.dirtyFields, name, true);
+          output.dirtyFields = _formState.dirtyFields;
+          shouldUpdateField = shouldUpdateField || _proxyFormState.dirtyFields && isPreviousDirty !== !isCurrentFieldPristine;
+        }
+        if (isBlurEvent) {
+          const isPreviousFieldTouched = get(_formState.touchedFields, name);
+          if (!isPreviousFieldTouched) {
+            set(_formState.touchedFields, name, isBlurEvent);
+            output.touchedFields = _formState.touchedFields;
+            shouldUpdateField = shouldUpdateField || _proxyFormState.touchedFields && isPreviousFieldTouched !== isBlurEvent;
+          }
+        }
+        shouldUpdateField && shouldRender && _subjects.state.next(output);
+      }
+      return shouldUpdateField ? output : {};
+    };
+    const shouldRenderByError = (name, isValid, error, fieldState) => {
+      const previousFieldError = get(_formState.errors, name);
+      const shouldUpdateValid = _proxyFormState.isValid && isBoolean(isValid) && _formState.isValid !== isValid;
+      if (_options.delayError && error) {
+        delayErrorCallback = debounce(() => updateErrors(name, error));
+        delayErrorCallback(_options.delayError);
+      } else {
+        clearTimeout(timer);
+        delayErrorCallback = null;
+        error ? set(_formState.errors, name, error) : unset(_formState.errors, name);
+      }
+      if ((error ? !deepEqual(previousFieldError, error) : previousFieldError) || !isEmptyObject(fieldState) || shouldUpdateValid) {
+        const updatedFormState = {
+          ...fieldState,
+          ...shouldUpdateValid && isBoolean(isValid) ? { isValid } : {},
+          errors: _formState.errors,
+          name
+        };
+        _formState = {
+          ..._formState,
+          ...updatedFormState
+        };
+        _subjects.state.next(updatedFormState);
+      }
+    };
+    const _executeSchema = async (name) => {
+      _updateIsValidating(name, true);
+      const result = await _options.resolver(_formValues, _options.context, getResolverOptions(name || _names.mount, _fields, _options.criteriaMode, _options.shouldUseNativeValidation));
+      _updateIsValidating(name);
+      return result;
+    };
+    const executeSchemaAndUpdateState = async (names) => {
+      const { errors } = await _executeSchema(names);
+      if (names) {
+        for (const name of names) {
+          const error = get(errors, name);
+          error ? set(_formState.errors, name, error) : unset(_formState.errors, name);
+        }
+      } else {
+        _formState.errors = errors;
+      }
+      return errors;
+    };
+    const executeBuiltInValidation = async (fields, shouldOnlyCheckValid, context = {
+      valid: true
+    }) => {
+      for (const name in fields) {
+        const field = fields[name];
+        if (field) {
+          const { _f, ...fieldValue } = field;
+          if (_f) {
+            const isFieldArrayRoot = _names.array.has(_f.name);
+            const isPromiseFunction = field._f && hasPromiseValidation(field._f);
+            if (isPromiseFunction && _proxyFormState.validatingFields) {
+              _updateIsValidating([name], true);
+            }
+            const fieldError = await validateField(field, _names.disabled, _formValues, shouldDisplayAllAssociatedErrors, _options.shouldUseNativeValidation && !shouldOnlyCheckValid, isFieldArrayRoot);
+            if (isPromiseFunction && _proxyFormState.validatingFields) {
+              _updateIsValidating([name]);
+            }
+            if (fieldError[_f.name]) {
+              context.valid = false;
+              if (shouldOnlyCheckValid) {
+                break;
+              }
+            }
+            !shouldOnlyCheckValid && (get(fieldError, _f.name) ? isFieldArrayRoot ? updateFieldArrayRootError(_formState.errors, fieldError, _f.name) : set(_formState.errors, _f.name, fieldError[_f.name]) : unset(_formState.errors, _f.name));
+          }
+          !isEmptyObject(fieldValue) && await executeBuiltInValidation(fieldValue, shouldOnlyCheckValid, context);
+        }
+      }
+      return context.valid;
+    };
+    const _removeUnmounted = () => {
+      for (const name of _names.unMount) {
+        const field = get(_fields, name);
+        field && (field._f.refs ? field._f.refs.every((ref) => !live(ref)) : !live(field._f.ref)) && unregister(name);
+      }
+      _names.unMount = /* @__PURE__ */ new Set();
+    };
+    const _getDirty = (name, data) => !_options.disabled && (name && data && set(_formValues, name, data), !deepEqual(getValues(), _defaultValues));
+    const _getWatch = (names, defaultValue, isGlobal) => generateWatchOutput(names, _names, {
+      ..._state.mount ? _formValues : isUndefined(defaultValue) ? _defaultValues : isString(names) ? { [names]: defaultValue } : defaultValue
+    }, isGlobal, defaultValue);
+    const _getFieldArray = (name) => compact(get(_state.mount ? _formValues : _defaultValues, name, _options.shouldUnregister ? get(_defaultValues, name, []) : []));
+    const setFieldValue = (name, value, options = {}) => {
+      const field = get(_fields, name);
+      let fieldValue = value;
+      if (field) {
+        const fieldReference = field._f;
+        if (fieldReference) {
+          !fieldReference.disabled && set(_formValues, name, getFieldValueAs(value, fieldReference));
+          fieldValue = isHTMLElement(fieldReference.ref) && isNullOrUndefined(value) ? "" : value;
+          if (isMultipleSelect(fieldReference.ref)) {
+            [...fieldReference.ref.options].forEach((optionRef) => optionRef.selected = fieldValue.includes(optionRef.value));
+          } else if (fieldReference.refs) {
+            if (isCheckBoxInput(fieldReference.ref)) {
+              fieldReference.refs.length > 1 ? fieldReference.refs.forEach((checkboxRef) => (!checkboxRef.defaultChecked || !checkboxRef.disabled) && (checkboxRef.checked = Array.isArray(fieldValue) ? !!fieldValue.find((data) => data === checkboxRef.value) : fieldValue === checkboxRef.value)) : fieldReference.refs[0] && (fieldReference.refs[0].checked = !!fieldValue);
+            } else {
+              fieldReference.refs.forEach((radioRef) => radioRef.checked = radioRef.value === fieldValue);
+            }
+          } else if (isFileInput(fieldReference.ref)) {
+            fieldReference.ref.value = "";
+          } else {
+            fieldReference.ref.value = fieldValue;
+            if (!fieldReference.ref.type) {
+              _subjects.values.next({
+                name,
+                values: { ..._formValues }
+              });
+            }
+          }
+        }
+      }
+      (options.shouldDirty || options.shouldTouch) && updateTouchAndDirty(name, fieldValue, options.shouldTouch, options.shouldDirty, true);
+      options.shouldValidate && trigger(name);
+    };
+    const setValues = (name, value, options) => {
+      for (const fieldKey in value) {
+        const fieldValue = value[fieldKey];
+        const fieldName = `${name}.${fieldKey}`;
+        const field = get(_fields, fieldName);
+        (_names.array.has(name) || isObject(fieldValue) || field && !field._f) && !isDateObject(fieldValue) ? setValues(fieldName, fieldValue, options) : setFieldValue(fieldName, fieldValue, options);
+      }
+    };
+    const setValue = (name, value, options = {}) => {
+      const field = get(_fields, name);
+      const isFieldArray = _names.array.has(name);
+      const cloneValue = cloneObject(value);
+      set(_formValues, name, cloneValue);
+      if (isFieldArray) {
+        _subjects.array.next({
+          name,
+          values: { ..._formValues }
+        });
+        if ((_proxyFormState.isDirty || _proxyFormState.dirtyFields) && options.shouldDirty) {
+          _subjects.state.next({
+            name,
+            dirtyFields: getDirtyFields(_defaultValues, _formValues),
+            isDirty: _getDirty(name, cloneValue)
+          });
+        }
+      } else {
+        field && !field._f && !isNullOrUndefined(cloneValue) ? setValues(name, cloneValue, options) : setFieldValue(name, cloneValue, options);
+      }
+      isWatched(name, _names) && _subjects.state.next({ ..._formState });
+      _subjects.values.next({
+        name: _state.mount ? name : void 0,
+        values: { ..._formValues }
+      });
+    };
+    const onChange = async (event) => {
+      _state.mount = true;
+      const target = event.target;
+      let name = target.name;
+      let isFieldValueUpdated = true;
+      const field = get(_fields, name);
+      const getCurrentFieldValue = () => target.type ? getFieldValue(field._f) : getEventValue(event);
+      const _updateIsFieldValueUpdated = (fieldValue) => {
+        isFieldValueUpdated = Number.isNaN(fieldValue) || isDateObject(fieldValue) && isNaN(fieldValue.getTime()) || deepEqual(fieldValue, get(_formValues, name, fieldValue));
+      };
+      if (field) {
+        let error;
+        let isValid;
+        const fieldValue = getCurrentFieldValue();
+        const isBlurEvent = event.type === EVENTS.BLUR || event.type === EVENTS.FOCUS_OUT;
+        const shouldSkipValidation = !hasValidation(field._f) && !_options.resolver && !get(_formState.errors, name) && !field._f.deps || skipValidation(isBlurEvent, get(_formState.touchedFields, name), _formState.isSubmitted, validationModeAfterSubmit, validationModeBeforeSubmit);
+        const watched = isWatched(name, _names, isBlurEvent);
+        set(_formValues, name, fieldValue);
+        if (isBlurEvent) {
+          field._f.onBlur && field._f.onBlur(event);
+          delayErrorCallback && delayErrorCallback(0);
+        } else if (field._f.onChange) {
+          field._f.onChange(event);
+        }
+        const fieldState = updateTouchAndDirty(name, fieldValue, isBlurEvent, false);
+        const shouldRender = !isEmptyObject(fieldState) || watched;
+        !isBlurEvent && _subjects.values.next({
+          name,
+          type: event.type,
+          values: { ..._formValues }
+        });
+        if (shouldSkipValidation) {
+          if (_proxyFormState.isValid) {
+            if (_options.mode === "onBlur" && isBlurEvent) {
+              _updateValid();
+            } else if (!isBlurEvent) {
+              _updateValid();
+            }
+          }
+          return shouldRender && _subjects.state.next({ name, ...watched ? {} : fieldState });
+        }
+        !isBlurEvent && watched && _subjects.state.next({ ..._formState });
+        if (_options.resolver) {
+          const { errors } = await _executeSchema([name]);
+          _updateIsFieldValueUpdated(fieldValue);
+          if (isFieldValueUpdated) {
+            const previousErrorLookupResult = schemaErrorLookup(_formState.errors, _fields, name);
+            const errorLookupResult = schemaErrorLookup(errors, _fields, previousErrorLookupResult.name || name);
+            error = errorLookupResult.error;
+            name = errorLookupResult.name;
+            isValid = isEmptyObject(errors);
+          }
+        } else {
+          _updateIsValidating([name], true);
+          error = (await validateField(field, _names.disabled, _formValues, shouldDisplayAllAssociatedErrors, _options.shouldUseNativeValidation))[name];
+          _updateIsValidating([name]);
+          _updateIsFieldValueUpdated(fieldValue);
+          if (isFieldValueUpdated) {
+            if (error) {
+              isValid = false;
+            } else if (_proxyFormState.isValid) {
+              isValid = await executeBuiltInValidation(_fields, true);
+            }
+          }
+        }
+        if (isFieldValueUpdated) {
+          field._f.deps && trigger(field._f.deps);
+          shouldRenderByError(name, isValid, error, fieldState);
+        }
+      }
+    };
+    const _focusInput = (ref, key) => {
+      if (get(_formState.errors, key) && ref.focus) {
+        ref.focus();
+        return 1;
+      }
+      return;
+    };
+    const trigger = async (name, options = {}) => {
+      let isValid;
+      let validationResult;
+      const fieldNames = convertToArrayPayload(name);
+      if (_options.resolver) {
+        const errors = await executeSchemaAndUpdateState(isUndefined(name) ? name : fieldNames);
+        isValid = isEmptyObject(errors);
+        validationResult = name ? !fieldNames.some((name2) => get(errors, name2)) : isValid;
+      } else if (name) {
+        validationResult = (await Promise.all(fieldNames.map(async (fieldName) => {
+          const field = get(_fields, fieldName);
+          return await executeBuiltInValidation(field && field._f ? { [fieldName]: field } : field);
+        }))).every(Boolean);
+        !(!validationResult && !_formState.isValid) && _updateValid();
+      } else {
+        validationResult = isValid = await executeBuiltInValidation(_fields);
+      }
+      _subjects.state.next({
+        ...!isString(name) || _proxyFormState.isValid && isValid !== _formState.isValid ? {} : { name },
+        ..._options.resolver || !name ? { isValid } : {},
+        errors: _formState.errors
+      });
+      options.shouldFocus && !validationResult && iterateFieldsByAction(_fields, _focusInput, name ? fieldNames : _names.mount);
+      return validationResult;
+    };
+    const getValues = (fieldNames) => {
+      const values = {
+        ..._state.mount ? _formValues : _defaultValues
+      };
+      return isUndefined(fieldNames) ? values : isString(fieldNames) ? get(values, fieldNames) : fieldNames.map((name) => get(values, name));
+    };
+    const getFieldState = (name, formState) => ({
+      invalid: !!get((formState || _formState).errors, name),
+      isDirty: !!get((formState || _formState).dirtyFields, name),
+      error: get((formState || _formState).errors, name),
+      isValidating: !!get(_formState.validatingFields, name),
+      isTouched: !!get((formState || _formState).touchedFields, name)
+    });
+    const clearErrors = (name) => {
+      name && convertToArrayPayload(name).forEach((inputName) => unset(_formState.errors, inputName));
+      _subjects.state.next({
+        errors: name ? _formState.errors : {}
+      });
+    };
+    const setError = (name, error, options) => {
+      const ref = (get(_fields, name, { _f: {} })._f || {}).ref;
+      const currentError = get(_formState.errors, name) || {};
+      const { ref: currentRef, message, type, ...restOfErrorTree } = currentError;
+      set(_formState.errors, name, {
+        ...restOfErrorTree,
+        ...error,
+        ref
+      });
+      _subjects.state.next({
+        name,
+        errors: _formState.errors,
+        isValid: false
+      });
+      options && options.shouldFocus && ref && ref.focus && ref.focus();
+    };
+    const watch = (name, defaultValue) => isFunction(name) ? _subjects.values.subscribe({
+      next: (payload) => name(_getWatch(void 0, defaultValue), payload)
+    }) : _getWatch(name, defaultValue, true);
+    const unregister = (name, options = {}) => {
+      for (const fieldName of name ? convertToArrayPayload(name) : _names.mount) {
+        _names.mount.delete(fieldName);
+        _names.array.delete(fieldName);
+        if (!options.keepValue) {
+          unset(_fields, fieldName);
+          unset(_formValues, fieldName);
+        }
+        !options.keepError && unset(_formState.errors, fieldName);
+        !options.keepDirty && unset(_formState.dirtyFields, fieldName);
+        !options.keepTouched && unset(_formState.touchedFields, fieldName);
+        !options.keepIsValidating && unset(_formState.validatingFields, fieldName);
+        !_options.shouldUnregister && !options.keepDefaultValue && unset(_defaultValues, fieldName);
+      }
+      _subjects.values.next({
+        values: { ..._formValues }
+      });
+      _subjects.state.next({
+        ..._formState,
+        ...!options.keepDirty ? {} : { isDirty: _getDirty() }
+      });
+      !options.keepIsValid && _updateValid();
+    };
+    const _updateDisabledField = ({ disabled, name, field, fields }) => {
+      if (isBoolean(disabled) && _state.mount || !!disabled || _names.disabled.has(name)) {
+        disabled ? _names.disabled.add(name) : _names.disabled.delete(name);
+        updateTouchAndDirty(name, getFieldValue(field ? field._f : get(fields, name)._f), false, false, true);
+      }
+    };
+    const register = (name, options = {}) => {
+      let field = get(_fields, name);
+      const disabledIsDefined = isBoolean(options.disabled) || isBoolean(_options.disabled);
+      set(_fields, name, {
+        ...field || {},
+        _f: {
+          ...field && field._f ? field._f : { ref: { name } },
+          name,
+          mount: true,
+          ...options
+        }
+      });
+      _names.mount.add(name);
+      if (field) {
+        _updateDisabledField({
+          field,
+          disabled: isBoolean(options.disabled) ? options.disabled : _options.disabled,
+          name
+        });
+      } else {
+        updateValidAndValue(name, true, options.value);
+      }
+      return {
+        ...disabledIsDefined ? { disabled: options.disabled || _options.disabled } : {},
+        ..._options.progressive ? {
+          required: !!options.required,
+          min: getRuleValue(options.min),
+          max: getRuleValue(options.max),
+          minLength: getRuleValue(options.minLength),
+          maxLength: getRuleValue(options.maxLength),
+          pattern: getRuleValue(options.pattern)
+        } : {},
+        name,
+        onChange,
+        onBlur: onChange,
+        ref: (ref) => {
+          if (ref) {
+            register(name, options);
+            field = get(_fields, name);
+            const fieldRef = isUndefined(ref.value) ? ref.querySelectorAll ? ref.querySelectorAll("input,select,textarea")[0] || ref : ref : ref;
+            const radioOrCheckbox = isRadioOrCheckbox(fieldRef);
+            const refs = field._f.refs || [];
+            if (radioOrCheckbox ? refs.find((option) => option === fieldRef) : fieldRef === field._f.ref) {
+              return;
+            }
+            set(_fields, name, {
+              _f: {
+                ...field._f,
+                ...radioOrCheckbox ? {
+                  refs: [
+                    ...refs.filter(live),
+                    fieldRef,
+                    ...Array.isArray(get(_defaultValues, name)) ? [{}] : []
+                  ],
+                  ref: { type: fieldRef.type, name }
+                } : { ref: fieldRef }
+              }
+            });
+            updateValidAndValue(name, false, void 0, fieldRef);
+          } else {
+            field = get(_fields, name, {});
+            if (field._f) {
+              field._f.mount = false;
+            }
+            (_options.shouldUnregister || options.shouldUnregister) && !(isNameInFieldArray(_names.array, name) && _state.action) && _names.unMount.add(name);
+          }
+        }
+      };
+    };
+    const _focusError = () => _options.shouldFocusError && iterateFieldsByAction(_fields, _focusInput, _names.mount);
+    const _disableForm = (disabled) => {
+      if (isBoolean(disabled)) {
+        _subjects.state.next({ disabled });
+        iterateFieldsByAction(_fields, (ref, name) => {
+          const currentField = get(_fields, name);
+          if (currentField) {
+            ref.disabled = currentField._f.disabled || disabled;
+            if (Array.isArray(currentField._f.refs)) {
+              currentField._f.refs.forEach((inputRef) => {
+                inputRef.disabled = currentField._f.disabled || disabled;
+              });
+            }
+          }
+        }, 0, false);
+      }
+    };
+    const handleSubmit = (onValid, onInvalid) => async (e) => {
+      let onValidError = void 0;
+      if (e) {
+        e.preventDefault && e.preventDefault();
+        e.persist && e.persist();
+      }
+      let fieldValues = cloneObject(_formValues);
+      if (_names.disabled.size) {
+        for (const name of _names.disabled) {
+          set(fieldValues, name, void 0);
+        }
+      }
+      _subjects.state.next({
+        isSubmitting: true
+      });
+      if (_options.resolver) {
+        const { errors, values } = await _executeSchema();
+        _formState.errors = errors;
+        fieldValues = values;
+      } else {
+        await executeBuiltInValidation(_fields);
+      }
+      unset(_formState.errors, "root");
+      if (isEmptyObject(_formState.errors)) {
+        _subjects.state.next({
+          errors: {}
+        });
+        try {
+          await onValid(fieldValues, e);
+        } catch (error) {
+          onValidError = error;
+        }
+      } else {
+        if (onInvalid) {
+          await onInvalid({ ..._formState.errors }, e);
+        }
+        _focusError();
+        setTimeout(_focusError);
+      }
+      _subjects.state.next({
+        isSubmitted: true,
+        isSubmitting: false,
+        isSubmitSuccessful: isEmptyObject(_formState.errors) && !onValidError,
+        submitCount: _formState.submitCount + 1,
+        errors: _formState.errors
+      });
+      if (onValidError) {
+        throw onValidError;
+      }
+    };
+    const resetField = (name, options = {}) => {
+      if (get(_fields, name)) {
+        if (isUndefined(options.defaultValue)) {
+          setValue(name, cloneObject(get(_defaultValues, name)));
+        } else {
+          setValue(name, options.defaultValue);
+          set(_defaultValues, name, cloneObject(options.defaultValue));
+        }
+        if (!options.keepTouched) {
+          unset(_formState.touchedFields, name);
+        }
+        if (!options.keepDirty) {
+          unset(_formState.dirtyFields, name);
+          _formState.isDirty = options.defaultValue ? _getDirty(name, cloneObject(get(_defaultValues, name))) : _getDirty();
+        }
+        if (!options.keepError) {
+          unset(_formState.errors, name);
+          _proxyFormState.isValid && _updateValid();
+        }
+        _subjects.state.next({ ..._formState });
+      }
+    };
+    const _reset = (formValues, keepStateOptions = {}) => {
+      const updatedValues = formValues ? cloneObject(formValues) : _defaultValues;
+      const cloneUpdatedValues = cloneObject(updatedValues);
+      const isEmptyResetValues = isEmptyObject(formValues);
+      const values = isEmptyResetValues ? _defaultValues : cloneUpdatedValues;
+      if (!keepStateOptions.keepDefaultValues) {
+        _defaultValues = updatedValues;
+      }
+      if (!keepStateOptions.keepValues) {
+        if (keepStateOptions.keepDirtyValues) {
+          const fieldsToCheck = /* @__PURE__ */ new Set([
+            ..._names.mount,
+            ...Object.keys(getDirtyFields(_defaultValues, _formValues))
+          ]);
+          for (const fieldName of Array.from(fieldsToCheck)) {
+            get(_formState.dirtyFields, fieldName) ? set(values, fieldName, get(_formValues, fieldName)) : setValue(fieldName, get(values, fieldName));
+          }
+        } else {
+          if (isWeb && isUndefined(formValues)) {
+            for (const name of _names.mount) {
+              const field = get(_fields, name);
+              if (field && field._f) {
+                const fieldReference = Array.isArray(field._f.refs) ? field._f.refs[0] : field._f.ref;
+                if (isHTMLElement(fieldReference)) {
+                  const form = fieldReference.closest("form");
+                  if (form) {
+                    form.reset();
+                    break;
+                  }
+                }
+              }
+            }
+          }
+          _fields = {};
+        }
+        _formValues = _options.shouldUnregister ? keepStateOptions.keepDefaultValues ? cloneObject(_defaultValues) : {} : cloneObject(values);
+        _subjects.array.next({
+          values: { ...values }
+        });
+        _subjects.values.next({
+          values: { ...values }
+        });
+      }
+      _names = {
+        mount: keepStateOptions.keepDirtyValues ? _names.mount : /* @__PURE__ */ new Set(),
+        unMount: /* @__PURE__ */ new Set(),
+        array: /* @__PURE__ */ new Set(),
+        disabled: /* @__PURE__ */ new Set(),
+        watch: /* @__PURE__ */ new Set(),
+        watchAll: false,
+        focus: ""
+      };
+      _state.mount = !_proxyFormState.isValid || !!keepStateOptions.keepIsValid || !!keepStateOptions.keepDirtyValues;
+      _state.watch = !!_options.shouldUnregister;
+      _subjects.state.next({
+        submitCount: keepStateOptions.keepSubmitCount ? _formState.submitCount : 0,
+        isDirty: isEmptyResetValues ? false : keepStateOptions.keepDirty ? _formState.isDirty : !!(keepStateOptions.keepDefaultValues && !deepEqual(formValues, _defaultValues)),
+        isSubmitted: keepStateOptions.keepIsSubmitted ? _formState.isSubmitted : false,
+        dirtyFields: isEmptyResetValues ? {} : keepStateOptions.keepDirtyValues ? keepStateOptions.keepDefaultValues && _formValues ? getDirtyFields(_defaultValues, _formValues) : _formState.dirtyFields : keepStateOptions.keepDefaultValues && formValues ? getDirtyFields(_defaultValues, formValues) : keepStateOptions.keepDirty ? _formState.dirtyFields : {},
+        touchedFields: keepStateOptions.keepTouched ? _formState.touchedFields : {},
+        errors: keepStateOptions.keepErrors ? _formState.errors : {},
+        isSubmitSuccessful: keepStateOptions.keepIsSubmitSuccessful ? _formState.isSubmitSuccessful : false,
+        isSubmitting: false
+      });
+    };
+    const reset = (formValues, keepStateOptions) => _reset(isFunction(formValues) ? formValues(_formValues) : formValues, keepStateOptions);
+    const setFocus = (name, options = {}) => {
+      const field = get(_fields, name);
+      const fieldReference = field && field._f;
+      if (fieldReference) {
+        const fieldRef = fieldReference.refs ? fieldReference.refs[0] : fieldReference.ref;
+        if (fieldRef.focus) {
+          fieldRef.focus();
+          options.shouldSelect && isFunction(fieldRef.select) && fieldRef.select();
+        }
+      }
+    };
+    const _updateFormState = (updatedFormState) => {
+      _formState = {
+        ..._formState,
+        ...updatedFormState
+      };
+    };
+    const _resetDefaultValues = () => isFunction(_options.defaultValues) && _options.defaultValues().then((values) => {
+      reset(values, _options.resetOptions);
+      _subjects.state.next({
+        isLoading: false
+      });
+    });
+    return {
+      control: {
+        register,
+        unregister,
+        getFieldState,
+        handleSubmit,
+        setError,
+        _executeSchema,
+        _getWatch,
+        _getDirty,
+        _updateValid,
+        _removeUnmounted,
+        _updateFieldArray,
+        _updateDisabledField,
+        _getFieldArray,
+        _reset,
+        _resetDefaultValues,
+        _updateFormState,
+        _disableForm,
+        _subjects,
+        _proxyFormState,
+        _setErrors,
+        get _fields() {
+          return _fields;
+        },
+        get _formValues() {
+          return _formValues;
+        },
+        get _state() {
+          return _state;
+        },
+        set _state(value) {
+          _state = value;
+        },
+        get _defaultValues() {
+          return _defaultValues;
+        },
+        get _names() {
+          return _names;
+        },
+        set _names(value) {
+          _names = value;
+        },
+        get _formState() {
+          return _formState;
+        },
+        set _formState(value) {
+          _formState = value;
+        },
+        get _options() {
+          return _options;
+        },
+        set _options(value) {
+          _options = {
+            ..._options,
+            ...value
+          };
+        }
+      },
+      trigger,
+      register,
+      handleSubmit,
+      watch,
+      setValue,
+      getValues,
+      reset,
+      resetField,
+      clearErrors,
+      unregister,
+      setError,
+      setFocus,
+      getFieldState
+    };
+  }
+  function useForm(props = {}) {
+    const _formControl = import_react7.default.useRef(void 0);
+    const _values = import_react7.default.useRef(void 0);
+    const [formState, updateFormState] = import_react7.default.useState({
+      isDirty: false,
+      isValidating: false,
+      isLoading: isFunction(props.defaultValues),
+      isSubmitted: false,
+      isSubmitting: false,
+      isSubmitSuccessful: false,
+      isValid: false,
+      submitCount: 0,
+      dirtyFields: {},
+      touchedFields: {},
+      validatingFields: {},
+      errors: props.errors || {},
+      disabled: props.disabled || false,
+      defaultValues: isFunction(props.defaultValues) ? void 0 : props.defaultValues
+    });
+    if (!_formControl.current) {
+      _formControl.current = {
+        ...createFormControl(props),
+        formState
+      };
+    }
+    const control = _formControl.current.control;
+    control._options = props;
+    useSubscribe({
+      subject: control._subjects.state,
+      next: (value) => {
+        if (shouldRenderFormState(value, control._proxyFormState, control._updateFormState, true)) {
+          updateFormState({ ...control._formState });
+        }
+      }
+    });
+    import_react7.default.useEffect(() => control._disableForm(props.disabled), [control, props.disabled]);
+    import_react7.default.useEffect(() => {
+      if (control._proxyFormState.isDirty) {
+        const isDirty = control._getDirty();
+        if (isDirty !== formState.isDirty) {
+          control._subjects.state.next({
+            isDirty
+          });
+        }
+      }
+    }, [control, formState.isDirty]);
+    import_react7.default.useEffect(() => {
+      if (props.values && !deepEqual(props.values, _values.current)) {
+        control._reset(props.values, control._options.resetOptions);
+        _values.current = props.values;
+        updateFormState((state) => ({ ...state }));
+      } else {
+        control._resetDefaultValues();
+      }
+    }, [props.values, control]);
+    import_react7.default.useEffect(() => {
+      if (props.errors) {
+        control._setErrors(props.errors);
+      }
+    }, [props.errors, control]);
+    import_react7.default.useEffect(() => {
+      if (!control._state.mount) {
+        control._updateValid();
+        control._state.mount = true;
+      }
+      if (control._state.watch) {
+        control._state.watch = false;
+        control._subjects.state.next({ ...control._formState });
+      }
+      control._removeUnmounted();
+    });
+    import_react7.default.useEffect(() => {
+      props.shouldUnregister && control._subjects.values.next({
+        values: control._getWatch()
+      });
+    }, [props.shouldUnregister, control]);
+    _formControl.current.formState = getProxyFormState(formState, control);
+    return _formControl.current;
+  }
+
+  // react-user-mgmt/src/components/AddUserForm.tsx
+  var import_jsx_runtime7 = __toESM(require_jsx_runtime(), 1);
+  async function addNewUser(input) {
+    throw new Error("Function not implemented.");
+    const { username, email, password, confirmPassword } = input;
+    if (password !== confirmPassword) throw "Passwords do not match";
+    const createUser = await fetchPostSearchParams("/admin/post-user", { username, email });
+    if (!createUser.ok) throw await createUser.text() || "Failed to add user";
+    const userId = await createUser.json();
+    await changePassword(userId, password);
+  }
+  var AddUserForm = () => {
+    const [error, setError] = (0, import_react8.useState)("");
+    const [success, setSuccess] = (0, import_react8.useState)("");
+    const { register, handleSubmit, watch, formState: { errors } } = useForm();
+    const onSubmit = (data) => console.log(data);
+    return /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("div", { children: [
+      /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("h1", { children: "Add New User" }),
+      /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("form", { onSubmit: handleSubmit(addNewUser), children: [
+        /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("div", { className: "mws-form-group", children: [
+          /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("label", { htmlFor: "username", children: "Username:" }),
+          /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(
+            "input",
+            {
+              ...register("username", { required: true }),
+              type: "text",
+              id: "username",
+              className: "mws-form-input",
+              autoComplete: "new-password"
+            }
+          )
+        ] }),
+        /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("div", { className: "mws-form-group", children: [
+          /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("label", { htmlFor: "email", children: "Email:" }),
+          /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(
+            "input",
+            {
+              ...register("email", { required: true }),
+              type: "email",
+              id: "email",
+              className: "mws-form-input",
+              autoComplete: "new-password"
+            }
+          )
+        ] }),
+        /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("div", { className: "mws-form-group", children: [
+          /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("label", { htmlFor: "password", children: "Password:" }),
+          /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(
+            "input",
+            {
+              ...register("password", { required: true }),
+              type: "password",
+              id: "password",
+              className: "mws-form-input",
+              autoComplete: "new-password"
+            }
+          )
+        ] }),
+        /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("div", { className: "mws-form-group", children: [
+          /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("label", { htmlFor: "confirmPassword", children: "Confirm Password:" }),
+          /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(
+            "input",
+            {
+              ...register("confirmPassword", { required: true }),
+              type: "password",
+              id: "confirmPassword",
+              className: "mws-form-input",
+              autoComplete: "new-password"
+            }
+          )
+        ] }),
+        error && /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("div", { className: "mws-error-message", children: error }),
+        success && /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("div", { className: "mws-success-message", children: success }),
+        /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("div", { className: "mws-form-actions", children: /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("button", { type: "submit", className: "mws-btn mws-btn-primary", children: "Add User" }) })
+      ] })
+    ] });
+  };
+  var AddUserForm_default = AddUserForm;
+
+  // react-user-mgmt/src/components/UserManagement.tsx
+  var import_jsx_runtime8 = __toESM(require_jsx_runtime(), 1);
+  var UserManagement = () => {
+    const [userList, setUserList] = (0, import_react9.useState)([]);
+    const [userIsAdmin, setUserIsAdmin] = (0, import_react9.useState)(false);
+    const [firstGuestUser, setFirstGuestUser] = (0, import_react9.useState)(false);
+    const [username, setUsername] = (0, import_react9.useState)("");
+    useAsyncEffect(async () => {
+      try {
+        const response = await fetch("/admin/users.json");
+        const data = await response.json();
+        setUserList(data["user-list"] || []);
+        setUserIsAdmin(data["user-is-admin"] || false);
+        setFirstGuestUser(data["first-guest-user"] || false);
+        setUsername(data.username || "");
+      } catch (error) {
+        console.error("Error fetching user data:", error);
+      }
+    }, void 0, void 0, []);
+    return /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(import_jsx_runtime8.Fragment, { children: /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("div", { className: "mws-users-container", children: [
+      userList.length > 0 ? /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("div", { className: "mws-users-list", children: userList.map((user) => /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)(
+        "a",
+        {
+          href: `/admin/users/${user.user_id}?q=preview`,
+          className: "mws-user-item",
+          children: [
+            /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("div", { className: "mws-user-info", children: [
+              /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("span", { className: "mws-user-name", children: user.username }),
+              /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("span", { className: "mws-user-email", children: user.email })
+            ] }),
+            /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("div", { className: "mws-user-details", children: [
+              /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("span", { className: "mws-user-created", children: [
+                "Created: ",
+                user.created_at
+              ] }),
+              /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("span", { className: "mws-user-last-login", children: [
+                "Last Login: ",
+                user.last_login || "Never"
+              ] })
+            ] })
+          ]
+        },
+        user.user_id
+      )) }) : /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("div", { className: "mws-no-users-message", children: "No users found" }),
+      (userIsAdmin || firstGuestUser) && /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("div", { className: "mws-add-user-card", children: /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(AddUserForm_default, {}) })
+    ] }) });
+  };
+  var UserManagement_default = UserManagement;
+
+  // react-user-mgmt/src/components/ManageUser.tsx
+  var import_react10 = __toESM(require_react(), 1);
+  var import_jsx_runtime9 = __toESM(require_jsx_runtime(), 1);
   function ManageUser() {
-    const [refreshData, setRefreshData] = (0, import_react5.useState)({});
-    const [result, setResult] = (0, import_react5.useState)(null);
+    const [refreshData, setRefreshData] = (0, import_react10.useState)({});
+    const [result, setResult] = (0, import_react10.useState)(null);
     useAsyncEffect(async () => {
       const res = await fetch(location.pathname + ".json", {});
       if (res.status !== 200) throw new Error("Failed to fetch user data");
       setResult(await res.json());
     }, void 0, void 0, [refreshData]);
     if (!result) return null;
-    return /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(ManageUserInner, { ...{
+    return /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(ManageUserInner, { ...{
       user: JSON.parse(result.user),
       userRole: JSON.parse(result["user-role"]).roles[0],
       allRoles: JSON.parse(result["all-roles"]),
@@ -20850,11 +23718,11 @@ ${val.stack}`;
     userIsLoggedIn = true,
     setRefreshData
   }) => {
-    const [updateError, setUpdateError] = (0, import_react5.useState)(null);
-    const [updateSuccess, setUpdateSuccess] = (0, import_react5.useState)(null);
-    const [passwordError, setPasswordError] = (0, import_react5.useState)(null);
-    const [passwordSuccess, setPasswordSuccess] = (0, import_react5.useState)(null);
-    const [deleteError, setDeleteError] = (0, import_react5.useState)(null);
+    const [updateError, setUpdateError] = (0, import_react10.useState)(null);
+    const [updateSuccess, setUpdateSuccess] = (0, import_react10.useState)(null);
+    const [passwordError, setPasswordError] = (0, import_react10.useState)(null);
+    const [passwordSuccess, setPasswordSuccess] = (0, import_react10.useState)(null);
+    const [deleteError, setDeleteError] = (0, import_react10.useState)(null);
     const userInitials = user.username?.[0].toUpperCase();
     const handler = (endpoint, success, error) => async (formData) => {
       const res = await fetchPostSearchParams(endpoint, formData);
@@ -20873,191 +23741,162 @@ ${val.stack}`;
     };
     const handleChangePassword = async (formData) => {
       const userId = formData.get("userId");
-      const newPassword = formData.get("newPassword");
+      const password = formData.get("newPassword");
       const confirmPassword = formData.get("confirmPassword");
-      if (!userId || !newPassword || !confirmPassword) return;
-      if (newPassword !== confirmPassword) {
+      if (!userId || !password || !confirmPassword) throw false;
+      if (password !== confirmPassword) {
         setPasswordError("Passwords do not match.");
-        return;
+        throw false;
       }
-      const creator = PasswordCreation(userId, newPassword);
-      const registrationRequest = creator.next().value;
-      await fetchPostSearchParams("/change-user-password/1", { userId, registrationRequest });
-      const registrationRecord = creator.next(registrationRequest).value;
-      await fetchPostSearchParams("/change-user-password/2", { userId, registrationRecord });
-      setPasswordSuccess("Password successfully changed.");
-      setRefreshData({});
+      await changePassword(userId, password).then(() => {
+        setPasswordSuccess("Password successfully changed.");
+        setRefreshData({});
+      }).catch((e) => {
+        setPasswordError(`${e}`);
+        throw false;
+      });
     };
-    return /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)(import_jsx_runtime6.Fragment, { children: [
-      /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(
-        Header_default,
-        {
-          pageTitle: "User Profile",
-          username: username || "",
-          userIsAdmin,
-          userIsLoggedIn,
-          firstGuestUser,
-          userId: +user?.user_id,
-          setShowAnonConfig: () => {
-          }
-        }
-      ),
-      /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("div", { className: "mws-main-wrapper", children: [
-        /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("div", { className: "mws-user-profile-container", children: [
-          /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("div", { className: "mws-user-profile-header", children: [
-            /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("div", { className: "mws-user-profile-avatar", children: userInitials }),
-            /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("h1", { className: "mws-user-profile-name", children: user.username }),
-            /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("p", { className: "mws-user-profile-email", children: user.email })
+    return /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(import_jsx_runtime9.Fragment, { children: /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)("div", { className: "mws-main-wrapper", children: [
+      /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)("div", { className: "mws-user-profile-container", children: [
+        /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)("div", { className: "mws-user-profile-header", children: [
+          /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("div", { className: "mws-user-profile-avatar", children: userInitials }),
+          /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("h1", { className: "mws-user-profile-name", children: user.username }),
+          /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("p", { className: "mws-user-profile-email", children: user.email })
+        ] }),
+        /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)("div", { className: "mws-user-profile-details", children: [
+          /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)("div", { className: "mws-user-profile-item", children: [
+            /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("span", { className: "mws-user-profile-label", children: "User ID:" }),
+            /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("span", { className: "mws-user-profile-value", children: user.user_id })
           ] }),
-          /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("div", { className: "mws-user-profile-details", children: [
-            /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("div", { className: "mws-user-profile-item", children: [
-              /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("span", { className: "mws-user-profile-label", children: "User ID:" }),
-              /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("span", { className: "mws-user-profile-value", children: user.user_id })
-            ] }),
-            /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("div", { className: "mws-user-profile-item", children: [
-              /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("span", { className: "mws-user-profile-label", children: "Created At:" }),
-              /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("span", { className: "mws-user-profile-value", children: user.created_at?.split("T")[0] })
-            ] }),
-            /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("div", { className: "mws-user-profile-item", children: [
-              /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("span", { className: "mws-user-profile-label", children: "Last Login:" }),
-              /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("span", { className: "mws-user-profile-value", children: user.last_login?.split("T")[0] })
-            ] }),
-            /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("div", { className: "mws-user-profile-roles", children: [
-              /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("h2", { children: "User Role" }),
-              /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("ul", { children: /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("li", { children: userRole.role_name }) })
-            ] })
+          /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)("div", { className: "mws-user-profile-item", children: [
+            /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("span", { className: "mws-user-profile-label", children: "Created At:" }),
+            /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("span", { className: "mws-user-profile-value", children: user.created_at?.split("T")[0] })
+          ] }),
+          /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)("div", { className: "mws-user-profile-item", children: [
+            /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("span", { className: "mws-user-profile-label", children: "Last Login:" }),
+            /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("span", { className: "mws-user-profile-value", children: user.last_login?.split("T")[0] })
+          ] }),
+          /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)("div", { className: "mws-user-profile-roles", children: [
+            /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("h2", { children: "User Role" }),
+            /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("ul", { children: /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("li", { children: userRole.role_name }) })
+          ] })
+        ] })
+      ] }),
+      (userIsAdmin || isCurrentUserProfile) && /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)("div", { className: "mws-user-profile-management", children: [
+        /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("h2", { children: "Manage Account" }),
+        /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)("form", { className: "mws-user-profile-form", action: handleUpdateProfile, children: [
+          /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("input", { type: "hidden", name: "userId", value: user.user_id }),
+          /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)("div", { className: "mws-form-group", children: [
+            /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("label", { htmlFor: "username", children: "Username:" }),
+            /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("input", { type: "text", id: "username", name: "username", defaultValue: user.username, required: true })
+          ] }),
+          /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)("div", { className: "mws-form-group", children: [
+            /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("label", { htmlFor: "email", children: "Email:" }),
+            /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("input", { type: "email", id: "email", name: "email", defaultValue: user.email, required: true })
+          ] }),
+          userIsAdmin && /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)("div", { className: "mws-form-group", children: [
+            /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("label", { htmlFor: "role", children: "Role:" }),
+            /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("select", { id: "role", name: "role", defaultValue: userRole.role_id, required: true, children: allRoles.map((role) => /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("option", { value: role.role_id, children: role.role_name }, role.role_id)) })
+          ] }),
+          /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("button", { type: "submit", className: "mws-update-profile-btn", children: "Update Profile" }),
+          updateError && /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("div", { className: "mws-error-message", children: updateError }),
+          updateSuccess && /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("div", { className: "mws-success-message", children: updateSuccess })
+        ] }),
+        userIsAdmin && !isCurrentUserProfile && /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)(import_jsx_runtime9.Fragment, { children: [
+          /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("hr", {}),
+          /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)("form", { className: "mws-user-profile-form", action: handleDeleteAccount, children: [
+            /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("input", { type: "hidden", name: "userId", value: user.user_id }),
+            /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("button", { type: "submit", className: "mws-delete-account-btn", children: "Delete User Account" }),
+            deleteError && /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("div", { className: "mws-error-message", children: deleteError })
           ] })
         ] }),
-        (userIsAdmin || isCurrentUserProfile) && /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("div", { className: "mws-user-profile-management", children: [
-          /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("h2", { children: "Manage Account" }),
-          /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("form", { className: "mws-user-profile-form", action: handleUpdateProfile, children: [
-            /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("input", { type: "hidden", name: "userId", value: user.user_id }),
-            /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("div", { className: "mws-form-group", children: [
-              /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("label", { htmlFor: "username", children: "Username:" }),
-              /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("input", { type: "text", id: "username", name: "username", defaultValue: user.username, required: true })
+        isCurrentUserProfile && /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)(import_jsx_runtime9.Fragment, { children: [
+          /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("hr", {}),
+          /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("h2", { children: "Change Password" }),
+          /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)("form", { className: "mws-user-profile-form", action: handleChangePassword, children: [
+            /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("input", { type: "hidden", name: "userId", value: user.user_id }),
+            /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)("div", { className: "mws-form-group", children: [
+              /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("label", { htmlFor: "new-password", children: "New Password:" }),
+              /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("input", { type: "password", id: "new-password", name: "newPassword", required: true })
             ] }),
-            /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("div", { className: "mws-form-group", children: [
-              /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("label", { htmlFor: "email", children: "Email:" }),
-              /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("input", { type: "email", id: "email", name: "email", defaultValue: user.email, required: true })
+            /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)("div", { className: "mws-form-group", children: [
+              /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("label", { htmlFor: "confirm-password", children: "Confirm New Password:" }),
+              /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("input", { type: "password", id: "confirm-password", name: "confirmPassword", required: true })
             ] }),
-            userIsAdmin && /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("div", { className: "mws-form-group", children: [
-              /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("label", { htmlFor: "role", children: "Role:" }),
-              /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("select", { id: "role", name: "role", defaultValue: userRole.role_id, required: true, children: allRoles.map((role) => /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("option", { value: role.role_id, children: role.role_name }, role.role_id)) })
-            ] }),
-            /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("button", { type: "submit", className: "mws-update-profile-btn", children: "Update Profile" }),
-            updateError && /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("div", { className: "mws-error-message", children: updateError }),
-            updateSuccess && /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("div", { className: "mws-success-message", children: updateSuccess })
-          ] }),
-          userIsAdmin && !isCurrentUserProfile && /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)(import_jsx_runtime6.Fragment, { children: [
-            /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("hr", {}),
-            /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("form", { className: "mws-user-profile-form", action: handleDeleteAccount, children: [
-              /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("input", { type: "hidden", name: "userId", value: user.user_id }),
-              /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("button", { type: "submit", className: "mws-delete-account-btn", children: "Delete User Account" }),
-              deleteError && /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("div", { className: "mws-error-message", children: deleteError })
-            ] })
-          ] }),
-          isCurrentUserProfile && /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)(import_jsx_runtime6.Fragment, { children: [
-            /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("hr", {}),
-            /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("h2", { children: "Change Password" }),
-            /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("form", { className: "mws-user-profile-form", action: handleChangePassword, children: [
-              /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("input", { type: "hidden", name: "userId", value: user.user_id }),
-              /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("div", { className: "mws-form-group", children: [
-                /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("label", { htmlFor: "new-password", children: "New Password:" }),
-                /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("input", { type: "password", id: "new-password", name: "newPassword", required: true })
-              ] }),
-              /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("div", { className: "mws-form-group", children: [
-                /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("label", { htmlFor: "confirm-password", children: "Confirm New Password:" }),
-                /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("input", { type: "password", id: "confirm-password", name: "confirmPassword", required: true })
-              ] }),
-              /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("button", { type: "submit", className: "mws-update-password-btn", children: "Change Password" }),
-              passwordError && /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("div", { className: "mws-error-message", children: passwordError }),
-              passwordSuccess && /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("div", { className: "mws-success-message", children: passwordSuccess })
-            ] })
+            /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("button", { type: "submit", className: "mws-update-password-btn", children: "Change Password" }),
+            passwordError && /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("div", { className: "mws-error-message", children: passwordError }),
+            passwordSuccess && /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("div", { className: "mws-success-message", children: passwordSuccess })
           ] })
         ] })
       ] })
-    ] });
-  };
-  function* PasswordCreation(userID, password) {
-    const { clientRegistrationState, registrationRequest } = client.startRegistration({ password });
-    const registrationResponse = yield registrationRequest;
-    const { registrationRecord } = client.finishRegistration({
-      clientRegistrationState,
-      registrationResponse,
-      password
-    });
-    return registrationRecord;
-  }
-
-  // react-user-mgmt/src/components/Login.tsx
-  var import_react6 = __toESM(require_react(), 1);
-  var import_jsx_runtime7 = __toESM(require_jsx_runtime(), 1);
-  var LOGIN_FAILED = "Login failed. Please check your credentials.";
-  async function loginWithOpaque(username, password) {
-    const { clientLoginState, startLoginRequest } = client.startLogin({ password });
-    const login1 = await fetchPostSearchParams("/login/1", { username, startLoginRequest });
-    if (!login1.ok) throw await login1.text() || LOGIN_FAILED;
-    const loginResponse = await login1.text();
-    const loginResult = client.finishLogin({ clientLoginState, loginResponse, password });
-    if (!loginResult) throw LOGIN_FAILED;
-    const { finishLoginRequest, sessionKey, exportKey, serverStaticPublicKey } = loginResult;
-    const login2 = await fetchPostSearchParams("/login/2", { username, finishLoginRequest });
-    if (!login2.ok) throw await login2.text() || LOGIN_FAILED;
-    return { username, sessionKey, exportKey, serverStaticPublicKey };
-  }
-  var Login = () => {
-    const [errorMessage, setErrorMessage] = (0, import_react6.useState)(null);
-    const [isLoggedIn, setIsLoggedIn] = (0, import_react6.useState)(false);
-    const returnUrl = new URLSearchParams(location.search).get("returnUrl") || "/";
-    useAsyncEffect(async () => {
-      const response = await fetch("/login.json", { method: "GET" });
-      const json = await response.json();
-      await ready;
-      setIsLoggedIn(json.isLoggedIn);
-    }, void 0, void 0, []);
-    const handleSubmit = async (formData) => {
-      setErrorMessage(null);
-      const username = formData.get("username");
-      const password = formData.get("password");
-      if (!username || !password) {
-        setErrorMessage("Please enter a username and password.");
-        return;
-      }
-      await loginWithOpaque(username, password).then((e) => {
-        setIsLoggedIn(true);
-        console.log(e);
-      }, (e) => {
-        setErrorMessage(`${e}`);
-      });
-    };
-    return /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("div", { className: "login-page", children: /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("div", { className: "login-container", children: [
-      /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("div", { className: "login-header", children: [
-        /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("h1", { children: "Be our Guest" }),
-        /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("a", { href: "/", children: "Explore as Guest" }),
-        /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("h2", { children: "TiddlyWiki Login" })
-      ] }),
-      isLoggedIn ? /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(import_jsx_runtime7.Fragment, { children: /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("div", { className: "mws-success-message", children: "You are logged in!" }) }) : /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(import_jsx_runtime7.Fragment, { children: /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("form", { className: "login-form", action: handleSubmit, children: [
-        /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("input", { type: "hidden", name: "returnUrl", value: returnUrl }),
-        /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("input", { type: "text", name: "username", placeholder: "Username", required: true }),
-        /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("input", { type: "password", name: "password", placeholder: "Password", required: true }),
-        /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("input", { type: "submit", value: "Log In" })
-      ] }) }),
-      errorMessage && /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("div", { className: "mws-error-message", children: errorMessage })
     ] }) });
   };
-  var Login_default = Login;
 
-  // react-user-mgmt/src/main.tsx
-  var import_jsx_runtime8 = __toESM(require_jsx_runtime(), 1);
-  function App() {
-    const path = location.pathname;
-    return /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)(import_react7.StrictMode, { children: [
-      path === "/" && /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(Dashboard_default, {}),
-      path === "/login" && /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(Login_default, {}),
-      path.startsWith("/admin/users/") && /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(ManageUser, {})
+  // react-user-mgmt/src/components/Frame.tsx
+  var import_jsx_runtime10 = __toESM(require_jsx_runtime(), 1);
+  function Frame() {
+    const {
+      username,
+      "recipe-list": initialRecipes,
+      "bag-list": initialBags,
+      "user-is-admin": userIsAdmin,
+      "user-is-logged-in": userIsLoggedIn,
+      "first-guest-user": firstGuestUser,
+      user,
+      allowReads,
+      allowWrites
+    } = useIndexJson();
+    const [showAnonConfig, setShowAnonConfig] = (0, import_react11.useState)(false);
+    const pages = [
+      [/^\/$/, /* @__PURE__ */ (0, import_jsx_runtime10.jsx)(Dashboard_default, {}), "Wikis Available Here"],
+      [/^\/admin\/users\/?$/, /* @__PURE__ */ (0, import_jsx_runtime10.jsx)(UserManagement_default, {}), "User Management"],
+      [/\/admin\/users\/(\d+)$/, /* @__PURE__ */ (0, import_jsx_runtime10.jsx)(ManageUser, {}), "Manage User"]
+    ];
+    const page = pages.find(([re]) => re.test(location.pathname));
+    return /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)(import_jsx_runtime10.Fragment, { children: [
+      /* @__PURE__ */ (0, import_jsx_runtime10.jsx)(
+        Header_default,
+        {
+          pageTitle: page ? page[2] : "TiddlyWiki",
+          username,
+          userIsAdmin,
+          userIsLoggedIn,
+          firstGuestUser,
+          userId: user?.user_id,
+          setShowAnonConfig
+        }
+      ),
+      firstGuestUser && /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("div", { className: "mws-security-warning", children: /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)("div", { className: "mws-security-warning-content", children: [
+        /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("div", { className: "mws-security-warning-icon", children: "\u26A0\uFE0F" }),
+        /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)("div", { className: "mws-security-warning-text", children: [
+          /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("strong", { children: "Warning:" }),
+          " TiddlyWiki is currently running in anonymous access mode which allows anyone with access to the server to read and modify data."
+        ] }),
+        /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("div", { className: "mws-security-warning-action", children: /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("a", { href: "/admin/users", className: "mws-security-warning-button", children: "Add Admin Account" }) })
+      ] }) }),
+      showAnonConfig && /* @__PURE__ */ (0, import_jsx_runtime10.jsx)(
+        AnonConfigModal_default,
+        {
+          initialAllowReads: allowReads,
+          initialAllowWrites: allowWrites,
+          onClose: () => setShowAnonConfig(false)
+        }
+      ),
+      page ? /* @__PURE__ */ (0, import_jsx_runtime10.jsx)(import_jsx_runtime10.Fragment, { children: page[1] }) : /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("div", { className: "mws-error", children: "Page not found" })
     ] });
   }
-  (0, import_client.createRoot)(document.getElementById("root")).render(/* @__PURE__ */ (0, import_jsx_runtime8.jsx)(App, {}));
+
+  // react-user-mgmt/src/main.tsx
+  var import_jsx_runtime11 = __toESM(require_jsx_runtime(), 1);
+  function App({ indexJson }) {
+    if (!indexJson) return null;
+    return /* @__PURE__ */ (0, import_jsx_runtime11.jsx)(import_react12.StrictMode, { children: /* @__PURE__ */ (0, import_jsx_runtime11.jsx)(IndexJsonContext.Provider, { value: indexJson, children: location.pathname === "/login" ? /* @__PURE__ */ (0, import_jsx_runtime11.jsx)(Login_default, {}) : /* @__PURE__ */ (0, import_jsx_runtime11.jsx)(Frame, {}) }) });
+  }
+  (async () => {
+    const preload = document.getElementById("index-json")?.textContent;
+    const indexJson = preload ? JSON.parse(preload) : await (await fetch("/index.json")).json();
+    (0, import_client2.createRoot)(document.getElementById("root")).render(/* @__PURE__ */ (0, import_jsx_runtime11.jsx)(App, { indexJson }));
+  })();
 })();
 /*! Bundled license information:
 
@@ -21065,28 +23904,6 @@ react/cjs/react.development.js:
   (**
    * @license React
    * react.development.js
-   *
-   * Copyright (c) Meta Platforms, Inc. and affiliates.
-   *
-   * This source code is licensed under the MIT license found in the
-   * LICENSE file in the root directory of this source tree.
-   *)
-
-react/cjs/react-jsx-runtime.development.js:
-  (**
-   * @license React
-   * react-jsx-runtime.development.js
-   *
-   * Copyright (c) Meta Platforms, Inc. and affiliates.
-   *
-   * This source code is licensed under the MIT license found in the
-   * LICENSE file in the root directory of this source tree.
-   *)
-
-react-dom/cjs/react-dom.development.js:
-  (**
-   * @license React
-   * react-dom.development.js
    *
    * Copyright (c) Meta Platforms, Inc. and affiliates.
    *
@@ -21105,10 +23922,45 @@ scheduler/cjs/scheduler.development.js:
    * LICENSE file in the root directory of this source tree.
    *)
 
+react-dom/cjs/react-dom.development.js:
+  (**
+   * @license React
+   * react-dom.development.js
+   *
+   * Copyright (c) Meta Platforms, Inc. and affiliates.
+   *
+   * This source code is licensed under the MIT license found in the
+   * LICENSE file in the root directory of this source tree.
+   *)
+
 react-dom/cjs/react-dom-client.development.js:
   (**
    * @license React
    * react-dom-client.development.js
+   *
+   * Copyright (c) Meta Platforms, Inc. and affiliates.
+   *
+   * This source code is licensed under the MIT license found in the
+   * LICENSE file in the root directory of this source tree.
+   *)
+
+@prisma/client/runtime/index-browser.js:
+  (*! Bundled license information:
+  
+  decimal.js/decimal.mjs:
+    (*!
+     *  decimal.js v10.5.0
+     *  An arbitrary-precision Decimal type for JavaScript.
+     *  https://github.com/MikeMcl/decimal.js
+     *  Copyright (c) 2025 Michael Mclaughlin <M8ch88l@gmail.com>
+     *  MIT Licence
+     *)
+  *)
+
+react/cjs/react-jsx-runtime.development.js:
+  (**
+   * @license React
+   * react-jsx-runtime.development.js
    *
    * Copyright (c) Meta Platforms, Inc. and affiliates.
    *

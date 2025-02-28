@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import Header from './Header';
 import { useAsyncEffect } from '../helpers/useAsyncEffect';
-import { fetchPostSearchParams } from '../helpers/utils';
-import * as opaque from "@serenity-kit/opaque";
+import { changePassword, fetchPostSearchParams } from '../helpers/utils';
+
 
 interface Role {
   role_id: string;
@@ -54,6 +54,7 @@ interface UserJson {
 export default function ManageUser() {
   const [refreshData, setRefreshData] = useState({});
   const [result, setResult] = useState<UserJson | null>(null);
+
   useAsyncEffect(async () => {
     const res = await fetch(location.pathname + ".json", {});
     if (res.status !== 200) throw new Error("Failed to fetch user data");
@@ -111,49 +112,35 @@ const ManageUserInner: React.FC<ManageUserProps> = ({
 
   const handleUpdateProfile = handler('/update-user-profile', setUpdateSuccess, setUpdateError);
 
-  
+
   const handleDeleteAccount = async (formData: FormData) => {
     if (window.confirm('Are you sure you want to delete this user account? This action cannot be undone.'))
       await handler('/delete-user-account', () => location.pathname = '/admin/users', setDeleteError)(formData);
   };
 
   const handleChangePassword = async (formData: FormData) => {
-    const userId = formData.get("userId");
-    const newPassword = formData.get("newPassword");
+    const userId = formData.get("userId") as string;
+    const password = formData.get("newPassword") as string;
     const confirmPassword = formData.get("confirmPassword");
-    if (!userId || !newPassword || !confirmPassword) return;
+    if (!userId || !password || !confirmPassword) throw false;
 
-    if (newPassword !== confirmPassword) {
+    if (password !== confirmPassword) {
       setPasswordError("Passwords do not match.");
-      return;
+      throw false;
     }
 
-    const creator = PasswordCreation(userId as string, newPassword as string);
-
-    const registrationRequest = creator.next().value;
-
-    await fetchPostSearchParams('/change-user-password/1', { userId, registrationRequest, });
-
-    const registrationRecord = creator.next(registrationRequest).value;
-
-    await fetchPostSearchParams('/change-user-password/2', { userId, registrationRecord, });
-
-    setPasswordSuccess("Password successfully changed.");
-    setRefreshData({});
+    await changePassword(userId, password).then(() => {
+      setPasswordSuccess("Password successfully changed.");
+      setRefreshData({});
+    }).catch(e => {
+      setPasswordError(`${e}`);
+      throw false;
+    });
 
   }
 
   return (
     <>
-      <Header
-        pageTitle="User Profile"
-        username={username || ''}
-        userIsAdmin={userIsAdmin}
-        userIsLoggedIn={userIsLoggedIn}
-        firstGuestUser={firstGuestUser}
-        userId={+user?.user_id}
-        setShowAnonConfig={() => { }}
-      />
 
       <div className="mws-main-wrapper">
         <div className="mws-user-profile-container">
@@ -261,21 +248,3 @@ const ManageUserInner: React.FC<ManageUserProps> = ({
 
 
 
-/**
- * This code creates a password registration. It can be used for temporary passwords, if needed. 
- */
-export function* PasswordCreation(userID: string, password: string): any {
-
-  const { clientRegistrationState, registrationRequest } = opaque.client.startRegistration({ password });
-
-  const registrationResponse = yield registrationRequest;
-
-  const { registrationRecord } = opaque.client.finishRegistration({
-    clientRegistrationState,
-    registrationResponse,
-    password,
-  });
-
-  return registrationRecord;
-
-}

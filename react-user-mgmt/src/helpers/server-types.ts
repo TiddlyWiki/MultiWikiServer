@@ -1,11 +1,11 @@
 import { Prisma } from "@prisma/client";
 import { proxy } from "./prisma-proxy";
+import React from "react";
 
 
 type PrismaField<T extends Prisma.ModelName, K extends keyof PrismaPayloadScalars<T>> =
   // manually map foriegn keys to their corresponding primary key so comparisons work
   [T, K] extends ["acl", "role_id"] ? PrismaField<"roles", "role_id"> :
-  [T, K] extends ["acl", "permission_id"] ? PrismaField<"permissions", "permission_id"> :
   [T, K] extends ["user_roles", "role_id"] ? PrismaField<"roles", "role_id"> :
   (PrismaPayloadScalars<T>[K] & { __prisma_table: T, __prisma_field: K })
   | (null extends PrismaPayloadScalars<T>[K] ? null : never);
@@ -14,7 +14,7 @@ type PrismaPayloadScalars<T extends Prisma.ModelName>
 
 
 // at some point I'll probably replace this with a direct reference to the server types
-const listBags = proxy.bags.findMany({
+const listBags = () => proxy.bags.findMany({
   select: {
     bag_id: true,
     bag_name: true,
@@ -26,9 +26,9 @@ const listBags = proxy.bags.findMany({
   }
 });
 
-export type ListBagsResult = Awaited<typeof listBags>;
+export type ListBagsResult = Awaited<ReturnType<typeof listBags>>;
 
-const listRecipes = proxy.recipes.findMany({
+const listRecipes = () => proxy.recipes.findMany({
   select: {
     recipe_name: true,
     recipe_id: true,
@@ -46,7 +46,7 @@ const listRecipes = proxy.recipes.findMany({
   has_acl_access: true,
 })));
 
-export type ListRecipesResult = Awaited<typeof listRecipes>;
+export type ListRecipesResult = Awaited<ReturnType<typeof listRecipes>>;
 
 export interface IndexJson {
   "bag-list": ListBagsResult,
@@ -67,3 +67,10 @@ export interface IndexJson {
   allowReads: boolean;
   allowWrites: boolean;
 };
+
+export const IndexJsonContext = React.createContext<IndexJson>(null as any);
+
+export function useIndexJson() {
+  return React.useContext(IndexJsonContext);
+}
+

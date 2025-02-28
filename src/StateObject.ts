@@ -195,14 +195,14 @@ export class StateObject<
       ?? []
     ).flat()) as any;
 
-    const pathParamsZodCheck = z.record(z.string()).safeParse(this.pathParams);
-    if (!pathParamsZodCheck.success) console.log("BUG: Query params zod error", pathParamsZodCheck.error);
+    const pathParamsZodCheck = z.record(z.string().optional()).safeParse(this.pathParams);
+    if (!pathParamsZodCheck.success) console.log("BUG: Path params zod error", pathParamsZodCheck.error, this.pathParams);
 
     this.queryParams = Object.fromEntries([...this.urlInfo.searchParams.keys()]
       .map(key => [key, this.urlInfo.searchParams.getAll(key)] as const));
 
     const queryParamsZodCheck = z.record(z.array(z.string())).safeParse(this.queryParams);
-    if (!queryParamsZodCheck.success) console.log("BUG: Query params zod error", queryParamsZodCheck.error);
+    if (!queryParamsZodCheck.success) console.log("BUG: Query params zod error", queryParamsZodCheck.error, this.queryParams);
 
     this.cookies = this.parseCookieString(this.headers.cookie ?? "");
 
@@ -406,9 +406,6 @@ export class StateObject<
     this.store.okEntityType(entityType);
     var extensionRegex = /\.[A-Za-z0-9]{1,4}$/;
 
-
-    // entityName = state.data ? (state.data[`${entityType}_name`] || this.routePath.params[0]) : state.params[0];
-
     // First, replace '%3A' with ':' to handle TiddlyWiki's system tiddlers
     var partiallyDecoded = entityName?.replace(/%3A/g, ":");
     // Then use decodeURIComponent for the rest
@@ -506,6 +503,8 @@ export class StateObject<
     }
     return results as any;
   }
+
+  
 
 }
 

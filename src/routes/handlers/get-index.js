@@ -23,6 +23,8 @@ export const route = (root) => root.defineRoute({
 	if(state.headers.accept && state.headers.accept.indexOf("application/json") !== -1) {
 		return state.sendResponse(200, {"Content-Type": "application/json"}, JSON.stringify(recipeList), "utf8");
 	} else {
+		var bagList = await state.store.listBags(),
+		recipeList = await state.store.listRecipes();
 		// This is not a JSON API request, we should return the raw tiddler content
 		state.writeHead(200, {
 			"Content-Type": "text/html"
@@ -62,9 +64,7 @@ export const route = (root) => root.defineRoute({
 					state.store.permissions.WRITE
 				)
 			)
-		}))
-
-		console.log(bagList, recipeList);
+		}));
 
 		// Render the html
 		var html = state.store.adminWiki.renderTiddler("text/plain", "$:/plugins/tiddlywiki/multiwikiserver/templates/page", {

@@ -100,38 +100,6 @@ const DashboardInner: React.FC<IndexJson> = ({
 
   return (
     <>
-      <Header
-        pageTitle="Wikis Available Here"
-        username={username}
-        userIsAdmin={userIsAdmin}
-        userIsLoggedIn={userIsLoggedIn}
-        firstGuestUser={firstGuestUser}
-        userId={userId}
-        setShowAnonConfig={setShowAnonConfig}
-      />
-
-      {firstGuestUser && (
-        <div className="mws-security-warning">
-          <div className="mws-security-warning-content">
-            <div className="mws-security-warning-icon">⚠️</div>
-            <div className="mws-security-warning-text">
-              <strong>Warning:</strong> TiddlyWiki is currently running in anonymous access mode which allows anyone with access to the server to read and modify data.
-            </div>
-            <div className="mws-security-warning-action">
-              <a href="/admin/users" className="mws-security-warning-button">Add Admin Account</a>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {showAnonConfig && (
-        <AnonConfigModal
-          initialAllowReads={allowReads}
-          initialAllowWrites={allowWrites}
-          onClose={() => setShowAnonConfig(false)}
-        />
-      )}
-
       <ul className="mws-vertical-list">
         {recipes.map((recipe) => (
           <li key={recipe.recipe_name}>

@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 interface HeaderProps {
   pageTitle: string;
   username?: string;
-  userIsAdmin: boolean;
+  userIsAdmin: boolean | null;
   userIsLoggedIn: boolean;
   firstGuestUser: boolean;
   userId?: number;

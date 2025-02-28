@@ -1625,7 +1625,7 @@ export class SqlTiddlerDatabase extends DataChecks {
 	}
 	// Set the user as an admin
 	async setUserAdmin(userId: PrismaField<"users", "user_id">) {
-		var admin = await this.getRoleByName("ADMIN" as PrismaField<"roles", "role_name">);
+		var admin = await this.getAdminRole();
 		if (admin) { this.addRoleToUser(userId, admin.role_id); }
 	}
 	// Group CRUD operations
