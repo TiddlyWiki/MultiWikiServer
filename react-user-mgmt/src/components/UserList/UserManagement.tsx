@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import Header from './Header';
-import { useAsyncEffect } from '../helpers/useAsyncEffect';
+import Header from '../Frame/Header';
+import { useAsyncEffect } from '../../helpers/useAsyncEffect';
 import AddUserForm from './AddUserForm';
 
 interface User {

@@ -1,12 +1,12 @@
 import React, { StrictMode } from 'react';
-import Dashboard from './components/Dashboard';
+import Dashboard from './components/Dashboard/Dashboard';
 import './styles/index.css';
 import './styles/login.css';
 import { createRoot } from 'react-dom/client';
-import ManageUser from './components/ManageUser';
+import ManageUser from './components/UserEdit/ManageUser';
 import Login from './components/Login';
-import UserManagement from './components/UserManagement';
-import { Frame } from './components/Frame';
+import UserManagement from './components/UserList/UserManagement';
+import { Frame } from './components/Frame/Frame';
 import { IndexJson, IndexJsonContext } from './helpers/server-types';
 
 

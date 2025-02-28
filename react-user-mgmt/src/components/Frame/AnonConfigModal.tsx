@@ -6,7 +6,6 @@ interface AnonConfigModalProps {
   onClose: () => void;
 }
 
-
 function toParams(obj: Record<string, any>) {
   const entries = Object.entries(obj).map(([key, value]) => {
     if (typeof value === "object" && value !== null)

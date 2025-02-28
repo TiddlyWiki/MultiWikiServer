@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
-import Header from './Header';
-import { useAsyncEffect } from '../helpers/useAsyncEffect';
-import { changePassword, fetchPostSearchParams } from '../helpers/utils';
+import React, { ReactNode, useCallback, useState } from 'react';
+import Header from '../Frame/Header';
+import { useAsyncEffect } from '../../helpers/useAsyncEffect';
+import { changePassword, DataLoader, fetchPostSearchParams } from '../../helpers/utils';
 
 
 interface Role {
@@ -32,7 +32,6 @@ interface ManageUserProps {
   username?: string;
   firstGuestUser?: boolean;
   userIsLoggedIn?: boolean;
-  setRefreshData: (data: {}) => void;
 }
 
 interface UserJson {
@@ -51,19 +50,12 @@ interface UserJson {
 
 }
 
-export default function ManageUser() {
-  const [refreshData, setRefreshData] = useState({});
-  const [result, setResult] = useState<UserJson | null>(null);
 
-  useAsyncEffect(async () => {
-    const res = await fetch(location.pathname + ".json", {});
-    if (res.status !== 200) throw new Error("Failed to fetch user data");
-    setResult(await res.json());
-  }, undefined, undefined, [refreshData]);
-
-  if (!result) return null;
-
-  return <ManageUserInner {...{
+const ManageUser = DataLoader(async (): Promise<ManageUserProps> => {
+  const res = await fetch(location.pathname + ".json", {});
+  if (res.status !== 200) throw new Error("Failed to fetch user data");
+  const result = await res.json()
+  return {
     user: JSON.parse(result.user),
     userRole: JSON.parse(result["user-role"]).roles[0],
     allRoles: JSON.parse(result["all-roles"]),
@@ -72,13 +64,8 @@ export default function ManageUser() {
     username: result.username,
     firstGuestUser: result["first-guest-user"] === "yes",
     userIsLoggedIn: result["user-is-logged-in"] === "yes",
-    setRefreshData
-  }} />
-
-}
-
-
-const ManageUserInner: React.FC<ManageUserProps> = ({
+  }
+}, ({
   user,
   userRole,
   allRoles,
@@ -87,8 +74,8 @@ const ManageUserInner: React.FC<ManageUserProps> = ({
   username,
   firstGuestUser = false,
   userIsLoggedIn = true,
-  setRefreshData
-}) => {
+}, setRefreshData, props: {}) => {
+
   const [updateError, setUpdateError] = useState<string | null>(null);
   const [updateSuccess, setUpdateSuccess] = useState<string | null>(null);
   const [passwordError, setPasswordError] = useState<string | null>(null);
@@ -106,7 +93,7 @@ const ManageUserInner: React.FC<ManageUserProps> = ({
         error(body);
       else {
         success(body);
-        setRefreshData({});
+        setRefreshData();
       }
     }
 
@@ -129,9 +116,9 @@ const ManageUserInner: React.FC<ManageUserProps> = ({
       throw false;
     }
 
-    await changePassword(userId, password).then(() => {
+    await changePassword({ userId, password, confirmPassword }).then(() => {
       setPasswordSuccess("Password successfully changed.");
-      setRefreshData({});
+      setRefreshData();
     }).catch(e => {
       setPasswordError(`${e}`);
       throw false;
@@ -244,7 +231,7 @@ const ManageUserInner: React.FC<ManageUserProps> = ({
 
     </>
   );
-};
+});
 
-
+export default ManageUser;
 

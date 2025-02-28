@@ -1,12 +1,12 @@
 
 import { useState } from 'react';
-import { IndexJson, useIndexJson } from '../helpers/server-types';
-import { useAsyncEffect } from '../helpers/useAsyncEffect';
+import { IndexJson, useIndexJson } from '../../helpers/server-types';
+import { useAsyncEffect } from '../../helpers/useAsyncEffect';
 import Header from './Header';
 import AnonConfigModal from './AnonConfigModal';
-import Dashboard from './Dashboard';
-import UserManagement from './UserManagement';
-import ManageUser from './ManageUser';
+import Dashboard from '../Dashboard/Dashboard';
+import UserManagement from '../UserList/UserManagement';
+import ManageUser from '../UserEdit/ManageUser';
 
 export function Frame() {
   const {

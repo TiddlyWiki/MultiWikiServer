@@ -1,11 +1,9 @@
-import React, { useState, useEffect, PropsWithChildren } from 'react';
-import Header from './Header';
-import AnonConfigModal from './AnonConfigModal';
+import React, { useState, PropsWithChildren } from 'react';
 import WikiCard from './WikiCard';
 import BagPill from './BagPill';
 import { useFormStatus } from 'react-dom';
-import { IndexJson } from '../helpers/server-types';
-import { useAsyncEffect } from '../helpers/useAsyncEffect';
+import { IndexJson } from '../../helpers/server-types';
+import { useAsyncEffect } from '../../helpers/useAsyncEffect';
 
 interface Recipe {
   recipe_name: string;

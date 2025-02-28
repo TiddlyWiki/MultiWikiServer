@@ -127,8 +127,8 @@ interface UseAsyncEffectResult<R, E> {
 
 
 class PromiseSubject<T> extends Promise<T> {
-  #resolve: (value: T | PromiseLike<T>) => void;
-  #reject: (reason?: any) => void;
+  #resolve!: (value: T | PromiseLike<T>) => void;
+  #reject!: (reason?: any) => void;
   #done: boolean = false;
   public get done(): boolean { return this.#done; }
   constructor(executor?: PromiseSubject<T>);

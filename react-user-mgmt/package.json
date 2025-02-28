@@ -4,7 +4,8 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "lint": "eslint"
+    "lint": "eslint",
+    "tsc": "tsc --noEmit"
   },
   "dependencies": {
     "react": "^19.0.0",
