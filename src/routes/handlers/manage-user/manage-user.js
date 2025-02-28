@@ -31,16 +31,6 @@ export const route = (root) => root.defineRoute({
 	// Clean up any existing error/success messages if the user_id is different from the "$:/temp/mws/user-info/preview-user-id"
 	var lastPreviewedUser = state.store.adminWiki.getTiddlerText("$:/temp/mws/user-info/" + user_id + "/preview-user-id");
 
-	if(user_id !== lastPreviewedUser || state.url.includes("preview")) {
-		state.store.adminWiki.deleteTiddler("$:/temp/mws/change-password/" + user_id + "/	error");
-		state.store.adminWiki.deleteTiddler("$:/temp/mws/change-password/" + user_id + "/success");
-		state.store.adminWiki.deleteTiddler("$:/temp/mws/login/error");
-		state.store.adminWiki.deleteTiddler("$:/temp/mws/delete-user/" + user_id + "/error");
-		state.store.adminWiki.deleteTiddler("$:/temp/mws/delete-user/" + user_id + "/success");
-		state.store.adminWiki.deleteTiddler("$:/temp/mws/update-profile/" + user_id + "/error");
-		state.store.adminWiki.deleteTiddler("$:/temp/mws/update-profile/" + user_id + "/success");
-	}
-
 	if(!userData) {
 		return state.sendEmpty(404, {"Content-Type": "text/plain"});
 	}
@@ -69,10 +59,6 @@ export const route = (root) => root.defineRoute({
 		return (userRole?.roles.some(e => e.role_id === a.role_id) ? -1 : 1)
 	});
 
-	// state.store.adminWiki.addTiddler(new state.Tiddler({
-	// 	title: "$:/temp/mws/user-info/" + user_id + "/preview-user-id",
-	// 	text: user_id
-	// }));
 
 	const variables = {
 		"page-content": "$:/plugins/tiddlywiki/multiwikiserver/templates/manage-user",
@@ -96,15 +82,4 @@ export const route = (root) => root.defineRoute({
 	state.write(JSON.stringify(variables));
 	return state.end();
 
-
-	// state.writeHead(200, {
-	// 	"Content-Type": "text/html"
-	// });
-
-	// // Render the html
-	// var html = state.store.adminWiki.renderTiddler("text/plain", "$:/plugins/tiddlywiki/multiwikiserver/templates/page", {
-	// 	variables
-	// });
-	// state.write(html);
-	// return state.end();
 });

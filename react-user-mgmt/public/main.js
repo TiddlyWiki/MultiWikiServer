@@ -19294,6 +19294,459 @@
     }
   });
 
+  // react-user-mgmt/node_modules/react/cjs/react-jsx-runtime.development.js
+  var require_react_jsx_runtime_development = __commonJS({
+    "react-user-mgmt/node_modules/react/cjs/react-jsx-runtime.development.js"(exports) {
+      "use strict";
+      (function() {
+        function getComponentNameFromType(type) {
+          if (null == type) return null;
+          if ("function" === typeof type)
+            return type.$$typeof === REACT_CLIENT_REFERENCE$2 ? null : type.displayName || type.name || null;
+          if ("string" === typeof type) return type;
+          switch (type) {
+            case REACT_FRAGMENT_TYPE:
+              return "Fragment";
+            case REACT_PORTAL_TYPE:
+              return "Portal";
+            case REACT_PROFILER_TYPE:
+              return "Profiler";
+            case REACT_STRICT_MODE_TYPE:
+              return "StrictMode";
+            case REACT_SUSPENSE_TYPE:
+              return "Suspense";
+            case REACT_SUSPENSE_LIST_TYPE:
+              return "SuspenseList";
+          }
+          if ("object" === typeof type)
+            switch ("number" === typeof type.tag && console.error(
+              "Received an unexpected object in getComponentNameFromType(). This is likely a bug in React. Please file an issue."
+            ), type.$$typeof) {
+              case REACT_CONTEXT_TYPE:
+                return (type.displayName || "Context") + ".Provider";
+              case REACT_CONSUMER_TYPE:
+                return (type._context.displayName || "Context") + ".Consumer";
+              case REACT_FORWARD_REF_TYPE:
+                var innerType = type.render;
+                type = type.displayName;
+                type || (type = innerType.displayName || innerType.name || "", type = "" !== type ? "ForwardRef(" + type + ")" : "ForwardRef");
+                return type;
+              case REACT_MEMO_TYPE:
+                return innerType = type.displayName || null, null !== innerType ? innerType : getComponentNameFromType(type.type) || "Memo";
+              case REACT_LAZY_TYPE:
+                innerType = type._payload;
+                type = type._init;
+                try {
+                  return getComponentNameFromType(type(innerType));
+                } catch (x) {
+                }
+            }
+          return null;
+        }
+        function testStringCoercion(value) {
+          return "" + value;
+        }
+        function checkKeyStringCoercion(value) {
+          try {
+            testStringCoercion(value);
+            var JSCompiler_inline_result = false;
+          } catch (e) {
+            JSCompiler_inline_result = true;
+          }
+          if (JSCompiler_inline_result) {
+            JSCompiler_inline_result = console;
+            var JSCompiler_temp_const = JSCompiler_inline_result.error;
+            var JSCompiler_inline_result$jscomp$0 = "function" === typeof Symbol && Symbol.toStringTag && value[Symbol.toStringTag] || value.constructor.name || "Object";
+            JSCompiler_temp_const.call(
+              JSCompiler_inline_result,
+              "The provided key is an unsupported type %s. This value must be coerced to a string before using it here.",
+              JSCompiler_inline_result$jscomp$0
+            );
+            return testStringCoercion(value);
+          }
+        }
+        function disabledLog() {
+        }
+        function disableLogs() {
+          if (0 === disabledDepth) {
+            prevLog = console.log;
+            prevInfo = console.info;
+            prevWarn = console.warn;
+            prevError = console.error;
+            prevGroup = console.group;
+            prevGroupCollapsed = console.groupCollapsed;
+            prevGroupEnd = console.groupEnd;
+            var props = {
+              configurable: true,
+              enumerable: true,
+              value: disabledLog,
+              writable: true
+            };
+            Object.defineProperties(console, {
+              info: props,
+              log: props,
+              warn: props,
+              error: props,
+              group: props,
+              groupCollapsed: props,
+              groupEnd: props
+            });
+          }
+          disabledDepth++;
+        }
+        function reenableLogs() {
+          disabledDepth--;
+          if (0 === disabledDepth) {
+            var props = { configurable: true, enumerable: true, writable: true };
+            Object.defineProperties(console, {
+              log: assign({}, props, { value: prevLog }),
+              info: assign({}, props, { value: prevInfo }),
+              warn: assign({}, props, { value: prevWarn }),
+              error: assign({}, props, { value: prevError }),
+              group: assign({}, props, { value: prevGroup }),
+              groupCollapsed: assign({}, props, { value: prevGroupCollapsed }),
+              groupEnd: assign({}, props, { value: prevGroupEnd })
+            });
+          }
+          0 > disabledDepth && console.error(
+            "disabledDepth fell below zero. This is a bug in React. Please file an issue."
+          );
+        }
+        function describeBuiltInComponentFrame(name) {
+          if (void 0 === prefix)
+            try {
+              throw Error();
+            } catch (x) {
+              var match = x.stack.trim().match(/\n( *(at )?)/);
+              prefix = match && match[1] || "";
+              suffix = -1 < x.stack.indexOf("\n    at") ? " (<anonymous>)" : -1 < x.stack.indexOf("@") ? "@unknown:0:0" : "";
+            }
+          return "\n" + prefix + name + suffix;
+        }
+        function describeNativeComponentFrame(fn, construct) {
+          if (!fn || reentry) return "";
+          var frame = componentFrameCache.get(fn);
+          if (void 0 !== frame) return frame;
+          reentry = true;
+          frame = Error.prepareStackTrace;
+          Error.prepareStackTrace = void 0;
+          var previousDispatcher = null;
+          previousDispatcher = ReactSharedInternals.H;
+          ReactSharedInternals.H = null;
+          disableLogs();
+          try {
+            var RunInRootFrame = {
+              DetermineComponentFrameRoot: function() {
+                try {
+                  if (construct) {
+                    var Fake = function() {
+                      throw Error();
+                    };
+                    Object.defineProperty(Fake.prototype, "props", {
+                      set: function() {
+                        throw Error();
+                      }
+                    });
+                    if ("object" === typeof Reflect && Reflect.construct) {
+                      try {
+                        Reflect.construct(Fake, []);
+                      } catch (x) {
+                        var control = x;
+                      }
+                      Reflect.construct(fn, [], Fake);
+                    } else {
+                      try {
+                        Fake.call();
+                      } catch (x$0) {
+                        control = x$0;
+                      }
+                      fn.call(Fake.prototype);
+                    }
+                  } else {
+                    try {
+                      throw Error();
+                    } catch (x$1) {
+                      control = x$1;
+                    }
+                    (Fake = fn()) && "function" === typeof Fake.catch && Fake.catch(function() {
+                    });
+                  }
+                } catch (sample) {
+                  if (sample && control && "string" === typeof sample.stack)
+                    return [sample.stack, control.stack];
+                }
+                return [null, null];
+              }
+            };
+            RunInRootFrame.DetermineComponentFrameRoot.displayName = "DetermineComponentFrameRoot";
+            var namePropDescriptor = Object.getOwnPropertyDescriptor(
+              RunInRootFrame.DetermineComponentFrameRoot,
+              "name"
+            );
+            namePropDescriptor && namePropDescriptor.configurable && Object.defineProperty(
+              RunInRootFrame.DetermineComponentFrameRoot,
+              "name",
+              { value: "DetermineComponentFrameRoot" }
+            );
+            var _RunInRootFrame$Deter = RunInRootFrame.DetermineComponentFrameRoot(), sampleStack = _RunInRootFrame$Deter[0], controlStack = _RunInRootFrame$Deter[1];
+            if (sampleStack && controlStack) {
+              var sampleLines = sampleStack.split("\n"), controlLines = controlStack.split("\n");
+              for (_RunInRootFrame$Deter = namePropDescriptor = 0; namePropDescriptor < sampleLines.length && !sampleLines[namePropDescriptor].includes(
+                "DetermineComponentFrameRoot"
+              ); )
+                namePropDescriptor++;
+              for (; _RunInRootFrame$Deter < controlLines.length && !controlLines[_RunInRootFrame$Deter].includes(
+                "DetermineComponentFrameRoot"
+              ); )
+                _RunInRootFrame$Deter++;
+              if (namePropDescriptor === sampleLines.length || _RunInRootFrame$Deter === controlLines.length)
+                for (namePropDescriptor = sampleLines.length - 1, _RunInRootFrame$Deter = controlLines.length - 1; 1 <= namePropDescriptor && 0 <= _RunInRootFrame$Deter && sampleLines[namePropDescriptor] !== controlLines[_RunInRootFrame$Deter]; )
+                  _RunInRootFrame$Deter--;
+              for (; 1 <= namePropDescriptor && 0 <= _RunInRootFrame$Deter; namePropDescriptor--, _RunInRootFrame$Deter--)
+                if (sampleLines[namePropDescriptor] !== controlLines[_RunInRootFrame$Deter]) {
+                  if (1 !== namePropDescriptor || 1 !== _RunInRootFrame$Deter) {
+                    do
+                      if (namePropDescriptor--, _RunInRootFrame$Deter--, 0 > _RunInRootFrame$Deter || sampleLines[namePropDescriptor] !== controlLines[_RunInRootFrame$Deter]) {
+                        var _frame = "\n" + sampleLines[namePropDescriptor].replace(
+                          " at new ",
+                          " at "
+                        );
+                        fn.displayName && _frame.includes("<anonymous>") && (_frame = _frame.replace("<anonymous>", fn.displayName));
+                        "function" === typeof fn && componentFrameCache.set(fn, _frame);
+                        return _frame;
+                      }
+                    while (1 <= namePropDescriptor && 0 <= _RunInRootFrame$Deter);
+                  }
+                  break;
+                }
+            }
+          } finally {
+            reentry = false, ReactSharedInternals.H = previousDispatcher, reenableLogs(), Error.prepareStackTrace = frame;
+          }
+          sampleLines = (sampleLines = fn ? fn.displayName || fn.name : "") ? describeBuiltInComponentFrame(sampleLines) : "";
+          "function" === typeof fn && componentFrameCache.set(fn, sampleLines);
+          return sampleLines;
+        }
+        function describeUnknownElementTypeFrameInDEV(type) {
+          if (null == type) return "";
+          if ("function" === typeof type) {
+            var prototype = type.prototype;
+            return describeNativeComponentFrame(
+              type,
+              !(!prototype || !prototype.isReactComponent)
+            );
+          }
+          if ("string" === typeof type) return describeBuiltInComponentFrame(type);
+          switch (type) {
+            case REACT_SUSPENSE_TYPE:
+              return describeBuiltInComponentFrame("Suspense");
+            case REACT_SUSPENSE_LIST_TYPE:
+              return describeBuiltInComponentFrame("SuspenseList");
+          }
+          if ("object" === typeof type)
+            switch (type.$$typeof) {
+              case REACT_FORWARD_REF_TYPE:
+                return type = describeNativeComponentFrame(type.render, false), type;
+              case REACT_MEMO_TYPE:
+                return describeUnknownElementTypeFrameInDEV(type.type);
+              case REACT_LAZY_TYPE:
+                prototype = type._payload;
+                type = type._init;
+                try {
+                  return describeUnknownElementTypeFrameInDEV(type(prototype));
+                } catch (x) {
+                }
+            }
+          return "";
+        }
+        function getOwner() {
+          var dispatcher = ReactSharedInternals.A;
+          return null === dispatcher ? null : dispatcher.getOwner();
+        }
+        function hasValidKey(config) {
+          if (hasOwnProperty.call(config, "key")) {
+            var getter = Object.getOwnPropertyDescriptor(config, "key").get;
+            if (getter && getter.isReactWarning) return false;
+          }
+          return void 0 !== config.key;
+        }
+        function defineKeyPropWarningGetter(props, displayName) {
+          function warnAboutAccessingKey() {
+            specialPropKeyWarningShown || (specialPropKeyWarningShown = true, console.error(
+              "%s: `key` is not a prop. Trying to access it will result in `undefined` being returned. If you need to access the same value within the child component, you should pass it as a different prop. (https://react.dev/link/special-props)",
+              displayName
+            ));
+          }
+          warnAboutAccessingKey.isReactWarning = true;
+          Object.defineProperty(props, "key", {
+            get: warnAboutAccessingKey,
+            configurable: true
+          });
+        }
+        function elementRefGetterWithDeprecationWarning() {
+          var componentName = getComponentNameFromType(this.type);
+          didWarnAboutElementRef[componentName] || (didWarnAboutElementRef[componentName] = true, console.error(
+            "Accessing element.ref was removed in React 19. ref is now a regular prop. It will be removed from the JSX Element type in a future release."
+          ));
+          componentName = this.props.ref;
+          return void 0 !== componentName ? componentName : null;
+        }
+        function ReactElement(type, key, self2, source, owner, props) {
+          self2 = props.ref;
+          type = {
+            $$typeof: REACT_ELEMENT_TYPE,
+            type,
+            key,
+            props,
+            _owner: owner
+          };
+          null !== (void 0 !== self2 ? self2 : null) ? Object.defineProperty(type, "ref", {
+            enumerable: false,
+            get: elementRefGetterWithDeprecationWarning
+          }) : Object.defineProperty(type, "ref", { enumerable: false, value: null });
+          type._store = {};
+          Object.defineProperty(type._store, "validated", {
+            configurable: false,
+            enumerable: false,
+            writable: true,
+            value: 0
+          });
+          Object.defineProperty(type, "_debugInfo", {
+            configurable: false,
+            enumerable: false,
+            writable: true,
+            value: null
+          });
+          Object.freeze && (Object.freeze(type.props), Object.freeze(type));
+          return type;
+        }
+        function jsxDEVImpl(type, config, maybeKey, isStaticChildren, source, self2) {
+          if ("string" === typeof type || "function" === typeof type || type === REACT_FRAGMENT_TYPE || type === REACT_PROFILER_TYPE || type === REACT_STRICT_MODE_TYPE || type === REACT_SUSPENSE_TYPE || type === REACT_SUSPENSE_LIST_TYPE || type === REACT_OFFSCREEN_TYPE || "object" === typeof type && null !== type && (type.$$typeof === REACT_LAZY_TYPE || type.$$typeof === REACT_MEMO_TYPE || type.$$typeof === REACT_CONTEXT_TYPE || type.$$typeof === REACT_CONSUMER_TYPE || type.$$typeof === REACT_FORWARD_REF_TYPE || type.$$typeof === REACT_CLIENT_REFERENCE$1 || void 0 !== type.getModuleId)) {
+            var children = config.children;
+            if (void 0 !== children)
+              if (isStaticChildren)
+                if (isArrayImpl(children)) {
+                  for (isStaticChildren = 0; isStaticChildren < children.length; isStaticChildren++)
+                    validateChildKeys(children[isStaticChildren], type);
+                  Object.freeze && Object.freeze(children);
+                } else
+                  console.error(
+                    "React.jsx: Static children should always be an array. You are likely explicitly calling React.jsxs or React.jsxDEV. Use the Babel transform instead."
+                  );
+              else validateChildKeys(children, type);
+          } else {
+            children = "";
+            if (void 0 === type || "object" === typeof type && null !== type && 0 === Object.keys(type).length)
+              children += " You likely forgot to export your component from the file it's defined in, or you might have mixed up default and named imports.";
+            null === type ? isStaticChildren = "null" : isArrayImpl(type) ? isStaticChildren = "array" : void 0 !== type && type.$$typeof === REACT_ELEMENT_TYPE ? (isStaticChildren = "<" + (getComponentNameFromType(type.type) || "Unknown") + " />", children = " Did you accidentally export a JSX literal instead of a component?") : isStaticChildren = typeof type;
+            console.error(
+              "React.jsx: type is invalid -- expected a string (for built-in components) or a class/function (for composite components) but got: %s.%s",
+              isStaticChildren,
+              children
+            );
+          }
+          if (hasOwnProperty.call(config, "key")) {
+            children = getComponentNameFromType(type);
+            var keys = Object.keys(config).filter(function(k) {
+              return "key" !== k;
+            });
+            isStaticChildren = 0 < keys.length ? "{key: someKey, " + keys.join(": ..., ") + ": ...}" : "{key: someKey}";
+            didWarnAboutKeySpread[children + isStaticChildren] || (keys = 0 < keys.length ? "{" + keys.join(": ..., ") + ": ...}" : "{}", console.error(
+              'A props object containing a "key" prop is being spread into JSX:\n  let props = %s;\n  <%s {...props} />\nReact keys must be passed directly to JSX without using spread:\n  let props = %s;\n  <%s key={someKey} {...props} />',
+              isStaticChildren,
+              children,
+              keys,
+              children
+            ), didWarnAboutKeySpread[children + isStaticChildren] = true);
+          }
+          children = null;
+          void 0 !== maybeKey && (checkKeyStringCoercion(maybeKey), children = "" + maybeKey);
+          hasValidKey(config) && (checkKeyStringCoercion(config.key), children = "" + config.key);
+          if ("key" in config) {
+            maybeKey = {};
+            for (var propName in config)
+              "key" !== propName && (maybeKey[propName] = config[propName]);
+          } else maybeKey = config;
+          children && defineKeyPropWarningGetter(
+            maybeKey,
+            "function" === typeof type ? type.displayName || type.name || "Unknown" : type
+          );
+          return ReactElement(type, children, self2, source, getOwner(), maybeKey);
+        }
+        function validateChildKeys(node, parentType) {
+          if ("object" === typeof node && node && node.$$typeof !== REACT_CLIENT_REFERENCE) {
+            if (isArrayImpl(node))
+              for (var i = 0; i < node.length; i++) {
+                var child = node[i];
+                isValidElement(child) && validateExplicitKey(child, parentType);
+              }
+            else if (isValidElement(node))
+              node._store && (node._store.validated = 1);
+            else if (null === node || "object" !== typeof node ? i = null : (i = MAYBE_ITERATOR_SYMBOL && node[MAYBE_ITERATOR_SYMBOL] || node["@@iterator"], i = "function" === typeof i ? i : null), "function" === typeof i && i !== node.entries && (i = i.call(node), i !== node))
+              for (; !(node = i.next()).done; )
+                isValidElement(node.value) && validateExplicitKey(node.value, parentType);
+          }
+        }
+        function isValidElement(object) {
+          return "object" === typeof object && null !== object && object.$$typeof === REACT_ELEMENT_TYPE;
+        }
+        function validateExplicitKey(element, parentType) {
+          if (element._store && !element._store.validated && null == element.key && (element._store.validated = 1, parentType = getCurrentComponentErrorInfo(parentType), !ownerHasKeyUseWarning[parentType])) {
+            ownerHasKeyUseWarning[parentType] = true;
+            var childOwner = "";
+            element && null != element._owner && element._owner !== getOwner() && (childOwner = null, "number" === typeof element._owner.tag ? childOwner = getComponentNameFromType(element._owner.type) : "string" === typeof element._owner.name && (childOwner = element._owner.name), childOwner = " It was passed a child from " + childOwner + ".");
+            var prevGetCurrentStack = ReactSharedInternals.getCurrentStack;
+            ReactSharedInternals.getCurrentStack = function() {
+              var stack = describeUnknownElementTypeFrameInDEV(element.type);
+              prevGetCurrentStack && (stack += prevGetCurrentStack() || "");
+              return stack;
+            };
+            console.error(
+              'Each child in a list should have a unique "key" prop.%s%s See https://react.dev/link/warning-keys for more information.',
+              parentType,
+              childOwner
+            );
+            ReactSharedInternals.getCurrentStack = prevGetCurrentStack;
+          }
+        }
+        function getCurrentComponentErrorInfo(parentType) {
+          var info = "", owner = getOwner();
+          owner && (owner = getComponentNameFromType(owner.type)) && (info = "\n\nCheck the render method of `" + owner + "`.");
+          info || (parentType = getComponentNameFromType(parentType)) && (info = "\n\nCheck the top-level render call using <" + parentType + ">.");
+          return info;
+        }
+        var React10 = require_react(), REACT_ELEMENT_TYPE = Symbol.for("react.transitional.element"), REACT_PORTAL_TYPE = Symbol.for("react.portal"), REACT_FRAGMENT_TYPE = Symbol.for("react.fragment"), REACT_STRICT_MODE_TYPE = Symbol.for("react.strict_mode"), REACT_PROFILER_TYPE = Symbol.for("react.profiler");
+        Symbol.for("react.provider");
+        var REACT_CONSUMER_TYPE = Symbol.for("react.consumer"), REACT_CONTEXT_TYPE = Symbol.for("react.context"), REACT_FORWARD_REF_TYPE = Symbol.for("react.forward_ref"), REACT_SUSPENSE_TYPE = Symbol.for("react.suspense"), REACT_SUSPENSE_LIST_TYPE = Symbol.for("react.suspense_list"), REACT_MEMO_TYPE = Symbol.for("react.memo"), REACT_LAZY_TYPE = Symbol.for("react.lazy"), REACT_OFFSCREEN_TYPE = Symbol.for("react.offscreen"), MAYBE_ITERATOR_SYMBOL = Symbol.iterator, REACT_CLIENT_REFERENCE$2 = Symbol.for("react.client.reference"), ReactSharedInternals = React10.__CLIENT_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE, hasOwnProperty = Object.prototype.hasOwnProperty, assign = Object.assign, REACT_CLIENT_REFERENCE$1 = Symbol.for("react.client.reference"), isArrayImpl = Array.isArray, disabledDepth = 0, prevLog, prevInfo, prevWarn, prevError, prevGroup, prevGroupCollapsed, prevGroupEnd;
+        disabledLog.__reactDisabledLog = true;
+        var prefix, suffix, reentry = false;
+        var componentFrameCache = new ("function" === typeof WeakMap ? WeakMap : Map)();
+        var REACT_CLIENT_REFERENCE = Symbol.for("react.client.reference"), specialPropKeyWarningShown;
+        var didWarnAboutElementRef = {};
+        var didWarnAboutKeySpread = {}, ownerHasKeyUseWarning = {};
+        exports.Fragment = REACT_FRAGMENT_TYPE;
+        exports.jsx = function(type, config, maybeKey, source, self2) {
+          return jsxDEVImpl(type, config, maybeKey, false, source, self2);
+        };
+        exports.jsxs = function(type, config, maybeKey, source, self2) {
+          return jsxDEVImpl(type, config, maybeKey, true, source, self2);
+        };
+      })();
+    }
+  });
+
+  // react-user-mgmt/node_modules/react/jsx-runtime.js
+  var require_jsx_runtime = __commonJS({
+    "react-user-mgmt/node_modules/react/jsx-runtime.js"(exports, module2) {
+      "use strict";
+      if (false) {
+        module2.exports = null;
+      } else {
+        module2.exports = require_react_jsx_runtime_development();
+      }
+    }
+  });
+
   // node_modules/@prisma/client/runtime/index-browser.js
   var require_index_browser = __commonJS({
     "node_modules/@prisma/client/runtime/index-browser.js"(exports, module2) {
@@ -20446,465 +20899,12 @@ If this is unexpected, please open an issue: https://pris.ly/prisma-prisma-bug-r
     }
   });
 
-  // react-user-mgmt/node_modules/react/cjs/react-jsx-runtime.development.js
-  var require_react_jsx_runtime_development = __commonJS({
-    "react-user-mgmt/node_modules/react/cjs/react-jsx-runtime.development.js"(exports) {
-      "use strict";
-      (function() {
-        function getComponentNameFromType(type) {
-          if (null == type) return null;
-          if ("function" === typeof type)
-            return type.$$typeof === REACT_CLIENT_REFERENCE$2 ? null : type.displayName || type.name || null;
-          if ("string" === typeof type) return type;
-          switch (type) {
-            case REACT_FRAGMENT_TYPE:
-              return "Fragment";
-            case REACT_PORTAL_TYPE:
-              return "Portal";
-            case REACT_PROFILER_TYPE:
-              return "Profiler";
-            case REACT_STRICT_MODE_TYPE:
-              return "StrictMode";
-            case REACT_SUSPENSE_TYPE:
-              return "Suspense";
-            case REACT_SUSPENSE_LIST_TYPE:
-              return "SuspenseList";
-          }
-          if ("object" === typeof type)
-            switch ("number" === typeof type.tag && console.error(
-              "Received an unexpected object in getComponentNameFromType(). This is likely a bug in React. Please file an issue."
-            ), type.$$typeof) {
-              case REACT_CONTEXT_TYPE:
-                return (type.displayName || "Context") + ".Provider";
-              case REACT_CONSUMER_TYPE:
-                return (type._context.displayName || "Context") + ".Consumer";
-              case REACT_FORWARD_REF_TYPE:
-                var innerType = type.render;
-                type = type.displayName;
-                type || (type = innerType.displayName || innerType.name || "", type = "" !== type ? "ForwardRef(" + type + ")" : "ForwardRef");
-                return type;
-              case REACT_MEMO_TYPE:
-                return innerType = type.displayName || null, null !== innerType ? innerType : getComponentNameFromType(type.type) || "Memo";
-              case REACT_LAZY_TYPE:
-                innerType = type._payload;
-                type = type._init;
-                try {
-                  return getComponentNameFromType(type(innerType));
-                } catch (x) {
-                }
-            }
-          return null;
-        }
-        function testStringCoercion(value) {
-          return "" + value;
-        }
-        function checkKeyStringCoercion(value) {
-          try {
-            testStringCoercion(value);
-            var JSCompiler_inline_result = false;
-          } catch (e) {
-            JSCompiler_inline_result = true;
-          }
-          if (JSCompiler_inline_result) {
-            JSCompiler_inline_result = console;
-            var JSCompiler_temp_const = JSCompiler_inline_result.error;
-            var JSCompiler_inline_result$jscomp$0 = "function" === typeof Symbol && Symbol.toStringTag && value[Symbol.toStringTag] || value.constructor.name || "Object";
-            JSCompiler_temp_const.call(
-              JSCompiler_inline_result,
-              "The provided key is an unsupported type %s. This value must be coerced to a string before using it here.",
-              JSCompiler_inline_result$jscomp$0
-            );
-            return testStringCoercion(value);
-          }
-        }
-        function disabledLog() {
-        }
-        function disableLogs() {
-          if (0 === disabledDepth) {
-            prevLog = console.log;
-            prevInfo = console.info;
-            prevWarn = console.warn;
-            prevError = console.error;
-            prevGroup = console.group;
-            prevGroupCollapsed = console.groupCollapsed;
-            prevGroupEnd = console.groupEnd;
-            var props = {
-              configurable: true,
-              enumerable: true,
-              value: disabledLog,
-              writable: true
-            };
-            Object.defineProperties(console, {
-              info: props,
-              log: props,
-              warn: props,
-              error: props,
-              group: props,
-              groupCollapsed: props,
-              groupEnd: props
-            });
-          }
-          disabledDepth++;
-        }
-        function reenableLogs() {
-          disabledDepth--;
-          if (0 === disabledDepth) {
-            var props = { configurable: true, enumerable: true, writable: true };
-            Object.defineProperties(console, {
-              log: assign({}, props, { value: prevLog }),
-              info: assign({}, props, { value: prevInfo }),
-              warn: assign({}, props, { value: prevWarn }),
-              error: assign({}, props, { value: prevError }),
-              group: assign({}, props, { value: prevGroup }),
-              groupCollapsed: assign({}, props, { value: prevGroupCollapsed }),
-              groupEnd: assign({}, props, { value: prevGroupEnd })
-            });
-          }
-          0 > disabledDepth && console.error(
-            "disabledDepth fell below zero. This is a bug in React. Please file an issue."
-          );
-        }
-        function describeBuiltInComponentFrame(name) {
-          if (void 0 === prefix)
-            try {
-              throw Error();
-            } catch (x) {
-              var match = x.stack.trim().match(/\n( *(at )?)/);
-              prefix = match && match[1] || "";
-              suffix = -1 < x.stack.indexOf("\n    at") ? " (<anonymous>)" : -1 < x.stack.indexOf("@") ? "@unknown:0:0" : "";
-            }
-          return "\n" + prefix + name + suffix;
-        }
-        function describeNativeComponentFrame(fn, construct) {
-          if (!fn || reentry) return "";
-          var frame = componentFrameCache.get(fn);
-          if (void 0 !== frame) return frame;
-          reentry = true;
-          frame = Error.prepareStackTrace;
-          Error.prepareStackTrace = void 0;
-          var previousDispatcher = null;
-          previousDispatcher = ReactSharedInternals.H;
-          ReactSharedInternals.H = null;
-          disableLogs();
-          try {
-            var RunInRootFrame = {
-              DetermineComponentFrameRoot: function() {
-                try {
-                  if (construct) {
-                    var Fake = function() {
-                      throw Error();
-                    };
-                    Object.defineProperty(Fake.prototype, "props", {
-                      set: function() {
-                        throw Error();
-                      }
-                    });
-                    if ("object" === typeof Reflect && Reflect.construct) {
-                      try {
-                        Reflect.construct(Fake, []);
-                      } catch (x) {
-                        var control = x;
-                      }
-                      Reflect.construct(fn, [], Fake);
-                    } else {
-                      try {
-                        Fake.call();
-                      } catch (x$0) {
-                        control = x$0;
-                      }
-                      fn.call(Fake.prototype);
-                    }
-                  } else {
-                    try {
-                      throw Error();
-                    } catch (x$1) {
-                      control = x$1;
-                    }
-                    (Fake = fn()) && "function" === typeof Fake.catch && Fake.catch(function() {
-                    });
-                  }
-                } catch (sample) {
-                  if (sample && control && "string" === typeof sample.stack)
-                    return [sample.stack, control.stack];
-                }
-                return [null, null];
-              }
-            };
-            RunInRootFrame.DetermineComponentFrameRoot.displayName = "DetermineComponentFrameRoot";
-            var namePropDescriptor = Object.getOwnPropertyDescriptor(
-              RunInRootFrame.DetermineComponentFrameRoot,
-              "name"
-            );
-            namePropDescriptor && namePropDescriptor.configurable && Object.defineProperty(
-              RunInRootFrame.DetermineComponentFrameRoot,
-              "name",
-              { value: "DetermineComponentFrameRoot" }
-            );
-            var _RunInRootFrame$Deter = RunInRootFrame.DetermineComponentFrameRoot(), sampleStack = _RunInRootFrame$Deter[0], controlStack = _RunInRootFrame$Deter[1];
-            if (sampleStack && controlStack) {
-              var sampleLines = sampleStack.split("\n"), controlLines = controlStack.split("\n");
-              for (_RunInRootFrame$Deter = namePropDescriptor = 0; namePropDescriptor < sampleLines.length && !sampleLines[namePropDescriptor].includes(
-                "DetermineComponentFrameRoot"
-              ); )
-                namePropDescriptor++;
-              for (; _RunInRootFrame$Deter < controlLines.length && !controlLines[_RunInRootFrame$Deter].includes(
-                "DetermineComponentFrameRoot"
-              ); )
-                _RunInRootFrame$Deter++;
-              if (namePropDescriptor === sampleLines.length || _RunInRootFrame$Deter === controlLines.length)
-                for (namePropDescriptor = sampleLines.length - 1, _RunInRootFrame$Deter = controlLines.length - 1; 1 <= namePropDescriptor && 0 <= _RunInRootFrame$Deter && sampleLines[namePropDescriptor] !== controlLines[_RunInRootFrame$Deter]; )
-                  _RunInRootFrame$Deter--;
-              for (; 1 <= namePropDescriptor && 0 <= _RunInRootFrame$Deter; namePropDescriptor--, _RunInRootFrame$Deter--)
-                if (sampleLines[namePropDescriptor] !== controlLines[_RunInRootFrame$Deter]) {
-                  if (1 !== namePropDescriptor || 1 !== _RunInRootFrame$Deter) {
-                    do
-                      if (namePropDescriptor--, _RunInRootFrame$Deter--, 0 > _RunInRootFrame$Deter || sampleLines[namePropDescriptor] !== controlLines[_RunInRootFrame$Deter]) {
-                        var _frame = "\n" + sampleLines[namePropDescriptor].replace(
-                          " at new ",
-                          " at "
-                        );
-                        fn.displayName && _frame.includes("<anonymous>") && (_frame = _frame.replace("<anonymous>", fn.displayName));
-                        "function" === typeof fn && componentFrameCache.set(fn, _frame);
-                        return _frame;
-                      }
-                    while (1 <= namePropDescriptor && 0 <= _RunInRootFrame$Deter);
-                  }
-                  break;
-                }
-            }
-          } finally {
-            reentry = false, ReactSharedInternals.H = previousDispatcher, reenableLogs(), Error.prepareStackTrace = frame;
-          }
-          sampleLines = (sampleLines = fn ? fn.displayName || fn.name : "") ? describeBuiltInComponentFrame(sampleLines) : "";
-          "function" === typeof fn && componentFrameCache.set(fn, sampleLines);
-          return sampleLines;
-        }
-        function describeUnknownElementTypeFrameInDEV(type) {
-          if (null == type) return "";
-          if ("function" === typeof type) {
-            var prototype = type.prototype;
-            return describeNativeComponentFrame(
-              type,
-              !(!prototype || !prototype.isReactComponent)
-            );
-          }
-          if ("string" === typeof type) return describeBuiltInComponentFrame(type);
-          switch (type) {
-            case REACT_SUSPENSE_TYPE:
-              return describeBuiltInComponentFrame("Suspense");
-            case REACT_SUSPENSE_LIST_TYPE:
-              return describeBuiltInComponentFrame("SuspenseList");
-          }
-          if ("object" === typeof type)
-            switch (type.$$typeof) {
-              case REACT_FORWARD_REF_TYPE:
-                return type = describeNativeComponentFrame(type.render, false), type;
-              case REACT_MEMO_TYPE:
-                return describeUnknownElementTypeFrameInDEV(type.type);
-              case REACT_LAZY_TYPE:
-                prototype = type._payload;
-                type = type._init;
-                try {
-                  return describeUnknownElementTypeFrameInDEV(type(prototype));
-                } catch (x) {
-                }
-            }
-          return "";
-        }
-        function getOwner() {
-          var dispatcher = ReactSharedInternals.A;
-          return null === dispatcher ? null : dispatcher.getOwner();
-        }
-        function hasValidKey(config) {
-          if (hasOwnProperty.call(config, "key")) {
-            var getter = Object.getOwnPropertyDescriptor(config, "key").get;
-            if (getter && getter.isReactWarning) return false;
-          }
-          return void 0 !== config.key;
-        }
-        function defineKeyPropWarningGetter(props, displayName) {
-          function warnAboutAccessingKey() {
-            specialPropKeyWarningShown || (specialPropKeyWarningShown = true, console.error(
-              "%s: `key` is not a prop. Trying to access it will result in `undefined` being returned. If you need to access the same value within the child component, you should pass it as a different prop. (https://react.dev/link/special-props)",
-              displayName
-            ));
-          }
-          warnAboutAccessingKey.isReactWarning = true;
-          Object.defineProperty(props, "key", {
-            get: warnAboutAccessingKey,
-            configurable: true
-          });
-        }
-        function elementRefGetterWithDeprecationWarning() {
-          var componentName = getComponentNameFromType(this.type);
-          didWarnAboutElementRef[componentName] || (didWarnAboutElementRef[componentName] = true, console.error(
-            "Accessing element.ref was removed in React 19. ref is now a regular prop. It will be removed from the JSX Element type in a future release."
-          ));
-          componentName = this.props.ref;
-          return void 0 !== componentName ? componentName : null;
-        }
-        function ReactElement(type, key, self2, source, owner, props) {
-          self2 = props.ref;
-          type = {
-            $$typeof: REACT_ELEMENT_TYPE,
-            type,
-            key,
-            props,
-            _owner: owner
-          };
-          null !== (void 0 !== self2 ? self2 : null) ? Object.defineProperty(type, "ref", {
-            enumerable: false,
-            get: elementRefGetterWithDeprecationWarning
-          }) : Object.defineProperty(type, "ref", { enumerable: false, value: null });
-          type._store = {};
-          Object.defineProperty(type._store, "validated", {
-            configurable: false,
-            enumerable: false,
-            writable: true,
-            value: 0
-          });
-          Object.defineProperty(type, "_debugInfo", {
-            configurable: false,
-            enumerable: false,
-            writable: true,
-            value: null
-          });
-          Object.freeze && (Object.freeze(type.props), Object.freeze(type));
-          return type;
-        }
-        function jsxDEVImpl(type, config, maybeKey, isStaticChildren, source, self2) {
-          if ("string" === typeof type || "function" === typeof type || type === REACT_FRAGMENT_TYPE || type === REACT_PROFILER_TYPE || type === REACT_STRICT_MODE_TYPE || type === REACT_SUSPENSE_TYPE || type === REACT_SUSPENSE_LIST_TYPE || type === REACT_OFFSCREEN_TYPE || "object" === typeof type && null !== type && (type.$$typeof === REACT_LAZY_TYPE || type.$$typeof === REACT_MEMO_TYPE || type.$$typeof === REACT_CONTEXT_TYPE || type.$$typeof === REACT_CONSUMER_TYPE || type.$$typeof === REACT_FORWARD_REF_TYPE || type.$$typeof === REACT_CLIENT_REFERENCE$1 || void 0 !== type.getModuleId)) {
-            var children = config.children;
-            if (void 0 !== children)
-              if (isStaticChildren)
-                if (isArrayImpl(children)) {
-                  for (isStaticChildren = 0; isStaticChildren < children.length; isStaticChildren++)
-                    validateChildKeys(children[isStaticChildren], type);
-                  Object.freeze && Object.freeze(children);
-                } else
-                  console.error(
-                    "React.jsx: Static children should always be an array. You are likely explicitly calling React.jsxs or React.jsxDEV. Use the Babel transform instead."
-                  );
-              else validateChildKeys(children, type);
-          } else {
-            children = "";
-            if (void 0 === type || "object" === typeof type && null !== type && 0 === Object.keys(type).length)
-              children += " You likely forgot to export your component from the file it's defined in, or you might have mixed up default and named imports.";
-            null === type ? isStaticChildren = "null" : isArrayImpl(type) ? isStaticChildren = "array" : void 0 !== type && type.$$typeof === REACT_ELEMENT_TYPE ? (isStaticChildren = "<" + (getComponentNameFromType(type.type) || "Unknown") + " />", children = " Did you accidentally export a JSX literal instead of a component?") : isStaticChildren = typeof type;
-            console.error(
-              "React.jsx: type is invalid -- expected a string (for built-in components) or a class/function (for composite components) but got: %s.%s",
-              isStaticChildren,
-              children
-            );
-          }
-          if (hasOwnProperty.call(config, "key")) {
-            children = getComponentNameFromType(type);
-            var keys = Object.keys(config).filter(function(k) {
-              return "key" !== k;
-            });
-            isStaticChildren = 0 < keys.length ? "{key: someKey, " + keys.join(": ..., ") + ": ...}" : "{key: someKey}";
-            didWarnAboutKeySpread[children + isStaticChildren] || (keys = 0 < keys.length ? "{" + keys.join(": ..., ") + ": ...}" : "{}", console.error(
-              'A props object containing a "key" prop is being spread into JSX:\n  let props = %s;\n  <%s {...props} />\nReact keys must be passed directly to JSX without using spread:\n  let props = %s;\n  <%s key={someKey} {...props} />',
-              isStaticChildren,
-              children,
-              keys,
-              children
-            ), didWarnAboutKeySpread[children + isStaticChildren] = true);
-          }
-          children = null;
-          void 0 !== maybeKey && (checkKeyStringCoercion(maybeKey), children = "" + maybeKey);
-          hasValidKey(config) && (checkKeyStringCoercion(config.key), children = "" + config.key);
-          if ("key" in config) {
-            maybeKey = {};
-            for (var propName in config)
-              "key" !== propName && (maybeKey[propName] = config[propName]);
-          } else maybeKey = config;
-          children && defineKeyPropWarningGetter(
-            maybeKey,
-            "function" === typeof type ? type.displayName || type.name || "Unknown" : type
-          );
-          return ReactElement(type, children, self2, source, getOwner(), maybeKey);
-        }
-        function validateChildKeys(node, parentType) {
-          if ("object" === typeof node && node && node.$$typeof !== REACT_CLIENT_REFERENCE) {
-            if (isArrayImpl(node))
-              for (var i = 0; i < node.length; i++) {
-                var child = node[i];
-                isValidElement(child) && validateExplicitKey(child, parentType);
-              }
-            else if (isValidElement(node))
-              node._store && (node._store.validated = 1);
-            else if (null === node || "object" !== typeof node ? i = null : (i = MAYBE_ITERATOR_SYMBOL && node[MAYBE_ITERATOR_SYMBOL] || node["@@iterator"], i = "function" === typeof i ? i : null), "function" === typeof i && i !== node.entries && (i = i.call(node), i !== node))
-              for (; !(node = i.next()).done; )
-                isValidElement(node.value) && validateExplicitKey(node.value, parentType);
-          }
-        }
-        function isValidElement(object) {
-          return "object" === typeof object && null !== object && object.$$typeof === REACT_ELEMENT_TYPE;
-        }
-        function validateExplicitKey(element, parentType) {
-          if (element._store && !element._store.validated && null == element.key && (element._store.validated = 1, parentType = getCurrentComponentErrorInfo(parentType), !ownerHasKeyUseWarning[parentType])) {
-            ownerHasKeyUseWarning[parentType] = true;
-            var childOwner = "";
-            element && null != element._owner && element._owner !== getOwner() && (childOwner = null, "number" === typeof element._owner.tag ? childOwner = getComponentNameFromType(element._owner.type) : "string" === typeof element._owner.name && (childOwner = element._owner.name), childOwner = " It was passed a child from " + childOwner + ".");
-            var prevGetCurrentStack = ReactSharedInternals.getCurrentStack;
-            ReactSharedInternals.getCurrentStack = function() {
-              var stack = describeUnknownElementTypeFrameInDEV(element.type);
-              prevGetCurrentStack && (stack += prevGetCurrentStack() || "");
-              return stack;
-            };
-            console.error(
-              'Each child in a list should have a unique "key" prop.%s%s See https://react.dev/link/warning-keys for more information.',
-              parentType,
-              childOwner
-            );
-            ReactSharedInternals.getCurrentStack = prevGetCurrentStack;
-          }
-        }
-        function getCurrentComponentErrorInfo(parentType) {
-          var info = "", owner = getOwner();
-          owner && (owner = getComponentNameFromType(owner.type)) && (info = "\n\nCheck the render method of `" + owner + "`.");
-          info || (parentType = getComponentNameFromType(parentType)) && (info = "\n\nCheck the top-level render call using <" + parentType + ">.");
-          return info;
-        }
-        var React10 = require_react(), REACT_ELEMENT_TYPE = Symbol.for("react.transitional.element"), REACT_PORTAL_TYPE = Symbol.for("react.portal"), REACT_FRAGMENT_TYPE = Symbol.for("react.fragment"), REACT_STRICT_MODE_TYPE = Symbol.for("react.strict_mode"), REACT_PROFILER_TYPE = Symbol.for("react.profiler");
-        Symbol.for("react.provider");
-        var REACT_CONSUMER_TYPE = Symbol.for("react.consumer"), REACT_CONTEXT_TYPE = Symbol.for("react.context"), REACT_FORWARD_REF_TYPE = Symbol.for("react.forward_ref"), REACT_SUSPENSE_TYPE = Symbol.for("react.suspense"), REACT_SUSPENSE_LIST_TYPE = Symbol.for("react.suspense_list"), REACT_MEMO_TYPE = Symbol.for("react.memo"), REACT_LAZY_TYPE = Symbol.for("react.lazy"), REACT_OFFSCREEN_TYPE = Symbol.for("react.offscreen"), MAYBE_ITERATOR_SYMBOL = Symbol.iterator, REACT_CLIENT_REFERENCE$2 = Symbol.for("react.client.reference"), ReactSharedInternals = React10.__CLIENT_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE, hasOwnProperty = Object.prototype.hasOwnProperty, assign = Object.assign, REACT_CLIENT_REFERENCE$1 = Symbol.for("react.client.reference"), isArrayImpl = Array.isArray, disabledDepth = 0, prevLog, prevInfo, prevWarn, prevError, prevGroup, prevGroupCollapsed, prevGroupEnd;
-        disabledLog.__reactDisabledLog = true;
-        var prefix, suffix, reentry = false;
-        var componentFrameCache = new ("function" === typeof WeakMap ? WeakMap : Map)();
-        var REACT_CLIENT_REFERENCE = Symbol.for("react.client.reference"), specialPropKeyWarningShown;
-        var didWarnAboutElementRef = {};
-        var didWarnAboutKeySpread = {}, ownerHasKeyUseWarning = {};
-        exports.Fragment = REACT_FRAGMENT_TYPE;
-        exports.jsx = function(type, config, maybeKey, source, self2) {
-          return jsxDEVImpl(type, config, maybeKey, false, source, self2);
-        };
-        exports.jsxs = function(type, config, maybeKey, source, self2) {
-          return jsxDEVImpl(type, config, maybeKey, true, source, self2);
-        };
-      })();
-    }
-  });
-
-  // react-user-mgmt/node_modules/react/jsx-runtime.js
-  var require_jsx_runtime = __commonJS({
-    "react-user-mgmt/node_modules/react/jsx-runtime.js"(exports, module2) {
-      "use strict";
-      if (false) {
-        module2.exports = null;
-      } else {
-        module2.exports = require_react_jsx_runtime_development();
-      }
-    }
-  });
-
   // react-user-mgmt/src/main.tsx
-  var import_react12 = __toESM(require_react(), 1);
+  var import_react13 = __toESM(require_react(), 1);
   var import_client2 = __toESM(require_client(), 1);
 
   // react-user-mgmt/src/components/Login.tsx
-  var import_react2 = __toESM(require_react(), 1);
+  var import_react4 = __toESM(require_react(), 1);
 
   // node_modules/@serenity-kit/opaque/esm/index.js
   function _loadWasmModule(sync, filepath, src, imports) {
@@ -21434,438 +21434,26 @@ ${val.stack}`;
   var ready = __wbg_init(wasmData()).then(() => {
   });
 
-  // react-user-mgmt/src/helpers/utils.tsx
-  function toSearchParams(formData) {
-    const entries = formData.entries ? formData.entries() : Object.entries(formData);
-    const data = [...entries].filter((e, i) => {
-      if (typeof e[1] !== "string") throw console.error(formData);
-      return true;
-    });
-    return new URLSearchParams(data);
-  }
-  function fetchPostSearchParams(url, formData) {
-    return fetch(url, {
-      method: "POST",
-      redirect: "manual",
-      headers: { "Content-Type": "application/x-www-form-urlencoded", "X-Requested-With": "TiddlyWiki" },
-      body: toSearchParams(formData)
-    });
-  }
-  var changePassword = async (userId, password) => {
-    const { clientRegistrationState, registrationRequest } = client.startRegistration({ password });
-    const register1 = await fetchPostSearchParams("/change-user-password/1", { userId, registrationRequest });
-    const registrationResponse = await register1.text();
-    if (!register1.ok) throw registrationResponse;
-    const { registrationRecord } = client.finishRegistration({
-      clientRegistrationState,
-      registrationResponse,
-      password
-    });
-    const register2 = await fetchPostSearchParams("/change-user-password/2", { userId, registrationRecord });
-    if (!register2.ok) throw await register2.text();
-  };
-
-  // react-user-mgmt/src/helpers/prisma-proxy.ts
-  var import_client = __toESM(require_index_browser3(), 1);
-  var _error;
-  var ProxyPromise = class {
-    constructor({ action, table, arg }) {
-      __publicField(this, "action");
-      __publicField(this, "table");
-      __publicField(this, "arg");
-      __privateAdd(this, _error, new Error("An error occured for this request"));
-      this.action = action;
-      this.table = table;
-      this.arg = arg;
-      Object.defineProperty(this, "toJSON", {
-        configurable: true,
-        enumerable: true,
-        value: () => ({
-          action: this.action,
-          table: this.table,
-          arg: this.arg,
-          dbnulls: this.arg.data && findValueInObject(this.arg.data, (e) => e === import_client.Prisma.DbNull),
-          jsnulls: this.arg.data && findValueInObject(this.arg.data, (e) => e === import_client.Prisma.JsonNull)
-        })
-      });
-    }
-    static getErrorStack(t) {
-      return __privateGet(t, _error).stack;
-    }
-  };
-  _error = new WeakMap();
-  function findValueInObject(val, predicate, keys = [], paths = []) {
-    if (predicate(val)) {
-      paths.push(keys.join("/"));
-      return paths;
-    }
-    if (val && typeof val === "object") {
-      for (const key of Object.keys(val)) {
-        if (!val.hasOwnProperty(key)) continue;
-        findValueInObject(val[key], predicate, [...keys, key], paths);
-      }
-    }
-    console.log(paths, keys);
-    return paths;
-  }
-  function capitalize(table) {
-    return table.slice(0, 1).toUpperCase() + table.slice(1);
-  }
-  var proxy = (() => new Proxy({}, {
-    get(target, table) {
-      return target[table] = target[table] || new Proxy({}, {
-        get(target2, action) {
-          return target2[action] = target2[action] || ((arg) => {
-            return new ProxyPromise({ action, table: capitalize(table), arg });
-          });
-        }
-      });
-    }
-  }))();
-
-  // react-user-mgmt/src/helpers/server-types.ts
-  var import_react = __toESM(require_react(), 1);
-  var IndexJsonContext = import_react.default.createContext(null);
-  function useIndexJson() {
-    return import_react.default.useContext(IndexJsonContext);
-  }
-
-  // react-user-mgmt/src/components/Login.tsx
-  var import_jsx_runtime = __toESM(require_jsx_runtime(), 1);
-  var LOGIN_FAILED = "Login failed. Please check your credentials.";
-  async function loginWithOpaque(username, password) {
-    const { clientLoginState, startLoginRequest } = client.startLogin({ password });
-    const login1 = await fetchPostSearchParams("/login/1", { username, startLoginRequest });
-    if (!login1.ok) throw await login1.text() || LOGIN_FAILED;
-    const loginResponse = await login1.text();
-    const loginResult = client.finishLogin({ clientLoginState, loginResponse, password });
-    if (!loginResult) throw LOGIN_FAILED;
-    const { finishLoginRequest, sessionKey, exportKey, serverStaticPublicKey } = loginResult;
-    const login2 = await fetchPostSearchParams("/login/2", { username, finishLoginRequest });
-    if (!login2.ok) throw await login2.text() || LOGIN_FAILED;
-    return { username, sessionKey, exportKey, serverStaticPublicKey };
-  }
-  var Login = () => {
-    const { "user-is-logged-in": isLoggedIn } = useIndexJson();
-    const [errorMessage, setErrorMessage] = (0, import_react2.useState)(null);
-    const returnUrl = new URLSearchParams(location.search).get("returnUrl") || "/";
-    const handleSubmit = async (formData) => {
-      setErrorMessage(null);
-      const username = formData.get("username");
-      const password = formData.get("password");
-      if (!username || !password)
-        return setErrorMessage("Please enter a username and password.");
-      await loginWithOpaque(username, password).then((e) => {
-        location.href = "/";
-      }, (e) => {
-        setErrorMessage(`${e}`);
-      });
-    };
-    return /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "login-page", children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "login-container", children: [
-      /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "login-header", children: [
-        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("h1", { children: "Be our Guest" }),
-        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("a", { href: "/", children: "Explore as Guest" }),
-        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("h2", { children: "TiddlyWiki Login" })
-      ] }),
-      isLoggedIn ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)(import_jsx_runtime.Fragment, { children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "mws-success-message", children: "You are logged in!" }) }) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)(import_jsx_runtime.Fragment, { children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("form", { className: "login-form", action: handleSubmit, children: [
-        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("input", { type: "hidden", name: "returnUrl", value: returnUrl }),
-        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("input", { type: "text", name: "username", placeholder: "Username", required: true }),
-        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("input", { type: "password", name: "password", placeholder: "Password", required: true }),
-        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("input", { type: "submit", value: "Log In" })
-      ] }) }),
-      errorMessage && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "mws-error-message", children: errorMessage })
-    ] }) });
-  };
-  var Login_default = Login;
-
-  // react-user-mgmt/src/components/Frame.tsx
-  var import_react11 = __toESM(require_react(), 1);
-
-  // react-user-mgmt/src/components/Header.tsx
-  var import_react3 = __toESM(require_react(), 1);
-  var import_jsx_runtime2 = __toESM(require_jsx_runtime(), 1);
-  var Header = ({
-    pageTitle,
-    username,
-    userIsAdmin,
-    userIsLoggedIn,
-    firstGuestUser,
-    userId,
-    setShowAnonConfig
-  }) => {
-    const [isLoggingOut, setIsLoggingOut] = (0, import_react3.useState)(false);
-    const navigateTo = (path) => {
-      window.location.href = path;
-    };
-    const handleManageUsers = () => {
-      navigateTo("/admin/users?q=*");
-    };
-    const handleManageRoles = () => {
-      navigateTo("/admin/roles?q=*");
-    };
-    const handleAnonConfig = async () => {
-      setShowAnonConfig(true);
-    };
-    const handleLogout = async () => {
-      setIsLoggingOut(true);
-      try {
-        const response = await fetch("/logout", { method: "POST" });
-        if (response.ok) {
-          window.location.href = "/";
-        }
-      } catch (error) {
-        console.error("Error logging out:", error);
-        setIsLoggingOut(false);
-      }
-    };
-    return /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { className: "mws-header", children: [
-      /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("h1", { children: [
-        /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("a", { href: "/", children: /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { className: "mws-logo", children: "\u{1F3E0}" }) }),
-        /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { className: "divider", children: "|" }),
-        /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { children: pageTitle })
-      ] }),
-      /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { className: "mws-user-info", children: [
-        /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("span", { children: [
-          "Hello, ",
-          username
-        ] }),
-        userIsAdmin && /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { className: "mws-admin-dropdown", children: [
-          /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("button", { className: "mws-admin-dropbtn", children: "\u2699\uFE0F" }),
-          /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { className: "mws-admin-dropdown-content", children: [
-            /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("button", { onClick: handleManageUsers, className: "mws-admin-form-button", children: "Manage Users" }),
-            /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("button", { onClick: handleManageRoles, className: "mws-admin-form-button", children: "Manage Roles" }),
-            /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("button", { onClick: handleAnonConfig, className: "mws-admin-form-button", children: "Reconfigure Anonymous Access" })
-          ] })
-        ] }),
-        userIsLoggedIn && !firstGuestUser && !userIsAdmin && userId && /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
-          "button",
-          {
-            onClick: () => navigateTo(`/admin/users/${userId}`),
-            className: "mws-profile-btn",
-            children: "Profile"
-          }
-        ),
-        userIsLoggedIn ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
-          "button",
-          {
-            onClick: handleLogout,
-            className: "mws-logout-button",
-            disabled: isLoggingOut,
-            children: isLoggingOut ? "Logging out..." : "Logout"
-          }
-        ) : /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
-          "button",
-          {
-            onClick: () => navigateTo("/login"),
-            className: "mws-login-btn",
-            children: "Login"
-          }
-        )
-      ] })
-    ] });
-  };
-  var Header_default = Header;
-
-  // react-user-mgmt/src/components/AnonConfigModal.tsx
-  var import_react4 = __toESM(require_react(), 1);
-  var import_jsx_runtime3 = __toESM(require_jsx_runtime(), 1);
-  function toParams(obj) {
-    const entries = Object.entries(obj).map(([key, value]) => {
-      if (typeof value === "object" && value !== null)
-        throw new Error("Cannot convert object to URLSearchParams");
-      if (typeof value === "function")
-        throw new Error("Cannot convert function to URLSearchParams");
-      if (typeof value === "symbol")
-        throw new Error("Cannot convert symbol to URLSearchParams");
-      if (value === void 0 || value === null)
-        return [key, ""];
-      return [key, value];
-    });
-    return new URLSearchParams(entries.map(([key, value]) => [key, `${value}`]));
-  }
-  var AnonConfigModal = ({
-    initialAllowReads,
-    initialAllowWrites,
-    onClose
-  }) => {
-    const [allowReads, setAllowReads] = (0, import_react4.useState)(initialAllowReads);
-    const [allowWrites, setAllowWrites] = (0, import_react4.useState)(initialAllowWrites);
-    const [isSaving, setIsSaving] = (0, import_react4.useState)(false);
-    const handleSubmit = async (e) => {
-      e.preventDefault();
-      setIsSaving(true);
-      try {
-        const response = await fetch("/admin/post-anon-config", {
-          method: "POST",
-          body: toParams({ allowReads, allowWrites }),
-          headers: { "Content-Type": "application/json" }
-        });
-        if (response.ok) {
-          onClose();
-        } else {
-          console.error("Failed to save anonymous config");
-        }
-      } catch (error) {
-        console.error("Error saving anonymous config:", error);
-      } finally {
-        setIsSaving(false);
-      }
-    };
-    return /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { className: "mws-modal-container", children: /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "mws-modal-content", children: [
-      /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("h1", { children: "Anonymous Access Configuration" }),
-      /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("p", { children: "This configuration allows anonymous users to read and write to the wiki." }),
-      /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("form", { className: "mws-anon-config-form", onSubmit: handleSubmit, children: [
-        /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "mws-modal-section", children: [
-          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
-            "input",
-            {
-              type: "checkbox",
-              name: "allowReads",
-              checked: allowReads,
-              onChange: (e) => setAllowReads(e.target.checked)
-            }
-          ),
-          " Allow anonymous reads"
-        ] }),
-        /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "mws-modal-section", children: [
-          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
-            "input",
-            {
-              type: "checkbox",
-              name: "allowWrites",
-              checked: allowWrites,
-              onChange: (e) => setAllowWrites(e.target.checked)
-            }
-          ),
-          " Allow anonymous writes"
-        ] }),
-        /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { className: "mws-modal-buttons", children: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
-          "button",
-          {
-            type: "submit",
-            className: "mws-modal-button-primary",
-            disabled: isSaving,
-            children: isSaving ? "Saving..." : "Save Changes"
-          }
-        ) })
-      ] })
-    ] }) });
-  };
-  var AnonConfigModal_default = AnonConfigModal;
-
-  // react-user-mgmt/src/components/Dashboard.tsx
-  var import_react6 = __toESM(require_react(), 1);
-
-  // react-user-mgmt/src/components/BagPill.tsx
-  var import_jsx_runtime4 = __toESM(require_jsx_runtime(), 1);
-  var BagPill = ({
-    bagName,
-    isTopmost = false,
-    elementTag = "span"
-  }) => {
-    const Component = elementTag;
-    const className = `mws-bag-pill ${isTopmost ? "mws-bag-pill-topmost" : ""}`;
-    return /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(Component, { className, children: /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("a", { className: "mws-bag-pill-link", href: `/bags/${encodeURIComponent(bagName)}`, rel: "noopener noreferrer", target: "_blank", children: [
-      /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(
-        "img",
-        {
-          src: `/bags/${encodeURIComponent(bagName)}/tiddlers/%24%3A%2Ffavicon.ico?fallback=/.system/missing-favicon.png`,
-          className: "mws-favicon-small",
-          alt: "",
-          onError: ({ currentTarget }) => {
-            currentTarget.onerror = null;
-            currentTarget.src = "/missing-favicon.png";
-          }
-        }
-      ),
-      /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("span", { className: "mws-bag-pill-label", children: bagName })
-    ] }) });
-  };
-  var BagPill_default = BagPill;
-
-  // react-user-mgmt/src/components/WikiCard.tsx
-  var import_jsx_runtime5 = __toESM(require_jsx_runtime(), 1);
-  var WikiCard = ({
-    recipeName,
-    description,
-    bagNames,
-    hasAclAccess,
-    showSystem
-  }) => {
-    const filteredBags = showSystem ? bagNames : bagNames.filter((bag) => !bag.startsWith("$:/"));
-    return /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)("div", { className: "mws-wiki-card", children: [
-      /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("div", { className: "mws-wiki-card-image", children: /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(
-        "img",
-        {
-          src: `/recipes/${encodeURIComponent(recipeName)}/tiddlers/%24%3A%2Ffavicon.ico?fallback=/.system/missing-favicon.png`,
-          className: "mws-favicon",
-          alt: "",
-          onError: ({ currentTarget }) => {
-            currentTarget.onerror = null;
-            currentTarget.src = "/missing-favicon.png";
-          }
-        }
-      ) }),
-      /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)("div", { className: "mws-wiki-card-content", children: [
-        /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("div", { className: "mws-wiki-card-header", children: /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(
-          "a",
-          {
-            href: `/wiki/${encodeURIComponent(recipeName)}`,
-            rel: "noopener noreferrer",
-            target: "_blank",
-            children: recipeName
-          }
-        ) }),
-        /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("div", { className: "mws-wiki-card-meta", children: filteredBags.length > 0 ? /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("ol", { className: "mws-vertical-list", children: filteredBags.reverse().map((bagName, index) => /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(
-          BagPill_default,
-          {
-            bagName,
-            isTopmost: index === 0,
-            elementTag: "li"
-          },
-          bagName
-        )) }) : "(no bags defined)" }),
-        /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("div", { className: "mws-wiki-card-description", children: description })
-      ] }),
-      /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("div", { className: "mws-wiki-card-actions", children: hasAclAccess && /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(
-        "a",
-        {
-          href: `/admin/acl/${recipeName}/${bagNames[bagNames.length - 1]}`,
-          className: "mws-wiki-card-action",
-          title: "Manage ACL",
-          children: /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)("svg", { xmlns: "http://www.w3.org/2000/svg", viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2", strokeLinecap: "round", strokeLinejoin: "round", children: [
-            /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("rect", { x: "3", y: "11", width: "18", height: "11", rx: "2", ry: "2" }),
-            /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("path", { d: "M7 11V7a5 5 0 0 1 10 0v4" })
-          ] })
-        }
-      ) })
-    ] });
-  };
-  var WikiCard_default = WikiCard;
-
-  // react-user-mgmt/src/components/Dashboard.tsx
-  var import_react_dom = __toESM(require_react_dom(), 1);
-
   // react-user-mgmt/src/helpers/useAsyncEffect.tsx
-  var import_react5 = __toESM(require_react(), 1);
+  var import_react = __toESM(require_react(), 1);
   var catcher = (point, error) => {
     console.log(point, error);
   };
   function useAsyncEffect(mount, unmount = async () => {
   }, cancel = async () => {
   }, deps = []) {
-    const componentActive = (0, import_react5.useRef)(false);
-    const [loading, setLoading] = (0, import_react5.useState)(true);
-    const [promise, setPromise] = (0, import_react5.useState)(new PromiseSubject());
-    const [error, setError] = (0, import_react5.useState)();
-    const [result, setResult] = (0, import_react5.useState)();
-    (0, import_react5.useEffect)(() => {
+    const componentActive = (0, import_react.useRef)(false);
+    const [loading, setLoading] = (0, import_react.useState)(true);
+    const [promise, setPromise] = (0, import_react.useState)(new PromiseSubject());
+    const [error, setError] = (0, import_react.useState)();
+    const [result, setResult] = (0, import_react.useState)();
+    (0, import_react.useEffect)(() => {
       componentActive.current = true;
       return () => {
         componentActive.current = false;
       };
     }, []);
-    (0, import_react5.useEffect)(() => {
+    (0, import_react.useEffect)(() => {
       let depsChanged = false;
       let mountStarted = false;
       let mountFinished = false;
@@ -21960,14 +21548,451 @@ ${val.stack}`;
   _reject = new WeakMap();
   _done = new WeakMap();
 
-  // react-user-mgmt/src/components/Dashboard.tsx
+  // react-user-mgmt/src/helpers/utils.tsx
+  var import_react2 = __toESM(require_react(), 1);
+  var import_jsx_runtime = __toESM(require_jsx_runtime(), 1);
+  function toSearchParams(formData) {
+    const entries = formData.entries ? formData.entries() : Object.entries(formData);
+    const data = [...entries].filter((e, i) => {
+      if (typeof e[1] !== "string") throw console.error(formData);
+      return true;
+    });
+    return new URLSearchParams(data);
+  }
+  function fetchPostSearchParams(url, formData) {
+    return fetch(url, {
+      method: "POST",
+      redirect: "manual",
+      headers: { "Content-Type": "application/x-www-form-urlencoded", "X-Requested-With": "TiddlyWiki" },
+      body: toSearchParams(formData)
+    });
+  }
+  async function changePassword(input) {
+    const { userId, password, confirmPassword } = input;
+    if (password !== confirmPassword) throw "Passwords do not match";
+    const { clientRegistrationState, registrationRequest } = client.startRegistration({ password });
+    const register1 = await fetchPostSearchParams("/change-user-password/1", { userId, registrationRequest });
+    const registrationResponse = await register1.text();
+    if (!register1.ok) throw registrationResponse;
+    const { registrationRecord } = client.finishRegistration({
+      clientRegistrationState,
+      registrationResponse,
+      password
+    });
+    const register2 = await fetchPostSearchParams("/change-user-password/2", { userId, registrationRecord });
+    if (!register2.ok) throw await register2.text();
+  }
+  async function addNewUser(input) {
+    const { username, email, password, confirmPassword } = input;
+    if (password !== confirmPassword) throw "Passwords do not match";
+    const createUser = await fetchPostSearchParams("/admin/post-user", { username, email });
+    if (!createUser.ok) throw await createUser.text() || "Failed to add user";
+    const userId = (await createUser.json()).userId.toString();
+    await changePassword({ userId, password, confirmPassword });
+  }
+  function DataLoader(loader, useRender) {
+    return (props) => {
+      const [refreshData, setRefreshData] = (0, import_react2.useState)({});
+      const [result, setResult] = (0, import_react2.useState)(null);
+      const refresh = (0, import_react2.useCallback)(() => setRefreshData({}), []);
+      useAsyncEffect(async () => {
+        setResult(await loader());
+      }, void 0, void 0, [refreshData]);
+      if (!result) return null;
+      return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Render, { useRender: () => useRender(result, refresh, props) });
+    };
+  }
+  function Render({ useRender }) {
+    return useRender();
+  }
+
+  // react-user-mgmt/src/helpers/prisma-proxy.ts
+  var import_client = __toESM(require_index_browser3(), 1);
+  var _error;
+  var ProxyPromise = class {
+    constructor({ action, table, arg }) {
+      __publicField(this, "action");
+      __publicField(this, "table");
+      __publicField(this, "arg");
+      __privateAdd(this, _error, new Error("An error occured for this request"));
+      this.action = action;
+      this.table = table;
+      this.arg = arg;
+      Object.defineProperty(this, "toJSON", {
+        configurable: true,
+        enumerable: true,
+        value: () => ({
+          action: this.action,
+          table: this.table,
+          arg: this.arg,
+          dbnulls: this.arg.data && findValueInObject(this.arg.data, (e) => e === import_client.Prisma.DbNull),
+          jsnulls: this.arg.data && findValueInObject(this.arg.data, (e) => e === import_client.Prisma.JsonNull)
+        })
+      });
+    }
+    static getErrorStack(t) {
+      return __privateGet(t, _error).stack;
+    }
+  };
+  _error = new WeakMap();
+  function findValueInObject(val, predicate, keys = [], paths = []) {
+    if (predicate(val)) {
+      paths.push(keys.join("/"));
+      return paths;
+    }
+    if (val && typeof val === "object") {
+      for (const key of Object.keys(val)) {
+        if (!val.hasOwnProperty(key)) continue;
+        findValueInObject(val[key], predicate, [...keys, key], paths);
+      }
+    }
+    console.log(paths, keys);
+    return paths;
+  }
+  function capitalize(table) {
+    return table.slice(0, 1).toUpperCase() + table.slice(1);
+  }
+  var proxy = (() => new Proxy({}, {
+    get(target, table) {
+      return target[table] = target[table] || new Proxy({}, {
+        get(target2, action) {
+          return target2[action] = target2[action] || ((arg) => {
+            return new ProxyPromise({ action, table: capitalize(table), arg });
+          });
+        }
+      });
+    }
+  }))();
+
+  // react-user-mgmt/src/helpers/server-types.ts
+  var import_react3 = __toESM(require_react(), 1);
+  var IndexJsonContext = import_react3.default.createContext(null);
+  function useIndexJson() {
+    return import_react3.default.useContext(IndexJsonContext);
+  }
+
+  // react-user-mgmt/src/components/Login.tsx
+  var import_jsx_runtime2 = __toESM(require_jsx_runtime(), 1);
+  var LOGIN_FAILED = "Login failed. Please check your credentials.";
+  async function loginWithOpaque(username, password) {
+    const { clientLoginState, startLoginRequest } = client.startLogin({ password });
+    const login1 = await fetchPostSearchParams("/login/1", { username, startLoginRequest });
+    if (!login1.ok) throw await login1.text() || LOGIN_FAILED;
+    const loginResponse = await login1.text();
+    const loginResult = client.finishLogin({ clientLoginState, loginResponse, password });
+    if (!loginResult) throw LOGIN_FAILED;
+    const { finishLoginRequest, sessionKey, exportKey, serverStaticPublicKey } = loginResult;
+    const login2 = await fetchPostSearchParams("/login/2", { username, finishLoginRequest });
+    if (!login2.ok) throw await login2.text() || LOGIN_FAILED;
+    return { username, sessionKey, exportKey, serverStaticPublicKey };
+  }
+  var Login = () => {
+    const { "user-is-logged-in": isLoggedIn } = useIndexJson();
+    const [errorMessage, setErrorMessage] = (0, import_react4.useState)(null);
+    const returnUrl = new URLSearchParams(location.search).get("returnUrl") || "/";
+    const handleSubmit = async (formData) => {
+      setErrorMessage(null);
+      const username = formData.get("username");
+      const password = formData.get("password");
+      if (!username || !password)
+        return setErrorMessage("Please enter a username and password.");
+      await loginWithOpaque(username, password).then((e) => {
+        location.href = "/";
+      }, (e) => {
+        setErrorMessage(`${e}`);
+      });
+    };
+    return /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { className: "login-page", children: /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { className: "login-container", children: [
+      /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { className: "login-header", children: [
+        /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("h1", { children: "Be our Guest" }),
+        /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("a", { href: "/", children: "Explore as Guest" }),
+        /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("h2", { children: "TiddlyWiki Login" })
+      ] }),
+      isLoggedIn ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(import_jsx_runtime2.Fragment, { children: /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { className: "mws-success-message", children: "You are logged in!" }) }) : /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(import_jsx_runtime2.Fragment, { children: /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("form", { className: "login-form", action: handleSubmit, children: [
+        /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("input", { type: "hidden", name: "returnUrl", value: returnUrl }),
+        /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("input", { type: "text", name: "username", placeholder: "Username", required: true }),
+        /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("input", { type: "password", name: "password", placeholder: "Password", required: true }),
+        /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("input", { type: "submit", value: "Log In" })
+      ] }) }),
+      errorMessage && /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { className: "mws-error-message", children: errorMessage })
+    ] }) });
+  };
+  var Login_default = Login;
+
+  // react-user-mgmt/src/components/Frame/Frame.tsx
+  var import_react12 = __toESM(require_react(), 1);
+
+  // react-user-mgmt/src/components/Frame/Header.tsx
+  var import_react5 = __toESM(require_react(), 1);
+  var import_jsx_runtime3 = __toESM(require_jsx_runtime(), 1);
+  var Header = ({
+    pageTitle,
+    username,
+    userIsAdmin,
+    userIsLoggedIn,
+    firstGuestUser,
+    userId,
+    setShowAnonConfig
+  }) => {
+    const [isLoggingOut, setIsLoggingOut] = (0, import_react5.useState)(false);
+    const navigateTo = (path) => {
+      window.location.href = path;
+    };
+    const handleManageUsers = () => {
+      navigateTo("/admin/users?q=*");
+    };
+    const handleManageRoles = () => {
+      navigateTo("/admin/roles?q=*");
+    };
+    const handleAnonConfig = async () => {
+      setShowAnonConfig(true);
+    };
+    const handleLogout = async () => {
+      setIsLoggingOut(true);
+      try {
+        const response = await fetch("/logout", { method: "POST" });
+        if (response.ok) {
+          window.location.href = "/";
+        }
+      } catch (error) {
+        console.error("Error logging out:", error);
+        setIsLoggingOut(false);
+      }
+    };
+    return /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "mws-header", children: [
+      /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("h1", { children: [
+        /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("a", { href: "/", children: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { className: "mws-logo", children: "\u{1F3E0}" }) }),
+        /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { className: "divider", children: "|" }),
+        /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { children: pageTitle })
+      ] }),
+      /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "mws-user-info", children: [
+        /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("span", { children: [
+          "Hello, ",
+          username
+        ] }),
+        userIsAdmin && /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "mws-admin-dropdown", children: [
+          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("button", { className: "mws-admin-dropbtn", children: "\u2699\uFE0F" }),
+          /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "mws-admin-dropdown-content", children: [
+            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("button", { onClick: handleManageUsers, className: "mws-admin-form-button", children: "Manage Users" }),
+            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("button", { onClick: handleManageRoles, className: "mws-admin-form-button", children: "Manage Roles" }),
+            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("button", { onClick: handleAnonConfig, className: "mws-admin-form-button", children: "Reconfigure Anonymous Access" })
+          ] })
+        ] }),
+        userIsLoggedIn && !firstGuestUser && !userIsAdmin && userId && /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+          "button",
+          {
+            onClick: () => navigateTo(`/admin/users/${userId}`),
+            className: "mws-profile-btn",
+            children: "Profile"
+          }
+        ),
+        userIsLoggedIn ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+          "button",
+          {
+            onClick: handleLogout,
+            className: "mws-logout-button",
+            disabled: isLoggingOut,
+            children: isLoggingOut ? "Logging out..." : "Logout"
+          }
+        ) : /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+          "button",
+          {
+            onClick: () => navigateTo("/login"),
+            className: "mws-login-btn",
+            children: "Login"
+          }
+        )
+      ] })
+    ] });
+  };
+  var Header_default = Header;
+
+  // react-user-mgmt/src/components/Frame/AnonConfigModal.tsx
+  var import_react6 = __toESM(require_react(), 1);
+  var import_jsx_runtime4 = __toESM(require_jsx_runtime(), 1);
+  function toParams(obj) {
+    const entries = Object.entries(obj).map(([key, value]) => {
+      if (typeof value === "object" && value !== null)
+        throw new Error("Cannot convert object to URLSearchParams");
+      if (typeof value === "function")
+        throw new Error("Cannot convert function to URLSearchParams");
+      if (typeof value === "symbol")
+        throw new Error("Cannot convert symbol to URLSearchParams");
+      if (value === void 0 || value === null)
+        return [key, ""];
+      return [key, value];
+    });
+    return new URLSearchParams(entries.map(([key, value]) => [key, `${value}`]));
+  }
+  var AnonConfigModal = ({
+    initialAllowReads,
+    initialAllowWrites,
+    onClose
+  }) => {
+    const [allowReads, setAllowReads] = (0, import_react6.useState)(initialAllowReads);
+    const [allowWrites, setAllowWrites] = (0, import_react6.useState)(initialAllowWrites);
+    const [isSaving, setIsSaving] = (0, import_react6.useState)(false);
+    const handleSubmit = async (e) => {
+      e.preventDefault();
+      setIsSaving(true);
+      try {
+        const response = await fetch("/admin/post-anon-config", {
+          method: "POST",
+          body: toParams({ allowReads, allowWrites }),
+          headers: { "Content-Type": "application/json" }
+        });
+        if (response.ok) {
+          onClose();
+        } else {
+          console.error("Failed to save anonymous config");
+        }
+      } catch (error) {
+        console.error("Error saving anonymous config:", error);
+      } finally {
+        setIsSaving(false);
+      }
+    };
+    return /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("div", { className: "mws-modal-container", children: /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("div", { className: "mws-modal-content", children: [
+      /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("h1", { children: "Anonymous Access Configuration" }),
+      /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("p", { children: "This configuration allows anonymous users to read and write to the wiki." }),
+      /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("form", { className: "mws-anon-config-form", onSubmit: handleSubmit, children: [
+        /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("div", { className: "mws-modal-section", children: [
+          /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(
+            "input",
+            {
+              type: "checkbox",
+              name: "allowReads",
+              checked: allowReads,
+              onChange: (e) => setAllowReads(e.target.checked)
+            }
+          ),
+          " Allow anonymous reads"
+        ] }),
+        /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("div", { className: "mws-modal-section", children: [
+          /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(
+            "input",
+            {
+              type: "checkbox",
+              name: "allowWrites",
+              checked: allowWrites,
+              onChange: (e) => setAllowWrites(e.target.checked)
+            }
+          ),
+          " Allow anonymous writes"
+        ] }),
+        /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("div", { className: "mws-modal-buttons", children: /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(
+          "button",
+          {
+            type: "submit",
+            className: "mws-modal-button-primary",
+            disabled: isSaving,
+            children: isSaving ? "Saving..." : "Save Changes"
+          }
+        ) })
+      ] })
+    ] }) });
+  };
+  var AnonConfigModal_default = AnonConfigModal;
+
+  // react-user-mgmt/src/components/Dashboard/Dashboard.tsx
+  var import_react7 = __toESM(require_react(), 1);
+
+  // react-user-mgmt/src/components/Dashboard/BagPill.tsx
+  var import_jsx_runtime5 = __toESM(require_jsx_runtime(), 1);
+  var BagPill = ({
+    bagName,
+    isTopmost = false,
+    elementTag = "span"
+  }) => {
+    const Component = elementTag;
+    const className = `mws-bag-pill ${isTopmost ? "mws-bag-pill-topmost" : ""}`;
+    return /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(Component, { className, children: /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)("a", { className: "mws-bag-pill-link", href: `/bags/${encodeURIComponent(bagName)}`, rel: "noopener noreferrer", target: "_blank", children: [
+      /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(
+        "img",
+        {
+          src: `/bags/${encodeURIComponent(bagName)}/tiddlers/%24%3A%2Ffavicon.ico?fallback=/.system/missing-favicon.png`,
+          className: "mws-favicon-small",
+          alt: "",
+          onError: ({ currentTarget }) => {
+            currentTarget.onerror = null;
+            currentTarget.src = "/missing-favicon.png";
+          }
+        }
+      ),
+      /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("span", { className: "mws-bag-pill-label", children: bagName })
+    ] }) });
+  };
+  var BagPill_default = BagPill;
+
+  // react-user-mgmt/src/components/Dashboard/WikiCard.tsx
   var import_jsx_runtime6 = __toESM(require_jsx_runtime(), 1);
+  var WikiCard = ({
+    recipeName,
+    description,
+    bagNames,
+    hasAclAccess,
+    showSystem
+  }) => {
+    const filteredBags = showSystem ? bagNames : bagNames.filter((bag) => !bag.startsWith("$:/"));
+    return /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("div", { className: "mws-wiki-card", children: [
+      /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("div", { className: "mws-wiki-card-image", children: /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(
+        "img",
+        {
+          src: `/recipes/${encodeURIComponent(recipeName)}/tiddlers/%24%3A%2Ffavicon.ico?fallback=/.system/missing-favicon.png`,
+          className: "mws-favicon",
+          alt: "",
+          onError: ({ currentTarget }) => {
+            currentTarget.onerror = null;
+            currentTarget.src = "/missing-favicon.png";
+          }
+        }
+      ) }),
+      /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("div", { className: "mws-wiki-card-content", children: [
+        /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("div", { className: "mws-wiki-card-header", children: /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(
+          "a",
+          {
+            href: `/wiki/${encodeURIComponent(recipeName)}`,
+            rel: "noopener noreferrer",
+            target: "_blank",
+            children: recipeName
+          }
+        ) }),
+        /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("div", { className: "mws-wiki-card-meta", children: filteredBags.length > 0 ? /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("ol", { className: "mws-vertical-list", children: filteredBags.reverse().map((bagName, index) => /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(
+          BagPill_default,
+          {
+            bagName,
+            isTopmost: index === 0,
+            elementTag: "li"
+          },
+          bagName
+        )) }) : "(no bags defined)" }),
+        /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("div", { className: "mws-wiki-card-description", children: description })
+      ] }),
+      /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("div", { className: "mws-wiki-card-actions", children: hasAclAccess && /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(
+        "a",
+        {
+          href: `/admin/acl/${recipeName}/${bagNames[bagNames.length - 1]}`,
+          className: "mws-wiki-card-action",
+          title: "Manage ACL",
+          children: /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("svg", { xmlns: "http://www.w3.org/2000/svg", viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2", strokeLinecap: "round", strokeLinejoin: "round", children: [
+            /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("rect", { x: "3", y: "11", width: "18", height: "11", rx: "2", ry: "2" }),
+            /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("path", { d: "M7 11V7a5 5 0 0 1 10 0v4" })
+          ] })
+        }
+      ) })
+    ] });
+  };
+  var WikiCard_default = WikiCard;
+
+  // react-user-mgmt/src/components/Dashboard/Dashboard.tsx
+  var import_react_dom = __toESM(require_react_dom(), 1);
+  var import_jsx_runtime7 = __toESM(require_jsx_runtime(), 1);
   var Dashboard = ({}) => {
-    const [result, setResult] = (0, import_react6.useState)(null);
+    const [result, setResult] = (0, import_react7.useState)(null);
     useAsyncEffect(async () => {
       setResult(await (await fetch("/index.json")).json());
     }, void 0, void 0, []);
-    return result ? /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(DashboardInner, { ...result }) : null;
+    return result ? /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(DashboardInner, { ...result }) : null;
   };
   var DashboardInner = ({
     username,
@@ -21980,10 +22005,10 @@ ${val.stack}`;
     allowReads,
     allowWrites
   }) => {
-    const [recipes, setRecipes] = (0, import_react6.useState)(initialRecipes);
-    const [bags, setBags] = (0, import_react6.useState)(initialBags);
-    const [showSystem, setShowSystem] = (0, import_react6.useState)(false);
-    const [showAnonConfig, setShowAnonConfig] = (0, import_react6.useState)(false);
+    const [recipes, setRecipes] = (0, import_react7.useState)(initialRecipes);
+    const [bags, setBags] = (0, import_react7.useState)(initialBags);
+    const [showSystem, setShowSystem] = (0, import_react7.useState)(false);
+    const [showAnonConfig, setShowAnonConfig] = (0, import_react7.useState)(false);
     userIsAdmin = userIsAdmin || false;
     const userId = user?.user_id;
     const filteredBags = showSystem ? bags : bags.filter((bag) => !bag.bag_name.startsWith("$:/"));
@@ -22011,8 +22036,8 @@ ${val.stack}`;
         console.error("Error updating URL:", error);
       }
     };
-    return /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)(import_jsx_runtime6.Fragment, { children: [
-      /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("ul", { className: "mws-vertical-list", children: recipes.map((recipe) => /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("li", { children: /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(
+    return /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)(import_jsx_runtime7.Fragment, { children: [
+      /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("ul", { className: "mws-vertical-list", children: recipes.map((recipe) => /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("li", { children: /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(
         WikiCard_default,
         {
           recipeName: recipe.recipe_name,
@@ -22022,23 +22047,23 @@ ${val.stack}`;
           showSystem
         }
       ) }, recipe.recipe_name)) }),
-      /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("form", { className: "mws-form", action: handleRecipeSubmit, children: /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)(MwsFormChild, { title: "Create a new recipe or modify an existing one", submitText: "Create or Update Recipe", children: [
-        /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(FormField, { name: "recipe_name", children: "Recipe name" }),
-        /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(FormField, { name: "description", children: "Recipe description" }),
-        /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(FormField, { name: "bag_names", children: "Bags in recipe (space separated)" })
+      /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("form", { className: "mws-form", action: handleRecipeSubmit, children: /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)(MwsFormChild, { title: "Create a new recipe or modify an existing one", submitText: "Create or Update Recipe", children: [
+        /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(FormField, { name: "recipe_name", children: "Recipe name" }),
+        /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(FormField, { name: "description", children: "Recipe description" }),
+        /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(FormField, { name: "bag_names", children: "Bags in recipe (space separated)" })
       ] }) }),
-      /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("h1", { children: "Bags" }),
-      /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("ul", { className: "mws-vertical-list", children: filteredBags.map((bag) => /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("li", { className: "mws-wiki-card", children: [
-        /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(BagPill_default, { bagName: bag.bag_name }),
-        /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("span", { children: bag.description })
+      /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("h1", { children: "Bags" }),
+      /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("ul", { className: "mws-vertical-list", children: filteredBags.map((bag) => /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("li", { className: "mws-wiki-card", children: [
+        /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(BagPill_default, { bagName: bag.bag_name }),
+        /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("span", { children: bag.description })
       ] }, bag.bag_name)) }),
-      /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("form", { className: "mws-form", action: handleBagSubmit, children: /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)(MwsFormChild, { title: "Create a new bag or modify an existing one", submitText: "Create or Update Bag", children: [
-        /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(FormField, { name: "bag_name", children: "Bag name" }),
-        /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(FormField, { name: "description", children: "Bag description" })
+      /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("form", { className: "mws-form", action: handleBagSubmit, children: /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)(MwsFormChild, { title: "Create a new bag or modify an existing one", submitText: "Create or Update Bag", children: [
+        /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(FormField, { name: "bag_name", children: "Bag name" }),
+        /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(FormField, { name: "description", children: "Bag description" })
       ] }) }),
-      /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("h1", { children: "Advanced" }),
-      /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("div", { id: "checkboxForm", children: [
-        /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(
+      /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("h1", { children: "Advanced" }),
+      /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("div", { id: "checkboxForm", children: [
+        /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(
           "input",
           {
             type: "checkbox",
@@ -22049,34 +22074,34 @@ ${val.stack}`;
             onChange: handleShowSystemChange
           }
         ),
-        /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("label", { htmlFor: "chkShowSystem", children: "Show system bags" })
+        /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("label", { htmlFor: "chkShowSystem", children: "Show system bags" })
       ] })
     ] });
   };
   function MwsFormChild({ title, submitText, children }) {
     const status = (0, import_react_dom.useFormStatus)();
-    return /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)(import_jsx_runtime6.Fragment, { children: [
-      /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("div", { className: "mws-form-heading", children: title }),
-      /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("div", { className: "mws-form-fields", children }),
-      /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("div", { className: "mws-form-buttons", children: /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("button", { type: "submit", disabled: status.pending, children: status.pending ? "Processing..." : submitText }) })
+    return /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)(import_jsx_runtime7.Fragment, { children: [
+      /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("div", { className: "mws-form-heading", children: title }),
+      /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("div", { className: "mws-form-fields", children }),
+      /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("div", { className: "mws-form-buttons", children: /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("button", { type: "submit", disabled: status.pending, children: status.pending ? "Processing..." : submitText }) })
     ] });
   }
   function FormField({ name, children }) {
-    return /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("div", { className: "mws-form-field", children: [
-      /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("label", { className: "mws-form-field-description", children }),
-      /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("input", { name, type: "text", required: true })
+    return /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("div", { className: "mws-form-field", children: [
+      /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("label", { className: "mws-form-field-description", children }),
+      /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("input", { name, type: "text", required: true })
     ] }, name);
   }
   var Dashboard_default = Dashboard;
 
-  // react-user-mgmt/src/components/UserManagement.tsx
+  // react-user-mgmt/src/components/UserList/UserManagement.tsx
+  var import_react10 = __toESM(require_react(), 1);
+
+  // react-user-mgmt/src/components/UserList/AddUserForm.tsx
   var import_react9 = __toESM(require_react(), 1);
 
-  // react-user-mgmt/src/components/AddUserForm.tsx
-  var import_react8 = __toESM(require_react(), 1);
-
   // react-user-mgmt/node_modules/react-hook-form/dist/index.esm.mjs
-  var import_react7 = __toESM(require_react(), 1);
+  var import_react8 = __toESM(require_react(), 1);
   var isCheckBoxInput = (element) => element.type === "checkbox";
   var isDateObject = (value) => value instanceof Date;
   var isNullOrUndefined = (value) => value == null;
@@ -22167,7 +22192,7 @@ ${val.stack}`;
     required: "required",
     validate: "validate"
   };
-  var HookFormContext = import_react7.default.createContext(null);
+  var HookFormContext = import_react8.default.createContext(null);
   var getProxyFormState = (formState, control, localProxyFormState, isRoot = true) => {
     const result = {
       defaultValues: control._defaultValues
@@ -22194,9 +22219,9 @@ ${val.stack}`;
   };
   var convertToArrayPayload = (value) => Array.isArray(value) ? value : [value];
   function useSubscribe(props) {
-    const _props = import_react7.default.useRef(props);
+    const _props = import_react8.default.useRef(props);
     _props.current = props;
-    import_react7.default.useEffect(() => {
+    import_react8.default.useEffect(() => {
       const subscription = !props.disabled && _props.current.subject && _props.current.subject.subscribe({
         next: _props.current.next
       });
@@ -23476,9 +23501,9 @@ ${val.stack}`;
     };
   }
   function useForm(props = {}) {
-    const _formControl = import_react7.default.useRef(void 0);
-    const _values = import_react7.default.useRef(void 0);
-    const [formState, updateFormState] = import_react7.default.useState({
+    const _formControl = import_react8.default.useRef(void 0);
+    const _values = import_react8.default.useRef(void 0);
+    const [formState, updateFormState] = import_react8.default.useState({
       isDirty: false,
       isValidating: false,
       isLoading: isFunction(props.defaultValues),
@@ -23510,8 +23535,8 @@ ${val.stack}`;
         }
       }
     });
-    import_react7.default.useEffect(() => control._disableForm(props.disabled), [control, props.disabled]);
-    import_react7.default.useEffect(() => {
+    import_react8.default.useEffect(() => control._disableForm(props.disabled), [control, props.disabled]);
+    import_react8.default.useEffect(() => {
       if (control._proxyFormState.isDirty) {
         const isDirty = control._getDirty();
         if (isDirty !== formState.isDirty) {
@@ -23521,7 +23546,7 @@ ${val.stack}`;
         }
       }
     }, [control, formState.isDirty]);
-    import_react7.default.useEffect(() => {
+    import_react8.default.useEffect(() => {
       if (props.values && !deepEqual(props.values, _values.current)) {
         control._reset(props.values, control._options.resetOptions);
         _values.current = props.values;
@@ -23530,12 +23555,12 @@ ${val.stack}`;
         control._resetDefaultValues();
       }
     }, [props.values, control]);
-    import_react7.default.useEffect(() => {
+    import_react8.default.useEffect(() => {
       if (props.errors) {
         control._setErrors(props.errors);
       }
     }, [props.errors, control]);
-    import_react7.default.useEffect(() => {
+    import_react8.default.useEffect(() => {
       if (!control._state.mount) {
         control._updateValid();
         control._state.mount = true;
@@ -23546,7 +23571,7 @@ ${val.stack}`;
       }
       control._removeUnmounted();
     });
-    import_react7.default.useEffect(() => {
+    import_react8.default.useEffect(() => {
       props.shouldUnregister && control._subjects.values.next({
         values: control._getWatch()
       });
@@ -23555,28 +23580,36 @@ ${val.stack}`;
     return _formControl.current;
   }
 
-  // react-user-mgmt/src/components/AddUserForm.tsx
-  var import_jsx_runtime7 = __toESM(require_jsx_runtime(), 1);
-  async function addNewUser(input) {
-    throw new Error("Function not implemented.");
-    const { username, email, password, confirmPassword } = input;
-    if (password !== confirmPassword) throw "Passwords do not match";
-    const createUser = await fetchPostSearchParams("/admin/post-user", { username, email });
-    if (!createUser.ok) throw await createUser.text() || "Failed to add user";
-    const userId = await createUser.json();
-    await changePassword(userId, password);
-  }
+  // react-user-mgmt/src/components/UserList/AddUserForm.tsx
+  var import_jsx_runtime8 = __toESM(require_jsx_runtime(), 1);
   var AddUserForm = () => {
-    const [error, setError] = (0, import_react8.useState)("");
-    const [success, setSuccess] = (0, import_react8.useState)("");
-    const { register, handleSubmit, watch, formState: { errors } } = useForm();
-    const onSubmit = (data) => console.log(data);
-    return /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("div", { children: [
-      /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("h1", { children: "Add New User" }),
-      /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("form", { onSubmit: handleSubmit(addNewUser), children: [
-        /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("div", { className: "mws-form-group", children: [
-          /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("label", { htmlFor: "username", children: "Username:" }),
-          /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(
+    const [error, setError] = (0, import_react9.useState)("");
+    const [success, setSuccess] = (0, import_react9.useState)("");
+    function handler(fn) {
+      return (input) => fn(input).then(
+        (e) => {
+          setSuccess(`User added`);
+          setError("");
+          reset();
+        },
+        (e) => {
+          setSuccess("");
+          setError(`${e}`);
+        }
+      );
+    }
+    const {
+      register,
+      handleSubmit,
+      formState: { errors, isSubmitting, isLoading },
+      reset
+    } = useForm();
+    return /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("div", { children: [
+      /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("h1", { children: "Add New User" }),
+      /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("form", { onSubmit: handleSubmit(handler(addNewUser)), children: [
+        /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("div", { className: "mws-form-group", children: [
+          /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("label", { htmlFor: "username", children: "Username:" }),
+          /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(
             "input",
             {
               ...register("username", { required: true }),
@@ -23587,9 +23620,9 @@ ${val.stack}`;
             }
           )
         ] }),
-        /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("div", { className: "mws-form-group", children: [
-          /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("label", { htmlFor: "email", children: "Email:" }),
-          /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(
+        /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("div", { className: "mws-form-group", children: [
+          /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("label", { htmlFor: "email", children: "Email:" }),
+          /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(
             "input",
             {
               ...register("email", { required: true }),
@@ -23600,9 +23633,9 @@ ${val.stack}`;
             }
           )
         ] }),
-        /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("div", { className: "mws-form-group", children: [
-          /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("label", { htmlFor: "password", children: "Password:" }),
-          /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(
+        /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("div", { className: "mws-form-group", children: [
+          /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("label", { htmlFor: "password", children: "Password:" }),
+          /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(
             "input",
             {
               ...register("password", { required: true }),
@@ -23613,9 +23646,9 @@ ${val.stack}`;
             }
           )
         ] }),
-        /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("div", { className: "mws-form-group", children: [
-          /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("label", { htmlFor: "confirmPassword", children: "Confirm Password:" }),
-          /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(
+        /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("div", { className: "mws-form-group", children: [
+          /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("label", { htmlFor: "confirmPassword", children: "Confirm Password:" }),
+          /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(
             "input",
             {
               ...register("confirmPassword", { required: true }),
@@ -23626,21 +23659,29 @@ ${val.stack}`;
             }
           )
         ] }),
-        error && /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("div", { className: "mws-error-message", children: error }),
-        success && /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("div", { className: "mws-success-message", children: success }),
-        /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("div", { className: "mws-form-actions", children: /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("button", { type: "submit", className: "mws-btn mws-btn-primary", children: "Add User" }) })
+        error && /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("div", { className: "mws-error-message", children: error }),
+        success && /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("div", { className: "mws-success-message", children: success }),
+        /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("div", { className: "mws-form-actions", children: /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(
+          "button",
+          {
+            type: "submit",
+            className: "mws-btn mws-btn-primary",
+            disabled: isSubmitting || isLoading,
+            children: "Add User"
+          }
+        ) })
       ] })
     ] });
   };
   var AddUserForm_default = AddUserForm;
 
-  // react-user-mgmt/src/components/UserManagement.tsx
-  var import_jsx_runtime8 = __toESM(require_jsx_runtime(), 1);
+  // react-user-mgmt/src/components/UserList/UserManagement.tsx
+  var import_jsx_runtime9 = __toESM(require_jsx_runtime(), 1);
   var UserManagement = () => {
-    const [userList, setUserList] = (0, import_react9.useState)([]);
-    const [userIsAdmin, setUserIsAdmin] = (0, import_react9.useState)(false);
-    const [firstGuestUser, setFirstGuestUser] = (0, import_react9.useState)(false);
-    const [username, setUsername] = (0, import_react9.useState)("");
+    const [userList, setUserList] = (0, import_react10.useState)([]);
+    const [userIsAdmin, setUserIsAdmin] = (0, import_react10.useState)(false);
+    const [firstGuestUser, setFirstGuestUser] = (0, import_react10.useState)(false);
+    const [username, setUsername] = (0, import_react10.useState)("");
     useAsyncEffect(async () => {
       try {
         const response = await fetch("/admin/users.json");
@@ -23653,23 +23694,23 @@ ${val.stack}`;
         console.error("Error fetching user data:", error);
       }
     }, void 0, void 0, []);
-    return /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(import_jsx_runtime8.Fragment, { children: /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("div", { className: "mws-users-container", children: [
-      userList.length > 0 ? /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("div", { className: "mws-users-list", children: userList.map((user) => /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)(
+    return /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(import_jsx_runtime9.Fragment, { children: /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)("div", { className: "mws-users-container", children: [
+      userList.length > 0 ? /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("div", { className: "mws-users-list", children: userList.map((user) => /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)(
         "a",
         {
           href: `/admin/users/${user.user_id}?q=preview`,
           className: "mws-user-item",
           children: [
-            /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("div", { className: "mws-user-info", children: [
-              /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("span", { className: "mws-user-name", children: user.username }),
-              /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("span", { className: "mws-user-email", children: user.email })
+            /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)("div", { className: "mws-user-info", children: [
+              /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("span", { className: "mws-user-name", children: user.username }),
+              /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("span", { className: "mws-user-email", children: user.email })
             ] }),
-            /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("div", { className: "mws-user-details", children: [
-              /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("span", { className: "mws-user-created", children: [
+            /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)("div", { className: "mws-user-details", children: [
+              /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)("span", { className: "mws-user-created", children: [
                 "Created: ",
                 user.created_at
               ] }),
-              /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("span", { className: "mws-user-last-login", children: [
+              /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)("span", { className: "mws-user-last-login", children: [
                 "Last Login: ",
                 user.last_login || "Never"
               ] })
@@ -23677,25 +23718,20 @@ ${val.stack}`;
           ]
         },
         user.user_id
-      )) }) : /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("div", { className: "mws-no-users-message", children: "No users found" }),
-      (userIsAdmin || firstGuestUser) && /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("div", { className: "mws-add-user-card", children: /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(AddUserForm_default, {}) })
+      )) }) : /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("div", { className: "mws-no-users-message", children: "No users found" }),
+      (userIsAdmin || firstGuestUser) && /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("div", { className: "mws-add-user-card", children: /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(AddUserForm_default, {}) })
     ] }) });
   };
   var UserManagement_default = UserManagement;
 
-  // react-user-mgmt/src/components/ManageUser.tsx
-  var import_react10 = __toESM(require_react(), 1);
-  var import_jsx_runtime9 = __toESM(require_jsx_runtime(), 1);
-  function ManageUser() {
-    const [refreshData, setRefreshData] = (0, import_react10.useState)({});
-    const [result, setResult] = (0, import_react10.useState)(null);
-    useAsyncEffect(async () => {
-      const res = await fetch(location.pathname + ".json", {});
-      if (res.status !== 200) throw new Error("Failed to fetch user data");
-      setResult(await res.json());
-    }, void 0, void 0, [refreshData]);
-    if (!result) return null;
-    return /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(ManageUserInner, { ...{
+  // react-user-mgmt/src/components/UserEdit/ManageUser.tsx
+  var import_react11 = __toESM(require_react(), 1);
+  var import_jsx_runtime10 = __toESM(require_jsx_runtime(), 1);
+  var ManageUser = DataLoader(async () => {
+    const res = await fetch(location.pathname + ".json", {});
+    if (res.status !== 200) throw new Error("Failed to fetch user data");
+    const result = await res.json();
+    return {
       user: JSON.parse(result.user),
       userRole: JSON.parse(result["user-role"]).roles[0],
       allRoles: JSON.parse(result["all-roles"]),
@@ -23703,11 +23739,9 @@ ${val.stack}`;
       isCurrentUserProfile: result["is-current-user-profile"] === "yes",
       username: result.username,
       firstGuestUser: result["first-guest-user"] === "yes",
-      userIsLoggedIn: result["user-is-logged-in"] === "yes",
-      setRefreshData
-    } });
-  }
-  var ManageUserInner = ({
+      userIsLoggedIn: result["user-is-logged-in"] === "yes"
+    };
+  }, ({
     user,
     userRole,
     allRoles,
@@ -23715,14 +23749,13 @@ ${val.stack}`;
     isCurrentUserProfile,
     username,
     firstGuestUser = false,
-    userIsLoggedIn = true,
-    setRefreshData
-  }) => {
-    const [updateError, setUpdateError] = (0, import_react10.useState)(null);
-    const [updateSuccess, setUpdateSuccess] = (0, import_react10.useState)(null);
-    const [passwordError, setPasswordError] = (0, import_react10.useState)(null);
-    const [passwordSuccess, setPasswordSuccess] = (0, import_react10.useState)(null);
-    const [deleteError, setDeleteError] = (0, import_react10.useState)(null);
+    userIsLoggedIn = true
+  }, setRefreshData, props) => {
+    const [updateError, setUpdateError] = (0, import_react11.useState)(null);
+    const [updateSuccess, setUpdateSuccess] = (0, import_react11.useState)(null);
+    const [passwordError, setPasswordError] = (0, import_react11.useState)(null);
+    const [passwordSuccess, setPasswordSuccess] = (0, import_react11.useState)(null);
+    const [deleteError, setDeleteError] = (0, import_react11.useState)(null);
     const userInitials = user.username?.[0].toUpperCase();
     const handler = (endpoint, success, error) => async (formData) => {
       const res = await fetchPostSearchParams(endpoint, formData);
@@ -23731,7 +23764,7 @@ ${val.stack}`;
         error(body);
       else {
         success(body);
-        setRefreshData({});
+        setRefreshData();
       }
     };
     const handleUpdateProfile = handler("/update-user-profile", setUpdateSuccess, setUpdateError);
@@ -23748,92 +23781,93 @@ ${val.stack}`;
         setPasswordError("Passwords do not match.");
         throw false;
       }
-      await changePassword(userId, password).then(() => {
+      await changePassword({ userId, password, confirmPassword }).then(() => {
         setPasswordSuccess("Password successfully changed.");
-        setRefreshData({});
+        setRefreshData();
       }).catch((e) => {
         setPasswordError(`${e}`);
         throw false;
       });
     };
-    return /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(import_jsx_runtime9.Fragment, { children: /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)("div", { className: "mws-main-wrapper", children: [
-      /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)("div", { className: "mws-user-profile-container", children: [
-        /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)("div", { className: "mws-user-profile-header", children: [
-          /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("div", { className: "mws-user-profile-avatar", children: userInitials }),
-          /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("h1", { className: "mws-user-profile-name", children: user.username }),
-          /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("p", { className: "mws-user-profile-email", children: user.email })
+    return /* @__PURE__ */ (0, import_jsx_runtime10.jsx)(import_jsx_runtime10.Fragment, { children: /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)("div", { className: "mws-main-wrapper", children: [
+      /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)("div", { className: "mws-user-profile-container", children: [
+        /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)("div", { className: "mws-user-profile-header", children: [
+          /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("div", { className: "mws-user-profile-avatar", children: userInitials }),
+          /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("h1", { className: "mws-user-profile-name", children: user.username }),
+          /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("p", { className: "mws-user-profile-email", children: user.email })
         ] }),
-        /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)("div", { className: "mws-user-profile-details", children: [
-          /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)("div", { className: "mws-user-profile-item", children: [
-            /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("span", { className: "mws-user-profile-label", children: "User ID:" }),
-            /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("span", { className: "mws-user-profile-value", children: user.user_id })
+        /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)("div", { className: "mws-user-profile-details", children: [
+          /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)("div", { className: "mws-user-profile-item", children: [
+            /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("span", { className: "mws-user-profile-label", children: "User ID:" }),
+            /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("span", { className: "mws-user-profile-value", children: user.user_id })
           ] }),
-          /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)("div", { className: "mws-user-profile-item", children: [
-            /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("span", { className: "mws-user-profile-label", children: "Created At:" }),
-            /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("span", { className: "mws-user-profile-value", children: user.created_at?.split("T")[0] })
+          /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)("div", { className: "mws-user-profile-item", children: [
+            /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("span", { className: "mws-user-profile-label", children: "Created At:" }),
+            /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("span", { className: "mws-user-profile-value", children: user.created_at?.split("T")[0] })
           ] }),
-          /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)("div", { className: "mws-user-profile-item", children: [
-            /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("span", { className: "mws-user-profile-label", children: "Last Login:" }),
-            /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("span", { className: "mws-user-profile-value", children: user.last_login?.split("T")[0] })
+          /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)("div", { className: "mws-user-profile-item", children: [
+            /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("span", { className: "mws-user-profile-label", children: "Last Login:" }),
+            /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("span", { className: "mws-user-profile-value", children: user.last_login?.split("T")[0] })
           ] }),
-          /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)("div", { className: "mws-user-profile-roles", children: [
-            /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("h2", { children: "User Role" }),
-            /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("ul", { children: /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("li", { children: userRole.role_name }) })
+          /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)("div", { className: "mws-user-profile-roles", children: [
+            /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("h2", { children: "User Role" }),
+            /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("ul", { children: /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("li", { children: userRole.role_name }) })
           ] })
         ] })
       ] }),
-      (userIsAdmin || isCurrentUserProfile) && /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)("div", { className: "mws-user-profile-management", children: [
-        /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("h2", { children: "Manage Account" }),
-        /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)("form", { className: "mws-user-profile-form", action: handleUpdateProfile, children: [
-          /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("input", { type: "hidden", name: "userId", value: user.user_id }),
-          /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)("div", { className: "mws-form-group", children: [
-            /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("label", { htmlFor: "username", children: "Username:" }),
-            /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("input", { type: "text", id: "username", name: "username", defaultValue: user.username, required: true })
+      (userIsAdmin || isCurrentUserProfile) && /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)("div", { className: "mws-user-profile-management", children: [
+        /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("h2", { children: "Manage Account" }),
+        /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)("form", { className: "mws-user-profile-form", action: handleUpdateProfile, children: [
+          /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("input", { type: "hidden", name: "userId", value: user.user_id }),
+          /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)("div", { className: "mws-form-group", children: [
+            /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("label", { htmlFor: "username", children: "Username:" }),
+            /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("input", { type: "text", id: "username", name: "username", defaultValue: user.username, required: true })
           ] }),
-          /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)("div", { className: "mws-form-group", children: [
-            /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("label", { htmlFor: "email", children: "Email:" }),
-            /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("input", { type: "email", id: "email", name: "email", defaultValue: user.email, required: true })
+          /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)("div", { className: "mws-form-group", children: [
+            /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("label", { htmlFor: "email", children: "Email:" }),
+            /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("input", { type: "email", id: "email", name: "email", defaultValue: user.email, required: true })
           ] }),
-          userIsAdmin && /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)("div", { className: "mws-form-group", children: [
-            /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("label", { htmlFor: "role", children: "Role:" }),
-            /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("select", { id: "role", name: "role", defaultValue: userRole.role_id, required: true, children: allRoles.map((role) => /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("option", { value: role.role_id, children: role.role_name }, role.role_id)) })
+          userIsAdmin && /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)("div", { className: "mws-form-group", children: [
+            /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("label", { htmlFor: "role", children: "Role:" }),
+            /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("select", { id: "role", name: "role", defaultValue: userRole.role_id, required: true, children: allRoles.map((role) => /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("option", { value: role.role_id, children: role.role_name }, role.role_id)) })
           ] }),
-          /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("button", { type: "submit", className: "mws-update-profile-btn", children: "Update Profile" }),
-          updateError && /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("div", { className: "mws-error-message", children: updateError }),
-          updateSuccess && /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("div", { className: "mws-success-message", children: updateSuccess })
+          /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("button", { type: "submit", className: "mws-update-profile-btn", children: "Update Profile" }),
+          updateError && /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("div", { className: "mws-error-message", children: updateError }),
+          updateSuccess && /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("div", { className: "mws-success-message", children: updateSuccess })
         ] }),
-        userIsAdmin && !isCurrentUserProfile && /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)(import_jsx_runtime9.Fragment, { children: [
-          /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("hr", {}),
-          /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)("form", { className: "mws-user-profile-form", action: handleDeleteAccount, children: [
-            /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("input", { type: "hidden", name: "userId", value: user.user_id }),
-            /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("button", { type: "submit", className: "mws-delete-account-btn", children: "Delete User Account" }),
-            deleteError && /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("div", { className: "mws-error-message", children: deleteError })
+        userIsAdmin && !isCurrentUserProfile && /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)(import_jsx_runtime10.Fragment, { children: [
+          /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("hr", {}),
+          /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)("form", { className: "mws-user-profile-form", action: handleDeleteAccount, children: [
+            /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("input", { type: "hidden", name: "userId", value: user.user_id }),
+            /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("button", { type: "submit", className: "mws-delete-account-btn", children: "Delete User Account" }),
+            deleteError && /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("div", { className: "mws-error-message", children: deleteError })
           ] })
         ] }),
-        isCurrentUserProfile && /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)(import_jsx_runtime9.Fragment, { children: [
-          /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("hr", {}),
-          /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("h2", { children: "Change Password" }),
-          /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)("form", { className: "mws-user-profile-form", action: handleChangePassword, children: [
-            /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("input", { type: "hidden", name: "userId", value: user.user_id }),
-            /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)("div", { className: "mws-form-group", children: [
-              /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("label", { htmlFor: "new-password", children: "New Password:" }),
-              /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("input", { type: "password", id: "new-password", name: "newPassword", required: true })
+        isCurrentUserProfile && /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)(import_jsx_runtime10.Fragment, { children: [
+          /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("hr", {}),
+          /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("h2", { children: "Change Password" }),
+          /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)("form", { className: "mws-user-profile-form", action: handleChangePassword, children: [
+            /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("input", { type: "hidden", name: "userId", value: user.user_id }),
+            /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)("div", { className: "mws-form-group", children: [
+              /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("label", { htmlFor: "new-password", children: "New Password:" }),
+              /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("input", { type: "password", id: "new-password", name: "newPassword", required: true })
             ] }),
-            /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)("div", { className: "mws-form-group", children: [
-              /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("label", { htmlFor: "confirm-password", children: "Confirm New Password:" }),
-              /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("input", { type: "password", id: "confirm-password", name: "confirmPassword", required: true })
+            /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)("div", { className: "mws-form-group", children: [
+              /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("label", { htmlFor: "confirm-password", children: "Confirm New Password:" }),
+              /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("input", { type: "password", id: "confirm-password", name: "confirmPassword", required: true })
             ] }),
-            /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("button", { type: "submit", className: "mws-update-password-btn", children: "Change Password" }),
-            passwordError && /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("div", { className: "mws-error-message", children: passwordError }),
-            passwordSuccess && /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("div", { className: "mws-success-message", children: passwordSuccess })
+            /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("button", { type: "submit", className: "mws-update-password-btn", children: "Change Password" }),
+            passwordError && /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("div", { className: "mws-error-message", children: passwordError }),
+            passwordSuccess && /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("div", { className: "mws-success-message", children: passwordSuccess })
           ] })
         ] })
       ] })
     ] }) });
-  };
+  });
+  var ManageUser_default = ManageUser;
 
-  // react-user-mgmt/src/components/Frame.tsx
-  var import_jsx_runtime10 = __toESM(require_jsx_runtime(), 1);
+  // react-user-mgmt/src/components/Frame/Frame.tsx
+  var import_jsx_runtime11 = __toESM(require_jsx_runtime(), 1);
   function Frame() {
     const {
       username,
@@ -23846,15 +23880,15 @@ ${val.stack}`;
       allowReads,
       allowWrites
     } = useIndexJson();
-    const [showAnonConfig, setShowAnonConfig] = (0, import_react11.useState)(false);
+    const [showAnonConfig, setShowAnonConfig] = (0, import_react12.useState)(false);
     const pages = [
-      [/^\/$/, /* @__PURE__ */ (0, import_jsx_runtime10.jsx)(Dashboard_default, {}), "Wikis Available Here"],
-      [/^\/admin\/users\/?$/, /* @__PURE__ */ (0, import_jsx_runtime10.jsx)(UserManagement_default, {}), "User Management"],
-      [/\/admin\/users\/(\d+)$/, /* @__PURE__ */ (0, import_jsx_runtime10.jsx)(ManageUser, {}), "Manage User"]
+      [/^\/$/, /* @__PURE__ */ (0, import_jsx_runtime11.jsx)(Dashboard_default, {}), "Wikis Available Here"],
+      [/^\/admin\/users\/?$/, /* @__PURE__ */ (0, import_jsx_runtime11.jsx)(UserManagement_default, {}), "User Management"],
+      [/\/admin\/users\/(\d+)$/, /* @__PURE__ */ (0, import_jsx_runtime11.jsx)(ManageUser_default, {}), "Manage User"]
     ];
     const page = pages.find(([re]) => re.test(location.pathname));
-    return /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)(import_jsx_runtime10.Fragment, { children: [
-      /* @__PURE__ */ (0, import_jsx_runtime10.jsx)(
+    return /* @__PURE__ */ (0, import_jsx_runtime11.jsxs)(import_jsx_runtime11.Fragment, { children: [
+      /* @__PURE__ */ (0, import_jsx_runtime11.jsx)(
         Header_default,
         {
           pageTitle: page ? page[2] : "TiddlyWiki",
@@ -23866,15 +23900,15 @@ ${val.stack}`;
           setShowAnonConfig
         }
       ),
-      firstGuestUser && /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("div", { className: "mws-security-warning", children: /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)("div", { className: "mws-security-warning-content", children: [
-        /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("div", { className: "mws-security-warning-icon", children: "\u26A0\uFE0F" }),
-        /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)("div", { className: "mws-security-warning-text", children: [
-          /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("strong", { children: "Warning:" }),
+      firstGuestUser && /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("div", { className: "mws-security-warning", children: /* @__PURE__ */ (0, import_jsx_runtime11.jsxs)("div", { className: "mws-security-warning-content", children: [
+        /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("div", { className: "mws-security-warning-icon", children: "\u26A0\uFE0F" }),
+        /* @__PURE__ */ (0, import_jsx_runtime11.jsxs)("div", { className: "mws-security-warning-text", children: [
+          /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("strong", { children: "Warning:" }),
           " TiddlyWiki is currently running in anonymous access mode which allows anyone with access to the server to read and modify data."
         ] }),
-        /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("div", { className: "mws-security-warning-action", children: /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("a", { href: "/admin/users", className: "mws-security-warning-button", children: "Add Admin Account" }) })
+        /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("div", { className: "mws-security-warning-action", children: /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("a", { href: "/admin/users", className: "mws-security-warning-button", children: "Add Admin Account" }) })
       ] }) }),
-      showAnonConfig && /* @__PURE__ */ (0, import_jsx_runtime10.jsx)(
+      showAnonConfig && /* @__PURE__ */ (0, import_jsx_runtime11.jsx)(
         AnonConfigModal_default,
         {
           initialAllowReads: allowReads,
@@ -23882,20 +23916,20 @@ ${val.stack}`;
           onClose: () => setShowAnonConfig(false)
         }
       ),
-      page ? /* @__PURE__ */ (0, import_jsx_runtime10.jsx)(import_jsx_runtime10.Fragment, { children: page[1] }) : /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("div", { className: "mws-error", children: "Page not found" })
+      page ? /* @__PURE__ */ (0, import_jsx_runtime11.jsx)(import_jsx_runtime11.Fragment, { children: page[1] }) : /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("div", { className: "mws-error", children: "Page not found" })
     ] });
   }
 
   // react-user-mgmt/src/main.tsx
-  var import_jsx_runtime11 = __toESM(require_jsx_runtime(), 1);
+  var import_jsx_runtime12 = __toESM(require_jsx_runtime(), 1);
   function App({ indexJson }) {
     if (!indexJson) return null;
-    return /* @__PURE__ */ (0, import_jsx_runtime11.jsx)(import_react12.StrictMode, { children: /* @__PURE__ */ (0, import_jsx_runtime11.jsx)(IndexJsonContext.Provider, { value: indexJson, children: location.pathname === "/login" ? /* @__PURE__ */ (0, import_jsx_runtime11.jsx)(Login_default, {}) : /* @__PURE__ */ (0, import_jsx_runtime11.jsx)(Frame, {}) }) });
+    return /* @__PURE__ */ (0, import_jsx_runtime12.jsx)(import_react13.StrictMode, { children: /* @__PURE__ */ (0, import_jsx_runtime12.jsx)(IndexJsonContext.Provider, { value: indexJson, children: location.pathname === "/login" ? /* @__PURE__ */ (0, import_jsx_runtime12.jsx)(Login_default, {}) : /* @__PURE__ */ (0, import_jsx_runtime12.jsx)(Frame, {}) }) });
   }
   (async () => {
     const preload = document.getElementById("index-json")?.textContent;
     const indexJson = preload ? JSON.parse(preload) : await (await fetch("/index.json")).json();
-    (0, import_client2.createRoot)(document.getElementById("root")).render(/* @__PURE__ */ (0, import_jsx_runtime11.jsx)(App, { indexJson }));
+    (0, import_client2.createRoot)(document.getElementById("root")).render(/* @__PURE__ */ (0, import_jsx_runtime12.jsx)(App, { indexJson }));
   })();
 })();
 /*! Bundled license information:
@@ -23944,6 +23978,17 @@ react-dom/cjs/react-dom-client.development.js:
    * LICENSE file in the root directory of this source tree.
    *)
 
+react/cjs/react-jsx-runtime.development.js:
+  (**
+   * @license React
+   * react-jsx-runtime.development.js
+   *
+   * Copyright (c) Meta Platforms, Inc. and affiliates.
+   *
+   * This source code is licensed under the MIT license found in the
+   * LICENSE file in the root directory of this source tree.
+   *)
+
 @prisma/client/runtime/index-browser.js:
   (*! Bundled license information:
   
@@ -23956,15 +24001,4 @@ react-dom/cjs/react-dom-client.development.js:
      *  MIT Licence
      *)
   *)
-
-react/cjs/react-jsx-runtime.development.js:
-  (**
-   * @license React
-   * react-jsx-runtime.development.js
-   *
-   * Copyright (c) Meta Platforms, Inc. and affiliates.
-   *
-   * This source code is licensed under the MIT license found in the
-   * LICENSE file in the root directory of this source tree.
-   *)
 */

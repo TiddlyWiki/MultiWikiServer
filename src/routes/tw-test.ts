@@ -8,7 +8,7 @@ export function TWRoutes(parent: rootRoute) {
     useACL: {},
     method: ["OPTIONS", "GET", "HEAD", "POST", "PUT"],
     bodyFormat: "stream",
-    path: /^\/test(\/|$)/,
+    path: /^\/mws(\/|$)/,
     pathParams: ["final_slash"]
   }, async (state) => {
     zodAssert.pathParams(state, z => ({ final_slash: z.string().optional() }));
@@ -30,33 +30,37 @@ class TWRouter {
     this.$tw.boot.argv = [
       "++plugins/client",
       "++plugins/server",
-      "./editions/mws",
-      "--mws-load-plugin-bags",
-      "--build", "load-mws-demo-data",
-      "--mws-listen", "port=5001", "host=::"
+      // "+tiddlywiki/filesystem",
+      // "+tiddlywiki/tiddlyweb",
+      "./editions/mws-server",
+      // "--mws-load-plugin-bags",
+      // "--build", "load-mws-demo-data",
+      // "--mws-listen", "port=5001", "host=::"
     ];
-    this.$tw.boot.boot();
+    this.$tw.boot.boot(() => {
 
-    // this.$tw.preloadTiddler({
-    //   text: "$protocol$//$host$" + "/test/",
-    //   title: "$:/config/tiddlyweb/host",
-    // });
-    // // Boot the TW5 app
-    // this.$tw.boot.boot(() => {
-    //   const Server = this.$tw.modules.execute("$:/core/modules/server/server.js", "router.ts").Server as typeof ServerClass;
-    //   this.twserver = new Server({
-    //     wiki: this.$tw.wiki,
-    //     variables: {
-    //       // do not use a trailing slash
-    //       "path-prefix": "/test",
-    //       "root-tiddler": "$:/core/save/all",
-    //     },
-    //     routes: [],
-    //   });
-    //   console.log(this.twserver.routes);
-    //   ; (this.$tw.hooks as IHooks).invokeHook("th-server-command-post-start", this.twserver, null, "mws");
-    // });
 
+      // this.$tw.preloadTiddler({
+      //   text: "$protocol$//$host$" + "/mws/",
+      //   title: "$:/config/tiddlyweb/host",
+      // });
+      // // Boot the TW5 app
+      // this.$tw.boot.boot(() => {
+      //   const Server = this.$tw.modules.execute("$:/core/modules/server/server.js", "router.ts").Server as typeof ServerClass;
+      //   this.twserver = new Server({
+      //     wiki: this.$tw.wiki,
+      //     variables: {
+      //       // do not use a trailing slash
+      //       "path-prefix": "/mws",
+      //       "root-tiddler": "$:/core/save/all",
+      //     },
+      //     routes: [],
+      //   });
+      //   console.log(this.twserver.routes);
+      //   ; (this.$tw.hooks as IHooks).invokeHook("th-server-command-post-start", this.twserver, null, "mws");
+      // });
+
+    });
   }
 }
 

@@ -58,12 +58,15 @@ export const route = (root) => root.defineRoute({
   }))
 
   const variables = {
-    // "show-system": state.queryParams.show_system?.[0] || "off",
     // "page-content": "$:/plugins/tiddlywiki/multiwikiserver/templates/get-index",
     "bag-list": (allowedBags),
     "recipe-list": (allowedRecipesWithWrite),
-    "username": state.authenticatedUser ? state.authenticatedUser.username : state.firstGuestUser ? "Anonymous User" : "Guest",
-    "user-is-admin": state.authenticatedUser && state.authenticatedUser.isAdmin,
+    "username": state.authenticatedUser
+      ? state.authenticatedUser.username
+      : state.firstGuestUser
+        ? "Anonymous User"
+        : "Guest",
+    "user-is-admin": !!(state.authenticatedUser && state.authenticatedUser.isAdmin),
     "first-guest-user": state.firstGuestUser,
     "show-anon-config": state.showAnonConfig,
     "user-is-logged-in": !!state.authenticatedUser,
@@ -71,11 +74,9 @@ export const route = (root) => root.defineRoute({
     "has-profile-access": !!state.authenticatedUser,
     allowReads: "yes" === state.store.adminWiki.getTiddlerText("$:/config/MultiWikiServer/AllowAnonymousReads", "undefined"),
     allowWrites: "yes" === state.store.adminWiki.getTiddlerText("$:/config/MultiWikiServer/AllowAnonymousWrites", "undefined"),
-    // showAnonymousAccessModal: state.store.adminWiki.getTiddlerText("$:/config/MultiWikiServer/ShowAnonymousAccessModal", "undefined"),
-  
   };
 
-  return state.sendString(200, {"content-type": "application/json"}, JSON.stringify(variables), "utf8");
+  return state.sendString(200, { "content-type": "application/json" }, JSON.stringify(variables), "utf8");
 
   // // Render the html
   // var html = state.store.adminWiki.renderTiddler("text/plain", "$:/plugins/tiddlywiki/multiwikiserver/templates/page", {

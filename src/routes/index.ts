@@ -6,32 +6,13 @@ import * as esbuild from "esbuild"
 import { request } from "http";
 
 
-/** 
- * The root route is specially defined in router.ts, 
- * so we don't really need to do anything here except 
- * setup the child routes. 
- */
 export default async function RootRoute(root: rootRoute) {
-  // AuthRoutes(root);
-  // TWRoutes(root);
-  // root.defineRoute({
-  //   method: ['GET'],
-  //   path: /^\/public\/(.*)/,
-  //   pathParams: ['reqpath'],
-  //   useACL: {},
-  // }, async state => {
-  //   console.log(state.pathParams.reqpath);
-  //   return state.sendFile(200, {}, {
-  //     root: 'react-user-mgmt/public',
-  //     reqpath: state.pathParams.reqpath?.trim() || 'index.html', 
-  //   });
-  // })
+  // await TWRoutes(root);
   await importDir(root, 'handlers');
   await importEsbuild(root);
 }
 async function importDir(root: rootRoute, folder: string) {
   await Promise.all(readdirSync(`src/routes/${folder}`).map(async (item) => {
-    if (item === "get-index.js") return;
     const stat = statSync(`src/routes/${folder}/${item}`);
     if (stat.isFile()) {
       const e = await import(`./${folder}/${item}`);
