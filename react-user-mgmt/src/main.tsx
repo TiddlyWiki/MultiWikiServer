@@ -1,18 +1,17 @@
-import React, { StrictMode } from 'react';
-import Dashboard from './components/Dashboard/Dashboard';
+import { StrictMode } from 'react';
 import './styles/index.css';
 import './styles/login.css';
 import { createRoot } from 'react-dom/client';
-import ManageUser from './components/UserEdit/ManageUser';
 import Login from './components/Login';
-import UserManagement from './components/UserList/UserManagement';
 import { Frame } from './components/Frame/Frame';
-import { IndexJson, IndexJsonContext } from './helpers/server-types';
+import { DataLoader } from './helpers/utils';
+import { IndexJsonContext } from './helpers/server-types';
 
 
-
-function App({ indexJson }: { indexJson: IndexJson }) {
-  if (!indexJson) return null;
+export const App = DataLoader(async () => {
+  const res = await fetch("/api/IndexJson");
+  return await res.json();
+}, (indexJson: ServerMapResponse["IndexJson"], refresh, props) => {
   return (
     <StrictMode>
       <IndexJsonContext.Provider value={indexJson}>
@@ -20,11 +19,11 @@ function App({ indexJson }: { indexJson: IndexJson }) {
       </IndexJsonContext.Provider>
     </StrictMode>
   );
-}
+});
 
 (async () => {
-  const preload = document.getElementById('index-json')?.textContent;
-  const indexJson = preload ? JSON.parse(preload) : await (await fetch("/index.json")).json();
-  createRoot(document.getElementById('root')!).render(<App indexJson={indexJson} />);
+  // const preload = document.getElementById('index-json')?.textContent;
+  // const indexJson = preload ? JSON.parse(preload) : await (await fetch("/index.json")).json();
+  createRoot(document.getElementById('root')!).render(<App />);
 })();
 

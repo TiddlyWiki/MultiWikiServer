@@ -22,10 +22,5 @@ export const route = (root) => root.defineRoute({
 		state.setHeader("Set-Cookie", cookie + "=; HttpOnly; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Strict");
 	}
 
-	// response.setHeader("Set-Cookie", "session=; HttpOnly; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT");
-	// response.setHeader("Set-Cookie", "returnUrl=; HttpOnly; Path=/");
-	// state.writeHead(302, {"Location": "/login"});
-	// state.end();
-
 	state.redirect("/login");
 });

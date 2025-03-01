@@ -68,7 +68,7 @@ export interface IndexJson {
   allowWrites: boolean;
 };
 
-export const IndexJsonContext = React.createContext<IndexJson>(null as any);
+export const IndexJsonContext = React.createContext<ServerMapResponse["IndexJson"] >(null as any);
 
 export function useIndexJson() {
   return React.useContext(IndexJsonContext);

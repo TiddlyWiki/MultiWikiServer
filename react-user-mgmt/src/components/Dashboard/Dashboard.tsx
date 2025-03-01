@@ -2,8 +2,9 @@ import React, { useState, PropsWithChildren } from 'react';
 import WikiCard from './WikiCard';
 import BagPill from './BagPill';
 import { useFormStatus } from 'react-dom';
-import { IndexJson } from '../../helpers/server-types';
+import { IndexJson, useIndexJson } from '../../helpers/server-types';
 import { useAsyncEffect } from '../../helpers/useAsyncEffect';
+import { DataLoader } from '../../helpers/utils';
 
 interface Recipe {
   recipe_name: string;
@@ -29,38 +30,13 @@ interface DashboardProps {
   initialAllowWrites: boolean;
 }
 
-const Dashboard: React.FC<{}> = ({ }) => {
-  const [result, setResult] = useState<IndexJson | null>(null);
+const Dashboard = () => {
 
-  useAsyncEffect(async () => {
-    setResult(await (await fetch("/index.json")).json());
-  }, undefined, undefined, []);
+  const indexJson = useIndexJson();
 
-  return result ? <DashboardInner {...result} /> : null;
-
-}
-
-const DashboardInner: React.FC<IndexJson> = ({
-  username,
-  "recipe-list": initialRecipes,
-  "bag-list": initialBags,
-  "user-is-admin": userIsAdmin,
-  "user-is-logged-in": userIsLoggedIn,
-  "first-guest-user": firstGuestUser,
-  user,
-  allowReads,
-  allowWrites,
-
-}) => {
-  const [recipes, setRecipes] = useState<IndexJson["recipe-list"]>(initialRecipes);
-  const [bags, setBags] = useState<IndexJson["bag-list"]>(initialBags);
+  const [recipes, setRecipes] = useState(indexJson.allowedRecipesWithWrite);
+  const [bags, setBags] = useState(indexJson.allowedBags);
   const [showSystem, setShowSystem] = useState(false);
-  const [showAnonConfig, setShowAnonConfig] = useState(false);
-
-  userIsAdmin = userIsAdmin || false;
-
-  const userId = user?.user_id;
-
 
   // Filter system bags based on showSystem state
   const filteredBags = showSystem

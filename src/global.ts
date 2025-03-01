@@ -1,4 +1,5 @@
 import { bigint, z, ZodEffects, ZodNumber, ZodString, ZodType, ZodTypeAny } from "zod";
+import { STREAM_ENDED } from "./streamer";
 import { StateObject } from "./StateObject";
 import { rootRoute } from "./router";
 import * as sql from "./store/new-sql-tiddler-database";
@@ -184,16 +185,74 @@ declare global {
        */
       onError?: (error: z.ZodError<any>) => string | void
     ): asserts state is S & ({ queryParams: z.infer<z.ZodObject<T>> });
+    /** 
+     * assert zod on the data passed to this function.
+     * If onError is not specified, or does not return STREAM_ENDED, an error 500 is sent. 
+     * Either way, zodAssert will throw STREAM_ENDED immediately.
+     * 
+     * If onError is not specified, the error will be printed with console.log.
+     */
+    function any<T extends z.ZodTypeAny, S extends StateObject>(
+      state: S, schemaShape: (zod: Z2<"boolean" | "number">) => T, data: z.infer<T>,
+      /** 
+       * If the data does not match the schema, this function is called sync'ly with the zod error.
+       * If it does not return the STREAM_ENDED symbol indicating an appropriate error response was sent, 
+       * zodAssert will throw with a 500 error.
+       * 
+       * It is perfectly valid to throw an error from this function,
+       * as zodAssert will throw STREAM_ENDED immediately if it returns.
+       * 
+       * @param error The zod error.
+       * @returns STREAM_ENDED to indicate an appropriate error response was sent, or undefined.
+       */
+      onError?: (error: z.ZodError<any>) => void | symbol
+    ): z.infer<T>;
   }
 
+  interface Z2<Extra extends "boolean" | "number" = never> extends _zod {
+    /** 
+     * Tags the resulting value as being from the specified table field.
+     * 
+     * The third argument is a string literal that specifies the field type based on the selected field.
+     * 
+     * "string" and "parse-number" 
+     * - will use decodeURIComponent on the value. 
+     * - Require a string length at least one
+     * 
+     * You can use .optional(), .nullable(), .nulish() after this to make the field optional.
+     */
+    prismaField<Table extends Prisma.ModelName, Field extends keyof PrismaPayloadScalars<Table>>(
+      table: Table, field: Field, fieldtype:
+        (PrismaPayloadScalars<Table>[Field] & {}) extends string ? "string" :
+        (PrismaPayloadScalars<Table>[Field] & {}) extends number ? ("number" & Extra) | "parse-number" :
+        (PrismaPayloadScalars<Table>[Field] & {}) extends boolean ? ("boolean" & Extra) | "parse-boolean" :
+        never,
+    ): ZodEffects<any, PrismaField<Table, Field>, PrismaPayloadScalars<Table>[Field]>
+
+  }
 }
 
+const _zodAssertAny = (
+  state: StateObject,
+  schema: (z: Z2<any>) => z.ZodTypeAny | Record<string, z.ZodTypeAny>,
+  input: any,
+  onError?: (error: z.ZodError<any>) => symbol | void,
+) => {
+  const schema2: any = schema(z2);
+  const { success, data, error } = z.any().pipe(schema2).safeParse(input);
+  if (!success) {
+    if (!onError) error.issues.forEach(e => console.log(e.message, e.path));
+    if (onError?.(error) === STREAM_ENDED) throw STREAM_ENDED;
+    throw state.sendEmpty(500, { "x-reason": "any" });
+  }
+  return data;
+}
 
 const _zodAssert = (
   input: "data" | "pathParams" | "queryParams",
   state: StateObject,
   schema: (z: Z2<any>) => z.ZodTypeAny | Record<string, z.ZodTypeAny>,
-  onError?: (error: z.ZodError<any>) => string | void
+  onError?: (error: z.ZodError<any>) => string | void,
 ) => {
 
   // this checks if the schema is a string, since that is used to indicate invalid use cases of zodAssert,
@@ -218,11 +277,6 @@ const _zodAssert = (
   state[input] = data;
 };
 
-(global as any).zodAssert = {
-  data: _zodAssert.bind(null, "data"),
-  pathParams: _zodAssert.bind(null, "pathParams"),
-  queryParams: _zodAssert.bind(null, "queryParams"),
-}
 
 const zodURIComponent = (val: string, ctx: z.RefinementCtx) => {
   try {
@@ -238,6 +292,13 @@ const zodURIComponent = (val: string, ctx: z.RefinementCtx) => {
 type _zod = typeof z;
 const z2: Z2<any> = Object.create(z);
 type ExtraFieldType = "string" | "number" | "parse-number" | "boolean" | "parse-boolean";
+(global as any).zodAssert = {
+  data: _zodAssert.bind(null, "data"),
+  pathParams: _zodAssert.bind(null, "pathParams"),
+  queryParams: _zodAssert.bind(null, "queryParams"),
+  any: _zodAssertAny,
+  zod: z2,
+}
 
 z2.prismaField = function (table: any, field: any, fieldtype: ExtraFieldType): any {
   switch (fieldtype) {
@@ -261,27 +322,6 @@ z2.prismaField = function (table: any, field: any, fieldtype: ExtraFieldType): a
 
 }
 
-interface Z2<Extra extends "boolean" | "number"> extends _zod {
-  /** 
-   * Tags the resulting value as being from the specified table field.
-   * 
-   * The third argument is a string literal that specifies the field type based on the selected field.
-   * 
-   * "string" and "parse-number" 
-   * - will use decodeURIComponent on the value. 
-   * - Require a string length at least one
-   * 
-   * You can use .optional(), .nullable(), .nulish() after this to make the field optional.
-   */
-  prismaField<Table extends Prisma.ModelName, Field extends keyof PrismaPayloadScalars<Table>>(
-    table: Table, field: Field, fieldtype:
-      (PrismaPayloadScalars<Table>[Field] & {}) extends string ? "string" :
-      (PrismaPayloadScalars<Table>[Field] & {}) extends number ? ("number" & Extra) | "parse-number" :
-      (PrismaPayloadScalars<Table>[Field] & {}) extends boolean ? ("boolean" & Extra) | "parse-boolean" :
-      never,
-  ): ZodEffects<any, PrismaField<Table, Field>, PrismaPayloadScalars<Table>[Field]>
-
-}
 
 interface ZodEffectsExtras<T extends ZodTypeAny> extends ZodEffects<T> {
 

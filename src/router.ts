@@ -1,4 +1,4 @@
-import { Streamer } from "./server";
+import { Streamer } from "./streamer";
 import { StateObject } from "./StateObject";
 import RootRoute from "./routes";
 import * as z from "zod";

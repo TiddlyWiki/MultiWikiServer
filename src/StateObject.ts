@@ -1,16 +1,11 @@
 import { Readable } from 'stream';
-import { createStrictAwaitProxy, processIncomingStream, readMultipartData, sendResponse } from './helpers';
-import { STREAM_ENDED, Streamer } from './server';
+import { createStrictAwaitProxy, filterAsync, mapAsync, processIncomingStream, readMultipartData, sendResponse } from './helpers';
+import { STREAM_ENDED, Streamer, StreamerState } from './streamer';
 import { PassThrough } from 'node:stream';
 import { AllowedMethod, BodyFormat, RouteMatch, Router } from './router';
 import { SqlTiddlerStore } from './store/new-sql-tiddler-store';
 import * as z from 'zod';
-import * as crypto from "crypto";
 import { SqlTiddlerDatabase } from './store/new-sql-tiddler-database';
-import { resolve } from 'node:path';
-import { Prisma, PrismaClient } from '@prisma/client';
-import { DefaultArgs } from '@prisma/client/runtime/library';
-import { DataChecks } from './store/data-checks';
 import { Authenticator } from './Authenticator';
 
 const authLevelNeededForMethod: Record<AllowedMethod, "readers" | "writers" | undefined> = {
@@ -35,50 +30,10 @@ export class StateObject<
   M extends AllowedMethod = AllowedMethod,
   RoutePathParams extends string[][] = string[][],
   D = unknown
-> {
-  // handler shims
-
+> extends StreamerState {
 
   z: typeof z = z;
 
-
-
-  get url() { return this.streamer.url; }
-  get method(): M { return this.streamer.method as M; }
-  get headers() { return this.streamer.headers; }
-  get host() { return this.streamer.host; }
-  get urlInfo() { return this.streamer.urlInfo; }
-  get headersSent() { return this.streamer.headersSent; }
-
-  get reader() { return this.streamer.reader; }
-  /** Currently this is based on whether the socket is secure, so a proxy will cause problems. */
-  get isSecure() { return this.streamer.isSecure; }
-
-  readBody
-  readMultipartData
-  processIncomingStream
-  sendEmpty
-  sendString
-  sendBuffer
-  sendStream
-  sendFile
-  sendResponse
-  setCookie
-  /**
-   * 
-   * Sets a single header value. If the header already exists in the to-be-sent
-   * headers, its value will be replaced. Use an array of strings to send multiple
-   * headers with the same name
-   * 
-   * When headers have been set with `response.setHeader()`, they will be merged
-   * with any headers passed to `response.writeHead()`, with the headers passed
-   * to `response.writeHead()` given precedence.
-   * 
-   */
-  setHeader
-  writeHead
-  write
-  end
 
 
   /** sends a status and plain text string body */
@@ -100,8 +55,13 @@ export class StateObject<
   get enableBrowserCache() { return this.router.enableBrowserCache; }
   get enableGzip() { return this.router.enableGzip; }
   get pathPrefix() { return this.router.pathPrefix; }
-
-
+  get method(): M { return super.method as M; }
+  readMultipartData
+  processIncomingStream
+  sendResponse
+  sendDevServer
+  mapAsync
+  filterAsync
 
   data!:
     B extends "string" ? string :
@@ -130,7 +90,7 @@ export class StateObject<
     user_id: PrismaField<"users", "user_id">,
     recipe_owner_id: PrismaField<"recipes", "owner_id"> & {},
     isAdmin: boolean,
-    username: string,
+    username: PrismaField<"users", "username">,
     sessionId: PrismaField<"sessions", "session_id">,
   } | null = null;
 
@@ -151,17 +111,18 @@ export class StateObject<
   sjcl
   config
 
-  sendDevServer
+
 
   constructor(
-    private streamer: Streamer,
+    streamer: Streamer,
     /** The array of Route tree nodes the request matched. */
     private routePath: RouteMatch[],
     /** The bodyformat that ended up taking precedence. This should be correctly typed. */
     public bodyFormat: B,
     private router: Router
   ) {
-    // this.store = this.router.$tw.mws.store;
+    super(streamer);
+
     this.databasePath = this.router.databasePath;
     this.attachmentStore = this.router.attachmentStore;
     this.adminWiki = this.router.$tw.wiki;
@@ -171,22 +132,12 @@ export class StateObject<
     this.sjcl = this.router.$tw.sjcl;
     this.config = this.router.$tw.config;
 
-
-    this.readBody = this.streamer.readBody.bind(this.streamer);
     this.readMultipartData = readMultipartData.bind(this);
     this.processIncomingStream = processIncomingStream.bind(this);
-    this.sendEmpty = this.streamer.sendEmpty.bind(this.streamer);
-    this.sendString = this.streamer.sendString.bind(this.streamer);
-    this.sendBuffer = this.streamer.sendBuffer.bind(this.streamer);
-    this.sendStream = this.streamer.sendStream.bind(this.streamer);
-    this.sendFile = this.streamer.sendFile.bind(this.streamer);
     this.sendResponse = sendResponse.bind(this.router, this);
-    this.setHeader = this.streamer.setHeader.bind(this.streamer);
-    this.writeHead = this.streamer.writeHead.bind(this.streamer);
-    this.write = this.streamer.write.bind(this.streamer);
-    this.end = this.streamer.end.bind(this.streamer);
-    this.setCookie = this.streamer.setCookie.bind(this.streamer);
     this.sendDevServer = this.router.sendDevServer.bind(this.router, this);
+    this.mapAsync = mapAsync;
+    this.filterAsync = filterAsync;
 
     this.pathParams = Object.fromEntries<string | undefined>(routePath.map(r =>
       r.route.pathParams
@@ -208,7 +159,7 @@ export class StateObject<
 
     this.auth = createStrictAwaitProxy(new Authenticator(this));
 
-    this.authLevelNeeded = authLevelNeededForMethod[this.streamer.method] ?? "writers";
+    this.authLevelNeeded = authLevelNeededForMethod[this.method] ?? "writers";
     this.authorizationType = this.authLevelNeeded;
 
   }
@@ -486,25 +437,9 @@ export class StateObject<
   };
 
 
-  async mapAsync<T, U, V>(array: T[], callback: (this: V, value: T, index: number, array: T[]) => U, thisArg?: any): Promise<U[]> {
-    const results = new Array(array.length);
-    for (let index = 0; index < array.length; index++) {
-      results[index] = await callback.call(thisArg, array[index] as T, index, array);
-    }
-    return results;
-  };
 
-  async filterAsync<T, V>(array: T[], callback: (this: V, value: T, index: number, array: T[]) => Promise<boolean>, thisArg?: any): Promise<T[]> {
-    const results = [];
-    for (let index = 0; index < array.length; index++) {
-      if (await callback.call(thisArg, array[index] as T, index, array)) {
-        results.push(array[index]);
-      }
-    }
-    return results as any;
-  }
 
-  
+
 
 }
 

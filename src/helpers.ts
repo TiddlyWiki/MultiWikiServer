@@ -1,5 +1,5 @@
 import { IncomingHttpHeaders, OutgoingHttpHeaders } from "node:http";
-import { Streamer } from "./server";
+import { Streamer } from "./streamer";
 import { StateObject } from './StateObject';
 import { createHash } from "node:crypto";
 import * as zlib from "node:zlib";
@@ -448,3 +448,20 @@ export class TypedGenerator<T extends [any, any][]> {
   throw(e: any): any { this.inner.throw(e); }
 }
 
+export async function mapAsync<T, U, V>(array: T[], callback: (this: V, value: T, index: number, array: T[]) => Promise<U>, thisArg?: any): Promise<U[]> {
+  const results = new Array(array.length);
+  for (let index = 0; index < array.length; index++) {
+    results[index] = await callback.call(thisArg, array[index] as T, index, array);
+  }
+  return results;
+};
+
+export async function filterAsync<T, V>(array: T[], callback: (this: V, value: T, index: number, array: T[]) => Promise<boolean>, thisArg?: any): Promise<T[]> {
+  const results = [];
+  for (let index = 0; index < array.length; index++) {
+    if (await callback.call(thisArg, array[index] as T, index, array)) {
+      results.push(array[index]);
+    }
+  }
+  return results as any;
+}

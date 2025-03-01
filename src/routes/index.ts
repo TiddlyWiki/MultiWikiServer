@@ -4,10 +4,12 @@ import AuthRoutes from "./auth";
 import { TWRoutes } from "./tw-test";
 import * as esbuild from "esbuild"
 import { request } from "http";
+import ApiRoutes from "./api/api";
 
 
 export default async function RootRoute(root: rootRoute) {
   // await TWRoutes(root);
+  await ApiRoutes(root);
   await importDir(root, 'handlers');
   await importEsbuild(root);
 }

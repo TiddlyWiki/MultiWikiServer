@@ -7,19 +7,19 @@ import AnonConfigModal from './AnonConfigModal';
 import Dashboard from '../Dashboard/Dashboard';
 import UserManagement from '../UserList/UserManagement';
 import ManageUser from '../UserEdit/ManageUser';
+import { DataLoader } from '../../helpers/utils';
 
-export function Frame() {
-  const {
-    username,
-    "recipe-list": initialRecipes,
-    "bag-list": initialBags,
-    "user-is-admin": userIsAdmin,
-    "user-is-logged-in": userIsLoggedIn,
-    "first-guest-user": firstGuestUser,
-    user,
-    allowReads,
-    allowWrites,
-  } = useIndexJson();
+export const Frame = (props: {}) => {
+
+  const indexJson = useIndexJson();
+
+  const username = indexJson.authUser?.username;
+  const userIsAdmin = indexJson.authUser?.isAdmin || false;
+  const userIsLoggedIn = !!indexJson.authUser;
+  const firstGuestUser = indexJson.firstGuestUser;
+  const user = indexJson.authUser;
+  const allowReads = indexJson.allowReads;
+  const allowWrites = indexJson.allowWrites;
 
   const [showAnonConfig, setShowAnonConfig] = useState(false);
 
@@ -68,4 +68,6 @@ export function Frame() {
 
 
   </>
-}
+};
+
+
