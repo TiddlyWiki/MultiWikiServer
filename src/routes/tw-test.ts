@@ -28,13 +28,15 @@ class TWRouter {
     this.$tw = TiddlyWiki();
     // tiddlywiki [+<pluginname> | ++<pluginpath>] [<wikipath>] ...[--command ...args]
     this.$tw.boot.argv = [
-      "++plugins/client",
-      "++plugins/server",
+      // "++plugins/client",
+      // "++plugins/server",
+      "++plugins/users",
       // "+tiddlywiki/filesystem",
       // "+tiddlywiki/tiddlyweb",
       "./editions/mws-server",
       // "--mws-load-plugin-bags",
       // "--build", "load-mws-demo-data",
+      "--listen", "port=5001", "host=::",
       // "--mws-listen", "port=5001", "host=::"
     ];
     this.$tw.boot.boot(() => {

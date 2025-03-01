@@ -57,23 +57,32 @@ export const route = (root) => root.defineRoute({
     )
   }))
 
+  // const variables = {
+  //   // "page-content": "$:/plugins/tiddlywiki/multiwikiserver/templates/get-index",
+  //   "bag-list": (allowedBags),
+  //   "recipe-list": (allowedRecipesWithWrite),
+  //   "username": state.authenticatedUser
+  //     ? state.authenticatedUser.username
+  //     : state.firstGuestUser
+  //       ? "Anonymous User"
+  //       : "Guest",
+  //   "user-is-admin": !!(state.authenticatedUser && state.authenticatedUser.isAdmin),
+  //   "first-guest-user": state.firstGuestUser,
+  //   "show-anon-config": state.showAnonConfig,
+  //   "user-is-logged-in": !!state.authenticatedUser,
+  //   "user": state.authenticatedUser,
+  //   "has-profile-access": !!state.authenticatedUser,
+  //   allowReads: "yes" === state.store.adminWiki.getTiddlerText("$:/config/MultiWikiServer/AllowAnonymousReads", "undefined"),
+  //   allowWrites: "yes" === state.store.adminWiki.getTiddlerText("$:/config/MultiWikiServer/AllowAnonymousWrites", "undefined"),
+  // };
+
   const variables = {
-    // "page-content": "$:/plugins/tiddlywiki/multiwikiserver/templates/get-index",
-    "bag-list": (allowedBags),
-    "recipe-list": (allowedRecipesWithWrite),
-    "username": state.authenticatedUser
-      ? state.authenticatedUser.username
-      : state.firstGuestUser
-        ? "Anonymous User"
-        : "Guest",
-    "user-is-admin": !!(state.authenticatedUser && state.authenticatedUser.isAdmin),
-    "first-guest-user": state.firstGuestUser,
-    "show-anon-config": state.showAnonConfig,
-    "user-is-logged-in": !!state.authenticatedUser,
-    "user": state.authenticatedUser,
-    "has-profile-access": !!state.authenticatedUser,
-    allowReads: "yes" === state.store.adminWiki.getTiddlerText("$:/config/MultiWikiServer/AllowAnonymousReads", "undefined"),
-    allowWrites: "yes" === state.store.adminWiki.getTiddlerText("$:/config/MultiWikiServer/AllowAnonymousWrites", "undefined"),
+    allowedBags,
+    allowedRecipesWithWrite,
+    authUser: state.authenticatedUser,
+    firstGuestUser: state.firstGuestUser,
+    showAnonConfig: state.showAnonConfig,
+
   };
 
   return state.sendString(200, { "content-type": "application/json" }, JSON.stringify(variables), "utf8");

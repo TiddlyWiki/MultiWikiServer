@@ -35,9 +35,10 @@ export async function bootTiddlyWiki(createTables: boolean, commands: boolean, w
 
   // tiddlywiki [+<pluginname> | ++<pluginpath>] [<wikipath>] ...[--command ...args]
   $tw.boot.argv = [
-    "++plugins/client",
-    "++plugins/server",
-    "++src/commands",
+    // "++plugins/client",
+    "++plugins/users",
+    // "++plugins/server",
+    // "++src/commands",
     wikiPath,
     ...commands ? [
       "--mws-load-plugin-bags",

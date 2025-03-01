@@ -1,0 +1,11 @@
+title: $:/plugins/tiddlywiki/multiwikiserver/RootTemplate
+
+<$restapiwidget 
+  handler="$:/plugins/tiddlywiki/multiwikipanel/getpagevars.js"
+  output="testdata"
+/>
+<$varsdata tiddler="testdata">
+<$view tiddler=<<page-content>> field="text" format="htmlwikified" />
+</$varsdata>
+
+

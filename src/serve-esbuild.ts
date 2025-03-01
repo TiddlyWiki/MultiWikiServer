@@ -19,6 +19,14 @@ export async function setupDevServer() {
   });
 
   return async function sendDevServer(this: Router, state: StateObject) {
+    // "root-tiddler": "$:/core/save/all",
+    // "root-render-type": "text/plain",
+    // "root-serve-type": "text/html",
+    return state.sendResponse(200, { "Content-Type": "text/html" },
+      state.adminWiki.renderTiddler("text/plain", "$:/core/save/all")
+    );
+
+
     const proxyRes = await new Promise<import("http").IncomingMessage>((resolve, reject) => {
       const headers = { ...state.headers };
       delete headers[":method"];
@@ -55,10 +63,9 @@ export async function setupDevServer() {
     state.writeHead(proxyRes.statusCode as number, proxyRes.headers);
     state.write(parts[0] as string);
     const json = await getIndexJson(state);
-    
-    state.write(`<script type="application/json" id="index-json">${
-      JSON.stringify(json).replace(/<\/script>/g, '<\\/script>')
-    }</script>`);
+
+    state.write(`<script type="application/json" id="index-json">${JSON.stringify(json).replace(/<\/script>/g, '<\\/script>')
+      }</script>`);
     state.write(parts[1] as string);
     return state.end();
   }

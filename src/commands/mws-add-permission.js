@@ -1,5 +1,3 @@
-const {PrismaClientKnownRequestError} = require("@prisma/client/runtime/library");
-
 /*\
 title: $:/plugins/tiddlywiki/multiwikiserver/commands/mws-add-permission.js
 type: application/javascript

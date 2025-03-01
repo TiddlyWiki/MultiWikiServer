@@ -7,7 +7,7 @@ import { request } from "http";
 
 
 export default async function RootRoute(root: rootRoute) {
-  // await TWRoutes(root);
+  await TWRoutes(root);
   await importDir(root, 'handlers');
   await importEsbuild(root);
 }
