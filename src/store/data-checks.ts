@@ -44,17 +44,25 @@ export class DataChecks {
     ok(sessionID, 'sessionID must not be empty');
   }
 
-  isPermissionName(permissionName: string): permissionName is ACLPermissionName {
-    return permissionName in this.permissions;
+  isPermissionName = <T extends string>(e: T): e is T & ACLPermissionName => {
+    const test = e as ACLPermissionName;
+    switch (test) {
+      case "ADMIN":
+      case "READ":
+      case "WRITE":
+        return true;
+      default: {
+        const _: never = test;
+        return false;
+      }
+    }
   }
 
-  permissions: { [K in ACLPermissionName]: K } = {
-    READ: "READ",
-    WRITE: "WRITE",
-    ADMIN: "ADMIN",
-  };
+  permissions: { [K in ACLPermissionName]: K } = { READ: "READ", WRITE: "WRITE", ADMIN: "ADMIN", };
 
 }
+
+
 
 /**
 ## assumptions about prisma that should be tested

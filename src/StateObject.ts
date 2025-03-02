@@ -438,8 +438,33 @@ export class StateObject<
 
 
 
-
-
-
 }
 
+
+export class ApiStateObject<M extends "READ" | "WRITE", Q extends Record<string, z.ZodTypeAny>> {
+  get headers() { return this.state.headers }
+
+  authenticatedUser
+  store
+  allowAnon
+  allowAnonReads
+  firstGuestUser
+  showAnonConfig
+  constructor(
+    private state: StateObject,
+    public prisma: PrismaTxnClient,
+    public methodType: M,
+    public reqData: z.infer<z.ZodObject<Q>>
+  ) {
+    if (state.method === "OPTIONS")
+      throw new Error("Invalid method");
+
+    this.store = state.createStore(prisma);
+    this.authenticatedUser = state.authenticatedUser;
+    this.allowAnon = state.allowAnon;
+    this.allowAnonReads = state.allowAnonReads;
+    this.firstGuestUser = state.firstGuestUser;
+    this.showAnonConfig = state.showAnonConfig;
+  }
+
+}

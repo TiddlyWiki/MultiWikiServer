@@ -20,7 +20,9 @@ CREATE TABLE "bags" (
     "bag_id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
     "bag_name" TEXT NOT NULL,
     "accesscontrol" TEXT,
-    "description" TEXT NOT NULL
+    "description" TEXT NOT NULL,
+    "owner_id" INTEGER,
+    CONSTRAINT "bags_owner_id_fkey" FOREIGN KEY ("owner_id") REFERENCES "users" ("user_id") ON DELETE NO ACTION ON UPDATE NO ACTION
 );
 
 -- CreateTable

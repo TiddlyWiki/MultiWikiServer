@@ -762,17 +762,7 @@ export class SqlTiddlerDatabase extends DataChecks {
 		recipeName: PrismaField<"recipes", "recipe_name">,
 		permissionName: ACLPermissionName
 	) {
-		const recipe = await this.engine.recipes.findUnique({
-			where: { recipe_name: recipeName },
-			select: { owner_id: true },
-		});
-
-		if (!recipe?.owner_id) return true;
-
-		return this.checkACLPermission(
-			userId, "recipe", recipeName, permissionName,
-			asPrismaField("users", "user_id", recipe.owner_id)
-		);
+		return this.checkACLPermission(userId, "recipe", recipeName, permissionName);
 
 		// try {
 		// 	// check if the user is the owner of the entity
@@ -804,11 +794,11 @@ export class SqlTiddlerDatabase extends DataChecks {
 		bagName: PrismaField<"bags", "bag_name">,
 		permissionName: ACLPermissionName
 	) {
-		return this.checkACLPermission(userId, "bag", bagName, permissionName, undefined);
+		return this.checkACLPermission(userId, "bag", bagName, permissionName);
 	}
 	async getACLByName<T extends EntityType>(
 		entityType: T,
-		entityName: EntityName<T>,
+		entityName: string,
 		permission_name: ACLPermissionName | undefined,
 		fetchAll: boolean
 	) {
@@ -822,11 +812,11 @@ export class SqlTiddlerDatabase extends DataChecks {
 				permission: permission_name,
 			},
 			include: {
-				role: true
+				role: true,
 			},
 			take: fetchAll ? undefined : 1
 		});
-		throw new Error("Method not implemented.");
+
 
 		// 	// First, check if there's an ACL record for the entity and get the permission_id
 		// 	var checkACLExistsQuery = `
@@ -853,40 +843,43 @@ export class SqlTiddlerDatabase extends DataChecks {
 		entity_type: T,
 		entity_name: EntityName<T>,
 		permission_name: ACLPermissionName,
-		ownerId: PrismaField<"users", "user_id"> | undefined
 	) {
 		this.okEntityType(entity_type);
 		this.okEntityName(entity_name);
 
-		// if the entityName starts with "$:/", we'll assume its a system bag/recipe, then grant the user permission
+		// if the entityName starts with "$:/", allow access
 		if (entity_name.startsWith("$:/")) { return true; }
 
-		// First, check if there's an ACL record for the entity and get the permission_id
+		const entity = await this.getEntityByName(entity_type, entity_name);
+
+		const user = await this.engine.users.findUnique({
+			where: { user_id },
+			include: { roles: true }
+		});
+		if (!user) return false;
+
+		// if it's unowned or doesn't exist, allow access
+		if (!entity.value?.owner_id) return true;
+
+		const { owner_id } = entity.value;
+
+		// if the user is the owner, allow access
+		if (user_id && owner_id && user_id === owner_id) return true;
+
+		// Check if there's any ACL records for the entity
 		const aclRecords = await this.engine.acl.findMany({
-			select: { permission: true },
 			where: { entity_name, entity_type },
 		});
-		const aclRecordForPermission = aclRecords.some(record =>
-			record.permission === permission_name
-		);
-		// TODO: ENTITY OWNER PERMISSIONS
-		// if the entity is site-level (no owner), and no acl record exists for it, return true (allow by default)
-		if (!aclRecordForPermission && !ownerId && aclRecords.length === 0) return true;
-		// if the entity is owner level, and this is the owner, return true
-		// I don't understand why we're checking for an acl. If the owner is the user, they should have access.
-		// this will deny the owner access until they setup an acl record for any user
-		if (aclRecordForPermission && ownerId && ownerId === user_id) return true;
 
-		// If ACL record exists, check for permission -> role -> user
-		return !!await this.engine.acl.count({
-			where: {
-				entity_name: entity_name,
-				entity_type: entity_type,
-				permission: permission_name,
-				role: { users: { some: { user_id } } }
-			},
-			take: 1,
-		});
+		// if the entity is site-level (no owner), and no acl record exists for it, return true (allow by default)
+		if (!owner_id && aclRecords.length === 0) return true;
+
+		const aclPermissions = aclRecords.filter(({ permission }) => permission === permission_name);
+
+		const roles = new Set(user.roles.map(role => role.role_id));
+
+		return aclPermissions.some((e) => roles.has(e.role_id));
+
 
 		// const checkPermissionQuery = `
 		// 	SELECT *
@@ -941,12 +934,18 @@ export class SqlTiddlerDatabase extends DataChecks {
 	*/
 	async getEntityByName<T extends EntityType>(
 		entity_type: T,
-		entity_name: EntityName<T>
+		entity_name: string
 	) {
 
 		switch (entity_type) {
-			case "bag": return { entity_type: "bag" as const, value: await this.engine.bags.findUnique({ where: { bag_name: entity_name } }) };
-			case "recipe": return { entity_type: "recipe" as const, value: await this.engine.recipes.findUnique({ where: { recipe_name: entity_name } }) };
+			case "bag": return {
+				entity_type: "bag" as const,
+				value: await this.engine.bags.findUnique({ where: { bag_name: entity_name } })
+			};
+			case "recipe": return {
+				entity_type: "recipe" as const,
+				value: await this.engine.recipes.findUnique({ where: { recipe_name: entity_name } })
+			};
 			default: throw new Error("Invalid entity type: " + entity_type);
 		}
 
@@ -1766,7 +1765,7 @@ export class SqlTiddlerDatabase extends DataChecks {
 	// ACL CRUD operations
 	createACL<T extends EntityType>(
 		entityType: T,
-		entityName: EntityName<T>,
+		entityName: string,
 		roleId: PrismaField<"roles", "role_id">,
 		permission: ACLPermissionName
 	) {

@@ -1483,7 +1483,7 @@
           return dispatcher;
         }
         "undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__ && "function" === typeof __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStart && __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStart(Error());
-        var React9 = require_react(), Internals = {
+        var React10 = require_react(), Internals = {
           d: {
             f: noop,
             r: function() {
@@ -1501,7 +1501,7 @@
           },
           p: 0,
           findDOMNode: null
-        }, REACT_PORTAL_TYPE = Symbol.for("react.portal"), ReactSharedInternals = React9.__CLIENT_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE;
+        }, REACT_PORTAL_TYPE = Symbol.for("react.portal"), ReactSharedInternals = React10.__CLIENT_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE;
         "function" === typeof Map && null != Map.prototype && "function" === typeof Map.prototype.forEach && "function" === typeof Set && null != Set.prototype && "function" === typeof Set.prototype.clear && "function" === typeof Set.prototype.forEach || console.error(
           "React depends on Map and Set built-in types. Make sure that you load a polyfill in older browsers. https://reactjs.org/link/react-polyfills"
         );
@@ -2957,7 +2957,7 @@
           "number" === type && getActiveElement(node.ownerDocument) === node || node.defaultValue === "" + value || (node.defaultValue = "" + value);
         }
         function validateOptionProps(element, props) {
-          null == props.value && ("object" === typeof props.children && null !== props.children ? React9.Children.forEach(props.children, function(child) {
+          null == props.value && ("object" === typeof props.children && null !== props.children ? React10.Children.forEach(props.children, function(child) {
             null == child || "string" === typeof child || "number" === typeof child || "bigint" === typeof child || didWarnInvalidChild || (didWarnInvalidChild = true, console.error(
               "Cannot infer the option value of complex children. Pass a `value` prop or use a plain string as children to <option>."
             ));
@@ -16427,13 +16427,13 @@
           ));
         }
         "undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__ && "function" === typeof __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStart && __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStart(Error());
-        var Scheduler = require_scheduler(), React9 = require_react(), ReactDOM = require_react_dom(), REACT_LEGACY_ELEMENT_TYPE = Symbol.for("react.element"), REACT_ELEMENT_TYPE = Symbol.for("react.transitional.element"), REACT_PORTAL_TYPE = Symbol.for("react.portal"), REACT_FRAGMENT_TYPE = Symbol.for("react.fragment"), REACT_STRICT_MODE_TYPE = Symbol.for("react.strict_mode"), REACT_PROFILER_TYPE = Symbol.for("react.profiler"), REACT_PROVIDER_TYPE = Symbol.for("react.provider"), REACT_CONSUMER_TYPE = Symbol.for("react.consumer"), REACT_CONTEXT_TYPE = Symbol.for("react.context"), REACT_FORWARD_REF_TYPE = Symbol.for("react.forward_ref"), REACT_SUSPENSE_TYPE = Symbol.for("react.suspense"), REACT_SUSPENSE_LIST_TYPE = Symbol.for("react.suspense_list"), REACT_MEMO_TYPE = Symbol.for("react.memo"), REACT_LAZY_TYPE = Symbol.for("react.lazy");
+        var Scheduler = require_scheduler(), React10 = require_react(), ReactDOM = require_react_dom(), REACT_LEGACY_ELEMENT_TYPE = Symbol.for("react.element"), REACT_ELEMENT_TYPE = Symbol.for("react.transitional.element"), REACT_PORTAL_TYPE = Symbol.for("react.portal"), REACT_FRAGMENT_TYPE = Symbol.for("react.fragment"), REACT_STRICT_MODE_TYPE = Symbol.for("react.strict_mode"), REACT_PROFILER_TYPE = Symbol.for("react.profiler"), REACT_PROVIDER_TYPE = Symbol.for("react.provider"), REACT_CONSUMER_TYPE = Symbol.for("react.consumer"), REACT_CONTEXT_TYPE = Symbol.for("react.context"), REACT_FORWARD_REF_TYPE = Symbol.for("react.forward_ref"), REACT_SUSPENSE_TYPE = Symbol.for("react.suspense"), REACT_SUSPENSE_LIST_TYPE = Symbol.for("react.suspense_list"), REACT_MEMO_TYPE = Symbol.for("react.memo"), REACT_LAZY_TYPE = Symbol.for("react.lazy");
         Symbol.for("react.scope");
         Symbol.for("react.debug_trace_mode");
         var REACT_OFFSCREEN_TYPE = Symbol.for("react.offscreen");
         Symbol.for("react.legacy_hidden");
         Symbol.for("react.tracing_marker");
-        var REACT_MEMO_CACHE_SENTINEL = Symbol.for("react.memo_cache_sentinel"), MAYBE_ITERATOR_SYMBOL = Symbol.iterator, REACT_CLIENT_REFERENCE = Symbol.for("react.client.reference"), ReactSharedInternals = React9.__CLIENT_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE, assign = Object.assign, disabledDepth = 0, prevLog, prevInfo, prevWarn, prevError, prevGroup, prevGroupCollapsed, prevGroupEnd;
+        var REACT_MEMO_CACHE_SENTINEL = Symbol.for("react.memo_cache_sentinel"), MAYBE_ITERATOR_SYMBOL = Symbol.iterator, REACT_CLIENT_REFERENCE = Symbol.for("react.client.reference"), ReactSharedInternals = React10.__CLIENT_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE, assign = Object.assign, disabledDepth = 0, prevLog, prevInfo, prevWarn, prevError, prevGroup, prevGroupCollapsed, prevGroupEnd;
         disabledLog.__reactDisabledLog = true;
         var prefix, suffix, reentry = false;
         var componentFrameCache = new ("function" === typeof WeakMap ? WeakMap : Map)();
@@ -19153,7 +19153,7 @@
           }
         };
         (function() {
-          var isomorphicReactPackageVersion = React9.version;
+          var isomorphicReactPackageVersion = React10.version;
           if ("19.0.0" !== isomorphicReactPackageVersion)
             throw Error(
               'Incompatible React versions: The "react" and "react-dom" packages must have the exact same version. Instead got:\n  - react:      ' + (isomorphicReactPackageVersion + "\n  - react-dom:  19.0.0\nLearn more: https://react.dev/warnings/version-mismatch")
@@ -19715,9 +19715,9 @@
           info || (parentType = getComponentNameFromType(parentType)) && (info = "\n\nCheck the top-level render call using <" + parentType + ">.");
           return info;
         }
-        var React9 = require_react(), REACT_ELEMENT_TYPE = Symbol.for("react.transitional.element"), REACT_PORTAL_TYPE = Symbol.for("react.portal"), REACT_FRAGMENT_TYPE = Symbol.for("react.fragment"), REACT_STRICT_MODE_TYPE = Symbol.for("react.strict_mode"), REACT_PROFILER_TYPE = Symbol.for("react.profiler");
+        var React10 = require_react(), REACT_ELEMENT_TYPE = Symbol.for("react.transitional.element"), REACT_PORTAL_TYPE = Symbol.for("react.portal"), REACT_FRAGMENT_TYPE = Symbol.for("react.fragment"), REACT_STRICT_MODE_TYPE = Symbol.for("react.strict_mode"), REACT_PROFILER_TYPE = Symbol.for("react.profiler");
         Symbol.for("react.provider");
-        var REACT_CONSUMER_TYPE = Symbol.for("react.consumer"), REACT_CONTEXT_TYPE = Symbol.for("react.context"), REACT_FORWARD_REF_TYPE = Symbol.for("react.forward_ref"), REACT_SUSPENSE_TYPE = Symbol.for("react.suspense"), REACT_SUSPENSE_LIST_TYPE = Symbol.for("react.suspense_list"), REACT_MEMO_TYPE = Symbol.for("react.memo"), REACT_LAZY_TYPE = Symbol.for("react.lazy"), REACT_OFFSCREEN_TYPE = Symbol.for("react.offscreen"), MAYBE_ITERATOR_SYMBOL = Symbol.iterator, REACT_CLIENT_REFERENCE$2 = Symbol.for("react.client.reference"), ReactSharedInternals = React9.__CLIENT_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE, hasOwnProperty = Object.prototype.hasOwnProperty, assign = Object.assign, REACT_CLIENT_REFERENCE$1 = Symbol.for("react.client.reference"), isArrayImpl = Array.isArray, disabledDepth = 0, prevLog, prevInfo, prevWarn, prevError, prevGroup, prevGroupCollapsed, prevGroupEnd;
+        var REACT_CONSUMER_TYPE = Symbol.for("react.consumer"), REACT_CONTEXT_TYPE = Symbol.for("react.context"), REACT_FORWARD_REF_TYPE = Symbol.for("react.forward_ref"), REACT_SUSPENSE_TYPE = Symbol.for("react.suspense"), REACT_SUSPENSE_LIST_TYPE = Symbol.for("react.suspense_list"), REACT_MEMO_TYPE = Symbol.for("react.memo"), REACT_LAZY_TYPE = Symbol.for("react.lazy"), REACT_OFFSCREEN_TYPE = Symbol.for("react.offscreen"), MAYBE_ITERATOR_SYMBOL = Symbol.iterator, REACT_CLIENT_REFERENCE$2 = Symbol.for("react.client.reference"), ReactSharedInternals = React10.__CLIENT_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE, hasOwnProperty = Object.prototype.hasOwnProperty, assign = Object.assign, REACT_CLIENT_REFERENCE$1 = Symbol.for("react.client.reference"), isArrayImpl = Array.isArray, disabledDepth = 0, prevLog, prevInfo, prevWarn, prevError, prevGroup, prevGroupCollapsed, prevGroupEnd;
         disabledLog.__reactDisabledLog = true;
         var prefix, suffix, reentry = false;
         var componentFrameCache = new ("function" === typeof WeakMap ? WeakMap : Map)();
@@ -20900,7 +20900,7 @@ If this is unexpected, please open an issue: https://pris.ly/prisma-prisma-bug-r
   });
 
   // react-user-mgmt/src/main.tsx
-  var import_react13 = __toESM(require_react(), 1);
+  var import_react14 = __toESM(require_react(), 1);
   var import_client2 = __toESM(require_client(), 1);
 
   // react-user-mgmt/src/components/Login.tsx
@@ -21720,7 +21720,7 @@ ${val.stack}`;
   var Login_default = Login;
 
   // react-user-mgmt/src/components/Frame/Frame.tsx
-  var import_react12 = __toESM(require_react(), 1);
+  var import_react13 = __toESM(require_react(), 1);
 
   // react-user-mgmt/src/components/Frame/Header.tsx
   var import_react5 = __toESM(require_react(), 1);
@@ -22174,6 +22174,7 @@ ${val.stack}`;
     validate: "validate"
   };
   var HookFormContext = import_react8.default.createContext(null);
+  var useFormContext = () => import_react8.default.useContext(HookFormContext);
   var getProxyFormState = (formState, control, localProxyFormState, isRoot = true) => {
     const result = {
       defaultValues: control._defaultValues
@@ -22199,6 +22200,7 @@ ${val.stack}`;
     return isEmptyObject(formState) || Object.keys(formState).length >= Object.keys(_proxyFormState).length || Object.keys(formState).find((key) => _proxyFormState[key] === (!isRoot || VALIDATION_MODE.all));
   };
   var convertToArrayPayload = (value) => Array.isArray(value) ? value : [value];
+  var shouldSubscribeByName = (name, signalName, exact) => !name || !signalName || name === signalName || convertToArrayPayload(name).some((currentName) => currentName && (exact ? currentName === signalName : currentName.startsWith(signalName) || signalName.startsWith(currentName)));
   function useSubscribe(props) {
     const _props = import_react8.default.useRef(props);
     _props.current = props;
@@ -22210,6 +22212,40 @@ ${val.stack}`;
         subscription && subscription.unsubscribe();
       };
     }, [props.disabled]);
+  }
+  function useFormState(props) {
+    const methods = useFormContext();
+    const { control = methods.control, disabled, name, exact } = props || {};
+    const [formState, updateFormState] = import_react8.default.useState(control._formState);
+    const _mounted = import_react8.default.useRef(true);
+    const _localProxyFormState = import_react8.default.useRef({
+      isDirty: false,
+      isLoading: false,
+      dirtyFields: false,
+      touchedFields: false,
+      validatingFields: false,
+      isValidating: false,
+      isValid: false,
+      errors: false
+    });
+    const _name = import_react8.default.useRef(name);
+    _name.current = name;
+    useSubscribe({
+      disabled,
+      next: (value) => _mounted.current && shouldSubscribeByName(_name.current, value.name, exact) && shouldRenderFormState(value, _localProxyFormState.current, control._updateFormState) && updateFormState({
+        ...control._formState,
+        ...value
+      }),
+      subject: control._subjects.state
+    });
+    import_react8.default.useEffect(() => {
+      _mounted.current = true;
+      _localProxyFormState.current.isValid && control._updateValid(true);
+      return () => {
+        _mounted.current = false;
+      };
+    }, [control]);
+    return import_react8.default.useMemo(() => getProxyFormState(formState, control, _localProxyFormState.current, false), [formState, control]);
   }
   var isString = (value) => typeof value === "string";
   var generateWatchOutput = (names, _names, formValues, isGlobal, defaultValue) => {
@@ -22223,6 +22259,138 @@ ${val.stack}`;
     isGlobal && (_names.watchAll = true);
     return formValues;
   };
+  function useWatch(props) {
+    const methods = useFormContext();
+    const { control = methods.control, name, defaultValue, disabled, exact } = props || {};
+    const _name = import_react8.default.useRef(name);
+    _name.current = name;
+    useSubscribe({
+      disabled,
+      subject: control._subjects.values,
+      next: (formState) => {
+        if (shouldSubscribeByName(_name.current, formState.name, exact)) {
+          updateValue(cloneObject(generateWatchOutput(_name.current, control._names, formState.values || control._formValues, false, defaultValue)));
+        }
+      }
+    });
+    const [value, updateValue] = import_react8.default.useState(control._getWatch(name, defaultValue));
+    import_react8.default.useEffect(() => control._removeUnmounted());
+    return value;
+  }
+  function useController(props) {
+    const methods = useFormContext();
+    const { name, disabled, control = methods.control, shouldUnregister } = props;
+    const isArrayField = isNameInFieldArray(control._names.array, name);
+    const value = useWatch({
+      control,
+      name,
+      defaultValue: get(control._formValues, name, get(control._defaultValues, name, props.defaultValue)),
+      exact: true
+    });
+    const formState = useFormState({
+      control,
+      name,
+      exact: true
+    });
+    const _registerProps = import_react8.default.useRef(control.register(name, {
+      ...props.rules,
+      value,
+      ...isBoolean(props.disabled) ? { disabled: props.disabled } : {}
+    }));
+    const fieldState = import_react8.default.useMemo(() => Object.defineProperties({}, {
+      invalid: {
+        enumerable: true,
+        get: () => !!get(formState.errors, name)
+      },
+      isDirty: {
+        enumerable: true,
+        get: () => !!get(formState.dirtyFields, name)
+      },
+      isTouched: {
+        enumerable: true,
+        get: () => !!get(formState.touchedFields, name)
+      },
+      isValidating: {
+        enumerable: true,
+        get: () => !!get(formState.validatingFields, name)
+      },
+      error: {
+        enumerable: true,
+        get: () => get(formState.errors, name)
+      }
+    }), [formState, name]);
+    const field = import_react8.default.useMemo(() => ({
+      name,
+      value,
+      ...isBoolean(disabled) || formState.disabled ? { disabled: formState.disabled || disabled } : {},
+      onChange: (event) => _registerProps.current.onChange({
+        target: {
+          value: getEventValue(event),
+          name
+        },
+        type: EVENTS.CHANGE
+      }),
+      onBlur: () => _registerProps.current.onBlur({
+        target: {
+          value: get(control._formValues, name),
+          name
+        },
+        type: EVENTS.BLUR
+      }),
+      ref: (elm) => {
+        const field2 = get(control._fields, name);
+        if (field2 && elm) {
+          field2._f.ref = {
+            focus: () => elm.focus(),
+            select: () => elm.select(),
+            setCustomValidity: (message) => elm.setCustomValidity(message),
+            reportValidity: () => elm.reportValidity()
+          };
+        }
+      }
+    }), [
+      name,
+      control._formValues,
+      disabled,
+      formState.disabled,
+      value,
+      control._fields
+    ]);
+    import_react8.default.useEffect(() => {
+      const _shouldUnregisterField = control._options.shouldUnregister || shouldUnregister;
+      const updateMounted = (name2, value2) => {
+        const field2 = get(control._fields, name2);
+        if (field2 && field2._f) {
+          field2._f.mount = value2;
+        }
+      };
+      updateMounted(name, true);
+      if (_shouldUnregisterField) {
+        const value2 = cloneObject(get(control._options.defaultValues, name));
+        set(control._defaultValues, name, value2);
+        if (isUndefined(get(control._formValues, name))) {
+          set(control._formValues, name, value2);
+        }
+      }
+      !isArrayField && control.register(name);
+      return () => {
+        (isArrayField ? _shouldUnregisterField && !control._state.action : _shouldUnregisterField) ? control.unregister(name) : updateMounted(name, false);
+      };
+    }, [name, control, isArrayField, shouldUnregister]);
+    import_react8.default.useEffect(() => {
+      control._updateDisabledField({
+        disabled,
+        fields: control._fields,
+        name
+      });
+    }, [disabled, name, control]);
+    return import_react8.default.useMemo(() => ({
+      field,
+      formState,
+      fieldState
+    }), [field, formState, fieldState]);
+  }
+  var Controller = (props) => props.render(useController(props));
   var appendErrors = (name, validateAllFieldCriteria, errors, type, message) => validateAllFieldCriteria ? {
     ...errors[name],
     types: {
@@ -23847,8 +24015,221 @@ ${val.stack}`;
   });
   var ManageUser_default = ManageUser;
 
-  // react-user-mgmt/src/components/Frame/Frame.tsx
+  // react-user-mgmt/src/components/ACL/ManageAcl.tsx
+  var import_react12 = __toESM(require_react(), 1);
   var import_jsx_runtime11 = __toESM(require_jsx_runtime(), 1);
+  var ManageAcl = DataLoader(async () => {
+    const res = await fetch(location.pathname + "/info.json", {});
+    if (res.status !== 200) throw new Error("Failed to fetch user data");
+    const result = await res.json();
+    return {
+      ...result,
+      permissions: result.permissions.map((e) => ({
+        permission_id: e,
+        permission_name: e,
+        permission_description: ""
+      }))
+    };
+  }, (result, refresh, { recipeName, bagName }) => {
+    const { recipe, bag, roles, permissions } = result;
+    const [recipeAclRecords, setRecipeAclRecords] = (0, import_react12.useState)([]);
+    const [bagAclRecords, setBagAclRecords] = (0, import_react12.useState)([]);
+    const loading = false;
+    const recipeForm = useForm({
+      defaultValues: {
+        role_id: 0,
+        permission_id: "READ"
+      }
+    });
+    const bagForm = useForm({
+      defaultValues: {
+        role_id: 0,
+        permission_id: "READ"
+      }
+    });
+    const handleAddRecipeAcl = async (data) => {
+      console.log("Adding recipe ACL:", data);
+      const roleName = roles.find((r) => r.role_id === data.role_id)?.role_name || "";
+      const permission = permissions.find((p) => p.permission_id === data.permission_id);
+      if (permission) {
+        const newRecord = {
+          acl_id: 0,
+          role_name: roleName,
+          permission_name: permission.permission_name,
+          permission_description: permission.permission_description
+        };
+        setRecipeAclRecords([...recipeAclRecords, newRecord]);
+        recipeForm.reset();
+      }
+    };
+    const handleAddBagAcl = async (data) => {
+      console.log("Adding bag ACL:", data);
+      const roleName = roles.find((r) => r.role_id === data.role_id)?.role_name || "";
+      const permission = permissions.find((p) => p.permission_id === data.permission_id);
+      if (permission) {
+        const newRecord = {
+          acl_id: 0,
+          // Generate random ID for demo
+          role_name: roleName,
+          permission_name: permission.permission_name,
+          permission_description: permission.permission_description
+        };
+        setBagAclRecords([...bagAclRecords, newRecord]);
+        bagForm.reset();
+      }
+    };
+    const handleDeleteRecipeAcl = async (aclId) => {
+      setRecipeAclRecords(recipeAclRecords.filter((record) => record.acl_id !== aclId));
+    };
+    const handleDeleteBagAcl = async (aclId) => {
+      setBagAclRecords(bagAclRecords.filter((record) => record.acl_id !== aclId));
+    };
+    if (loading) {
+      return /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("div", { children: "Loading ACL data..." });
+    }
+    return /* @__PURE__ */ (0, import_jsx_runtime11.jsxs)("div", { children: [
+      /* @__PURE__ */ (0, import_jsx_runtime11.jsxs)("div", { className: "container", children: [
+        /* @__PURE__ */ (0, import_jsx_runtime11.jsxs)("h2", { children: [
+          "Recipe ACL: ",
+          recipe.recipe_name
+        ] }),
+        /* @__PURE__ */ (0, import_jsx_runtime11.jsxs)("div", { className: "acl-section", children: [
+          /* @__PURE__ */ (0, import_jsx_runtime11.jsxs)("div", { className: "acl-form", children: [
+            /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("h3", { children: "Add Recipe ACL Record" }),
+            /* @__PURE__ */ (0, import_jsx_runtime11.jsxs)("form", { onSubmit: recipeForm.handleSubmit(handleAddRecipeAcl), children: [
+              /* @__PURE__ */ (0, import_jsx_runtime11.jsxs)("div", { className: "form-group", children: [
+                /* @__PURE__ */ (0, import_jsx_runtime11.jsx)(
+                  Controller,
+                  {
+                    name: "role_id",
+                    control: recipeForm.control,
+                    rules: { required: true },
+                    render: ({ field }) => /* @__PURE__ */ (0, import_jsx_runtime11.jsxs)("select", { ...field, className: "tc-select", children: [
+                      /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("option", { value: "", children: "Select Role" }),
+                      roles.map((role) => /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("option", { value: role.role_id, children: role.role_name }, role.role_id))
+                    ] })
+                  }
+                ),
+                recipeForm.formState.errors.role_id && /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("span", { className: "error-message", children: "Role is required" })
+              ] }),
+              /* @__PURE__ */ (0, import_jsx_runtime11.jsxs)("div", { className: "form-group", children: [
+                /* @__PURE__ */ (0, import_jsx_runtime11.jsx)(
+                  Controller,
+                  {
+                    name: "permission_id",
+                    control: recipeForm.control,
+                    rules: { required: true },
+                    render: ({ field }) => /* @__PURE__ */ (0, import_jsx_runtime11.jsxs)("select", { ...field, className: "tc-select", children: [
+                      /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("option", { value: "", children: "Select Permission" }),
+                      permissions.map((permission) => /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("option", { value: permission.permission_id, children: permission.permission_name }, permission.permission_id))
+                    ] })
+                  }
+                ),
+                recipeForm.formState.errors.permission_id && /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("span", { className: "error-message", children: "Permission is required" })
+              ] }),
+              /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("button", { type: "submit", className: "btn btn-add", children: "Add ACL Record" })
+            ] })
+          ] }),
+          /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("div", { className: "acl-table", children: /* @__PURE__ */ (0, import_jsx_runtime11.jsxs)("table", { children: [
+            /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("thead", { children: /* @__PURE__ */ (0, import_jsx_runtime11.jsxs)("tr", { children: [
+              /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("th", { children: "Role" }),
+              /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("th", { children: "Permission" }),
+              /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("th", { children: "Action" })
+            ] }) }),
+            /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("tbody", { children: recipeAclRecords.map((record) => /* @__PURE__ */ (0, import_jsx_runtime11.jsxs)("tr", { children: [
+              /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("td", { children: record.role_name }),
+              /* @__PURE__ */ (0, import_jsx_runtime11.jsxs)("td", { children: [
+                record.permission_name,
+                " (",
+                /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("small", { children: record.permission_description }),
+                ")"
+              ] }),
+              /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("td", { children: /* @__PURE__ */ (0, import_jsx_runtime11.jsx)(
+                "button",
+                {
+                  className: "btn btn-delete",
+                  onClick: () => handleDeleteRecipeAcl(record.acl_id),
+                  children: "Delete"
+                }
+              ) })
+            ] }, record.acl_id)) })
+          ] }) })
+        ] })
+      ] }),
+      /* @__PURE__ */ (0, import_jsx_runtime11.jsxs)("div", { className: "container", children: [
+        /* @__PURE__ */ (0, import_jsx_runtime11.jsxs)("h2", { children: [
+          "Bag ACL: ",
+          bag.bag_name
+        ] }),
+        /* @__PURE__ */ (0, import_jsx_runtime11.jsxs)("div", { className: "acl-section", children: [
+          /* @__PURE__ */ (0, import_jsx_runtime11.jsxs)("div", { className: "acl-form", children: [
+            /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("h3", { children: "Add Bag ACL Record" }),
+            /* @__PURE__ */ (0, import_jsx_runtime11.jsxs)("form", { onSubmit: bagForm.handleSubmit(handleAddBagAcl), children: [
+              /* @__PURE__ */ (0, import_jsx_runtime11.jsxs)("div", { className: "form-group", children: [
+                /* @__PURE__ */ (0, import_jsx_runtime11.jsx)(
+                  Controller,
+                  {
+                    name: "role_id",
+                    control: bagForm.control,
+                    rules: { required: true },
+                    render: ({ field }) => /* @__PURE__ */ (0, import_jsx_runtime11.jsxs)("select", { ...field, className: "tc-select", children: [
+                      /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("option", { value: "", children: "Select Role" }),
+                      roles.map((role) => /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("option", { value: role.role_id, children: role.role_name }, role.role_id))
+                    ] })
+                  }
+                ),
+                bagForm.formState.errors.role_id && /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("span", { className: "error-message", children: "Role is required" })
+              ] }),
+              /* @__PURE__ */ (0, import_jsx_runtime11.jsxs)("div", { className: "form-group", children: [
+                /* @__PURE__ */ (0, import_jsx_runtime11.jsx)(
+                  Controller,
+                  {
+                    name: "permission_id",
+                    control: bagForm.control,
+                    rules: { required: true },
+                    render: ({ field }) => /* @__PURE__ */ (0, import_jsx_runtime11.jsxs)("select", { ...field, className: "tc-select", children: [
+                      /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("option", { value: "", children: "Select Permission" }),
+                      permissions.map((permission) => /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("option", { value: permission.permission_id, children: permission.permission_name }, permission.permission_id))
+                    ] })
+                  }
+                ),
+                bagForm.formState.errors.permission_id && /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("span", { className: "error-message", children: "Permission is required" })
+              ] }),
+              /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("button", { type: "submit", className: "btn btn-add", children: "Add ACL Record" })
+            ] })
+          ] }),
+          /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("div", { className: "acl-table", children: /* @__PURE__ */ (0, import_jsx_runtime11.jsxs)("table", { children: [
+            /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("thead", { children: /* @__PURE__ */ (0, import_jsx_runtime11.jsxs)("tr", { children: [
+              /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("th", { children: "Role" }),
+              /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("th", { children: "Permission" }),
+              /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("th", { children: "Action" })
+            ] }) }),
+            /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("tbody", { children: bagAclRecords.map((record) => /* @__PURE__ */ (0, import_jsx_runtime11.jsxs)("tr", { children: [
+              /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("td", { children: record.role_name }),
+              /* @__PURE__ */ (0, import_jsx_runtime11.jsxs)("td", { children: [
+                record.permission_name,
+                " (",
+                /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("small", { children: record.permission_description }),
+                ")"
+              ] }),
+              /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("td", { children: /* @__PURE__ */ (0, import_jsx_runtime11.jsx)(
+                "button",
+                {
+                  className: "btn btn-delete",
+                  onClick: () => handleDeleteBagAcl(record.acl_id),
+                  children: "Delete"
+                }
+              ) })
+            ] }, record.acl_id)) })
+          ] }) })
+        ] })
+      ] })
+    ] });
+  });
+  var ManageAcl_default = ManageAcl;
+
+  // react-user-mgmt/src/components/Frame/Frame.tsx
+  var import_jsx_runtime12 = __toESM(require_jsx_runtime(), 1);
   var Frame = (props) => {
     const indexJson = useIndexJson();
     const username = indexJson.authUser?.username;
@@ -23858,18 +24239,31 @@ ${val.stack}`;
     const user = indexJson.authUser;
     const allowReads = indexJson.allowReads;
     const allowWrites = indexJson.allowWrites;
-    const [showAnonConfig, setShowAnonConfig] = (0, import_react12.useState)(false);
+    const [showAnonConfig, setShowAnonConfig] = (0, import_react13.useState)(false);
     const pages = [
-      [/^\/$/, /* @__PURE__ */ (0, import_jsx_runtime11.jsx)(Dashboard_default, {}), "Wikis Available Here"],
-      [/^\/admin\/users\/?$/, /* @__PURE__ */ (0, import_jsx_runtime11.jsx)(UserManagement_default, {}), "User Management"],
-      [/\/admin\/users\/(\d+)$/, /* @__PURE__ */ (0, import_jsx_runtime11.jsx)(ManageUser_default, {}), "Manage User"]
+      [/^\/$/, () => /* @__PURE__ */ (0, import_jsx_runtime12.jsx)(Dashboard_default, {}), "Wikis Available Here"],
+      [/^\/admin\/users\/?$/, () => /* @__PURE__ */ (0, import_jsx_runtime12.jsx)(UserManagement_default, {}), "User Management"],
+      [/\/admin\/users\/(\d+)$/, ([, user_id]) => /* @__PURE__ */ (0, import_jsx_runtime12.jsx)(ManageUser_default, { userID: user_id }), "Manage User"],
+      [
+        /^\/admin\/acl\/([^\/]+)\/([^\/]+)/,
+        ([, recipeName, bagName]) => /* @__PURE__ */ (0, import_jsx_runtime12.jsx)(
+          ManageAcl_default,
+          {
+            recipeName: decodeURIComponent(recipeName),
+            bagName: decodeURIComponent(bagName)
+          }
+        ),
+        "ACL Management"
+      ]
     ];
-    const page = pages.find(([re]) => re.test(location.pathname));
-    return /* @__PURE__ */ (0, import_jsx_runtime11.jsxs)(import_jsx_runtime11.Fragment, { children: [
-      /* @__PURE__ */ (0, import_jsx_runtime11.jsx)(
+    const matches = pages.map(([re]) => re.exec(location.pathname));
+    const index = matches.findIndex((m) => m !== null);
+    const page = index > -1 && pages[index][1](matches[index]) || null;
+    return /* @__PURE__ */ (0, import_jsx_runtime12.jsxs)(import_jsx_runtime12.Fragment, { children: [
+      /* @__PURE__ */ (0, import_jsx_runtime12.jsx)(
         Header_default,
         {
-          pageTitle: page ? page[2] : "TiddlyWiki",
+          pageTitle: page ? pages[index][2] : "TiddlyWiki",
           username,
           userIsAdmin,
           userIsLoggedIn,
@@ -23878,15 +24272,15 @@ ${val.stack}`;
           setShowAnonConfig
         }
       ),
-      firstGuestUser && /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("div", { className: "mws-security-warning", children: /* @__PURE__ */ (0, import_jsx_runtime11.jsxs)("div", { className: "mws-security-warning-content", children: [
-        /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("div", { className: "mws-security-warning-icon", children: "\u26A0\uFE0F" }),
-        /* @__PURE__ */ (0, import_jsx_runtime11.jsxs)("div", { className: "mws-security-warning-text", children: [
-          /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("strong", { children: "Warning:" }),
+      firstGuestUser && /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("div", { className: "mws-security-warning", children: /* @__PURE__ */ (0, import_jsx_runtime12.jsxs)("div", { className: "mws-security-warning-content", children: [
+        /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("div", { className: "mws-security-warning-icon", children: "\u26A0\uFE0F" }),
+        /* @__PURE__ */ (0, import_jsx_runtime12.jsxs)("div", { className: "mws-security-warning-text", children: [
+          /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("strong", { children: "Warning:" }),
           " TiddlyWiki is currently running in anonymous access mode which allows anyone with access to the server to read and modify data."
         ] }),
-        /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("div", { className: "mws-security-warning-action", children: /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("a", { href: "/admin/users", className: "mws-security-warning-button", children: "Add Admin Account" }) })
+        /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("div", { className: "mws-security-warning-action", children: /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("a", { href: "/admin/users", className: "mws-security-warning-button", children: "Add Admin Account" }) })
       ] }) }),
-      showAnonConfig && /* @__PURE__ */ (0, import_jsx_runtime11.jsx)(
+      showAnonConfig && /* @__PURE__ */ (0, import_jsx_runtime12.jsx)(
         AnonConfigModal_default,
         {
           initialAllowReads: allowReads,
@@ -23894,20 +24288,20 @@ ${val.stack}`;
           onClose: () => setShowAnonConfig(false)
         }
       ),
-      page ? /* @__PURE__ */ (0, import_jsx_runtime11.jsx)(import_jsx_runtime11.Fragment, { children: page[1] }) : /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("div", { className: "mws-error", children: "Page not found" })
+      page ?? /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("div", { className: "mws-error", children: "Page not found" })
     ] });
   };
 
   // react-user-mgmt/src/main.tsx
-  var import_jsx_runtime12 = __toESM(require_jsx_runtime(), 1);
+  var import_jsx_runtime13 = __toESM(require_jsx_runtime(), 1);
   var App = DataLoader(async () => {
     const res = await fetch("/api/IndexJson");
     return await res.json();
   }, (indexJson, refresh, props) => {
-    return /* @__PURE__ */ (0, import_jsx_runtime12.jsx)(import_react13.StrictMode, { children: /* @__PURE__ */ (0, import_jsx_runtime12.jsx)(IndexJsonContext.Provider, { value: indexJson, children: location.pathname === "/login" ? /* @__PURE__ */ (0, import_jsx_runtime12.jsx)(Login_default, {}) : /* @__PURE__ */ (0, import_jsx_runtime12.jsx)(Frame, {}) }) });
+    return /* @__PURE__ */ (0, import_jsx_runtime13.jsx)(import_react14.StrictMode, { children: /* @__PURE__ */ (0, import_jsx_runtime13.jsx)(IndexJsonContext.Provider, { value: indexJson, children: location.pathname === "/login" ? /* @__PURE__ */ (0, import_jsx_runtime13.jsx)(Login_default, {}) : /* @__PURE__ */ (0, import_jsx_runtime13.jsx)(Frame, {}) }) });
   });
   (async () => {
-    (0, import_client2.createRoot)(document.getElementById("root")).render(/* @__PURE__ */ (0, import_jsx_runtime12.jsx)(App, {}));
+    (0, import_client2.createRoot)(document.getElementById("root")).render(/* @__PURE__ */ (0, import_jsx_runtime13.jsx)(App, {}));
   })();
 })();
 /*! Bundled license information:

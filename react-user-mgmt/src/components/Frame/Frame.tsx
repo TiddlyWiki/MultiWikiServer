@@ -1,5 +1,5 @@
 
-import { useState } from 'react';
+import { ReactNode, useState } from 'react';
 import { IndexJson, useIndexJson } from '../../helpers/server-types';
 import { useAsyncEffect } from '../../helpers/useAsyncEffect';
 import Header from './Header';
@@ -8,6 +8,7 @@ import Dashboard from '../Dashboard/Dashboard';
 import UserManagement from '../UserList/UserManagement';
 import ManageUser from '../UserEdit/ManageUser';
 import { DataLoader } from '../../helpers/utils';
+import ManageAcl from '../ACL/ManageAcl';
 
 export const Frame = (props: {}) => {
 
@@ -23,17 +24,27 @@ export const Frame = (props: {}) => {
 
   const [showAnonConfig, setShowAnonConfig] = useState(false);
 
-  const pages: [RegExp, any, string][] = [
-    [/^\/$/, <Dashboard />, "Wikis Available Here"],
-    [/^\/admin\/users\/?$/, <UserManagement />, "User Management"],
-    [/\/admin\/users\/(\d+)$/, <ManageUser />, "Manage User"],
+  const pages: [RegExp, (e: RegExpExecArray) => ReactNode, string][] = [
+    [/^\/$/, () => <Dashboard />, "Wikis Available Here"],
+    [/^\/admin\/users\/?$/, () => <UserManagement />, "User Management"],
+    [/\/admin\/users\/(\d+)$/, ([, user_id]) => <ManageUser userID={user_id}/>, "Manage User"],
+    [
+      /^\/admin\/acl\/([^\/]+)\/([^\/]+)/,
+      ([, recipeName, bagName]) => <ManageAcl
+        recipeName={decodeURIComponent(recipeName) as string}
+        bagName={decodeURIComponent(bagName) as string}
+      />,
+      "ACL Management"],
+
   ];
 
-  const page = pages.find(([re]) => re.test(location.pathname));
+  const matches = pages.map(([re]) => re.exec(location.pathname));
+  const index = matches.findIndex(m => m !== null);
+  const page = index > -1 && pages[index][1](matches[index]!) || null;
 
   return <>
     <Header
-      pageTitle={page ? page[2] : "TiddlyWiki"}
+      pageTitle={page ? pages[index][2] : "TiddlyWiki"}
       username={username}
       userIsAdmin={userIsAdmin}
       userIsLoggedIn={userIsLoggedIn}
@@ -64,7 +75,7 @@ export const Frame = (props: {}) => {
       />
     )}
 
-    {page ? <>{page[1]}</> : <div className="mws-error">Page not found</div>}
+    {page ?? <div className="mws-error">Page not found</div>}
 
 
   </>

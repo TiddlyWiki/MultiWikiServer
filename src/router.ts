@@ -26,6 +26,8 @@ export type AllowedMethod = typeof AllowedMethods[number];
 export const BodyFormats = ["stream", "string", "json", "buffer", "www-form-urlencoded", "www-form-urlencoded-urlsearchparams", "ignore"] as const;
 export type BodyFormat = typeof BodyFormats[number];
 
+export const PermissionName = []
+
 
 const zodTransformJSON = (arg: string, ctx: z.RefinementCtx) => {
   try {
@@ -102,7 +104,7 @@ export class Router {
         where: { user_id: user.user_id }
       })
     }
-
+    await router.engine.acl.deleteMany();
     await router.engine.users.deleteMany();
     await router.engine.groups.deleteMany();
     await router.engine.roles.deleteMany();

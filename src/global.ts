@@ -31,6 +31,8 @@ declare global {
     // manually map foriegn keys to their corresponding primary key so comparisons work
     [T, K] extends ["acl", "role_id"] ? PrismaField<"roles", "role_id"> :
     [T, K] extends ["user_roles", "role_id"] ? PrismaField<"roles", "role_id"> :
+    [T, K] extends ["recipes", "owner_id"] ? PrismaField<"users", "user_id"> :
+    [T, K] extends ["bags", "owner_id"] ? PrismaField<"users", "user_id"> :
     (PrismaPayloadScalars<T>[K] & { __prisma_table: T, __prisma_field: K })
     | (null extends PrismaPayloadScalars<T>[K] ? null : never);
   type PrismaPayloadScalars<T extends Prisma.ModelName>
@@ -119,6 +121,7 @@ declare global { function isEntityType(value: any): value is "recipe" | "bag"; }
 
 
 declare global {
+
   namespace zodAssert {
     type Exactly<T, X> = T & Record<Exclude<keyof X, keyof T>, never>
     /** 
@@ -136,7 +139,7 @@ declare global {
         state: S, schema:
           S extends StateObject<"ignore" | "stream">
           ? "it is invalid to assert data for this body format"
-          : (zod: S extends StateObject<"www-form-urlencoded"> ? Z2<never> : Z2<"boolean" | "number">) => T,
+          : (zod: S extends StateObject<"www-form-urlencoded"> ? Z2<"STRING"> : Z2<"JSON">) => T,
         /** 
          * If the data does not match the schema, this function is called sync'ly with the zod error.
          * Whatever it returns is sent as a utf8 string response body.
@@ -155,7 +158,7 @@ declare global {
       T extends Exactly<{ [k in keyof S["pathParams"]]: z.ZodTypeAny; }, T>,
       S extends StateObject,
     >(
-      state: S, schemaShape: (zod: Z2<never>) => T,
+      state: S, schemaShape: (zod: Z2<"STRING">) => T,
       /** 
        * If the data does not match the schema, this function is called sync'ly with the zod error.
        * Whatever it returns is sent as a utf8 string response body.
@@ -176,7 +179,7 @@ declare global {
      * In zod: `z.object({ key: z.array(z.string()).optional() })`
      */
     function queryParams<T extends Record<string, z.ZodTypeAny>, S extends StateObject>(
-      state: S, schemaShape: (zod: Z2<never>) => T,
+      state: S, schemaShape: (zod: Z2<"STRING">) => T,
       /** 
        * If the data does not match the schema, this function is called sync'ly with the zod error.
        * Whatever it returns is sent as a utf8 string response body.
@@ -186,14 +189,36 @@ declare global {
       onError?: (error: z.ZodError<any>) => string | void
     ): asserts state is S & ({ queryParams: z.infer<z.ZodObject<T>> });
     /** 
-     * assert zod on the data passed to this function.
+     * assert zod on the data passed to this function and returns the cleaned data.
      * If onError is not specified, or does not return STREAM_ENDED, an error 500 is sent. 
      * Either way, zodAssert will throw STREAM_ENDED immediately.
      * 
      * If onError is not specified, the error will be printed with console.log.
      */
     function any<T extends z.ZodTypeAny, S extends StateObject>(
-      state: S, schemaShape: (zod: Z2<"boolean" | "number">) => T, data: z.infer<T>,
+      state: S, schemaShape: (zod: Z2<"JSON">) => T, data: z.infer<T>,
+      /** 
+       * If the data does not match the schema, this function is called sync'ly with the zod error.
+       * If it does not return the STREAM_ENDED symbol indicating an appropriate error response was sent, 
+       * zodAssert will throw with a 500 error.
+       * 
+       * It is perfectly valid to throw an error from this function,
+       * as zodAssert will throw STREAM_ENDED immediately if it returns.
+       * 
+       * @param error The zod error.
+       * @returns STREAM_ENDED to indicate an appropriate error response was sent, or undefined.
+       */
+      onError?: (error: z.ZodError<any>) => void | symbol
+    ): z.infer<T>;
+    /** 
+     * assert zod on the data passed to this function and returns the cleaned data.
+     * If onError is not specified, or does not return STREAM_ENDED, an error 500 is sent. 
+     * Either way, zodAssert will throw STREAM_ENDED immediately.
+     * 
+     * If onError is not specified, the error will be printed with console.log.
+     */
+    function response<T extends z.ZodTypeAny, S extends StateObject>(
+      state: S, schemaShape: (zod: Z2<"JSON">) => T, data: z.infer<T>,
       /** 
        * If the data does not match the schema, this function is called sync'ly with the zod error.
        * If it does not return the STREAM_ENDED symbol indicating an appropriate error response was sent, 
@@ -209,7 +234,7 @@ declare global {
     ): z.infer<T>;
   }
 
-  interface Z2<Extra extends "boolean" | "number" = never> extends _zod {
+  interface Z2<T extends FieldTypeGroups = never> extends _zod {
     /** 
      * Tags the resulting value as being from the specified table field.
      * 
@@ -223,27 +248,32 @@ declare global {
      */
     prismaField<Table extends Prisma.ModelName, Field extends keyof PrismaPayloadScalars<Table>>(
       table: Table, field: Field, fieldtype:
-        (PrismaPayloadScalars<Table>[Field] & {}) extends string ? "string" :
-        (PrismaPayloadScalars<Table>[Field] & {}) extends number ? ("number" & Extra) | "parse-number" :
-        (PrismaPayloadScalars<Table>[Field] & {}) extends boolean ? ("boolean" & Extra) | "parse-boolean" :
+        (PrismaPayloadScalars<Table>[Field] & {}) extends string ? FieldTypeStringSelector<T> :
+        (PrismaPayloadScalars<Table>[Field] & {}) extends number ? FieldTypeNumberSelector<T> :
+        (PrismaPayloadScalars<Table>[Field] & {}) extends boolean ? FieldTypeBooleanSelector<T> :
         never,
     ): ZodEffects<any, PrismaField<Table, Field>, PrismaPayloadScalars<Table>[Field]>
 
   }
 }
+type FieldTypeGroups = "STRING" | "JSON";
+type FieldTypeStringSelector<T extends FieldTypeGroups> = T extends "STRING" ? "string" : "string";
+type FieldTypeNumberSelector<T extends FieldTypeGroups> = T extends "STRING" ? "parse-number" : "number";
+type FieldTypeBooleanSelector<T extends FieldTypeGroups> = T extends "STRING" ? "parse-boolean" : "boolean";
 
 const _zodAssertAny = (
+  input: "any" | "response",
   state: StateObject,
   schema: (z: Z2<any>) => z.ZodTypeAny | Record<string, z.ZodTypeAny>,
-  input: any,
+  inputdata: any,
   onError?: (error: z.ZodError<any>) => symbol | void,
 ) => {
-  const schema2: any = schema(z2);
-  const { success, data, error } = z.any().pipe(schema2).safeParse(input);
+  const schema2: any = schema(makeZ2(input));
+  const { success, data, error } = z.any().pipe(schema2).safeParse(inputdata);
   if (!success) {
     if (!onError) error.issues.forEach(e => console.log(e.message, e.path));
     if (onError?.(error) === STREAM_ENDED) throw STREAM_ENDED;
-    throw state.sendEmpty(500, { "x-reason": "any" });
+    throw state.sendEmpty(500, { "x-reason": input });
   }
   return data;
 }
@@ -261,12 +291,13 @@ const _zodAssert = (
     console.log(new Error(`schema is a string: ${schema}`));
     throw state.sendEmpty(500);
   }
-  const schema2: any = schema(z2);
+  const schema2: any = schema(makeZ2(input));
 
   const { success, data, error } = z.any().pipe(
     input === "data" ? schema2 : z.object(schema2)
   ).safeParse(state[input]);
   if (!success) {
+    if (!onError) error.issues.forEach(e => console.log(e.message, e.path));
     const status = input === "pathParams" ? 404 : 400;
     const message = onError?.(error);
     if (typeof message === "string")
@@ -289,24 +320,32 @@ const zodURIComponent = (val: string, ctx: z.RefinementCtx) => {
     return z.NEVER;
   }
 }
+
 type _zod = typeof z;
-const z2: Z2<any> = Object.create(z);
 type ExtraFieldType = "string" | "number" | "parse-number" | "boolean" | "parse-boolean";
+
 (global as any).zodAssert = {
   data: _zodAssert.bind(null, "data"),
   pathParams: _zodAssert.bind(null, "pathParams"),
   queryParams: _zodAssert.bind(null, "queryParams"),
-  any: _zodAssertAny,
-  zod: z2,
+  response: _zodAssertAny.bind(null, "response"),
+  any: _zodAssertAny.bind(null, "any"),
+  zod: makeZ2("any"),
 }
 
-z2.prismaField = function (table: any, field: any, fieldtype: ExtraFieldType): any {
+function makeZ2<T extends FieldTypeGroups>(input: "data" | "pathParams" | "queryParams" | "any" | "response"): Z2<T> {
+  const z2 = Object.create(z);
+  z2.prismaField = prismaField;
+  return z2;
+}
+
+function prismaField(decode: boolean, table: any, field: any, fieldtype: ExtraFieldType): any {
   switch (fieldtype) {
     case "string":
-      return z.string().transform(zodURIComponent)
+      return z.string()
         .refine(x => x.length, { message: "String must have length" });
     case "parse-number":
-      return z.string().min(1).transform(zodURIComponent)
+      return z.string().min(1)
         .pipe(z.bigint({ coerce: true }))
         .pipe(z.number({ coerce: true }).finite())
         .refine(x => !isNaN(x), { message: "Invalid number" });
@@ -323,41 +362,6 @@ z2.prismaField = function (table: any, field: any, fieldtype: ExtraFieldType): a
 }
 
 
-interface ZodEffectsExtras<T extends ZodTypeAny> extends ZodEffects<T> {
-
-  parsedNumber(): T extends ZodType<number, any, any> ? never : ZodEffectsExtras<T>;
-}
-function classWrapper<T extends z.ZodTypeAny>(state: ZodEffects<T>): ZodEffectsExtras<T> {
-
-  const parent = Object.create(state);
-
-  parent.asPrismaField = function <
-    Table extends Prisma.ModelName,
-    Field extends keyof PrismaPayloadScalars<Table>
-  >(
-    this: typeof state,
-    table: Table,
-    field: Field
-  ) {
-    return this.refine(x => true);
-  }
-
-  parent.parsedNumber = function (this: typeof state) {
-    return this
-      .pipe(z.string().min(1))
-      .pipe(z.bigint({ coerce: true }))
-      .pipe(z.number({ coerce: true }).finite())
-  }
-  return parent;
-}
-
-function uriComponent(allowZeroLength?: boolean) {
-  return classWrapper(
-    z.string().transform(zodURIComponent)
-      .refine(x => allowZeroLength || x.length > 0, { message: "URI component cannot be empty" })
-  );
-
-}
 
 declare global {
   function each<T>(object: T[], callback: (value: T, index: number, object: T[]) => void): void;
@@ -456,3 +460,6 @@ declare global { function encodeURIComponentExtended(s: string): string; }
     return "%" + c.charCodeAt(0).toString(16).toUpperCase();
   });
 };
+
+
+

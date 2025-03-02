@@ -74,7 +74,7 @@ const ManageUser = DataLoader(async (): Promise<ManageUserProps> => {
   username,
   firstGuestUser = false,
   userIsLoggedIn = true,
-}, setRefreshData, props: {}) => {
+}, setRefreshData, props: { userID: string }) => {
 
   const [updateError, setUpdateError] = useState<string | null>(null);
   const [updateSuccess, setUpdateSuccess] = useState<string | null>(null);

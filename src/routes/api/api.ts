@@ -1,7 +1,8 @@
 import { z } from "zod";
 import { rootRoute } from "../../rootRoute";
-import { StateObject } from "../../StateObject";
+import { ApiStateObject, StateObject } from "../../StateObject";
 import { serverIndexJson } from "./IndexJson";
+import { serverCreateACL, serverDeleteACL } from "./ACL";
 
 export type ServerMap = typeof serverMap;
 export type ServerMapKeys = keyof ServerMap extends `server${infer K}` ? K : never;
@@ -14,32 +15,9 @@ export type ServerMapResponse = {
 
 const serverMap = {
   serverIndexJson,
-}
-
-class ApiStateObject<M extends "READ" | "WRITE", Q extends Record<string, z.ZodTypeAny>> {
-  method: M extends "READ" ? "GET" | "HEAD" : M extends "WRITE" ? "POST" | "PUT" | "DELETE" : never;
-
-  authenticatedUser
-  store
-  allowAnon
-  allowAnonReads
-  firstGuestUser
-  showAnonConfig
-  constructor(
-    state: StateObject<any>,
-    public reqData: z.infer<z.ZodObject<Q>> | undefined
-  ) {
-    if (state.method === "OPTIONS") throw new Error("Invalid method");
-    this.method = state.method as any;
-    this.authenticatedUser = state.authenticatedUser;
-    this.store = state.store;
-    this.allowAnon = state.allowAnon;
-    this.allowAnonReads = state.allowAnonReads;
-    this.firstGuestUser = state.firstGuestUser;
-    this.showAnonConfig = state.showAnonConfig;
-  }
-
-}
+  serverCreateACL,
+  serverDeleteACL,
+} satisfies Record<string, ServerEndpoint<any, any, any>>;
 
 export default async function ApiRoutes(parent: rootRoute) {
 
@@ -65,29 +43,54 @@ export default async function ApiRoutes(parent: rootRoute) {
       ),
     }));
 
-    const route: ServerEndpoint<"READ" | "WRITE", any, any> = serverMap[`server${state.pathParams.endpoint}`]
-    switch (route.methodType) {
-      case "READ": {
-        zodAssert.queryParams(state, route.zodRequest);
-        const res = await route.handler(new ApiStateObject(state, state.queryParams));
-        return state.sendJSON(200, zodAssert.any(state, route.zodResponse, res));
-      }
-      case "WRITE": {
-        zodAssert.data(state, route.zodRequest);
-        const res = await route.handler(new ApiStateObject(state, state.data as any));
-        return state.sendJSON(200, zodAssert.any(state, route.zodResponse, res));
-      }
-      default: {
-        // this just makes sure we didn't miss a method type
-        const _: never = route.methodType;
-        throw new Error("Invalid method type");
-      }
-    }
+    const route = serverMap[`server${state.pathParams.endpoint}`] as ServerEndpoint<"READ" | "WRITE", any, any>;
+
+    const [good, error, value] = await handleRoute(route, state)
+      .then(e => [true, undefined, e] as const, e => [false, e, undefined] as const);
+
+    if (good)
+      return state.sendJSON(200, zodAssert.response(state, route.zodResponse, value));
+    else if (typeof error === "string")
+      return state.sendSimple(400, error);
+    else
+      return state.sendSimple(500, "Internal server error");
 
   });
 }
 
+async function handleRoute(
+  route: ServerEndpoint<"READ", Record<string, z.ZodTypeAny>, any>
+    | ServerEndpoint<"WRITE", Record<string, z.ZodTypeAny>, any>,
+  state: StateObject
+) {
 
+  return await state.$transaction(async prisma => {
+
+    switch (route.methodType) {
+      case "READ": {
+        zodAssert.queryParams(state, z => route.zodRequest(z));
+        const apiState = new ApiStateObject(state, prisma, "READ", state.queryParams);
+        const value = await route.handler(apiState);
+        return zodAssert.response(state, route.zodResponse, value);
+      }
+      case "WRITE": {
+        zodAssert.data(state, z => z.object(route.zodRequest(z)));
+        const apiState = new ApiStateObject(state, prisma, "WRITE", state.data);
+        const value = await route.handler(apiState);
+        return zodAssert.response(state, route.zodResponse, value);
+      }
+      default: {
+        // this just makes sure we didn't miss a method type
+        const _: never = route;
+        throw new Error("Invalid method type");
+      }
+    }
+  })
+
+
+
+
+}
 
 export function makeEndpoint<M extends "READ" | "WRITE", Q extends Record<string, z.ZodTypeAny>, R extends z.ZodTypeAny>(
   endpoint: ServerEndpoint<M, Q, R>
@@ -100,7 +103,7 @@ interface ServerEndpoint<M extends "READ" | "WRITE", Q extends Record<string, z.
   /** 
    * A hashmap (aka object, record) of keys to Zod types. The result is passed to the handler.
    * 
-   * ### GET and HEAD requests
+   * ### READ requests (GET and HEAD)
    * 
    * For GET and HEAD requests, the server will parse query parameters into a Record<string, string[]>.
    * If parsing or validation fail, the server will return a 400 error.
@@ -113,12 +116,11 @@ interface ServerEndpoint<M extends "READ" | "WRITE", Q extends Record<string, z.
    * })
    * ```
    * 
-   * ### POST, PUT, and DELETE requests
+   * ### WRITE requests (POST, PUT)
    * 
    * For POST, PUT, and DELETE requests, the server will parse the body as JSON.
-   * If there is a body to parse, and parsing or validation fail, the server will return a 400 error.
-   * 
-   * If there is no body to parse, the handler will be called with undefined for the body.
+   * If parsing or validation fail, the server will return a 400 error.
+   * For now it's assumed that there must always be a body.
    * 
    * #### Example
    * 
@@ -128,7 +130,7 @@ interface ServerEndpoint<M extends "READ" | "WRITE", Q extends Record<string, z.
    * })
    * ```
    */
-  zodRequest: (z: Z2) => Q;
+  zodRequest: (z: M extends "WRITE" ? Z2<"JSON"> : Z2<"STRING">) => Q;
   /** 
    * A zod type (not an object like the request). 
    * The result is returned to the client as JSON. 
@@ -138,8 +140,17 @@ interface ServerEndpoint<M extends "READ" | "WRITE", Q extends Record<string, z.
    * 
    * The return type of the handler function is infered from this schema. 
    */
-  zodResponse: (z: Z2<"boolean" | "number">) => R;
-  handler: (
-    state: ApiStateObject<M, Q>
-  ) => Promise<z.infer<R>>;
+  zodResponse: (z: Z2<"JSON">) => R;
+  /**
+   * The handler returns a response which is then validated against the zodResponse schema.
+   * 
+   * If the handler throws a string, the server will return a 400 error with the string as the message.
+   * 
+   * Throwing will also rollback the transaction for the request.
+   * 
+   * If the handler throws anything other than a string, the server will return a 500 error with a generic message.
+   * 
+   * 
+   */
+  handler: (state: ApiStateObject<M, Q>) => Promise<z.infer<R>>;
 }

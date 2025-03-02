@@ -598,6 +598,92 @@ hr {
 .mws-btn-primary:hover {
   background-color: #0056b3;
 }
+.container {
+  background-color: #fff;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  padding: 20px;
+  margin-bottom: 20px;
+}
+.acl-section {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20px;
+}
+.acl-form {
+  flex: 1;
+  min-width: 250px;
+}
+.acl-table {
+  flex: 2;
+  min-width: 300px;
+}
+.acl-table table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  margin-bottom: 20px;
+}
+.acl-table th,
+.acl-table td {
+  padding: 12px;
+  text-align: left;
+  border-bottom: 1px solid #e0e0e0;
+}
+.acl-table th {
+  background-color: #f8f9fa;
+  font-weight: bold;
+}
+.btn {
+  padding: 8px 12px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: background-color 0.3s;
+}
+.btn-delete {
+  background-color: #e74c3c;
+  color: white;
+  padding: 4px 10px;
+  margin-top: 2px;
+  margin-bottom: 2px;
+}
+.btn-delete:hover {
+  background-color: #c0392b;
+}
+.btn-add {
+  background-color: #3498db;
+  color: white;
+  width: 100%;
+  margin-top: 10px;
+}
+.btn-add:hover {
+  background-color: #2980b9;
+}
+.tc-select {
+  padding: 8px;
+  margin-bottom: 10px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  width: 100%;
+}
+.error-message {
+  color: #e74c3c;
+  font-size: 0.8rem;
+  display: block;
+  margin-top: -8px;
+  margin-bottom: 10px;
+}
+@media (max-width: 768px) {
+  .acl-section {
+    flex-direction: column;
+  }
+  .acl-form,
+  .acl-table {
+    width: 100%;
+  }
+}
 @media (max-width: 768px) {
   .mws-main-wrapper {
     flex-direction: column;

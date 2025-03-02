@@ -43,7 +43,6 @@ export async function bootTiddlyWiki(createTables: boolean, commands: boolean, w
       "--mws-load-plugin-bags",
       "--build", "load-mws-demo-data",
     ] : []
-    // "--mws-listen", "port=5001", "host=::"
   ];
 
   const storePath = resolve(wikiPath, "store");

@@ -4,24 +4,24 @@ datasource db {
 }
 
 generator client {
-  provider      = "prisma-client-js"
-  binaryTargets = ["native"]
+  provider        = "prisma-client-js"
+  binaryTargets   = ["native"]
   previewFeatures = ["relationJoins", "driverAdapters"]
 }
 
 model config {
-  realm_id   Int     @id @default(autoincrement())
+  realm_id    Int     @id @default(autoincrement())
   allowReads  Boolean
   allowWrites Boolean
 }
 
 model acl {
-  acl_id        Int          @id @default(autoincrement())
-  entity_name   String
-  entity_type   String
-  role_id       Int
-  permission    String
-  role          roles?       @relation(fields: [role_id], references: [role_id], onDelete: NoAction, onUpdate: NoAction)
+  acl_id      Int    @id @default(autoincrement())
+  entity_name String
+  entity_type String
+  role_id     Int
+  permission  String
+  role        roles? @relation(fields: [role_id], references: [role_id], onDelete: NoAction, onUpdate: NoAction)
 
   @@index([entity_name])
 }
@@ -33,6 +33,8 @@ model bags {
   description   String
   recipe_bags   recipe_bags[]
   tiddlers      tiddlers[]
+  owner_id      Int?
+  owner         users?        @relation(fields: [owner_id], references: [user_id], onDelete: NoAction, onUpdate: NoAction)
 }
 
 model groups {
@@ -64,8 +66,8 @@ model recipes {
 }
 
 model roles {
-  role_id     Int           @id @default(autoincrement())
-  role_name   String        @unique()
+  role_id     Int      @id @default(autoincrement())
+  role_name   String   @unique()
   description String?
   acls        acl[]
   groups      groups[]
@@ -112,10 +114,11 @@ model users {
   username   String     @unique
   email      String     @unique
   password   String
-  created_at DateTime     @default(now())
+  created_at DateTime   @default(now())
   last_login DateTime?
   recipes    recipes[]
   sessions   sessions[]
   groups     groups[]
   roles      roles[]
+  bags       bags[]
 }

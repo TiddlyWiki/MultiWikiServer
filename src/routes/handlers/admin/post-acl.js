@@ -16,32 +16,33 @@ export const route = (root) => root.defineRoute({
 }, async state => {
 
 	zodAssert.data(state, z => z.object({
-		entity_name: z.prismaField("acl", "entity_name", "string").pipe(z.any()),
 		entity_type: z.enum(["recipe", "bag"]),
-		recipe_name: z.prismaField("recipes", "recipe_name", "string"),
-		bag_name: z.prismaField("bags", "bag_name", "string"),
+		recipe_name: z.prismaField("recipes", "recipe_name", "string").optional(),
+		bag_name: z.prismaField("bags", "bag_name", "string").optional(),
 		// I don't know why these were optional in the original code
 		role_id: z.prismaField("roles", "role_id", "parse-number"),
-		permission: z.prismaField("acl", "permission", "string").refine(e => state.store.isPermissionName(e))
+		permission_id: z.prismaField("acl", "permission", "string").refine(e => state.store.isPermissionName(e))
 	}));
 
 	const {
-		entity_name,
+		
 		entity_type,
 		recipe_name,
 		bag_name,
 		role_id,
-		permission
+		permission_id
 	} = state.data;
 
-
+	
 	var isRecipe = entity_type === "recipe"
-
+	const entity_name = isRecipe ? recipe_name : bag_name;
+	if(!entity_name) return state.sendEmpty(400);
+	
 	try {
 		var entityAclRecords = await state.store.sql.getACLByName(entity_type, entity_name, undefined, false);
 
 		var aclExists = entityAclRecords.some((record) => (
-			record.role_id == role_id && record.permission == permission
+			record.role_id == role_id && record.permission == permission_id
 		))
 
 		// This ensures that the user attempting to modify the ACL has permission to do so
@@ -58,9 +59,9 @@ export const route = (root) => root.defineRoute({
 
 		await state.store.sql.createACL(
 			entity_type,
-			isRecipe ? recipe_name : bag_name,
+			entity_name,
 			role_id,
-			permission
+			permission_id
 		)
 		return state.redirect(`/admin/acl/${recipe_name}/${bag_name}`);
 	} catch(error) {
