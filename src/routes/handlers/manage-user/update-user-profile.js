@@ -7,8 +7,10 @@ POST /update-user-profile
 
 \*/
 "use strict";
-/** @type {ServerRouteDefinition} */
-export const route = (root) => root.defineRoute({
+export const route = (
+	/** @type {rootRoute} */ root, 
+	/** @type {ZodAssert} */ zodAssert
+) => root.defineRoute({
   method: ["POST"],
   path: /^\/update-user-profile\/?$/,
   bodyFormat: "www-form-urlencoded",

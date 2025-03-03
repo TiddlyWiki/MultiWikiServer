@@ -7,8 +7,10 @@ PUT /bags/:bag_name
 
 \*/
 "use strict";
-/** @type {ServerRouteDefinition} */
-export const route = (root) => root.defineRoute({
+export const route = (
+	/** @type {rootRoute} */ root, 
+	/** @type {ZodAssert} */ zodAssert
+) => root.defineRoute({
 	method: ["PUT"],
 	path: /^\/bags\/(.+)$/,
 	bodyFormat: "json",

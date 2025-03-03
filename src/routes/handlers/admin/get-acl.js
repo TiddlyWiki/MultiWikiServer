@@ -10,9 +10,10 @@ GET /admin/acl
 /*global $tw: false */
 "use strict";
 
-
-/** @type {ServerRouteDefinition} */
-export const route = (root) => root.defineRoute({
+export const route = (
+	/** @type {rootRoute} */ root, 
+	/** @type {ZodAssert} */ zodAssert
+) => root.defineRoute({
 	method: ["GET"],
 	// not sure why there's allowed to be an unknown number of slashes between the recipe and bag names
 	// the original code was recipe_name.split("/"), then took the first and last (as in arr[arr.length-1])

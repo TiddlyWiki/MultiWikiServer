@@ -60,6 +60,10 @@ export class DataChecks {
 
   permissions: { [K in ACLPermissionName]: K } = { READ: "READ", WRITE: "WRITE", ADMIN: "ADMIN", };
 
+  isEntityType = (x: any): x is "recipe" | "bag" => ["recipe", "bag"].includes(x);
+
+  entityTypes: { [K in EntityType]: K } = { recipe: "recipe", bag: "bag" };
+
 }
 
 

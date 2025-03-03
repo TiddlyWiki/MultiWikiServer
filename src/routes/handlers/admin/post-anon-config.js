@@ -7,8 +7,10 @@ POST /admin/post-anon-config
 
 \*/
 "use strict";
-/** @type {ServerRouteDefinition} */
-export const route = (root) => root.defineRoute({
+export const route = (
+	/** @type {rootRoute} */ root, 
+	/** @type {ZodAssert} */ zodAssert
+) => root.defineRoute({
   method: ["POST"],
   path: /^\/admin\/post-anon-config\/?$/,
   bodyFormat: "www-form-urlencoded",

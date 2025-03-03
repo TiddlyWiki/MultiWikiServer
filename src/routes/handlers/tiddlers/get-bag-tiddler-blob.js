@@ -10,8 +10,10 @@ GET /bags/:bag_name/tiddler/:title/blob
 /*jslint node: true, browser: true */
 /*global $tw: false */
 "use strict";
-/** @type {ServerRouteDefinition} */
-export const route = (root) => root.defineRoute({
+export const route = (
+	/** @type {rootRoute} */ root, 
+	/** @type {ZodAssert} */ zodAssert
+) => root.defineRoute({
 	method: ["GET"],
 	path: /^\/bags\/([^\/]+)\/tiddlers\/([^\/]+)\/blob$/,
 	pathParams: ["bag_name", "title"],

@@ -12,8 +12,10 @@ POST /change-user-password
 /*global $tw: false */
 "use strict";
 
-/** @type {ServerRouteDefinition} */
-export const route = (root) => root.defineRoute({
+export const route = (
+	/** @type {rootRoute} */ root, 
+	/** @type {ZodAssert} */ zodAssert
+) => root.defineRoute({
   method: ["POST"],
   path: /^\/change-user-password\/(1|2)$/,
   pathParams: ["stage"],

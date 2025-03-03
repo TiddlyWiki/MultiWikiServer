@@ -8,8 +8,10 @@ POST /admin/post-user
 \*/
 import * as crypto from "crypto";
 "use strict";
-/** @type {ServerRouteDefinition} */
-export const route = (root) => root.defineRoute({
+export const route = (
+	/** @type {rootRoute} */ root, 
+	/** @type {ZodAssert} */ zodAssert
+) => root.defineRoute({
   method: ["POST"],
   path: /^\/admin\/post-user\/?$/,
   bodyFormat: "www-form-urlencoded",

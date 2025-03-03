@@ -13,8 +13,10 @@ bag_names: space separated list of bags
 
 \*/
 "use strict";
-/** @type {ServerRouteDefinition} */
-export const route = (root) => root.defineRoute({
+export const route = (
+	/** @type {rootRoute} */ root, 
+	/** @type {ZodAssert} */ zodAssert
+) => root.defineRoute({
 	method: ["POST"],
 	path: /^\/recipes$/,
 	bodyFormat: "www-form-urlencoded",

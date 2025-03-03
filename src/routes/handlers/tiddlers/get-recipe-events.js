@@ -12,9 +12,10 @@ Last-Event-ID:
 \*/
 "use strict";
 const SSE_HEARTBEAT_INTERVAL_MS = 10 * 1000;
-
-/** @type {ServerRouteDefinition} */
-export const route = (root) => root.defineRoute({
+export const route = (
+	/** @type {rootRoute} */ root, 
+	/** @type {ZodAssert} */ zodAssert
+) => root.defineRoute({
 	method: ["GET"],
 	path: /^\/recipes\/([^\/]+)\/events$/,
 	pathParams: ["recipe_name"],
@@ -35,7 +36,7 @@ export const route = (root) => root.defineRoute({
 	const first = (a) => Array.isArray(a) ? a[0] : a;
 
 	let last_known_tiddler_id = 0;
-	const lastEventID = asPrismaField("tiddlers", "tiddler_id", +(first(state.headers["Last-Event-ID"]) ?? 0));
+	const lastEventID = +(first(state.headers["Last-Event-ID"]) ?? 0);
 	const lastTiddlerID = state.queryParams.last_known_tiddler_id?.[0];
 	if(lastEventID) {
 		last_known_tiddler_id = lastEventID;

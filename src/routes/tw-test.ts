@@ -1,6 +1,8 @@
 import { IParseTreeNode, IServerOptions, ITiddlyWiki, Server as ServerClass, Tiddler, TiddlyWiki, Widget } from "tiddlywiki";
 import { Server } from "http";
 import { rootRoute, Router } from "../router";
+import { ZodAssert } from "../zodAssert";
+const zodAssert: ZodAssert = ZodAssert;
 
 export function TWRoutes(parent: rootRoute) {
   const wikiRouter = new TWRouter();

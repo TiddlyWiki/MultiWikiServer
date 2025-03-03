@@ -7,8 +7,10 @@ PUT /recipes/:recipe_name
 
 \*/
 "use strict";
-/** @type {ServerRouteDefinition} */
-export const route = (root) => root.defineRoute({
+export const route = (
+	/** @type {rootRoute} */ root, 
+	/** @type {ZodAssert} */ zodAssert
+) => root.defineRoute({
 	method: ["PUT"],
 	path: /^\/recipes\/(.+)$/,
 	pathParams: ["recipe_name"],

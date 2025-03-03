@@ -15,8 +15,10 @@ GET /.system/:filename
 "use strict";
 const SYSTEM_FILE_TITLE_PREFIX = "$:/plugins/tiddlywiki/multiwikiserver/system-files/";
 
-/** @type {ServerRouteDefinition} */
-export const route = (root) => root.defineRoute({
+export const route = (
+	/** @type {rootRoute} */ root, 
+	/** @type {ZodAssert} */ zodAssert
+) => root.defineRoute({
 	method: ["GET"],
 	path: /^\/\.system\/(.+)$/,
 	pathParams: ["filename"],

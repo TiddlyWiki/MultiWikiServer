@@ -1,27 +1,18 @@
 import { bigint, z, ZodEffects, ZodNumber, ZodString, ZodType, ZodTypeAny } from "zod";
 import { STREAM_ENDED } from "./streamer";
 import { StateObject } from "./StateObject";
-import { rootRoute } from "./router";
+import { rootRoute as _rootRoute } from "./router";
 import * as sql from "./store/new-sql-tiddler-database";
 import * as path from "path";
 import * as fs from "fs";
 import * as assert from "assert";
 import "../jsglobal";
 import { Prisma } from "@prisma/client";
+import { ZodAssert } from "./zodAssert";
 
-(global as any).asPrismaKey = function (table: string, field: string, value: any) { return value; };
-(global as any).asPrismaField = function (table: string, field: string, value: any) { return value; };
-(global as any).hop = function (object: any, property: any) {
-  return object ? Object.prototype.hasOwnProperty.call(object, property) : false;
-};
-
-// type PrismaPayload<T extends Prisma.ModelName> = Prisma.TypeMap["model"][T]["payload"];
 declare global {
 
-  function hop(object: any, property: any): boolean;
-  function asPrismaKey<T extends Prisma.ModelName, K extends keyof PrismaPayloadScalars<T>>(
-    table: T, field: K, value: PrismaPayloadScalars<T>[K]
-  ): PrismaKey<T, K, PrismaPayloadScalars<T>[K]>;
+
   /** 
    * If you assign values like `5 as PrismaField<"bags", "bag_name">`, 
    * this will result in a type error on the as keyword, 
@@ -29,69 +20,16 @@ declare global {
   */
   type PrismaField<T extends Prisma.ModelName, K extends keyof PrismaPayloadScalars<T>> =
     // manually map foriegn keys to their corresponding primary key so comparisons work
+    // this should remove the need for any global helper functions to convert between types
     [T, K] extends ["acl", "role_id"] ? PrismaField<"roles", "role_id"> :
     [T, K] extends ["user_roles", "role_id"] ? PrismaField<"roles", "role_id"> :
     [T, K] extends ["recipes", "owner_id"] ? PrismaField<"users", "user_id"> :
     [T, K] extends ["bags", "owner_id"] ? PrismaField<"users", "user_id"> :
     (PrismaPayloadScalars<T>[K] & { __prisma_table: T, __prisma_field: K })
     | (null extends PrismaPayloadScalars<T>[K] ? null : never);
+
   type PrismaPayloadScalars<T extends Prisma.ModelName>
     = Prisma.TypeMap["model"][T]["payload"]["scalars"]
-
-  type PrismaKey<T extends Prisma.ModelName, K extends keyof PrismaPayloadScalars<T>, V> =
-    V extends (infer X) & { __prisma_table: any, __prisma_field: any } ? X & PrismaField<T, K> : never;
-
-  /** 
-   * Accepts any value that matches the specified field type, regardless of whether it is already for a different prisma field. 
-   * This is mainly needed to convert foriegn key fields. 
-   * 
-   * For now it's still a manual process, but at least this gives us a reference point to come back to later. 
-   */
-  function asPrismaField<T extends Prisma.ModelName, K extends keyof PrismaPayloadScalars<T>>(
-    table: T, field: K, value: PrismaPayloadScalars<T>[K]
-  ): PrismaField<T, K>;
-
-
-  type t2<T extends Prisma.ModelName> = Prisma.TypeMap["model"][T]["fields"]
-
-  type t1 = null extends PrismaPayloadScalars<"bags">["accesscontrol"] ? true : false;
-
-  /** 
-   * This is a type assertion function that is used to assert that a value is a field value. 
-   * It looks up the field type from the prisma schema and restricts the type of the value 
-   * to that field type. If the field is optional, null is allowed as a field value. 
-   * 
-   * This does not check the value itself at runtime, rather it restricts the argument type.
-   * 
-   * @example
-   * 
-  ```
-    // recieve the id field from somewhere
-    var acl_id: number = 5;
-
-    // mark it as a field value
-    okField("acl", "acl_id", acl_id);
-    
-    // you can still use it as a regular number if required
-    const t: number = acl_id;
-
-  ```
-   */
-
-  // function okField<T extends Prisma.ModelName, K extends keyof PrismaPayloadScalars<T>>(
-  //   table: T, field: K, value: PrismaPayloadScalars<T>[K]
-  // ): asserts value is PrismaField<T, K>;
-
-}
-// (global as any).okField = function (table: string, field: string, value: any) { };
-
-
-declare global { const rootRoute: rootRoute; }
-
-declare global { const ok: typeof assert.ok; }
-(global as any).ok = assert.ok;
-
-declare global {
 
   type EntityName<T extends EntityType> =
     T extends "bag" ? PrismaField<"bags", "bag_name"> :
@@ -101,274 +39,32 @@ declare global {
   type EntityType = "recipe" | "bag";
 
   type ACLPermissionName = "READ" | "WRITE" | "ADMIN";
+
+  type rootRoute = _rootRoute;
+  type ZodAssert = typeof ZodAssert;
+
 }
 
 
+declare global { const ok: typeof assert.ok; }
+(global as any).ok = assert.ok;
 
-
-declare global { function parseIntNull(str: string | null): number | null; }
-(global as any).parseIntNull = function (str: string | null) {
-  return str === null ? null : parseInt(str);
-};
-declare global { function parseIntNullSafe(str: string | null): { success: boolean, value: number | null }; }
-(global as any).parseIntNullSafe = function (str: string | null) {
-  if (str === null) return { success: true, value: null };
-  const val = parseInt(str);
-  return { success: !isNaN(val), value: val };
-};
-declare global { function isEntityType(value: any): value is "recipe" | "bag"; }
-(global as any).isEntityType = (x: any): x is "recipe" | "bag" => ["recipe", "bag"].includes(x);
-
-
+// these are some $tw.utils functions that seemed important enough to just copy across
 declare global {
-
-  namespace zodAssert {
-    type Exactly<T, X> = T & Record<Exclude<keyof X, keyof T>, never>
-    /** 
-     * assert zod on the request body (`state.data`). 
-     * 
-     * You cannot assert data on a stream or ignore body format.
-     * 
-     * Attempting to do so will cause the schema argument to expect a string 
-     * containing an error message informing the developer of this.
-     */
-    function data<T extends
-      S extends StateObject<"ignore" | "stream"> ? z.ZodUnknown :
-      S extends StateObject<"www-form-urlencoded"> ? z.ZodObject<any> :
-      z.ZodTypeAny, S extends StateObject>(
-        state: S, schema:
-          S extends StateObject<"ignore" | "stream">
-          ? "it is invalid to assert data for this body format"
-          : (zod: S extends StateObject<"www-form-urlencoded"> ? Z2<"STRING"> : Z2<"JSON">) => T,
-        /** 
-         * If the data does not match the schema, this function is called sync'ly with the zod error.
-         * Whatever it returns is sent as a utf8 string response body.
-         * @param error The zod error.
-         * @returns A string to send as the response body, or void to use the default error message.
-         */
-        onError?: (error: z.ZodError<any>) => string | void
-      ): asserts state is S & ({ data: z.infer<T> });
-
-    /** 
-     * assert zod on the route path match groups (`state.pathParams`). 
-     * 
-     * Sends a 404 response instead of 400. 
-    */
-    function pathParams<
-      T extends Exactly<{ [k in keyof S["pathParams"]]: z.ZodTypeAny; }, T>,
-      S extends StateObject,
-    >(
-      state: S, schemaShape: (zod: Z2<"STRING">) => T,
-      /** 
-       * If the data does not match the schema, this function is called sync'ly with the zod error.
-       * Whatever it returns is sent as a utf8 string response body.
-       * @param error The zod error.
-       * @returns A string to send as the response body, or void to use the default error message.
-       */
-      onError?: (error: z.ZodError<any>) => string | void
-    ): asserts state is S & ({ pathParams: z.infer<z.ZodObject<T>> });
-
-    /** 
-     * assert zod on the url query parameters (`state.queryParams`). 
-     * 
-     * This is the only place that the query parameters are declared, so the keys are not checked. 
-     * 
-     * If no value is specified, it defaults to an empty string
-     * (`?key&key=&key` becomes `key: ["", "", ""]`).
-     * 
-     * In zod: `z.object({ key: z.array(z.string()).optional() })`
-     */
-    function queryParams<T extends Record<string, z.ZodTypeAny>, S extends StateObject>(
-      state: S, schemaShape: (zod: Z2<"STRING">) => T,
-      /** 
-       * If the data does not match the schema, this function is called sync'ly with the zod error.
-       * Whatever it returns is sent as a utf8 string response body.
-       * @param error The zod error.
-       * @returns A string to send as the response body, or void to use the default error message.
-       */
-      onError?: (error: z.ZodError<any>) => string | void
-    ): asserts state is S & ({ queryParams: z.infer<z.ZodObject<T>> });
-    /** 
-     * assert zod on the data passed to this function and returns the cleaned data.
-     * If onError is not specified, or does not return STREAM_ENDED, an error 500 is sent. 
-     * Either way, zodAssert will throw STREAM_ENDED immediately.
-     * 
-     * If onError is not specified, the error will be printed with console.log.
-     */
-    function any<T extends z.ZodTypeAny, S extends StateObject>(
-      state: S, schemaShape: (zod: Z2<"JSON">) => T, data: z.infer<T>,
-      /** 
-       * If the data does not match the schema, this function is called sync'ly with the zod error.
-       * If it does not return the STREAM_ENDED symbol indicating an appropriate error response was sent, 
-       * zodAssert will throw with a 500 error.
-       * 
-       * It is perfectly valid to throw an error from this function,
-       * as zodAssert will throw STREAM_ENDED immediately if it returns.
-       * 
-       * @param error The zod error.
-       * @returns STREAM_ENDED to indicate an appropriate error response was sent, or undefined.
-       */
-      onError?: (error: z.ZodError<any>) => void | symbol
-    ): z.infer<T>;
-    /** 
-     * assert zod on the data passed to this function and returns the cleaned data.
-     * If onError is not specified, or does not return STREAM_ENDED, an error 500 is sent. 
-     * Either way, zodAssert will throw STREAM_ENDED immediately.
-     * 
-     * If onError is not specified, the error will be printed with console.log.
-     */
-    function response<T extends z.ZodTypeAny, S extends StateObject>(
-      state: S, schemaShape: (zod: Z2<"JSON">) => T, data: z.infer<T>,
-      /** 
-       * If the data does not match the schema, this function is called sync'ly with the zod error.
-       * If it does not return the STREAM_ENDED symbol indicating an appropriate error response was sent, 
-       * zodAssert will throw with a 500 error.
-       * 
-       * It is perfectly valid to throw an error from this function,
-       * as zodAssert will throw STREAM_ENDED immediately if it returns.
-       * 
-       * @param error The zod error.
-       * @returns STREAM_ENDED to indicate an appropriate error response was sent, or undefined.
-       */
-      onError?: (error: z.ZodError<any>) => void | symbol
-    ): z.infer<T>;
-  }
-
-  interface Z2<T extends FieldTypeGroups = never> extends _zod {
-    /** 
-     * Tags the resulting value as being from the specified table field.
-     * 
-     * The third argument is a string literal that specifies the field type based on the selected field.
-     * 
-     * "string" and "parse-number" 
-     * - will use decodeURIComponent on the value. 
-     * - Require a string length at least one
-     * 
-     * You can use .optional(), .nullable(), .nulish() after this to make the field optional.
-     */
-    prismaField<Table extends Prisma.ModelName, Field extends keyof PrismaPayloadScalars<Table>>(
-      table: Table, field: Field, fieldtype:
-        (PrismaPayloadScalars<Table>[Field] & {}) extends string ? FieldTypeStringSelector<T> :
-        (PrismaPayloadScalars<Table>[Field] & {}) extends number ? FieldTypeNumberSelector<T> :
-        (PrismaPayloadScalars<Table>[Field] & {}) extends boolean ? FieldTypeBooleanSelector<T> :
-        never,
-    ): ZodEffects<any, PrismaField<Table, Field>, PrismaPayloadScalars<Table>[Field]>
-
-  }
-}
-type FieldTypeGroups = "STRING" | "JSON";
-type FieldTypeStringSelector<T extends FieldTypeGroups> = T extends "STRING" ? "string" : "string";
-type FieldTypeNumberSelector<T extends FieldTypeGroups> = T extends "STRING" ? "parse-number" : "number";
-type FieldTypeBooleanSelector<T extends FieldTypeGroups> = T extends "STRING" ? "parse-boolean" : "boolean";
-
-const _zodAssertAny = (
-  input: "any" | "response",
-  state: StateObject,
-  schema: (z: Z2<any>) => z.ZodTypeAny | Record<string, z.ZodTypeAny>,
-  inputdata: any,
-  onError?: (error: z.ZodError<any>) => symbol | void,
-) => {
-  const schema2: any = schema(makeZ2(input));
-  const { success, data, error } = z.any().pipe(schema2).safeParse(inputdata);
-  if (!success) {
-    if (!onError) error.issues.forEach(e => console.log(e.message, e.path));
-    if (onError?.(error) === STREAM_ENDED) throw STREAM_ENDED;
-    throw state.sendEmpty(500, { "x-reason": input });
-  }
-  return data;
-}
-
-const _zodAssert = (
-  input: "data" | "pathParams" | "queryParams",
-  state: StateObject,
-  schema: (z: Z2<any>) => z.ZodTypeAny | Record<string, z.ZodTypeAny>,
-  onError?: (error: z.ZodError<any>) => string | void,
-) => {
-
-  // this checks if the schema is a string, since that is used to indicate invalid use cases of zodAssert,
-  // and if it's correctly typed, then this is the best way to find it.
-  if (typeof schema === "string") {
-    console.log(new Error(`schema is a string: ${schema}`));
-    throw state.sendEmpty(500);
-  }
-  const schema2: any = schema(makeZ2(input));
-
-  const { success, data, error } = z.any().pipe(
-    input === "data" ? schema2 : z.object(schema2)
-  ).safeParse(state[input]);
-  if (!success) {
-    if (!onError) error.issues.forEach(e => console.log(e.message, e.path));
-    const status = input === "pathParams" ? 404 : 400;
-    const message = onError?.(error);
-    if (typeof message === "string")
-      throw state.sendString(status, { "x-reason": input }, message ?? "", "utf8");
-    else
-      throw state.sendEmpty(status, { "x-reason": input });
-  }
-  state[input] = data;
-};
-
-
-const zodURIComponent = (val: string, ctx: z.RefinementCtx) => {
-  try {
-    return decodeURIComponent(val);
-  } catch (e) {
-    ctx.addIssue({
-      code: z.ZodIssueCode.custom,
-      message: "Invalid URI component",
-    });
-    return z.NEVER;
-  }
-}
-
-type _zod = typeof z;
-type ExtraFieldType = "string" | "number" | "parse-number" | "boolean" | "parse-boolean";
-
-(global as any).zodAssert = {
-  data: _zodAssert.bind(null, "data"),
-  pathParams: _zodAssert.bind(null, "pathParams"),
-  queryParams: _zodAssert.bind(null, "queryParams"),
-  response: _zodAssertAny.bind(null, "response"),
-  any: _zodAssertAny.bind(null, "any"),
-  zod: makeZ2("any"),
-}
-
-function makeZ2<T extends FieldTypeGroups>(input: "data" | "pathParams" | "queryParams" | "any" | "response"): Z2<T> {
-  const z2 = Object.create(z);
-  z2.prismaField = prismaField;
-  return z2;
-}
-
-function prismaField(decode: boolean, table: any, field: any, fieldtype: ExtraFieldType): any {
-  switch (fieldtype) {
-    case "string":
-      return z.string()
-        .refine(x => x.length, { message: "String must have length" });
-    case "parse-number":
-      return z.string().min(1)
-        .pipe(z.bigint({ coerce: true }))
-        .pipe(z.number({ coerce: true }).finite())
-        .refine(x => !isNaN(x), { message: "Invalid number" });
-    case "parse-boolean":
-      return z.enum(["true", "false"]).transform(x => x === "true");
-    case "boolean":
-      return z.boolean();
-    case "number":
-      return z.number();
-    default:
-      return z.string();
-  }
-
-}
-
-
-
-declare global {
+  
+  function hop(object: any, property: any): boolean;
   function each<T>(object: T[], callback: (value: T, index: number, object: T[]) => void): void;
   function each<T>(object: Record<string, T>, callback: (value: T, key: string, object: Record<string, T>) => void): void;
   function eachAsync<T>(object: T[], callback: (value: T, index: number, object: T[]) => void): void;
   function eachAsync<T>(object: Record<string, T>, callback: (value: T, key: string, object: Record<string, T>) => void): void;
+  function createDirectory(dirPath: string): void;
+  function deleteDirectory(dirPath: string): void;
+  function encodeURIComponentExtended(s: string): string;
 }
+
+(global as any).hop = function (object: any, property: any) {
+  return object ? Object.prototype.hasOwnProperty.call(object, property) : false;
+};
 
 (global as any).eachAsync = async function (object: any, callback: any) {
   var next, f, length;
@@ -392,6 +88,7 @@ declare global {
     }
   }
 };
+
 (global as any).each = function (object: any, callback: any) {
   var next, f, length;
   if (object) {
@@ -415,10 +112,6 @@ declare global {
   }
 };
 
-declare global {
-  function createDirectory(dirPath: string): void;
-  function deleteDirectory(dirPath: string): void;
-}
 (global as any).createDirectory = function (dirPath: string) {
   if (dirPath.substr(dirPath.length - 1, 1) !== path.sep) {
     dirPath = dirPath + path.sep;
@@ -454,7 +147,7 @@ declare global {
   }
   return null;
 };
-declare global { function encodeURIComponentExtended(s: string): string; }
+
 (global as any).encodeURIComponentExtended = function (s: string) {
   return encodeURIComponent(s).replace(/[!'()*]/g, function (c) {
     return "%" + c.charCodeAt(0).toString(16).toUpperCase();

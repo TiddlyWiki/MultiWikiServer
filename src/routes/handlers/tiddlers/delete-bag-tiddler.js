@@ -12,8 +12,10 @@ DELETE /bags/:bag_name/tiddler/:title
 /*global $tw: false */
 "use strict";
 
-/** @type {ServerRouteDefinition} */
-export const route = (root) => root.defineRoute({
+export const route = (
+	/** @type {rootRoute} */ root, 
+	/** @type {ZodAssert} */ zodAssert
+) => root.defineRoute({
 	method: ["DELETE"],
 	path: /^\/bags\/([^\/]+)\/tiddlers\/(.+)$/,
 	pathParams: ["bag_name", "title"],

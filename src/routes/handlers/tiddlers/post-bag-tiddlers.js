@@ -7,8 +7,10 @@ POST /bags/:bag_name/tiddlers/
 
 \*/
 "use strict";
-/** @type {ServerRouteDefinition} */
-export const route = (root) => root.defineRoute({
+export const route = (
+	/** @type {rootRoute} */ root, 
+	/** @type {ZodAssert} */ zodAssert
+) => root.defineRoute({
 	method: ["POST"],
 	path: /^\/bags\/([^\/]+)\/tiddlers\/$/,
 	pathParams: ["bag_name"],

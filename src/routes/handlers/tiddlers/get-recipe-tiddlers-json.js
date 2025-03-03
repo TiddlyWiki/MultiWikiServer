@@ -7,8 +7,10 @@ GET /recipes/:recipe_name/tiddlers.json?last_known_tiddler_id=:last_known_tiddle
 
 \*/
 "use strict";
-/** @type {ServerRouteDefinition} */
-export const route = (root) => root.defineRoute({
+export const route = (
+	/** @type {rootRoute} */ root, 
+	/** @type {ZodAssert} */ zodAssert
+) => root.defineRoute({
 	method: ["GET"],
 	path: /^\/recipes\/([^\/]+)\/tiddlers.json$/,
 	pathParams: ["recipe_name"],
