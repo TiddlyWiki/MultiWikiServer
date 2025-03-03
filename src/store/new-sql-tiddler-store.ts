@@ -365,7 +365,7 @@ export class SqlTiddlerStore extends DataChecks {
           }
         );
       } else {
-        require
+
         const stream = new Readable();
         const type = tiddlerInfo.tiddler.type || "text/plain";
         const { encoding } = (this.config.contentTypeInfo[type] || { encoding: "utf8" });

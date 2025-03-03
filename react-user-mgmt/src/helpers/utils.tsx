@@ -1,6 +1,8 @@
 import * as opaque from "@serenity-kit/opaque";
 import { useAsyncEffect } from "./useAsyncEffect";
 import { ReactNode, useCallback, useState } from "react";
+import { ServerMapKeys, ServerMapRequest, ServerMapResponse, ServerMapType } from "../../../src/routes/api/api";
+
 
 type MapLike = { entries: () => Iterable<[string, any]> };
 /** Takes an iterable of key-value pairs and makes sure the values are all strings */
@@ -78,7 +80,7 @@ export async function addNewUser(input: CreateUserForm) {
 
 
 export function DataLoader<T, P>(
-  loader: () => Promise<T>,
+  loader: (props: P) => Promise<T>,
   useRender: (data: T, refresh: () => void, props: P) => ReactNode
 ) {
   return (props: P) => {
@@ -87,7 +89,7 @@ export function DataLoader<T, P>(
     const refresh = useCallback(() => setRefreshData({}), []);
 
     useAsyncEffect(async () => {
-      setResult(await loader());
+      setResult(await loader(props));
     }, undefined, undefined, [refreshData]);
 
     if (!result) return null;
@@ -97,3 +99,19 @@ export function DataLoader<T, P>(
 }
 
 export function Render({ useRender }: { useRender: () => ReactNode }) { return useRender(); }
+
+export async function serverRequest<T extends ServerMapKeys>(key: T, type: ServerMapType[T], data: ServerMapRequest[T]) {
+  const search = type === "READ" ? "?" + new URLSearchParams(data as any).toString() : "";
+
+  const res = await fetch(`${location.origin}/api/${key}${search}`, {
+    method: type === "READ" ? "GET" : "POST",
+    headers: {
+      'Content-Type': 'application/json',
+      "X-Requested-With": "TiddlyWiki"
+    },
+    body: type === "WRITE" ? JSON.stringify(data) : undefined,
+  });
+  if (!res.ok) throw new Error(`Failed to fetch data for ${key}`);
+  return await res.json() as ServerMapResponse[T];
+}
+

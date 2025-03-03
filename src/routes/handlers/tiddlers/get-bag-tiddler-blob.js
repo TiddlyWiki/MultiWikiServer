@@ -27,17 +27,15 @@ export const route = (
 
 	const {bag_name, title} = state.pathParams;
 
-	if(!bag_name || !title) return state.sendEmpty(404);
+	if(!bag_name || !title) return state.sendEmpty(404, {"x-reason": "bag_name or title not found"});
 
 	await state.checkACL("bag", bag_name, "READ");
 
 	const result = await state.store.getBagTiddlerStream(title, bag_name);
 
-	if(!result) return state.sendEmpty(404);
+	if(!result) return state.sendEmpty(404, {"x-reason": "no result"});
 
 	return state.sendStream(200, {
-		// not sure where copilot got this one
-		// "X-Revision-Number": result.tiddler_id.toString(), 
 		Etag: state.makeTiddlerEtag(result),
 		"Content-Type": result.type
 	}, result.stream);

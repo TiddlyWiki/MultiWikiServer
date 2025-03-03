@@ -2,21 +2,36 @@ import { z } from "zod";
 import { rootRoute } from "../../rootRoute";
 import { ApiStateObject, StateObject } from "../../StateObject";
 import { serverIndexJson } from "./IndexJson";
-import { serverCreateACL, serverDeleteACL } from "./ACL";
+import { serverCreateACL, serverDeleteACL, serverListACL } from "./ACL";
+import { _zodAssertAny, Z2, ZodAssert as zodAssert } from "../../zodAssert";
+import { JsonValue } from "@prisma/client/runtime/library";
 
 export type ServerMap = typeof serverMap;
 export type ServerMapKeys = keyof ServerMap extends `server${infer K}` ? K : never;
-export type ServerMapRequest = {
-  [K in ServerMapKeys]: z.infer<z.ZodObject<ReturnType<ServerMap[`server${K}`]["zodRequest"]>>>
+
+type GetTypeMap<T> = {
+  [K in keyof T]: T[K] extends z.ZodTypeAny ? z.input<T[K]> extends string ? z.infer<T[K]> : never : never
 }
+
+export type ServerMapRequest = {
+  [K in ServerMapKeys]: ServerMap[`server${K}`]["methodType"] extends "READ"
+  ? GetTypeMap<ReturnType<ServerMap[`server${K}`]["zodRequest"]>>
+  : z.input<z.ZodObject<ReturnType<ServerMap[`server${K}`]["zodRequest"]>>>
+}
+
 export type ServerMapResponse = {
   [K in ServerMapKeys]: z.infer<ReturnType<ServerMap[`server${K}`]["zodResponse"]>>
+}
+
+export type ServerMapType = {
+  [K in ServerMapKeys]: ServerMap[`server${K}`]["methodType"]
 }
 
 const serverMap = {
   serverIndexJson,
   serverCreateACL,
   serverDeleteACL,
+  serverListACL,
 } satisfies Record<string, ServerEndpoint<any, any, any>>;
 
 export default async function ApiRoutes(parent: rootRoute) {
@@ -43,47 +58,43 @@ export default async function ApiRoutes(parent: rootRoute) {
       ),
     }));
 
-    const route = serverMap[`server${state.pathParams.endpoint}`] as ServerEndpoint<"READ" | "WRITE", any, any>;
+    const route = serverMap[`server${state.pathParams.endpoint}`];
 
-    const [good, error, value] = await handleRoute(route, state)
-      .then(e => [true, undefined, e] as const, e => [false, e, undefined] as const);
-
-    if (good)
-      return state.sendJSON(200, zodAssert.response(state, route.zodResponse, value));
-    else if (typeof error === "string")
-      return state.sendSimple(400, error);
-    else
-      return state.sendSimple(500, "Internal server error");
+    return await handleRoute(route as ServerEndpoint<"READ" | "WRITE", any, any>, state);
 
   });
 }
 
 async function handleRoute(
-  route: ServerEndpoint<"READ", Record<string, z.ZodTypeAny>, any>
-    | ServerEndpoint<"WRITE", Record<string, z.ZodTypeAny>, any>,
+  route: ServerEndpoint<"READ" | "WRITE", Record<string, z.ZodTypeAny>, any>,
   state: StateObject
 ) {
 
   return await state.$transaction(async prisma => {
+    const getRequestData = () => {
+      switch (route.methodType) {
+        case "READ":
+          const params = Object.fromEntries(Object.entries(state.queryParams)
+            .flatMap(([key, value = []]) => value.map(v => [key, v] as const)));
+          console.log(params);
+          return _zodAssertAny("queryParams", state, z => z.object(route.zodRequest(z)), params);
+        case "WRITE":
+          return zodAssert.data(state, z => z.object(route.zodRequest(z))), state.data;
+        default:
+          throw new Error("Invalid method type");
+      }
+    }
 
-    switch (route.methodType) {
-      case "READ": {
-        zodAssert.queryParams(state, z => route.zodRequest(z));
-        const apiState = new ApiStateObject(state, prisma, "READ", state.queryParams);
-        const value = await route.handler(apiState);
-        return zodAssert.response(state, route.zodResponse, value);
-      }
-      case "WRITE": {
-        zodAssert.data(state, z => z.object(route.zodRequest(z)));
-        const apiState = new ApiStateObject(state, prisma, "WRITE", state.data);
-        const value = await route.handler(apiState);
-        return zodAssert.response(state, route.zodResponse, value);
-      }
-      default: {
-        // this just makes sure we didn't miss a method type
-        const _: never = route;
-        throw new Error("Invalid method type");
-      }
+    const apiState = new ApiStateObject(state, prisma, route.methodType, getRequestData());
+    const [good, error, value] = await route.handler(apiState)
+      .then(e => [true, undefined, e] as const, e => [false, e, undefined] as const);
+
+    if (good) {
+      return state.sendJSON(200, zodAssert.response(state, route.zodResponse, value));
+    } else if (typeof error === "string") {
+      return state.sendSimple(400, error);
+    } else {
+      throw error;
     }
   })
 
@@ -92,13 +103,13 @@ async function handleRoute(
 
 }
 
-export function makeEndpoint<M extends "READ" | "WRITE", Q extends Record<string, z.ZodTypeAny>, R extends z.ZodTypeAny>(
+export function makeEndpoint<M extends "READ" | "WRITE", Q extends Record<string, z.ZodTypeAny>, R extends z.ZodType<JsonValue>>(
   endpoint: ServerEndpoint<M, Q, R>
 ) {
   return endpoint;
 }
 
-interface ServerEndpoint<M extends "READ" | "WRITE", Q extends Record<string, z.ZodTypeAny>, R extends z.ZodTypeAny> {
+interface ServerEndpoint<M extends "READ" | "WRITE", Q extends Record<string, z.ZodTypeAny>, R extends z.ZodType<JsonValue>> {
   methodType: M;
   /** 
    * A hashmap (aka object, record) of keys to Zod types. The result is passed to the handler.
@@ -133,7 +144,7 @@ interface ServerEndpoint<M extends "READ" | "WRITE", Q extends Record<string, z.
   zodRequest: (z: M extends "WRITE" ? Z2<"JSON"> : Z2<"STRING">) => Q;
   /** 
    * A zod type (not an object like the request). 
-   * The result is returned to the client as JSON. 
+   * The result is returned to the client as JSON. So the handler must at least return null.
    * 
    * Note that by default zod will remove keys from objects that are not in the schema rather than throwing. 
    * If the response fails the schema, the server will return status 500 and log the error.

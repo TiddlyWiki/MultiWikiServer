@@ -933,7 +933,7 @@ export class SqlTiddlerDatabase extends DataChecks {
 	Get the entity by name
 	*/
 	async getEntityByName<T extends EntityType>(
-		entity_type: T,
+		entity_type: EntityType,
 		entity_name: string
 	) {
 

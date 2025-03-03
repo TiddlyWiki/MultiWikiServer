@@ -24,17 +24,18 @@ export const Frame = (props: {}) => {
 
   const [showAnonConfig, setShowAnonConfig] = useState(false);
 
-  const pages: [RegExp, (e: RegExpExecArray) => ReactNode, string][] = [
+  const pages: [RegExp, (args: string[]) => ReactNode, string][] = [
     [/^\/$/, () => <Dashboard />, "Wikis Available Here"],
     [/^\/admin\/users\/?$/, () => <UserManagement />, "User Management"],
-    [/\/admin\/users\/(\d+)$/, ([, user_id]) => <ManageUser userID={user_id}/>, "Manage User"],
+    [/^\/admin\/users\/(\d+)$/, ([, user_id]) => <ManageUser userID={user_id} />, "Manage User"],
     [
-      /^\/admin\/acl\/([^\/]+)\/([^\/]+)/,
-      ([, recipeName, bagName]) => <ManageAcl
-        recipeName={decodeURIComponent(recipeName) as string}
-        bagName={decodeURIComponent(bagName) as string}
+      /^\/admin\/acl\/([^\/]+)\/([^\/]+)$/,
+      ([, recipe_name, bag_name]) => <ManageAcl
+        recipe_name={decodeURIComponent(recipe_name) as PrismaField<"recipes", "recipe_name">}
+        bag_name={decodeURIComponent(bag_name) as PrismaField<"bags", "bag_name">}
       />,
-      "ACL Management"],
+      "ACL Management"
+    ],
 
   ];
 

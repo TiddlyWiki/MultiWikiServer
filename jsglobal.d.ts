@@ -107,10 +107,6 @@ declare global {
     // params: string[] & { length: P };
   }
 
-  interface ServerRouteDefinition {
-    (root: rootRoute): any;
-  }
-
 
   interface ACL_Middleware_Helper {
 
@@ -120,17 +116,10 @@ declare global {
       state: StateObject,
       entityType: string | null,
       permissionName: string
-
     ): Promise<void>;
   }
 
-  interface ZodAssert {
-    <T extends z.ZodTypeAny>(
-      input: any,
-      schema: (zod: typeof z) => T,
-      onError?: (error: z.ZodError<any>) => string | void
-    ): asserts input is z.infer<T>;
-  }
+  
 
 }
 

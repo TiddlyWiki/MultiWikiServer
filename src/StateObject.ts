@@ -146,7 +146,7 @@ export class StateObject<
       ?? []
     ).flat()) as any;
 
-    const pathParamsZodCheck = z.record(z.string().optional()).safeParse(this.pathParams);
+    const pathParamsZodCheck = z.record(z.string().transform(zodURIComponent).optional()).safeParse(this.pathParams);
     if (!pathParamsZodCheck.success) console.log("BUG: Path params zod error", pathParamsZodCheck.error, this.pathParams);
 
     this.queryParams = Object.fromEntries([...this.urlInfo.searchParams.keys()]
@@ -339,9 +339,6 @@ export class StateObject<
   // - it should not send a response more than once since it should throw every time it does.
   async checkACL(entityType: EntityType, entityName: string, permissionName: ACLPermissionName): Promise<void> {
 
-
-
-
     if (permissionName !== {
       "GET": "READ",
       "HEAD": "READ",
@@ -411,7 +408,6 @@ export class StateObject<
           entityType,
           decodedEntityName,
           permissionName,
-          entity?.owner_id
         );
 
         if (!hasPermission && !hasAnonymousAccess) {
@@ -467,4 +463,17 @@ export class ApiStateObject<M extends "READ" | "WRITE", Q extends Record<string,
     this.showAnonConfig = state.showAnonConfig;
   }
 
+}
+
+
+const zodURIComponent = (val: string, ctx: z.RefinementCtx) => {
+  try {
+    return decodeURIComponent(val);
+  } catch (e) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "Invalid URI component",
+    });
+    return z.NEVER;
+  }
 }

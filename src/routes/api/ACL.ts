@@ -12,12 +12,12 @@ export const serverListACL = makeEndpoint({
   handler: async (state) => {
     if (!state.authenticatedUser && !state.firstGuestUser) throw "User not authenticated";
 
-    const { recipe_name: recipeName, bag_name: bagName } = state.reqData;
+    const { recipe_name, bag_name } = state.reqData;
 
-    const recipe = await state.prisma.recipes.findUnique({ where: { recipe_name: recipeName } });
+    const recipe = await state.prisma.recipes.findUnique({ where: { recipe_name } });
     if (!recipe) throw "Recipe not found";
 
-    const bag = await state.prisma.bags.findUnique({ where: { bag_name: bagName } });
+    const bag = await state.prisma.bags.findUnique({ where: { bag_name } });
     if (!bag) throw "Bag not found";
 
     const bagInRecipe = await state.prisma.recipe_bags.findUnique({
@@ -27,11 +27,11 @@ export const serverListACL = makeEndpoint({
     if (!bagInRecipe) throw "Recipe does not contain bag";
 
     var recipeAclRecords = await state.prisma.acl.findMany({
-      where: { entity_type: "recipe", entity_name: recipeName },
+      where: { entity_type: "recipe", entity_name: recipe_name },
       include: { role: true }
     });
     var bagAclRecords = await state.prisma.acl.findMany({
-      where: { entity_type: "bag", entity_name: bagName },
+      where: { entity_type: "bag", entity_name: bag_name },
       include: { role: true }
     });
 
@@ -44,7 +44,7 @@ export const serverListACL = makeEndpoint({
       if (state.authenticatedUser.isAdmin) return true;
       if (recipeAclRecords.length === 0) return false;
       return await state.store.sql.hasRecipePermission(
-        state.authenticatedUser.user_id, recipeName, "ADMIN");
+        state.authenticatedUser.user_id, recipe_name, "ADMIN");
     }
 
     if (!await canContinue()) {
@@ -175,27 +175,34 @@ export const serverDeleteACL = makeEndpoint({
   methodType: "WRITE",
   zodRequest: z => ({
     acl_id: z.prismaField("acl", "acl_id", "number"),
-    entity_type: z.string().refine(isEntityType).describe("entity_type must be 'recipe' or 'bag'"),
-    entity_name: z.prismaField("acl", "entity_name", "string"),
   }),
   handler: async (state) => {
     if (!state.authenticatedUser) throw "User not authenticated";
 
-    const {
-      acl_id,
-      entity_type,
-      entity_name,
-    } = state.reqData;
+    const { acl_id, } = state.reqData;
+
+    const acl = await state.prisma.acl.findUnique({ where: { acl_id } });
+
+    if (!acl) throw "ACL not found";
+
+    const { entity_name, entity_type } = acl;
+
+    if (!state.store.isEntityType(entity_type)) throw "Invalid acl record (entity type)";
 
     const entity = await state.store.sql.getEntityByName(entity_type, entity_name);
+
     if (!entity.value) throw "Entity not found";
 
     const { isAdmin, user_id } = state.authenticatedUser;
+
     const isOwner = entity.value.owner_id === user_id;
+
     if (!isOwner && !isAdmin) throw "User is not an admin or owner of the entity";
 
     await state.prisma.acl.delete({ where: { acl_id } });
 
+    return null;
+
   },
-  zodResponse: z => z.void(),
+  zodResponse: z => z.null(),
 });

@@ -2,8 +2,7 @@ import { ok } from "assert";
 import { rootRoute, Router } from "../router";
 import * as opaque from "@serenity-kit/opaque";
 import { z } from "zod";
-import { ZodAssert } from "../zodAssert";
-const zodAssert: ZodAssert = ZodAssert;
+import { ZodAssert as zodAssert } from "../zodAssert";
 
 export default function AuthRoutes(parent: rootRoute) {
 

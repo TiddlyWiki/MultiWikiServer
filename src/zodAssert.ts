@@ -128,7 +128,7 @@ export namespace ZodAssert {
 
 }
 
-interface Z2<T extends FieldTypeGroups = never> extends _zod {
+export interface Z2<T extends FieldTypeGroups = never> extends _zod {
   /** 
    * Tags the resulting value as being from the specified table field.
    * 
@@ -147,46 +147,6 @@ interface Z2<T extends FieldTypeGroups = never> extends _zod {
       (PrismaPayloadScalars<Table>[Field] & {}) extends boolean ? FieldTypeBooleanSelector<T> :
       never,
   ): ZodEffects<any, PrismaField<Table, Field>, PrismaPayloadScalars<Table>[Field]>
-
-}
-
-
-type _zod = typeof z;
-type ExtraFieldType = "string" | "number" | "parse-number" | "boolean" | "parse-boolean";
-type FieldTypeGroups = "STRING" | "JSON";
-type FieldTypeStringSelector<T extends FieldTypeGroups> = T extends "STRING" ? "string" : "string";
-type FieldTypeNumberSelector<T extends FieldTypeGroups> = T extends "STRING" ? "parse-number" : "number";
-type FieldTypeBooleanSelector<T extends FieldTypeGroups> = T extends "STRING" ? "parse-boolean" : "boolean";
-
-
-
-
-function makeZ2<T extends FieldTypeGroups>(input: "data" | "pathParams" | "queryParams" | "any" | "response" | string): Z2<T> {
-  const z2 = Object.create(z);
-  z2.prismaField = prismaField;
-  return z2;
-}
-
-
-function prismaField(table: any, field: any, fieldtype: ExtraFieldType): any {
-  switch (fieldtype) {
-    case "string":
-      return z.string()
-        .refine(x => x.length, { message: "String must have length" });
-    case "parse-number":
-      return z.string().min(1)
-        .pipe(z.bigint({ coerce: true }))
-        .pipe(z.number({ coerce: true }).finite())
-        .refine(x => !isNaN(x), { message: "Invalid number" });
-    case "parse-boolean":
-      return z.enum(["true", "false"]).transform(x => x === "true");
-    case "boolean":
-      return z.boolean();
-    case "number":
-      return z.number();
-    default:
-      throw new Error("Invalid field type");
-  }
 
 }
 
@@ -236,6 +196,46 @@ const _zodAssert = (
   }
   state[input] = data;
 };
+
+type _zod = typeof z;
+type ExtraFieldType = "string" | "number" | "parse-number" | "boolean" | "parse-boolean";
+type FieldTypeGroups = "STRING" | "JSON";
+type FieldTypeStringSelector<T extends FieldTypeGroups> = T extends "STRING" ? "string" : "string";
+type FieldTypeNumberSelector<T extends FieldTypeGroups> = T extends "STRING" ? "parse-number" : "number";
+type FieldTypeBooleanSelector<T extends FieldTypeGroups> = T extends "STRING" ? "parse-boolean" : "boolean";
+
+
+
+
+function makeZ2<T extends FieldTypeGroups>(input: "data" | "pathParams" | "queryParams" | "any" | "response" | string): Z2<T> {
+  const z2 = Object.create(z);
+  z2.prismaField = prismaField;
+  return z2;
+}
+
+
+function prismaField(table: any, field: any, fieldtype: ExtraFieldType): any {
+  switch (fieldtype) {
+    case "string":
+      return z.string()
+        .refine(x => x.length, { message: "String must have length" });
+    case "parse-number":
+      return z.string().min(1)
+        .pipe(z.bigint({ coerce: true }))
+        .pipe(z.number({ coerce: true }).finite())
+        .refine(x => !isNaN(x), { message: "Invalid number" });
+    case "parse-boolean":
+      return z.enum(["true", "false"]).transform(x => x === "true");
+    case "boolean":
+      return z.boolean();
+    case "number":
+      return z.number();
+    default:
+      throw new Error("Invalid field type");
+  }
+
+}
+
 
 // const zodAssertGlobal = {
 //   data: _zodAssert.bind(null, "data"),

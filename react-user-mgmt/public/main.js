@@ -1483,7 +1483,7 @@
           return dispatcher;
         }
         "undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__ && "function" === typeof __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStart && __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStart(Error());
-        var React10 = require_react(), Internals = {
+        var React9 = require_react(), Internals = {
           d: {
             f: noop,
             r: function() {
@@ -1501,7 +1501,7 @@
           },
           p: 0,
           findDOMNode: null
-        }, REACT_PORTAL_TYPE = Symbol.for("react.portal"), ReactSharedInternals = React10.__CLIENT_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE;
+        }, REACT_PORTAL_TYPE = Symbol.for("react.portal"), ReactSharedInternals = React9.__CLIENT_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE;
         "function" === typeof Map && null != Map.prototype && "function" === typeof Map.prototype.forEach && "function" === typeof Set && null != Set.prototype && "function" === typeof Set.prototype.clear && "function" === typeof Set.prototype.forEach || console.error(
           "React depends on Map and Set built-in types. Make sure that you load a polyfill in older browsers. https://reactjs.org/link/react-polyfills"
         );
@@ -2957,7 +2957,7 @@
           "number" === type && getActiveElement(node.ownerDocument) === node || node.defaultValue === "" + value || (node.defaultValue = "" + value);
         }
         function validateOptionProps(element, props) {
-          null == props.value && ("object" === typeof props.children && null !== props.children ? React10.Children.forEach(props.children, function(child) {
+          null == props.value && ("object" === typeof props.children && null !== props.children ? React9.Children.forEach(props.children, function(child) {
             null == child || "string" === typeof child || "number" === typeof child || "bigint" === typeof child || didWarnInvalidChild || (didWarnInvalidChild = true, console.error(
               "Cannot infer the option value of complex children. Pass a `value` prop or use a plain string as children to <option>."
             ));
@@ -16427,13 +16427,13 @@
           ));
         }
         "undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__ && "function" === typeof __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStart && __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStart(Error());
-        var Scheduler = require_scheduler(), React10 = require_react(), ReactDOM = require_react_dom(), REACT_LEGACY_ELEMENT_TYPE = Symbol.for("react.element"), REACT_ELEMENT_TYPE = Symbol.for("react.transitional.element"), REACT_PORTAL_TYPE = Symbol.for("react.portal"), REACT_FRAGMENT_TYPE = Symbol.for("react.fragment"), REACT_STRICT_MODE_TYPE = Symbol.for("react.strict_mode"), REACT_PROFILER_TYPE = Symbol.for("react.profiler"), REACT_PROVIDER_TYPE = Symbol.for("react.provider"), REACT_CONSUMER_TYPE = Symbol.for("react.consumer"), REACT_CONTEXT_TYPE = Symbol.for("react.context"), REACT_FORWARD_REF_TYPE = Symbol.for("react.forward_ref"), REACT_SUSPENSE_TYPE = Symbol.for("react.suspense"), REACT_SUSPENSE_LIST_TYPE = Symbol.for("react.suspense_list"), REACT_MEMO_TYPE = Symbol.for("react.memo"), REACT_LAZY_TYPE = Symbol.for("react.lazy");
+        var Scheduler = require_scheduler(), React9 = require_react(), ReactDOM = require_react_dom(), REACT_LEGACY_ELEMENT_TYPE = Symbol.for("react.element"), REACT_ELEMENT_TYPE = Symbol.for("react.transitional.element"), REACT_PORTAL_TYPE = Symbol.for("react.portal"), REACT_FRAGMENT_TYPE = Symbol.for("react.fragment"), REACT_STRICT_MODE_TYPE = Symbol.for("react.strict_mode"), REACT_PROFILER_TYPE = Symbol.for("react.profiler"), REACT_PROVIDER_TYPE = Symbol.for("react.provider"), REACT_CONSUMER_TYPE = Symbol.for("react.consumer"), REACT_CONTEXT_TYPE = Symbol.for("react.context"), REACT_FORWARD_REF_TYPE = Symbol.for("react.forward_ref"), REACT_SUSPENSE_TYPE = Symbol.for("react.suspense"), REACT_SUSPENSE_LIST_TYPE = Symbol.for("react.suspense_list"), REACT_MEMO_TYPE = Symbol.for("react.memo"), REACT_LAZY_TYPE = Symbol.for("react.lazy");
         Symbol.for("react.scope");
         Symbol.for("react.debug_trace_mode");
         var REACT_OFFSCREEN_TYPE = Symbol.for("react.offscreen");
         Symbol.for("react.legacy_hidden");
         Symbol.for("react.tracing_marker");
-        var REACT_MEMO_CACHE_SENTINEL = Symbol.for("react.memo_cache_sentinel"), MAYBE_ITERATOR_SYMBOL = Symbol.iterator, REACT_CLIENT_REFERENCE = Symbol.for("react.client.reference"), ReactSharedInternals = React10.__CLIENT_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE, assign = Object.assign, disabledDepth = 0, prevLog, prevInfo, prevWarn, prevError, prevGroup, prevGroupCollapsed, prevGroupEnd;
+        var REACT_MEMO_CACHE_SENTINEL = Symbol.for("react.memo_cache_sentinel"), MAYBE_ITERATOR_SYMBOL = Symbol.iterator, REACT_CLIENT_REFERENCE = Symbol.for("react.client.reference"), ReactSharedInternals = React9.__CLIENT_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE, assign = Object.assign, disabledDepth = 0, prevLog, prevInfo, prevWarn, prevError, prevGroup, prevGroupCollapsed, prevGroupEnd;
         disabledLog.__reactDisabledLog = true;
         var prefix, suffix, reentry = false;
         var componentFrameCache = new ("function" === typeof WeakMap ? WeakMap : Map)();
@@ -19153,7 +19153,7 @@
           }
         };
         (function() {
-          var isomorphicReactPackageVersion = React10.version;
+          var isomorphicReactPackageVersion = React9.version;
           if ("19.0.0" !== isomorphicReactPackageVersion)
             throw Error(
               'Incompatible React versions: The "react" and "react-dom" packages must have the exact same version. Instead got:\n  - react:      ' + (isomorphicReactPackageVersion + "\n  - react-dom:  19.0.0\nLearn more: https://react.dev/warnings/version-mismatch")
@@ -19715,9 +19715,9 @@
           info || (parentType = getComponentNameFromType(parentType)) && (info = "\n\nCheck the top-level render call using <" + parentType + ">.");
           return info;
         }
-        var React10 = require_react(), REACT_ELEMENT_TYPE = Symbol.for("react.transitional.element"), REACT_PORTAL_TYPE = Symbol.for("react.portal"), REACT_FRAGMENT_TYPE = Symbol.for("react.fragment"), REACT_STRICT_MODE_TYPE = Symbol.for("react.strict_mode"), REACT_PROFILER_TYPE = Symbol.for("react.profiler");
+        var React9 = require_react(), REACT_ELEMENT_TYPE = Symbol.for("react.transitional.element"), REACT_PORTAL_TYPE = Symbol.for("react.portal"), REACT_FRAGMENT_TYPE = Symbol.for("react.fragment"), REACT_STRICT_MODE_TYPE = Symbol.for("react.strict_mode"), REACT_PROFILER_TYPE = Symbol.for("react.profiler");
         Symbol.for("react.provider");
-        var REACT_CONSUMER_TYPE = Symbol.for("react.consumer"), REACT_CONTEXT_TYPE = Symbol.for("react.context"), REACT_FORWARD_REF_TYPE = Symbol.for("react.forward_ref"), REACT_SUSPENSE_TYPE = Symbol.for("react.suspense"), REACT_SUSPENSE_LIST_TYPE = Symbol.for("react.suspense_list"), REACT_MEMO_TYPE = Symbol.for("react.memo"), REACT_LAZY_TYPE = Symbol.for("react.lazy"), REACT_OFFSCREEN_TYPE = Symbol.for("react.offscreen"), MAYBE_ITERATOR_SYMBOL = Symbol.iterator, REACT_CLIENT_REFERENCE$2 = Symbol.for("react.client.reference"), ReactSharedInternals = React10.__CLIENT_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE, hasOwnProperty = Object.prototype.hasOwnProperty, assign = Object.assign, REACT_CLIENT_REFERENCE$1 = Symbol.for("react.client.reference"), isArrayImpl = Array.isArray, disabledDepth = 0, prevLog, prevInfo, prevWarn, prevError, prevGroup, prevGroupCollapsed, prevGroupEnd;
+        var REACT_CONSUMER_TYPE = Symbol.for("react.consumer"), REACT_CONTEXT_TYPE = Symbol.for("react.context"), REACT_FORWARD_REF_TYPE = Symbol.for("react.forward_ref"), REACT_SUSPENSE_TYPE = Symbol.for("react.suspense"), REACT_SUSPENSE_LIST_TYPE = Symbol.for("react.suspense_list"), REACT_MEMO_TYPE = Symbol.for("react.memo"), REACT_LAZY_TYPE = Symbol.for("react.lazy"), REACT_OFFSCREEN_TYPE = Symbol.for("react.offscreen"), MAYBE_ITERATOR_SYMBOL = Symbol.iterator, REACT_CLIENT_REFERENCE$2 = Symbol.for("react.client.reference"), ReactSharedInternals = React9.__CLIENT_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE, hasOwnProperty = Object.prototype.hasOwnProperty, assign = Object.assign, REACT_CLIENT_REFERENCE$1 = Symbol.for("react.client.reference"), isArrayImpl = Array.isArray, disabledDepth = 0, prevLog, prevInfo, prevWarn, prevError, prevGroup, prevGroupCollapsed, prevGroupEnd;
         disabledLog.__reactDisabledLog = true;
         var prefix, suffix, reentry = false;
         var componentFrameCache = new ("function" === typeof WeakMap ? WeakMap : Map)();
@@ -20793,7 +20793,8 @@ In case this error is unexpected for you, please report it in https://pris.ly/pr
         bag_id: "bag_id",
         bag_name: "bag_name",
         accesscontrol: "accesscontrol",
-        description: "description"
+        description: "description",
+        owner_id: "owner_id"
       };
       exports.Prisma.GroupsScalarFieldEnum = {
         group_id: "group_id",
@@ -20900,7 +20901,7 @@ If this is unexpected, please open an issue: https://pris.ly/prisma-prisma-bug-r
   });
 
   // react-user-mgmt/src/main.tsx
-  var import_react14 = __toESM(require_react(), 1);
+  var import_react13 = __toESM(require_react(), 1);
   var import_client2 = __toESM(require_client(), 1);
 
   // react-user-mgmt/src/components/Login.tsx
@@ -21596,7 +21597,7 @@ ${val.stack}`;
       const [result, setResult] = (0, import_react2.useState)(null);
       const refresh = (0, import_react2.useCallback)(() => setRefreshData({}), []);
       useAsyncEffect(async () => {
-        setResult(await loader());
+        setResult(await loader(props));
       }, void 0, void 0, [refreshData]);
       if (!result) return null;
       return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Render, { useRender: () => useRender(result, refresh, props) });
@@ -21604,6 +21605,19 @@ ${val.stack}`;
   }
   function Render({ useRender }) {
     return useRender();
+  }
+  async function serverRequest(key, type, data) {
+    const search = type === "READ" ? "?" + new URLSearchParams(data).toString() : "";
+    const res = await fetch(`${location.origin}/api/${key}${search}`, {
+      method: type === "READ" ? "GET" : "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Requested-With": "TiddlyWiki"
+      },
+      body: type === "WRITE" ? JSON.stringify(data) : void 0
+    });
+    if (!res.ok) throw new Error(`Failed to fetch data for ${key}`);
+    return await res.json();
   }
 
   // react-user-mgmt/src/helpers/prisma-proxy.ts
@@ -21720,7 +21734,7 @@ ${val.stack}`;
   var Login_default = Login;
 
   // react-user-mgmt/src/components/Frame/Frame.tsx
-  var import_react13 = __toESM(require_react(), 1);
+  var import_react12 = __toESM(require_react(), 1);
 
   // react-user-mgmt/src/components/Frame/Header.tsx
   var import_react5 = __toESM(require_react(), 1);
@@ -23731,7 +23745,7 @@ ${val.stack}`;
 
   // react-user-mgmt/src/components/UserList/AddUserForm.tsx
   var import_jsx_runtime8 = __toESM(require_jsx_runtime(), 1);
-  var AddUserForm = () => {
+  var AddUserForm = (props) => {
     const [error, setError] = (0, import_react9.useState)("");
     const [success, setSuccess] = (0, import_react9.useState)("");
     function handler(fn) {
@@ -23740,6 +23754,7 @@ ${val.stack}`;
           setSuccess(`User added`);
           setError("");
           reset();
+          props.refreshPage();
         },
         (e) => {
           setSuccess("");
@@ -23831,6 +23846,8 @@ ${val.stack}`;
     const [userIsAdmin, setUserIsAdmin] = (0, import_react10.useState)(false);
     const [firstGuestUser, setFirstGuestUser] = (0, import_react10.useState)(false);
     const [username, setUsername] = (0, import_react10.useState)("");
+    const [refresh, setRefresh] = (0, import_react10.useState)({});
+    const refreshPage = (0, import_react10.useCallback)(() => setRefresh({}), []);
     useAsyncEffect(async () => {
       try {
         const response = await fetch("/admin/users.json");
@@ -23842,7 +23859,7 @@ ${val.stack}`;
       } catch (error) {
         console.error("Error fetching user data:", error);
       }
-    }, void 0, void 0, []);
+    }, void 0, void 0, [refresh]);
     return /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(import_jsx_runtime9.Fragment, { children: /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)("div", { className: "mws-users-container", children: [
       userList.length > 0 ? /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("div", { className: "mws-users-list", children: userList.map((user) => /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)(
         "a",
@@ -23868,7 +23885,7 @@ ${val.stack}`;
         },
         user.user_id
       )) }) : /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("div", { className: "mws-no-users-message", children: "No users found" }),
-      (userIsAdmin || firstGuestUser) && /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("div", { className: "mws-add-user-card", children: /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(AddUserForm_default, {}) })
+      (userIsAdmin || firstGuestUser) && /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("div", { className: "mws-add-user-card", children: /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(AddUserForm_default, { refreshPage }) })
     ] }) });
   };
   var UserManagement_default = UserManagement;
@@ -24016,12 +24033,9 @@ ${val.stack}`;
   var ManageUser_default = ManageUser;
 
   // react-user-mgmt/src/components/ACL/ManageAcl.tsx
-  var import_react12 = __toESM(require_react(), 1);
   var import_jsx_runtime11 = __toESM(require_jsx_runtime(), 1);
-  var ManageAcl = DataLoader(async () => {
-    const res = await fetch(location.pathname + "/info.json", {});
-    if (res.status !== 200) throw new Error("Failed to fetch user data");
-    const result = await res.json();
+  var ManageAcl = DataLoader(async ({ recipe_name, bag_name }) => {
+    const result = await serverRequest("ListACL", "READ", { recipe_name, bag_name });
     return {
       ...result,
       permissions: result.permissions.map((e) => ({
@@ -24030,11 +24044,8 @@ ${val.stack}`;
         permission_description: ""
       }))
     };
-  }, (result, refresh, { recipeName, bagName }) => {
-    const { recipe, bag, roles, permissions } = result;
-    const [recipeAclRecords, setRecipeAclRecords] = (0, import_react12.useState)([]);
-    const [bagAclRecords, setBagAclRecords] = (0, import_react12.useState)([]);
-    const loading = false;
+  }, (result, refresh, props) => {
+    const { recipe, bag, roles, permissions, recipeAclRecords, bagAclRecords } = result;
     const recipeForm = useForm({
       defaultValues: {
         role_id: 0,
@@ -24049,44 +24060,34 @@ ${val.stack}`;
     });
     const handleAddRecipeAcl = async (data) => {
       console.log("Adding recipe ACL:", data);
-      const roleName = roles.find((r) => r.role_id === data.role_id)?.role_name || "";
-      const permission = permissions.find((p) => p.permission_id === data.permission_id);
-      if (permission) {
-        const newRecord = {
-          acl_id: 0,
-          role_name: roleName,
-          permission_name: permission.permission_name,
-          permission_description: permission.permission_description
-        };
-        setRecipeAclRecords([...recipeAclRecords, newRecord]);
-        recipeForm.reset();
-      }
+      await serverRequest("CreateACL", "WRITE", {
+        entity_type: "recipe",
+        entity_name: recipe.recipe_name,
+        role_id: +data.role_id,
+        permission: data.permission_id
+      });
+      recipeForm.reset();
+      refresh();
     };
     const handleAddBagAcl = async (data) => {
       console.log("Adding bag ACL:", data);
-      const roleName = roles.find((r) => r.role_id === data.role_id)?.role_name || "";
-      const permission = permissions.find((p) => p.permission_id === data.permission_id);
-      if (permission) {
-        const newRecord = {
-          acl_id: 0,
-          // Generate random ID for demo
-          role_name: roleName,
-          permission_name: permission.permission_name,
-          permission_description: permission.permission_description
-        };
-        setBagAclRecords([...bagAclRecords, newRecord]);
-        bagForm.reset();
-      }
+      await serverRequest("CreateACL", "WRITE", {
+        entity_type: "bag",
+        entity_name: bag.bag_name,
+        role_id: +data.role_id,
+        permission: data.permission_id
+      });
+      bagForm.reset();
+      refresh();
     };
     const handleDeleteRecipeAcl = async (aclId) => {
-      setRecipeAclRecords(recipeAclRecords.filter((record) => record.acl_id !== aclId));
+      await serverRequest("DeleteACL", "WRITE", { acl_id: aclId });
+      refresh();
     };
     const handleDeleteBagAcl = async (aclId) => {
-      setBagAclRecords(bagAclRecords.filter((record) => record.acl_id !== aclId));
+      await serverRequest("DeleteACL", "WRITE", { acl_id: aclId });
+      refresh();
     };
-    if (loading) {
-      return /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("div", { children: "Loading ACL data..." });
-    }
     return /* @__PURE__ */ (0, import_jsx_runtime11.jsxs)("div", { children: [
       /* @__PURE__ */ (0, import_jsx_runtime11.jsxs)("div", { className: "container", children: [
         /* @__PURE__ */ (0, import_jsx_runtime11.jsxs)("h2", { children: [
@@ -24137,13 +24138,8 @@ ${val.stack}`;
               /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("th", { children: "Action" })
             ] }) }),
             /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("tbody", { children: recipeAclRecords.map((record) => /* @__PURE__ */ (0, import_jsx_runtime11.jsxs)("tr", { children: [
-              /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("td", { children: record.role_name }),
-              /* @__PURE__ */ (0, import_jsx_runtime11.jsxs)("td", { children: [
-                record.permission_name,
-                " (",
-                /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("small", { children: record.permission_description }),
-                ")"
-              ] }),
+              /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("td", { children: record.role?.role_name }),
+              /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("td", { children: record.permission }),
               /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("td", { children: /* @__PURE__ */ (0, import_jsx_runtime11.jsx)(
                 "button",
                 {
@@ -24205,13 +24201,8 @@ ${val.stack}`;
               /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("th", { children: "Action" })
             ] }) }),
             /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("tbody", { children: bagAclRecords.map((record) => /* @__PURE__ */ (0, import_jsx_runtime11.jsxs)("tr", { children: [
-              /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("td", { children: record.role_name }),
-              /* @__PURE__ */ (0, import_jsx_runtime11.jsxs)("td", { children: [
-                record.permission_name,
-                " (",
-                /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("small", { children: record.permission_description }),
-                ")"
-              ] }),
+              /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("td", { children: record.role?.role_name }),
+              /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("td", { children: record.permission }),
               /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("td", { children: /* @__PURE__ */ (0, import_jsx_runtime11.jsx)(
                 "button",
                 {
@@ -24239,18 +24230,18 @@ ${val.stack}`;
     const user = indexJson.authUser;
     const allowReads = indexJson.allowReads;
     const allowWrites = indexJson.allowWrites;
-    const [showAnonConfig, setShowAnonConfig] = (0, import_react13.useState)(false);
+    const [showAnonConfig, setShowAnonConfig] = (0, import_react12.useState)(false);
     const pages = [
       [/^\/$/, () => /* @__PURE__ */ (0, import_jsx_runtime12.jsx)(Dashboard_default, {}), "Wikis Available Here"],
       [/^\/admin\/users\/?$/, () => /* @__PURE__ */ (0, import_jsx_runtime12.jsx)(UserManagement_default, {}), "User Management"],
-      [/\/admin\/users\/(\d+)$/, ([, user_id]) => /* @__PURE__ */ (0, import_jsx_runtime12.jsx)(ManageUser_default, { userID: user_id }), "Manage User"],
+      [/^\/admin\/users\/(\d+)$/, ([, user_id]) => /* @__PURE__ */ (0, import_jsx_runtime12.jsx)(ManageUser_default, { userID: user_id }), "Manage User"],
       [
-        /^\/admin\/acl\/([^\/]+)\/([^\/]+)/,
-        ([, recipeName, bagName]) => /* @__PURE__ */ (0, import_jsx_runtime12.jsx)(
+        /^\/admin\/acl\/([^\/]+)\/([^\/]+)$/,
+        ([, recipe_name, bag_name]) => /* @__PURE__ */ (0, import_jsx_runtime12.jsx)(
           ManageAcl_default,
           {
-            recipeName: decodeURIComponent(recipeName),
-            bagName: decodeURIComponent(bagName)
+            recipe_name: decodeURIComponent(recipe_name),
+            bag_name: decodeURIComponent(bag_name)
           }
         ),
         "ACL Management"
@@ -24298,7 +24289,7 @@ ${val.stack}`;
     const res = await fetch("/api/IndexJson");
     return await res.json();
   }, (indexJson, refresh, props) => {
-    return /* @__PURE__ */ (0, import_jsx_runtime13.jsx)(import_react14.StrictMode, { children: /* @__PURE__ */ (0, import_jsx_runtime13.jsx)(IndexJsonContext.Provider, { value: indexJson, children: location.pathname === "/login" ? /* @__PURE__ */ (0, import_jsx_runtime13.jsx)(Login_default, {}) : /* @__PURE__ */ (0, import_jsx_runtime13.jsx)(Frame, {}) }) });
+    return /* @__PURE__ */ (0, import_jsx_runtime13.jsx)(import_react13.StrictMode, { children: /* @__PURE__ */ (0, import_jsx_runtime13.jsx)(IndexJsonContext.Provider, { value: indexJson, children: location.pathname === "/login" ? /* @__PURE__ */ (0, import_jsx_runtime13.jsx)(Login_default, {}) : /* @__PURE__ */ (0, import_jsx_runtime13.jsx)(Frame, {}) }) });
   });
   (async () => {
     (0, import_client2.createRoot)(document.getElementById("root")).render(/* @__PURE__ */ (0, import_jsx_runtime13.jsx)(App, {}));

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import Header from '../Frame/Header';
 import { useAsyncEffect } from '../../helpers/useAsyncEffect';
 import AddUserForm from './AddUserForm';
@@ -23,6 +23,8 @@ const UserManagement: React.FC = () => {
   const [userIsAdmin, setUserIsAdmin] = useState<boolean>(false);
   const [firstGuestUser, setFirstGuestUser] = useState<boolean>(false);
   const [username, setUsername] = useState<string>("");
+  const [refresh, setRefresh] = useState({});
+  const refreshPage = useCallback(() => setRefresh({}), []);
 
   useAsyncEffect(async () => {
     try {
@@ -35,7 +37,7 @@ const UserManagement: React.FC = () => {
     } catch (error) {
       console.error('Error fetching user data:', error);
     }
-  }, undefined, undefined, []);
+  }, undefined, undefined, [refresh]);
 
   return (
     <>
@@ -75,7 +77,7 @@ const UserManagement: React.FC = () => {
         
         {(userIsAdmin || firstGuestUser) && (
           <div className="mws-add-user-card">
-            <AddUserForm />
+            <AddUserForm refreshPage={refreshPage} />
           </div>
         )}
       </div>

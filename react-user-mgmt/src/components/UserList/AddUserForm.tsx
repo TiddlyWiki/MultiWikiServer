@@ -2,13 +2,13 @@ import React, { useState } from 'react';
 import { addNewUser, CreateUserForm } from '../../helpers/utils';
 import { useForm } from "react-hook-form";
 
-const AddUserForm: React.FC = () => {
+const AddUserForm: React.FC<{ refreshPage: () => void }> = (props) => {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
   function handler<T>(fn: (input: T) => Promise<void>) {
     return (input: T) => fn(input).then(
-      e => { setSuccess(`User added`); setError(''); reset(); },
+      e => { setSuccess(`User added`); setError(''); reset(); props.refreshPage(); },
       e => { setSuccess(''); setError(`${e}`); }
     );
   }

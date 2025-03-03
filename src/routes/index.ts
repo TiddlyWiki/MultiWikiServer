@@ -5,6 +5,7 @@ import { TWRoutes } from "./tw-test";
 import * as esbuild from "esbuild"
 import { request } from "http";
 import ApiRoutes from "./api/api";
+import { ZodAssert } from "../zodAssert";
 
 
 export default async function RootRoute(root: rootRoute) {
@@ -19,7 +20,7 @@ async function importDir(root: rootRoute, folder: string) {
     if (stat.isFile()) {
       const e = await import(`./${folder}/${item}`);
       if (!e.route) throw new Error(`No route defined in ${item}`);
-      e.route(root);
+      e.route(root, ZodAssert);
     } else if (stat.isDirectory()) {
       await importDir(root, `${folder}/${item}`);
     }
