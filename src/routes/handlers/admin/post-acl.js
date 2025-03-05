@@ -19,11 +19,11 @@ export const route = (
 
 	zodAssert.data(state, z => z.object({
 		entity_type: z.enum(["recipe", "bag"]),
-		recipe_name: z.prismaField("recipes", "recipe_name", "string").optional(),
-		bag_name: z.prismaField("bags", "bag_name", "string").optional(),
+		recipe_name: z.prismaField("Recipes", "recipe_name", "string").optional(),
+		bag_name: z.prismaField("Bags", "bag_name", "string").optional(),
 		// I don't know why these were optional in the original code
-		role_id: z.prismaField("roles", "role_id", "parse-number"),
-		permission_id: z.prismaField("acl", "permission", "string").refine(e => state.store.isPermissionName(e))
+		role_id: z.prismaField("Roles", "role_id", "parse-number"),
+		permission_id: z.prismaField("Acl", "permission", "string").refine(e => state.store.isPermissionName(e))
 	}));
 
 	const {

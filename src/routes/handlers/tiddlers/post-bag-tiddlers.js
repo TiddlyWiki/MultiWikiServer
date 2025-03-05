@@ -18,7 +18,7 @@ export const route = (
 	useACL: {csrfDisable: true},
 }, async state => {
 	zodAssert.pathParams(state, z => ({
-		bag_name: z.prismaField("bags", "bag_name", "string"),
+		bag_name: z.prismaField("Bags", "bag_name", "string"),
 	}));
 
 	await state.checkACL("bag", state.pathParams.bag_name, "WRITE");

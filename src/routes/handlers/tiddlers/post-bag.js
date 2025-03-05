@@ -23,8 +23,8 @@ export const route = (
 }, async state => {
 
 	zodAssert.data(state, z => z.object({
-		bag_name: z.prismaField("bags", "bag_name", "string"),
-		description: z.prismaField("bags", "description", "string").default("")
+		bag_name: z.prismaField("Bags", "bag_name", "string"),
+		description: z.prismaField("Bags", "description", "string").default("")
 	}));
 
 	await state.checkACL("bag", state.data.bag_name, "WRITE");

@@ -19,7 +19,7 @@ export const route = (
 
 
 	zodAssert.pathParams(state, z => ({
-		user_id: z.prismaField("users", "user_id", "parse-number"),
+		user_id: z.prismaField("Users", "user_id", "parse-number"),
 		ending: z.string().optional(),
 	}));
 

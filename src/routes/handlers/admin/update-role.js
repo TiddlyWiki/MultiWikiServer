@@ -18,12 +18,12 @@ export const route = (
   useACL: {csrfDisable: true},
 }, async state => {
   zodAssert.pathParams(state, z => ({
-    role_id: z.prismaField("roles", "role_id", "parse-number")
+    role_id: z.prismaField("Roles", "role_id", "parse-number")
   }));
 
   zodAssert.data(state, z => z.object({
-    role_name: z.prismaField("roles", "role_name", "string"),
-    role_description: z.prismaField("roles", "description", "string"),
+    role_name: z.prismaField("Roles", "role_name", "string"),
+    role_description: z.prismaField("Roles", "description", "string"),
   }));
 
 

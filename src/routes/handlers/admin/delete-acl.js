@@ -23,9 +23,9 @@ export const route = (
 }, async (state) => {
 
 	zodAssert.data(state, z => z.object({
-		recipe_name: z.prismaField("recipes", "recipe_name", "string"),
-		bag_name: z.prismaField("bags", "bag_name", "string"),
-		acl_id: z.prismaField("acl", "acl_id", "parse-number"),
+		recipe_name: z.prismaField("Recipes", "recipe_name", "string"),
+		bag_name: z.prismaField("Bags", "bag_name", "string"),
+		acl_id: z.prismaField("Acl", "acl_id", "parse-number"),
 		entity_type: z.string().refine(state.store.isEntityType)
 			.describe("entity_type must be 'recipe' or 'bag'")
 	}));

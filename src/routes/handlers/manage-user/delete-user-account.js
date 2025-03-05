@@ -21,7 +21,7 @@ export const route = (
 }, async state => {
 
 	zodAssert.data(state, z => z.object({
-		userId: z.prismaField("users", "user_id", "parse-number"),
+		userId: z.prismaField("Users", "user_id", "parse-number"),
 	}));
 
 	const userId = state.data.userId;

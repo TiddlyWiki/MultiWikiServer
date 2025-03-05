@@ -23,8 +23,8 @@ export const route = (
 	useACL: { csrfDisable: true }
 }, async state => {
 	zodAssert.data(state, z => z.object({
-		username: z.prismaField("users", "username", "string"),
-		password: z.prismaField("users", "password", "string")
+		username: z.prismaField("Users", "username", "string"),
+		password: z.prismaField("Users", "password", "string")
 	}));
 
 	zodAssert.pathParams(state, z => ({
@@ -75,7 +75,7 @@ export const route = (
 	path: /^\/login\/1/,
 }, async state => {
 	zodAssert.data(state, z => z.object({
-		username: z.prismaField("users", "username", "string"),
+		username: z.prismaField("Users", "username", "string"),
 		startLoginRequest: z.string(),
 	}));
 

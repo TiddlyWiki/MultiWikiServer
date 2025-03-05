@@ -17,8 +17,8 @@ export const route = (
 	useACL: {csrfDisable: true},
 }, async state => {
 	zodAssert.data(state, z => z.object({
-		role_name: z.prismaField("roles", "role_name", "string"),
-		role_description: z.prismaField("roles", "description", "string"),
+		role_name: z.prismaField("Roles", "role_name", "string"),
+		role_description: z.prismaField("Roles", "description", "string"),
 	}));
 
 	const {role_name, role_description} = state.data;

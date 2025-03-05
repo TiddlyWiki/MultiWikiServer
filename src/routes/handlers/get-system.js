@@ -25,7 +25,7 @@ export const route = (
 	useACL: {},
 }, async state => {
 	zodAssert.pathParams(state, z => ({
-		filename: z.prismaField("tiddlers", "title", "string"),
+		filename: z.prismaField("Tiddlers", "title", "string"),
 	}));
 	// Get the  parameters
 	const filename = state.pathParams.filename,

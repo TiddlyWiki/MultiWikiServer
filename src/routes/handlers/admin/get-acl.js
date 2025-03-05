@@ -23,8 +23,8 @@ export const route = (
 }, async state => {
 
 	zodAssert.pathParams(state, z => ({
-		recipe_name: z.prismaField("recipes", "recipe_name", "string"),
-		bag_name: z.prismaField("bags", "bag_name", "string"),
+		recipe_name: z.prismaField("Recipes", "recipe_name", "string"),
+		bag_name: z.prismaField("Bags", "bag_name", "string"),
 		format: z.string().optional(),
 	}));
 

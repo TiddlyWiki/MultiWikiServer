@@ -18,14 +18,14 @@ export const route = (
 	useACL: {},
 }, async state => {
 	zodAssert.pathParams(state, z => ({
-		bag_name: z.prismaField("bags", "bag_name", "string"),
+		bag_name: z.prismaField("Bags", "bag_name", "string"),
 	}));
 
 	await state.checkACL("bag", state.pathParams.bag_name, "WRITE");
 
 	// the old code did not make this optional
 	zodAssert.data(state, z => z.object({
-		description: z.prismaField("bags", "description", "string"),
+		description: z.prismaField("Bags", "description", "string"),
 	}));
 
 	var result = await state.store.createBag(state.pathParams.bag_name, state.data.description);
