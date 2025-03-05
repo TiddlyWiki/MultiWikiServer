@@ -1,89 +1,66 @@
-import React, { useState } from 'react';
-import { addNewUser, CreateUserForm } from '../../helpers/utils';
-import { useForm } from "react-hook-form";
+import React, { useId, useState } from 'react';
+import { useForm, UseFormRegisterReturn } from "react-hook-form";
+import { changePassword, fetchPostSearchParams, FormFieldInput, useFormFieldHandler } from '../../helpers/utils';
+
+
+export interface CreateUserForm {
+  username: string
+  email: string
+  password: string
+  confirmPassword: string
+}
+
+export async function addNewUser(input: CreateUserForm) {
+
+  const { username, email, password, confirmPassword } = input;
+
+  if (password !== confirmPassword) throw 'Passwords do not match';
+
+  const createUser = await fetchPostSearchParams('/admin/post-user', { username, email });
+
+  if (!createUser.ok) throw await createUser.text() || 'Failed to add user'
+
+  const userId = (await createUser.json()).userId.toString();
+
+  await changePassword({ userId, password, confirmPassword });
+
+}
+
 
 const AddUserForm: React.FC<{ refreshPage: () => void }> = (props) => {
-  const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
-
-  function handler<T>(fn: (input: T) => Promise<void>) {
-    return (input: T) => fn(input).then(
-      e => { setSuccess(`User added`); setError(''); reset(); props.refreshPage(); },
-      e => { setSuccess(''); setError(`${e}`); }
-    );
-  }
 
   const {
-    register,
-    handleSubmit,
-    formState: { errors, isSubmitting, isLoading },
-    reset,
-  } = useForm<CreateUserForm>();
+    handler, register, footer,
+  } = useFormFieldHandler<CreateUserForm>(props.refreshPage);
 
   return (
     <div>
       <h1>Add New User</h1>
-      <form onSubmit={handleSubmit(handler(addNewUser))}>
-        <div className="mws-form-group">
-          <label htmlFor="username">Username:</label>
-          <input {...register("username", { required: true })}
-            type="text"
-            id="username"
-            className="mws-form-input"
-            autoComplete="new-password"
-          />
-        </div>
-        <div className="mws-form-group">
-          <label htmlFor="email">Email:</label>
-          <input {...register("email", { required: true })}
-            type="email"
-            id="email"
-            className="mws-form-input"
-            autoComplete="new-password"
-          />
-        </div>
-        <div className="mws-form-group">
-          <label htmlFor="password">Password:</label>
-          <input {...register("password", { required: true })}
-            type="password"
-            id="password"
-            className="mws-form-input"
-            autoComplete="new-password"
-          />
-        </div>
-        <div className="mws-form-group">
-          <label htmlFor="confirmPassword">Confirm Password:</label>
-          <input {...register("confirmPassword", { required: true })}
-            type="password"
-            id="confirmPassword"
-            className="mws-form-input"
-            autoComplete="new-password"
-          />
-        </div>
+      <form onSubmit={handler(addNewUser)}>
+        <FormFieldInput
+          {...register("username", { required: true })}
+          type="text" autoComplete="new-password" id
+        />
+        <FormFieldInput
+          {...register("email", { required: true })}
+          type="email" autoComplete="new-password" id
+        />
+        <FormFieldInput
+          {...register("password", { required: true })}
+          type="password" autoComplete="new-password" id
+        />
+        <FormFieldInput
+          {...register("confirmPassword", { required: true })}
+          type="password" autoComplete="new-password" id
+        />
 
-        {error && (
-          <div className="mws-error-message">
-            {error}
-          </div>
-        )}
-
-        {success && (
-          <div className="mws-success-message">
-            {success}
-          </div>
-        )}
-
-        <div className="mws-form-actions">
-          <button type="submit"
-            className="mws-btn mws-btn-primary"
-            disabled={isSubmitting || isLoading}
-          >
-            Add User
-          </button>
-        </div>
+        {footer("Add User")}
       </form>
     </div>
   );
+
 };
+
+
 
 export default AddUserForm;

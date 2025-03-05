@@ -30,7 +30,7 @@ store/
 
 "use strict";
 
-import { tryParseJSON } from "../helpers";
+import { tryParseJSON } from "../utils";
 import * as path from "path";
 import * as fs from "fs";
 /*

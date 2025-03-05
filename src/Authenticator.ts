@@ -1,7 +1,7 @@
 import * as crypto from "crypto";
 import { StateObject } from "./StateObject";
 import * as opaque from "@serenity-kit/opaque";
-import { TypedGenerator } from "./helpers";
+import { TypedGenerator } from "./utils";
 
 let serverSetup: string = "";
 const serverState = new Map<string, TypedGenerator<LoginGeneratorStates>>();
@@ -26,10 +26,10 @@ export class Authenticator {
     return hashedInput === storedHash;
   }
 
-  async createSession(userId: PrismaField<"users", "user_id">) {
+  async createSession(userId: PrismaField<"Users", "user_id">) {
     var sessionId = crypto.randomBytes(16).toString("hex");
     // Store the session in your database or in-memory store
-    await this.sqlTiddlerDatabase.createUserSession(userId, sessionId as PrismaField<"sessions", "session_id">);
+    await this.sqlTiddlerDatabase.createUserSession(userId, sessionId as PrismaField<"Sessions", "session_id">);
     return sessionId;
   }
   /**
@@ -44,7 +44,7 @@ export class Authenticator {
    * @returns 
    */
   async register1({ userID, registrationRequest }: {
-    userID: PrismaField<"users", "user_id">;
+    userID: PrismaField<"Users", "user_id">;
     registrationRequest: string;
   }) {
 
@@ -60,7 +60,7 @@ export class Authenticator {
 
 
   async login1({ userID, registrationRecord, startLoginRequest }: {
-    userID: PrismaField<"users", "user_id">;
+    userID: PrismaField<"Users", "user_id">;
     registrationRecord: string;
     startLoginRequest: string;
   }) {
@@ -126,7 +126,7 @@ export class Authenticator {
 type LoginGeneratorStates = [
   [void, loginResponse: string],
   [finishLoginRequest: string, {
-    user_id: PrismaField<"users", "user_id">,
+    user_id: PrismaField<"Users", "user_id">,
     session: { sessionKey: string; } | undefined
   }]
 ]
@@ -141,7 +141,7 @@ export const login = TypedGenerator.wrapper<LoginGeneratorStates>()(function* ({
   startLoginRequest,
   registrationRecord
 }: {
-  user_id: PrismaField<"users", "user_id">,
+  user_id: PrismaField<"Users", "user_id">,
   startLoginRequest: string,
   registrationRecord: string
 }): any {
@@ -205,7 +205,7 @@ export function PasswordCreation(userID: string, password: string) {
     password,
   });
 
-  return registrationRecord as PrismaField<"users", "password">;
+  return registrationRecord as PrismaField<"Users", "password">;
 
 }
 

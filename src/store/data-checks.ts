@@ -10,22 +10,22 @@ export class DataChecks {
     });
   }
 
-  okBagName(bagName: PrismaField<"bags", "bag_name">) {
+  okBagName(bagName: PrismaField<"Bags", "bag_name">) {
     ok(typeof bagName === "string", 'bagName must be a string');
     ok(bagName, 'bagName must not be empty');
   }
 
-  okRecipeName(recipeName: PrismaField<"recipes", "recipe_name">) {
+  okRecipeName(recipeName: PrismaField<"Recipes", "recipe_name">) {
     ok(typeof recipeName === "string", 'recipeName must be a string');
     ok(recipeName, 'recipeName must not be empty');
   }
 
-  okUserID(userID: PrismaField<"users", "user_id">) {
+  okUserID(userID: PrismaField<"Users", "user_id">) {
     ok(typeof userID === "number", 'userID must be a number');
     ok(userID > 0, 'userID must be greater than zero');
   }
 
-  okTiddlerTitle(tiddlerTitle: string): asserts tiddlerTitle is PrismaField<"tiddlers", "title"> {
+  okTiddlerTitle(tiddlerTitle: string): asserts tiddlerTitle is PrismaField<"Tiddlers", "title"> {
     ok(typeof tiddlerTitle === "string", 'tiddler title must be a string');
     ok(tiddlerTitle, 'tiddler title must not be empty');
   }
@@ -39,7 +39,7 @@ export class DataChecks {
     ok(entityName, 'entityName must not be empty');
   }
 
-  okSessionID(sessionID: string): asserts sessionID is PrismaField<"sessions", "session_id"> {
+  okSessionID(sessionID: string): asserts sessionID is PrismaField<"Sessions", "session_id"> {
     ok(typeof sessionID === "string", 'sessionID must be a string');
     ok(sessionID, 'sessionID must not be empty');
   }

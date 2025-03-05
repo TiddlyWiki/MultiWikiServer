@@ -38,17 +38,17 @@ async function loadBackupArchive(archivePath) {
 	const fs = require("fs"),
 	path = require("path");
 	// Iterate the bags
-	const bagNames = fs.readdirSync(path.resolve(archivePath,"bags")).filter(filename => filename !== ".DS_Store");
+	const bagNames = fs.readdirSync(path.resolve(archivePath,"Bags")).filter(filename => filename !== ".DS_Store");
 	for(const bagFilename of bagNames) {
 		const bagName = decodeURIComponent(bagFilename);
 		console.log(`Reading bag ${bagName}`);
-		const bagInfo = JSON.parse(fs.readFileSync(path.resolve(archivePath,"bags",bagFilename,"meta.json"),"utf8"));
+		const bagInfo = JSON.parse(fs.readFileSync(path.resolve(archivePath,"Bags",bagFilename,"meta.json"),"utf8"));
 		await $tw.mws.store.createBag(bagName,bagInfo.description,bagInfo.accesscontrol);
-		if(fs.existsSync(path.resolve(archivePath,"bags",bagFilename,"tiddlers"))) {
-			const tiddlerFilenames = fs.readdirSync(path.resolve(archivePath,"bags",bagFilename,"tiddlers"));
+		if(fs.existsSync(path.resolve(archivePath,"Bags",bagFilename,"Tiddlers"))) {
+			const tiddlerFilenames = fs.readdirSync(path.resolve(archivePath,"Bags",bagFilename,"Tiddlers"));
 			for(const tiddlerFilename of tiddlerFilenames) {
 				if(tiddlerFilename.endsWith(".json")) {
-					const tiddlerPath = path.resolve(archivePath,"bags",bagFilename,"tiddlers",tiddlerFilename),
+					const tiddlerPath = path.resolve(archivePath,"Bags",bagFilename,"Tiddlers",tiddlerFilename),
 						jsonTiddler = fs.readFileSync(tiddlerPath,"utf8"),
 						tiddler = sanitiseTiddler(JSON.parse(jsonTiddler));
 					if(tiddler && tiddler.title) {
@@ -61,11 +61,11 @@ async function loadBackupArchive(archivePath) {
 		}
 	}
 	// Iterate the recipes
-	const recipeNames = fs.readdirSync(path.resolve(archivePath,"recipes"));
+	const recipeNames = fs.readdirSync(path.resolve(archivePath,"Recipes"));
 	for(const recipeFilename of recipeNames) {
 		if(recipeFilename.endsWith(".json")) {
 			const recipeName = decodeURIComponent(recipeFilename.substring(0,recipeFilename.length - ".json".length));
-			const jsonInfo = JSON.parse(fs.readFileSync(path.resolve(archivePath,"recipes",recipeFilename),"utf8"));
+			const jsonInfo = JSON.parse(fs.readFileSync(path.resolve(archivePath,"Recipes",recipeFilename),"utf8"));
 			await $tw.mws.store.createRecipe(recipeName,jsonInfo.bag_names,jsonInfo.description,jsonInfo.accesscontrol);
 		}
 	}

@@ -1,10 +1,15 @@
-import { z } from "zod";
+import { z, ZodType, ZodTypeAny } from "zod";
 import { rootRoute } from "../../rootRoute";
 import { ApiStateObject, StateObject } from "../../StateObject";
 import { serverIndexJson } from "./IndexJson";
 import { serverCreateACL, serverDeleteACL, serverListACL } from "./ACL";
+import { serverCreateBag, serverDeleteBag, serverEditBag, serverListBags } from "./Bags";
 import { _zodAssertAny, Z2, ZodAssert as zodAssert } from "../../zodAssert";
 import { JsonValue } from "@prisma/client/runtime/library";
+import { serverCreateRecipe } from "./Recipes";
+import { serverDeleteUserAccount, serverGetUsers, serverUpdateUser } from "./Users";
+
+// the name is for sorting
 
 export type ServerMap = typeof serverMap;
 export type ServerMapKeys = keyof ServerMap extends `server${infer K}` ? K : never;
@@ -14,25 +19,37 @@ type GetTypeMap<T> = {
 }
 
 export type ServerMapRequest = {
-  [K in ServerMapKeys]: ServerMap[`server${K}`]["methodType"] extends "READ"
-  ? GetTypeMap<ReturnType<ServerMap[`server${K}`]["zodRequest"]>>
-  : z.input<z.ZodObject<ReturnType<ServerMap[`server${K}`]["zodRequest"]>>>
+  [K in ServerMapKeys]: Parameters<ServerMap[`server${K}`]["handler"]>[1]
 }
 
 export type ServerMapResponse = {
-  [K in ServerMapKeys]: z.infer<ReturnType<ServerMap[`server${K}`]["zodResponse"]>>
+  [K in ServerMapKeys]: Awaited<ReturnType<ServerMap[`server${K}`]["handler"]>>
 }
 
+type t = Awaited<ReturnType<ServerMap[`server${"IndexJson"}`]["handler"]>>
+
 export type ServerMapType = {
-  [K in ServerMapKeys]: ServerMap[`server${K}`]["methodType"]
+  [K in ServerMapKeys]: ServerMap[`server${K}`]
 }
 
 const serverMap = {
   serverIndexJson,
+
   serverCreateACL,
   serverDeleteACL,
   serverListACL,
-} satisfies Record<string, ServerEndpoint<any, any, any>>;
+
+  serverCreateBag,
+  serverDeleteBag,
+  serverEditBag,
+  serverListBags,
+
+  serverCreateRecipe,
+
+  serverDeleteUserAccount,
+  serverGetUsers,
+  serverUpdateUser,
+} satisfies Record<string, ServerEndpoint<any, any>>;
 
 export default async function ApiRoutes(parent: rootRoute) {
 
@@ -60,34 +77,22 @@ export default async function ApiRoutes(parent: rootRoute) {
 
     const route = serverMap[`server${state.pathParams.endpoint}`];
 
-    return await handleRoute(route as ServerEndpoint<"READ" | "WRITE", any, any>, state);
+    return await handleRoute(route as ServerEndpoint<any, any>, state);
 
   });
 }
 
 async function handleRoute(
-  route: ServerEndpoint<"READ" | "WRITE", Record<string, z.ZodTypeAny>, any>,
+  route: ServerEndpoint<any, any>,
   state: StateObject
 ) {
 
   return await state.$transaction(async prisma => {
-    const getRequestData = () => {
-      switch (route.methodType) {
-        case "READ":
-          const params = Object.fromEntries(Object.entries(state.queryParams)
-            .flatMap(([key, value = []]) => value.map(v => [key, v] as const)));
-          console.log(params);
-          return _zodAssertAny("queryParams", state, z => z.object(route.zodRequest(z)), params);
-        case "WRITE":
-          return zodAssert.data(state, z => z.object(route.zodRequest(z))), state.data;
-        default:
-          throw new Error("Invalid method type");
-      }
-    }
 
-    const apiState = new ApiStateObject(state, prisma, route.methodType, getRequestData());
-    const [good, error, value] = await route.handler(apiState)
-      .then(e => [true, undefined, e] as const, e => [false, e, undefined] as const);
+    const [good, error, value] = await route.handler(
+      new ApiStateObject(state, prisma),
+      zodAssert.any(state, z => route.zodRequest(z), state.data as any)
+    ).then(e => [true, undefined, e] as const, e => [false, e, undefined] as const);
 
     if (good) {
       return state.sendJSON(200, zodAssert.response(state, route.zodResponse, value));
@@ -103,33 +108,21 @@ async function handleRoute(
 
 }
 
-export function makeEndpoint<M extends "READ" | "WRITE", Q extends Record<string, z.ZodTypeAny>, R extends z.ZodType<JsonValue>>(
-  endpoint: ServerEndpoint<M, Q, R>
+export function makeEndpoint<Q extends ZodType<JsonValue | undefined>, R extends JsonValue>(
+  { handler }: {
+    zodRequest: (z: Z2<"JSON">) => Q;
+    handler: (state: ApiStateObject, input: z.infer<Q>) => Promise<R>;
+    zodResponse: (z: Z2<"JSON">) => any;
+  }
 ) {
-  return endpoint;
+  return { handler, zodRequest: (z: Z2) => z.any(), zodResponse: (z: Z2) => z.any() }
 }
 
-interface ServerEndpoint<M extends "READ" | "WRITE", Q extends Record<string, z.ZodTypeAny>, R extends z.ZodType<JsonValue>> {
-  methodType: M;
+interface ServerEndpoint<Q extends JsonValue, R extends JsonValue> {
   /** 
    * A hashmap (aka object, record) of keys to Zod types. The result is passed to the handler.
    * 
-   * ### READ requests (GET and HEAD)
-   * 
-   * For GET and HEAD requests, the server will parse query parameters into a Record<string, string[]>.
-   * If parsing or validation fail, the server will return a 400 error.
-   * 
-   * Body will always be an object.
-   * 
-   * ```ts
-   * z => ({
-   *   username: z.string().array(),
-   * })
-   * ```
-   * 
-   * ### WRITE requests (POST, PUT)
-   * 
-   * For POST, PUT, and DELETE requests, the server will parse the body as JSON.
+   * The server will parse the body as JSON.
    * If parsing or validation fail, the server will return a 400 error.
    * For now it's assumed that there must always be a body.
    * 
@@ -141,7 +134,7 @@ interface ServerEndpoint<M extends "READ" | "WRITE", Q extends Record<string, z.
    * })
    * ```
    */
-  zodRequest: (z: M extends "WRITE" ? Z2<"JSON"> : Z2<"STRING">) => Q;
+  zodRequest: (z: Z2<"JSON">) => ZodType<Q>;
   /** 
    * A zod type (not an object like the request). 
    * The result is returned to the client as JSON. So the handler must at least return null.
@@ -151,7 +144,7 @@ interface ServerEndpoint<M extends "READ" | "WRITE", Q extends Record<string, z.
    * 
    * The return type of the handler function is infered from this schema. 
    */
-  zodResponse: (z: Z2<"JSON">) => R;
+  zodResponse: (z: Z2<"JSON">) => ZodType<R>;
   /**
    * The handler returns a response which is then validated against the zodResponse schema.
    * 
@@ -163,5 +156,5 @@ interface ServerEndpoint<M extends "READ" | "WRITE", Q extends Record<string, z.
    * 
    * 
    */
-  handler: (state: ApiStateObject<M, Q>) => Promise<z.infer<R>>;
+  handler: (state: ApiStateObject, input: Q) => Promise<R>;
 }

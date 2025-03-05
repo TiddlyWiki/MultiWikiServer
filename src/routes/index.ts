@@ -4,14 +4,15 @@ import AuthRoutes from "./auth";
 import { TWRoutes } from "./tw-test";
 import * as esbuild from "esbuild"
 import { request } from "http";
-import ApiRoutes from "./api/api";
+import ApiRoutes from "./api/_index";
 import { ZodAssert } from "../zodAssert";
-
+import bagFileServer from "./bag-file-server";
 
 export default async function RootRoute(root: rootRoute) {
+  await bagFileServer(root, ZodAssert);
   // await TWRoutes(root);
   await ApiRoutes(root);
-  await importDir(root, 'handlers');
+  // await importDir(root, 'handlers');
   await importEsbuild(root);
 }
 async function importDir(root: rootRoute, folder: string) {

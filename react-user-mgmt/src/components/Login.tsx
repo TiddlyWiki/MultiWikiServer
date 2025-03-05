@@ -1,8 +1,7 @@
 import { useState } from 'react';
-import { fetchPostSearchParams } from '../helpers/utils';
-import { useAsyncEffect } from '../helpers/useAsyncEffect';
+import { fetchPostSearchParams, useIndexJson } from '../helpers/utils';
 import * as opaque from "@serenity-kit/opaque";
-import { IndexJson, useIndexJson } from '../helpers/server-types';
+
 
 const LOGIN_FAILED = 'Login failed. Please check your credentials.';
 
@@ -32,7 +31,8 @@ async function loginWithOpaque(username: string, password: string) {
 
 const Login: React.FC<{}> = () => {
 
-  const { "user-is-logged-in": isLoggedIn } = useIndexJson();
+  const index = useIndexJson();
+  const isLoggedIn = !!index.authUser;
 
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 

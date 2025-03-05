@@ -9,116 +9,139 @@ generator client {
   previewFeatures = ["relationJoins", "driverAdapters"]
 }
 
-model config {
-  realm_id    Int     @id @default(autoincrement())
-  allowReads  Boolean
-  allowWrites Boolean
+// generator zod {
+//   provider                  = "zod-prisma-types"
+//   output                    = "./generated/zod-prisma"
+//   useMultipleFiles          = false
+//   createRelationValuesTypes = true
+// }
+
+
+enum Permission {
+  READ
+  WRITE
+  ADMIN
 }
 
-model acl {
-  acl_id      Int    @id @default(autoincrement())
-  entity_name String
-  entity_type String
-  role_id     Int
-  permission  String
-  role        roles? @relation(fields: [role_id], references: [role_id], onDelete: NoAction, onUpdate: NoAction)
+model Acl {
+  acl_id     Int        @id @default(autoincrement())
+  bag_id     Int
+  bag        Bags       @relation(fields: [bag_id], references: [bag_id], onDelete: Cascade)
+  role_id    Int
+  permission Permission
+  role       Roles      @relation(fields: [role_id], references: [role_id], onDelete: NoAction, onUpdate: NoAction)
 
-  @@index([entity_name])
+  @@map("acl")
 }
 
-model bags {
-  bag_id        Int           @id @default(autoincrement())
-  bag_name      String        @unique
-  accesscontrol String?
-  description   String
-  recipe_bags   recipe_bags[]
-  tiddlers      tiddlers[]
-  owner_id      Int?
-  owner         users?        @relation(fields: [owner_id], references: [user_id], onDelete: NoAction, onUpdate: NoAction)
-}
-
-model groups {
-  group_id    Int     @id @default(autoincrement())
-  group_name  String  @unique()
-  description String?
-  roles       roles[]
-  users       users[]
-}
-
-model recipe_bags {
-  recipe_id Int
-  bag_id    Int
-  position  Int
-  bag       bags    @relation(fields: [bag_id], references: [bag_id], onDelete: Cascade)
-  recipe    recipes @relation(fields: [recipe_id], references: [recipe_id], onDelete: Cascade)
-
-  @@unique([recipe_id, bag_id])
-  @@index([recipe_id])
-}
-
-model recipes {
+model Recipes {
   recipe_id   Int           @id @default(autoincrement())
   recipe_name String        @unique
   description String
-  recipe_bags recipe_bags[]
   owner_id    Int?
-  owner       users?        @relation(fields: [owner_id], references: [user_id], onDelete: NoAction, onUpdate: NoAction)
+  owner       Users?        @relation(fields: [owner_id], references: [user_id], onDelete: NoAction, onUpdate: NoAction)
+  recipe_bags Recipe_bags[]
+
+  @@map("recipes")
+}
+model Recipe_bags {
+  recipe_id Int
+  bag_id    Int
+  position  Int
+  bag       Bags    @relation(fields: [bag_id], references: [bag_id], onDelete: Cascade)
+  recipe    Recipes @relation(fields: [recipe_id], references: [recipe_id], onDelete: Cascade)
+
+  @@unique([recipe_id, bag_id])
+  @@index([recipe_id])
+  @@map("recipe_bags")
+}
+model Bags {
+  bag_id        Int           @id @default(autoincrement())
+  bag_name      String        @unique
+  description   String
+  owner_id      Int?
+  owner         Users?        @relation(fields: [owner_id], references: [user_id], onDelete: NoAction, onUpdate: NoAction)
+  acl           Acl[]
+  recipe_bags   Recipe_bags[]
+  tiddlers      Tiddlers[]
+
+  @@map("bags")
 }
 
-model roles {
+model Groups {
+  group_id    Int     @id @default(autoincrement())
+  group_name  String  @unique()
+  description String?
+  roles       Roles[]
+  users       Users[]
+
+  @@map("groups")
+}
+
+
+
+model Roles {
   role_id     Int      @id @default(autoincrement())
   role_name   String   @unique()
   description String?
-  acls        acl[]
-  groups      groups[]
-  users       users[]
+  acls        Acl[]
+  groups      Groups[]
+  users       Users[]
+
+  @@map("roles")
 }
 
-model sessions {
+model Sessions {
   session_id          String  @id
   created_at          String
   last_accessed       String
   session_key         String?
   session_login_state String?
   user_id             Int
-  user                users   @relation(fields: [user_id], references: [user_id], onDelete: NoAction, onUpdate: NoAction)
+  user                Users   @relation(fields: [user_id], references: [user_id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@map("sessions")
 }
 
-model tiddlers {
+model Tiddlers {
   tiddler_id      Int      @id @default(autoincrement())
   bag_id          Int
   title           String
   is_deleted      Boolean
   attachment_blob String?
-  fields          fields[]
+  fields          Fields[]
   // Deleting a referenced record (bag_id) will trigger the deletion of referencing record (tiddler).
-  bag             bags     @relation(fields: [bag_id], references: [bag_id], onDelete: Cascade)
+  bag             Bags     @relation(fields: [bag_id], references: [bag_id], onDelete: Cascade)
 
   @@unique([bag_id, title])
   @@index([bag_id])
+  @@map("tiddlers")
 }
 
-model fields {
+model Fields {
   tiddler_id  Int
   field_name  String
   field_value String
   // Deleting a referenced record (tiddler_id) will trigger the deletion of referencing record (field).
-  tiddler     tiddlers @relation(fields: [tiddler_id], references: [tiddler_id], onDelete: Cascade)
+  tiddler     Tiddlers @relation(fields: [tiddler_id], references: [tiddler_id], onDelete: Cascade)
 
   @@id([tiddler_id, field_name])
   @@index([tiddler_id])
+  @@map("fields")
 }
 
-model users {
+model Users {
   user_id    Int        @id @default(autoincrement())
   username   String     @unique
   email      String     @unique
   password   String
   created_at DateTime   @default(now())
   last_login DateTime?
-  recipes    recipes[]
-  sessions   sessions[]
-  groups     groups[]
-  roles      roles[]
-  bags       bags[]
+  recipes    Recipes[]
+  sessions   Sessions[]
+  groups     Groups[]
+  roles      Roles[]
+  bags       Bags[]
+
+  @@map("users")
 }

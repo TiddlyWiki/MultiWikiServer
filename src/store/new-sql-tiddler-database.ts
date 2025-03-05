@@ -45,11 +45,11 @@ export class SqlTiddlerDatabase extends DataChecks {
 
 	entityTypeToTableMap = {
 		bag: {
-			table: "bags",
+			table: "Bags",
 			column: "bag_name"
 		},
 		recipe: {
-			table: "recipes",
+			table: "Recipes",
 			column: "recipe_name"
 		}
 	}
@@ -232,9 +232,9 @@ export class SqlTiddlerDatabase extends DataChecks {
 	Returns the bag_id of the bag
 	*/
 	async createBag(
-		bag_name: PrismaField<"bags", "bag_name">,
-		description: PrismaField<"bags", "description">,
-		accesscontrol: PrismaField<"bags", "accesscontrol">
+		bag_name: PrismaField<"Bags", "bag_name">,
+		description: PrismaField<"Bags", "description">,
+		accesscontrol: PrismaField<"Bags", "accesscontrol">
 	) {
 
 		// if we're allowing this then the field should just allow null
@@ -317,9 +317,9 @@ export class SqlTiddlerDatabase extends DataChecks {
 	Returns the recipe_id of the new recipe record
 	*/
 	async createRecipe(
-		recipe_name: PrismaField<"recipes", "recipe_name">,
-		bag_names: PrismaField<"bags", "bag_name">[],
-		description: PrismaField<"recipes", "description">
+		recipe_name: PrismaField<"Recipes", "recipe_name">,
+		bag_names: PrismaField<"Bags", "bag_name">[],
+		description: PrismaField<"Recipes", "description">
 	) {
 		const oldRecipe = await this.engine.recipes.findUnique({
 			where: { recipe_name }
@@ -378,8 +378,8 @@ export class SqlTiddlerDatabase extends DataChecks {
 	Assign a recipe to a user
 	*/
 	async assignRecipeToUser(
-		recipe_name: PrismaField<"recipes", "recipe_name">,
-		user_id: PrismaField<"users", "user_id">
+		recipe_name: PrismaField<"Recipes", "recipe_name">,
+		user_id: PrismaField<"Users", "user_id">
 	) {
 		return await this.engine.recipes.update({
 			where: { recipe_name },
@@ -397,8 +397,8 @@ export class SqlTiddlerDatabase extends DataChecks {
 	*/
 	async saveBagTiddler(
 		tiddlerFields: TiddlerFields,
-		bag_name: PrismaField<"bags", "bag_name">,
-		attachment_blob: PrismaField<"tiddlers", "attachment_blob">
+		bag_name: PrismaField<"Bags", "bag_name">,
+		attachment_blob: PrismaField<"Tiddlers", "attachment_blob">
 	) {
 
 		const oldTiddler = await this.engine.tiddlers.findFirst({
@@ -480,8 +480,8 @@ export class SqlTiddlerDatabase extends DataChecks {
 	*/
 	async saveRecipeTiddler(
 		tiddlerFields: TiddlerFields,
-		recipe_name: PrismaField<"recipes", "recipe_name">,
-		attachment_blob: PrismaField<"tiddlers", "attachment_blob">
+		recipe_name: PrismaField<"Recipes", "recipe_name">,
+		attachment_blob: PrismaField<"Tiddlers", "attachment_blob">
 	) {
 
 		const recipe = await this.engine.recipes.findUnique({
@@ -538,8 +538,8 @@ export class SqlTiddlerDatabase extends DataChecks {
 	Returns {tiddler_id:} of the delete marker
 	*/
 	async deleteTiddler(
-		title: PrismaField<"tiddlers", "title">,
-		bag_name: PrismaField<"bags", "bag_name">
+		title: PrismaField<"Tiddlers", "title">,
+		bag_name: PrismaField<"Bags", "bag_name">
 	) {
 		await this.engine.tiddlers.deleteMany({
 			where: { title, bag: { bag_name } },
@@ -590,8 +590,8 @@ export class SqlTiddlerDatabase extends DataChecks {
 	returns {tiddler_id:,tiddler:,attachment_blob:}
 	*/
 	async getBagTiddler(
-		title: PrismaField<"tiddlers", "title">,
-		bag_name: PrismaField<"bags", "bag_name">,
+		title: PrismaField<"Tiddlers", "title">,
+		bag_name: PrismaField<"Bags", "bag_name">,
 	) {
 
 		const tiddler = await this.engine.tiddlers.findFirst({
@@ -654,18 +654,18 @@ export class SqlTiddlerDatabase extends DataChecks {
 	Returns {bag_name:, tiddler: {fields}, tiddler_id:, attachment_blob:}
 	*/
 	async getRecipeTiddler(
-		title: PrismaField<"tiddlers", "title">,
-		recipe_name: PrismaField<"recipes", "recipe_name">,
+		title: PrismaField<"Tiddlers", "title">,
+		recipe_name: PrismaField<"Recipes", "recipe_name">,
 		select?: {
 			attachment_blob?: boolean,
 			/** title is always included regardless */
 			fields?: boolean
 		}
 	): Promise<{
-		bag_name: PrismaField<"bags", "bag_name">,
+		bag_name: PrismaField<"Bags", "bag_name">,
 		tiddler: TiddlerFields,
-		tiddler_id: PrismaField<"tiddlers", "tiddler_id">,
-		attachment_blob: PrismaField<"tiddlers", "attachment_blob"> | null | undefined
+		tiddler_id: PrismaField<"Tiddlers", "tiddler_id">,
+		attachment_blob: PrismaField<"Tiddlers", "attachment_blob"> | null | undefined
 	} | null> {
 		// there is very little reason to optimize this by calling getBagTiddler.
 		// having it all in one query may allow prisma or sqlite to optimize it better
@@ -758,8 +758,8 @@ export class SqlTiddlerDatabase extends DataChecks {
 	Checks if a user has permission to access a recipe
 	*/
 	async hasRecipePermission(
-		userId: PrismaField<"users", "user_id">,
-		recipeName: PrismaField<"recipes", "recipe_name">,
+		userId: PrismaField<"Users", "user_id">,
+		recipeName: PrismaField<"Recipes", "recipe_name">,
 		permissionName: ACLPermissionName
 	) {
 		return this.checkACLPermission(userId, "recipe", recipeName, permissionName);
@@ -790,8 +790,8 @@ export class SqlTiddlerDatabase extends DataChecks {
 	Checks if a user has permission to access a bag
 	*/
 	async hasBagPermission(
-		userId: PrismaField<"users", "user_id">,
-		bagName: PrismaField<"bags", "bag_name">,
+		userId: PrismaField<"Users", "user_id">,
+		bagName: PrismaField<"Bags", "bag_name">,
 		permissionName: ACLPermissionName
 	) {
 		return this.checkACLPermission(userId, "bag", bagName, permissionName);
@@ -839,7 +839,7 @@ export class SqlTiddlerDatabase extends DataChecks {
 		// 	return aclRecord;
 	}
 	async checkACLPermission<T extends EntityType>(
-		user_id: PrismaField<"users", "user_id">,
+		user_id: PrismaField<"Users", "user_id">,
 		entity_type: T,
 		entity_name: EntityName<T>,
 		permission_name: ACLPermissionName,
@@ -960,7 +960,7 @@ export class SqlTiddlerDatabase extends DataChecks {
 	/**
 	Get the titles of the tiddlers in a bag. Returns an empty array for bags that do not exist
 	*/
-	async getBagTiddlers(bag_name: PrismaField<"bags", "bag_name">) {
+	async getBagTiddlers(bag_name: PrismaField<"Bags", "bag_name">) {
 		return this.engine.tiddlers.findMany({
 			where: { bag: { bag_name }, is_deleted: false },
 			select: { title: true, tiddler_id: true },
@@ -987,7 +987,7 @@ export class SqlTiddlerDatabase extends DataChecks {
 	Returns null for bags that do not exist or are empty.
 	Includes deleted tiddlers that still have a record.
 	*/
-	async getBagLastTiddlerId(bag_name: PrismaField<"bags", "bag_name">) {
+	async getBagLastTiddlerId(bag_name: PrismaField<"Bags", "bag_name">) {
 
 		return (await this.engine.tiddlers.aggregate({
 			where: { bag: { bag_name } },
@@ -1031,7 +1031,7 @@ export class SqlTiddlerDatabase extends DataChecks {
 	
 	*/
 	async getRecipeTiddlers(
-		recipe_name: PrismaField<"recipes", "recipe_name">,
+		recipe_name: PrismaField<"Recipes", "recipe_name">,
 		options: {
 			// how do you limit a list of unique titles?
 			// limit?: number, 
@@ -1114,7 +1114,7 @@ export class SqlTiddlerDatabase extends DataChecks {
 	Get the tiddler_id of the newest tiddler in a recipe. Returns null for recipes that do not exist
 	*/
 	async getRecipeLastTiddlerId(
-		recipe_name: PrismaField<"recipes", "recipe_name">
+		recipe_name: PrismaField<"Recipes", "recipe_name">
 	) {
 		return (await this.engine.tiddlers.aggregate({
 			_max: { tiddler_id: true },
@@ -1145,7 +1145,7 @@ export class SqlTiddlerDatabase extends DataChecks {
 	 * TODO: This is a very expensive operation. Make sure it isn't immediately followed by deleting the bag.
 	 */
 	async deleteAllTiddlersInBag(
-		bag_name: PrismaField<"bags", "bag_name">
+		bag_name: PrismaField<"Bags", "bag_name">
 	) {
 
 		const bagTitles = await this.engine.bags.findUnique({
@@ -1194,7 +1194,7 @@ export class SqlTiddlerDatabase extends DataChecks {
 	Get the names of the bags in a recipe. Returns an empty array for recipes that do not exist
 	*/
 	async getRecipeBags(
-		recipe_name: PrismaField<"recipes", "recipe_name">
+		recipe_name: PrismaField<"Recipes", "recipe_name">
 	) {
 
 		return await this.engine.recipe_bags.findMany({
@@ -1223,8 +1223,8 @@ export class SqlTiddlerDatabase extends DataChecks {
 	Get the attachment value of a bag, if any exist
 	*/
 	async getBagTiddlerAttachmentBlob(
-		title: PrismaField<"tiddlers", "title">,
-		bag_name: PrismaField<"bags", "bag_name">
+		title: PrismaField<"Tiddlers", "title">,
+		bag_name: PrismaField<"Bags", "bag_name">
 	) {
 
 		const e = await this.engine.tiddlers.findFirst({
@@ -1248,8 +1248,8 @@ export class SqlTiddlerDatabase extends DataChecks {
 	Get the attachment value of a recipe, if any exist
 	*/
 	async getRecipeTiddlerAttachmentBlob(
-		title: PrismaField<"tiddlers", "title">,
-		recipe_name: PrismaField<"recipes", "recipe_name">
+		title: PrismaField<"Tiddlers", "title">,
+		recipe_name: PrismaField<"Recipes", "recipe_name">
 	) {
 
 		const e = await this.getRecipeTiddler(title, recipe_name, { attachment_blob: true });
@@ -1294,7 +1294,7 @@ export class SqlTiddlerDatabase extends DataChecks {
 		// });
 		// return result.lastInsertRowid;
 	}
-	getUser(userId: PrismaField<"users", "user_id">) {
+	getUser(userId: PrismaField<"Users", "user_id">) {
 		return this.engine.users.findUnique({ where: { user_id: userId } });
 		// return this.engine.runStatementGet(`
 		// 		SELECT * FROM users WHERE user_id = $userId
@@ -1302,7 +1302,7 @@ export class SqlTiddlerDatabase extends DataChecks {
 		// 	$userId: userId
 		// });
 	}
-	getUserByUsername(username: PrismaField<"users", "username">) {
+	getUserByUsername(username: PrismaField<"Users", "username">) {
 		return this.engine.users.findUnique({ where: { username } });
 		// return this.engine.runStatementGet(`
 		// 		SELECT * FROM users WHERE username = $username
@@ -1310,7 +1310,7 @@ export class SqlTiddlerDatabase extends DataChecks {
 		// 	$username: username
 		// });
 	}
-	getUserByEmail(email: PrismaField<"users", "email">) {
+	getUserByEmail(email: PrismaField<"Users", "email">) {
 		return this.engine.users.findUnique({ where: { email } });
 		// return this.engine.runStatementGet(`
 		// 		SELECT * FROM users WHERE email = $email
@@ -1318,7 +1318,7 @@ export class SqlTiddlerDatabase extends DataChecks {
 		// 	$email: email
 		// });
 	}
-	listUsersByRoleId(role_id: PrismaField<"roles", "role_id">) {
+	listUsersByRoleId(role_id: PrismaField<"Roles", "role_id">) {
 		return this.engine.users.findMany({
 			where: { roles: { some: { role_id } } },
 			orderBy: { username: "asc" }
@@ -1334,10 +1334,10 @@ export class SqlTiddlerDatabase extends DataChecks {
 		// });
 	}
 	async updateUser(
-		user_id: PrismaField<"users", "user_id">,
-		username: PrismaField<"users", "username">,
-		email: PrismaField<"users", "email">,
-		role_id: PrismaField<"roles", "role_id"> | undefined
+		user_id: PrismaField<"Users", "user_id">,
+		username: PrismaField<"Users", "username">,
+		email: PrismaField<"Users", "email">,
+		role_id: PrismaField<"Roles", "role_id"> | undefined
 	) {
 		try {
 			const emailExists = await this.engine.users.findFirst({
@@ -1421,7 +1421,7 @@ export class SqlTiddlerDatabase extends DataChecks {
 		// 	}
 	}
 	async updateUserPassword(
-		userId: PrismaField<"users", "user_id">,
+		userId: PrismaField<"Users", "user_id">,
 		newHash: string
 	) {
 		return await this.engine.users.update({
@@ -1455,7 +1455,7 @@ export class SqlTiddlerDatabase extends DataChecks {
 		// 	};
 		// }
 	}
-	deleteUser(userId: PrismaField<"users", "user_id">) {
+	deleteUser(userId: PrismaField<"Users", "user_id">) {
 		return this.engine.users.delete({ where: { user_id: userId } });
 		// this.engine.runStatement(`
 		// 		DELETE FROM users WHERE user_id = $userId
@@ -1470,8 +1470,8 @@ export class SqlTiddlerDatabase extends DataChecks {
 		// `);
 	}
 	async createOrUpdateUserSession(
-		userId: PrismaField<"users", "user_id">,
-		sessionId: PrismaField<"sessions", "session_id">
+		userId: PrismaField<"Users", "user_id">,
+		sessionId: PrismaField<"Sessions", "session_id">
 	) {
 		const currentTimestamp = new Date().toISOString();
 		return await this.engine.sessions.upsert({
@@ -1517,8 +1517,8 @@ export class SqlTiddlerDatabase extends DataChecks {
 		// return sessionId;
 	}
 	async createUserSession(
-		userId: PrismaField<"users", "user_id">,
-		sessionId: PrismaField<"sessions", "session_id">
+		userId: PrismaField<"Users", "user_id">,
+		sessionId: PrismaField<"Sessions", "session_id">
 	) {
 		const currentTimestamp = new Date().toISOString();
 		return await this.engine.sessions.create({
@@ -1542,7 +1542,7 @@ export class SqlTiddlerDatabase extends DataChecks {
 		// return sessionId;
 	}
 	async findUserBySessionId(
-		session_id: PrismaField<"sessions", "session_id">
+		session_id: PrismaField<"Sessions", "session_id">
 	) {
 		// const lastAccessed = new Date(sessionResult.last_accessed);
 		const expirationTime = 24 * 60 * 60 * 1000; // 24 hours in milliseconds
@@ -1604,7 +1604,7 @@ export class SqlTiddlerDatabase extends DataChecks {
 
 		// return userResult;
 	}
-	deleteSession(sessionId: PrismaField<"sessions", "session_id">) {
+	deleteSession(sessionId: PrismaField<"Sessions", "session_id">) {
 		return this.engine.sessions.delete({ where: { session_id: sessionId } });
 		// this.engine.runStatement(`
 		// 		DELETE FROM sessions
@@ -1613,7 +1613,7 @@ export class SqlTiddlerDatabase extends DataChecks {
 		// 	$sessionId: sessionId
 		// });
 	}
-	deleteUserSessions(userId: PrismaField<"users", "user_id">) {
+	deleteUserSessions(userId: PrismaField<"Users", "user_id">) {
 		return this.engine.sessions.deleteMany({ where: { user_id: userId } });
 		// this.engine.runStatement(`
 		// 		DELETE FROM sessions
@@ -1623,14 +1623,14 @@ export class SqlTiddlerDatabase extends DataChecks {
 		// });
 	}
 	// Set the user as an admin
-	async setUserAdmin(userId: PrismaField<"users", "user_id">) {
+	async setUserAdmin(userId: PrismaField<"Users", "user_id">) {
 		var admin = await this.getAdminRole();
 		if (admin) { this.addRoleToUser(userId, admin.role_id); }
 	}
 	// Group CRUD operations
 	async createGroup(
-		group_name: PrismaField<"groups", "group_name">,
-		description: PrismaField<"groups", "description">
+		group_name: PrismaField<"Groups", "group_name">,
+		description: PrismaField<"Groups", "description">
 	) {
 		const e = await this.engine.groups.create({
 			data: { group_name, description }
@@ -1645,7 +1645,7 @@ export class SqlTiddlerDatabase extends DataChecks {
 		// });
 		// return result.lastInsertRowid;
 	}
-	getGroup(groupId: PrismaField<"groups", "group_id">) {
+	getGroup(groupId: PrismaField<"Groups", "group_id">) {
 		return this.engine.groups.findUnique({
 			where: { group_id: groupId }
 		});
@@ -1656,9 +1656,9 @@ export class SqlTiddlerDatabase extends DataChecks {
 		// });
 	}
 	updateGroup(
-		groupId: PrismaField<"groups", "group_id">,
-		groupName: PrismaField<"groups", "group_name">,
-		description: PrismaField<"groups", "description">
+		groupId: PrismaField<"Groups", "group_id">,
+		groupName: PrismaField<"Groups", "group_name">,
+		description: PrismaField<"Groups", "description">
 	) {
 		return this.engine.groups.update({
 			where: { group_id: groupId },
@@ -1674,7 +1674,7 @@ export class SqlTiddlerDatabase extends DataChecks {
 		// 	$description: description
 		// });
 	}
-	deleteGroup(groupId: PrismaField<"groups", "group_id">) {
+	deleteGroup(groupId: PrismaField<"Groups", "group_id">) {
 		return this.engine.groups.delete({ where: { group_id: groupId } });
 		// this.engine.runStatement(`
 		// 		DELETE FROM groups WHERE group_id = $groupId
@@ -1690,8 +1690,8 @@ export class SqlTiddlerDatabase extends DataChecks {
 	}
 	// Role CRUD operations
 	async createRole(
-		roleName: PrismaField<"roles", "role_name">,
-		description: PrismaField<"roles", "description">
+		roleName: PrismaField<"Roles", "role_name">,
+		description: PrismaField<"Roles", "description">
 	) {
 		const e = await this.engine.roles.create({
 			data: { role_name: roleName, description }
@@ -1706,7 +1706,7 @@ export class SqlTiddlerDatabase extends DataChecks {
 		// });
 		// return result.lastInsertRowid;
 	}
-	getRole(roleId: PrismaField<"roles", "role_id">) {
+	getRole(roleId: PrismaField<"Roles", "role_id">) {
 		return this.engine.roles.findUnique({
 			where: { role_id: roleId }
 		});
@@ -1716,7 +1716,7 @@ export class SqlTiddlerDatabase extends DataChecks {
 		// 	$roleId: roleId
 		// });
 	}
-	getRoleByName(roleName: PrismaField<"roles", "role_name">) {
+	getRoleByName(roleName: PrismaField<"Roles", "role_name">) {
 		return this.engine.roles.findUnique({
 			where: { role_name: roleName }
 		});
@@ -1727,12 +1727,12 @@ export class SqlTiddlerDatabase extends DataChecks {
 		// });
 	}
 	getAdminRole() {
-		return this.getRoleByName("ADMIN" as PrismaField<"roles", "role_name">);
+		return this.getRoleByName("ADMIN" as PrismaField<"Roles", "role_name">);
 	}
 	updateRole(
-		roleId: PrismaField<"roles", "role_id">,
-		roleName: PrismaField<"roles", "role_name">,
-		description: PrismaField<"roles", "description">
+		roleId: PrismaField<"Roles", "role_id">,
+		roleName: PrismaField<"Roles", "role_name">,
+		description: PrismaField<"Roles", "description">
 	) {
 		return this.engine.roles.update({
 			where: { role_id: roleId },
@@ -1748,7 +1748,7 @@ export class SqlTiddlerDatabase extends DataChecks {
 		// 	$description: description
 		// });
 	}
-	deleteRole(roleId: PrismaField<"roles", "role_id">) {
+	deleteRole(roleId: PrismaField<"Roles", "role_id">) {
 		return this.engine.roles.delete({ where: { role_id: roleId } });
 		// this.engine.runStatement(`
 		// 		DELETE FROM roles WHERE role_id = $roleId
@@ -1766,7 +1766,7 @@ export class SqlTiddlerDatabase extends DataChecks {
 	createACL<T extends EntityType>(
 		entityType: T,
 		entityName: string,
-		roleId: PrismaField<"roles", "role_id">,
+		roleId: PrismaField<"Roles", "role_id">,
 		permission: ACLPermissionName
 	) {
 		if (entityName.startsWith("$:/")) return;
@@ -1792,7 +1792,7 @@ export class SqlTiddlerDatabase extends DataChecks {
 		// 	return result.lastInsertRowid;
 		// }
 	}
-	getACL(aclId: PrismaField<"acl", "acl_id">) {
+	getACL(aclId: PrismaField<"Acl", "acl_id">) {
 		return this.engine.acl.findUnique({
 			where: { acl_id: aclId }
 		});
@@ -1803,10 +1803,10 @@ export class SqlTiddlerDatabase extends DataChecks {
 		// });
 	}
 	updateACL<T extends EntityType>(
-		aclId: PrismaField<"acl", "acl_id">,
-		entityName: PrismaField<"acl", "entity_name">,
+		aclId: PrismaField<"Acl", "acl_id">,
+		entityName: PrismaField<"Acl", "entity_name">,
 		entityType: T,
-		roleId: PrismaField<"acl", "role_id">,
+		roleId: PrismaField<"Acl", "role_id">,
 		permission: ACLPermissionName
 	) {
 		return this.engine.acl.update({
@@ -1831,7 +1831,7 @@ export class SqlTiddlerDatabase extends DataChecks {
 		// 	$permissionId: permissionId
 		// });
 	}
-	deleteACL(aclId: PrismaField<"acl", "acl_id">) {
+	deleteACL(aclId: PrismaField<"Acl", "acl_id">) {
 		return this.engine.acl.delete({ where: { acl_id: aclId } });
 		// this.engine.runStatement(`
 		// 		DELETE FROM acl WHERE acl_id = $aclId
@@ -1847,8 +1847,8 @@ export class SqlTiddlerDatabase extends DataChecks {
 	}
 	// Association management functions
 	addUserToGroup(
-		userId: PrismaField<"users", "user_id">,
-		groupId: PrismaField<"groups", "group_id">
+		userId: PrismaField<"Users", "user_id">,
+		groupId: PrismaField<"Groups", "group_id">
 	) {
 		return this.engine.users.update({
 			where: { user_id: userId },
@@ -1863,8 +1863,8 @@ export class SqlTiddlerDatabase extends DataChecks {
 		// });
 	}
 	async isUserInGroup(
-		userId: PrismaField<"users", "user_id">,
-		groupId: PrismaField<"groups", "group_id">
+		userId: PrismaField<"Users", "user_id">,
+		groupId: PrismaField<"Groups", "group_id">
 	) {
 		return await this.engine.users.count({
 			where: { user_id: userId, groups: { some: { group_id: groupId } } },
@@ -1880,8 +1880,8 @@ export class SqlTiddlerDatabase extends DataChecks {
 		// return result !== undefined;
 	}
 	removeUserFromGroup(
-		userId: PrismaField<"users", "user_id">,
-		groupId: PrismaField<"groups", "group_id">
+		userId: PrismaField<"Users", "user_id">,
+		groupId: PrismaField<"Groups", "group_id">
 	) {
 		return this.engine.users.update({
 			where: { user_id: userId },
@@ -1896,8 +1896,8 @@ export class SqlTiddlerDatabase extends DataChecks {
 		// });
 	}
 	addRoleToUser(
-		userId: PrismaField<"users", "user_id">,
-		roleId: PrismaField<"roles", "role_id">
+		userId: PrismaField<"Users", "user_id">,
+		roleId: PrismaField<"Roles", "role_id">
 	) {
 		return this.engine.users.update({
 			where: { user_id: userId },
@@ -1912,8 +1912,8 @@ export class SqlTiddlerDatabase extends DataChecks {
 		// });
 	}
 	removeRoleFromUser(
-		userId: PrismaField<"users", "user_id">,
-		roleId: PrismaField<"roles", "role_id">
+		userId: PrismaField<"Users", "user_id">,
+		roleId: PrismaField<"Roles", "role_id">
 	) {
 		return this.engine.users.update({
 			where: { user_id: userId },
@@ -1928,8 +1928,8 @@ export class SqlTiddlerDatabase extends DataChecks {
 		// });
 	}
 	addRoleToGroup(
-		groupId: PrismaField<"groups", "group_id">,
-		roleId: PrismaField<"roles", "role_id">
+		groupId: PrismaField<"Groups", "group_id">,
+		roleId: PrismaField<"Roles", "role_id">
 	) {
 		return this.engine.groups.update({
 			where: { group_id: groupId },
@@ -1944,8 +1944,8 @@ export class SqlTiddlerDatabase extends DataChecks {
 		// });
 	}
 	removeRoleFromGroup(
-		group_id: PrismaField<"groups", "group_id">,
-		role_id: PrismaField<"roles", "role_id">
+		group_id: PrismaField<"Groups", "group_id">,
+		role_id: PrismaField<"Roles", "role_id">
 	) {
 		return this.engine.groups.update({
 			where: { group_id },
@@ -1961,7 +1961,7 @@ export class SqlTiddlerDatabase extends DataChecks {
 	}
 	// this doesn't appear to be used anywhere
 	// addPermissionToRole(
-	// 	roleId: PrismaField<"roles", "role_id">,
+	// 	roleId: PrismaField<"Roles", "role_id">,
 	// 	permissionId: PrismaField<"permissions", "permission_id">
 	// ) {
 	// 	return this.engine.role_permissions.create({
@@ -1977,7 +1977,7 @@ export class SqlTiddlerDatabase extends DataChecks {
 	// }
 	// this doesn't appear to be used anywhere
 	// removePermissionFromRole(
-	// 	roleId: PrismaField<"roles", "role_id">,
+	// 	roleId: PrismaField<"Roles", "role_id">,
 	// 	permissionId: PrismaField<"permissions", "permission_id">
 	// ) {
 	// 	return this.engine.role_permissions.delete({
@@ -1991,7 +1991,7 @@ export class SqlTiddlerDatabase extends DataChecks {
 	// 	// 	$permissionId: permissionId
 	// 	// });
 	// }
-	getUserRoles(user_id: PrismaField<"users", "user_id">) {
+	getUserRoles(user_id: PrismaField<"Users", "user_id">) {
 		return this.engine.users.findUnique({
 			where: { user_id },
 			select: { roles: true, }
@@ -2006,7 +2006,7 @@ export class SqlTiddlerDatabase extends DataChecks {
 
 		// return this.engine.runStatementGet(query, { $userId: userId });
 	}
-	deleteUserRolesByRoleId(roleId: PrismaField<"roles", "role_id">) {
+	deleteUserRolesByRoleId(roleId: PrismaField<"Roles", "role_id">) {
 		return this.engine.roles.update({
 			where: { role_id: roleId },
 			data: { users: { set: [] } }
@@ -2018,7 +2018,7 @@ export class SqlTiddlerDatabase extends DataChecks {
 		// 	$roleId: roleId
 		// });
 	}
-	deleteUserRolesByUserId(userId: PrismaField<"users", "user_id">) {
+	deleteUserRolesByUserId(userId: PrismaField<"Users", "user_id">) {
 		return this.engine.users.update({
 			where: { user_id: userId },
 			data: { roles: { set: [] } }
@@ -2030,7 +2030,7 @@ export class SqlTiddlerDatabase extends DataChecks {
 		// 	$userId: userId
 		// });
 	}
-	async isRoleInUse(role_id: PrismaField<"roles", "role_id">) {
+	async isRoleInUse(role_id: PrismaField<"Roles", "role_id">) {
 		return await this.engine.users.count({ where: { roles: { some: { role_id } } } }).then(e => e > 0)
 			|| await this.engine.groups.count({ where: { roles: { some: { role_id } } } }).then(e => e > 0)
 			|| await this.engine.acl.count({ where: { role_id } }).then(e => e > 0);
@@ -2066,7 +2066,7 @@ export class SqlTiddlerDatabase extends DataChecks {
 		// // If we've reached this point, the role is not in use
 		// return false;
 	}
-	getRoleById(role_id: PrismaField<"roles", "role_id">) {
+	getRoleById(role_id: PrismaField<"Roles", "role_id">) {
 		return this.engine.roles.findUnique({ where: { role_id } });
 		// const role = this.engine.runStatementGet(`
 		// 	SELECT role_id, role_name, description

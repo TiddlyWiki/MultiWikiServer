@@ -14,26 +14,27 @@ declare global {
 
 
   /** 
-   * If you assign values like `5 as PrismaField<"bags", "bag_name">`, 
+   * If you assign values like `5 as PrismaField<"Bags", "bag_name">`, 
    * this will result in a type error on the as keyword, 
    * allowing you to catch incorrect types quickly.
   */
   type PrismaField<T extends Prisma.ModelName, K extends keyof PrismaPayloadScalars<T>> =
     // manually map foriegn keys to their corresponding primary key so comparisons work
     // this should remove the need for any global helper functions to convert between types
-    [T, K] extends ["acl", "role_id"] ? PrismaField<"roles", "role_id"> :
-    [T, K] extends ["user_roles", "role_id"] ? PrismaField<"roles", "role_id"> :
-    [T, K] extends ["recipes", "owner_id"] ? PrismaField<"users", "user_id"> :
-    [T, K] extends ["bags", "owner_id"] ? PrismaField<"users", "user_id"> :
-    (PrismaPayloadScalars<T>[K] & { __prisma_table: T, __prisma_field: K })
-    | (null extends PrismaPayloadScalars<T>[K] ? null : never);
+    (
+      [T, K] extends ["Acl", "role_id"] ? PrismaField<"Roles", "role_id"> :
+      [T, K] extends ["user_roles", "role_id"] ? PrismaField<"Roles", "role_id"> :
+      [T, K] extends ["Recipes", "owner_id"] ? PrismaField<"Users", "user_id"> :
+      [T, K] extends ["Bags", "owner_id"] ? PrismaField<"Users", "user_id"> :
+      (PrismaPayloadScalars<T>[K] & { __prisma_table: T, __prisma_field: K })
+    ) | (null extends PrismaPayloadScalars<T>[K] ? null : never);
 
   type PrismaPayloadScalars<T extends Prisma.ModelName>
     = Prisma.TypeMap["model"][T]["payload"]["scalars"]
 
   type EntityName<T extends EntityType> =
-    T extends "bag" ? PrismaField<"bags", "bag_name"> :
-    T extends "recipe" ? PrismaField<"recipes", "recipe_name"> :
+    T extends "bag" ? PrismaField<"Bags", "bag_name"> :
+    T extends "recipe" ? PrismaField<"Recipes", "recipe_name"> :
     never;
 
   type EntityType = "recipe" | "bag";
@@ -51,7 +52,7 @@ declare global { const ok: typeof assert.ok; }
 
 // these are some $tw.utils functions that seemed important enough to just copy across
 declare global {
-  
+
   function hop(object: any, property: any): boolean;
   function each<T>(object: T[], callback: (value: T, index: number, object: T[]) => void): void;
   function each<T>(object: Record<string, T>, callback: (value: T, key: string, object: Record<string, T>) => void): void;

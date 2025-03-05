@@ -141,12 +141,22 @@ export interface Z2<T extends FieldTypeGroups = never> extends _zod {
    * You can use .optional(), .nullable(), .nulish() after this to make the field optional.
    */
   prismaField<Table extends Prisma.ModelName, Field extends keyof PrismaPayloadScalars<Table>>(
-    table: Table, field: Field, fieldtype:
+    table: Table, field: Field,
+    fieldtype:
       (PrismaPayloadScalars<Table>[Field] & {}) extends string ? FieldTypeStringSelector<T> :
       (PrismaPayloadScalars<Table>[Field] & {}) extends number ? FieldTypeNumberSelector<T> :
       (PrismaPayloadScalars<Table>[Field] & {}) extends boolean ? FieldTypeBooleanSelector<T> :
       never,
-  ): ZodEffects<any, PrismaField<Table, Field>, PrismaPayloadScalars<Table>[Field]>
+    nullable?: null extends PrismaPayloadScalars<Table>[Field] ? true : false
+  ): ZodEffects<any, PrismaField<Table, Field>, PrismaPayloadScalars<Table>[Field]>;
+
+
+  authUser(): z.ZodNullable<z.ZodObject<{
+    user_id: z.ZodNumber;
+    isAdmin: z.ZodBoolean;
+    username: z.ZodString;
+    sessionId: z.ZodNumber;
+  }>>;
 
 }
 
@@ -210,6 +220,12 @@ type FieldTypeBooleanSelector<T extends FieldTypeGroups> = T extends "STRING" ? 
 function makeZ2<T extends FieldTypeGroups>(input: "data" | "pathParams" | "queryParams" | "any" | "response" | string): Z2<T> {
   const z2 = Object.create(z);
   z2.prismaField = prismaField;
+  z2.authUser = () => z.object({
+    user_id: z.number(),
+    isAdmin: z.boolean(),
+    username: z.string(),
+    sessionId: z.number(),
+  }).nullable();
   return z2;
 }
 

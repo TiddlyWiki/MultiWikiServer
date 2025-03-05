@@ -1,5 +1,5 @@
 import { Readable } from 'stream';
-import { createStrictAwaitProxy, filterAsync, mapAsync, processIncomingStream, readMultipartData, sendResponse } from './helpers';
+import { createStrictAwaitProxy, filterAsync, mapAsync, processIncomingStream, readMultipartData, sendResponse, truthy } from './utils';
 import { STREAM_ENDED, Streamer, StreamerState } from './streamer';
 import { PassThrough } from 'node:stream';
 import { AllowedMethod, BodyFormat, RouteMatch, Router } from './router';
@@ -7,6 +7,8 @@ import { SqlTiddlerStore } from './store/new-sql-tiddler-store';
 import * as z from 'zod';
 import { SqlTiddlerDatabase } from './store/new-sql-tiddler-database';
 import { Authenticator } from './Authenticator';
+import { Prisma } from '@prisma/client';
+import { argproxy } from './prisma-proxy';
 
 const authLevelNeededForMethod: Record<AllowedMethod, "readers" | "writers" | undefined> = {
   "GET": "readers",
@@ -87,11 +89,10 @@ export class StateObject<
   authLevelNeeded: "readers" | "writers";
   authorizationType: string;
   authenticatedUser: {
-    user_id: PrismaField<"users", "user_id">,
-    recipe_owner_id: PrismaField<"recipes", "owner_id"> & {},
+    user_id: PrismaField<"Users", "user_id">,
     isAdmin: boolean,
-    username: PrismaField<"users", "username">,
-    sessionId: PrismaField<"sessions", "session_id">,
+    username: PrismaField<"Users", "username">,
+    sessionId: PrismaField<"Sessions", "session_id">,
   } | null = null;
 
   anonAccessConfigured: boolean = false;
@@ -263,6 +264,33 @@ export class StateObject<
     return this.bodyFormat as BodyFormat === format;
   }
 
+  getBagWhereACL(permission: ACLPermissionName) {
+    const anonRead = this.allowAnon && this.allowAnonReads && permission === "READ";
+    const allperms = ["READ", "WRITE", "ADMIN"] as const;
+    const index = allperms.indexOf(permission);
+    if (index === -1) throw new Error("Invalid permission");
+    const checkperms = allperms.slice(index);
+    return this.authenticatedUser?.isAdmin ? {} : {
+      OR: ([
+        // all system bags are allowed for any user
+        { bag_name: { startsWith: "$:/" } },
+        // allow unowned for any user (conditional for anon reads)
+        (this.authenticatedUser || anonRead) && { acl: { none: {} }, owner_id: null },
+        // allow owner for user
+        this.authenticatedUser && { owner_id: this.authenticatedUser.user_id },
+        // allow acl for user 
+        this.authenticatedUser && {
+          acl: {
+            some: {
+              permission: { in: checkperms },
+              role: { users: { some: { user_id: this.authenticatedUser.user_id } } }
+            }
+          }
+        },
+
+      ] satisfies (Prisma.BagsWhereInput | undefined | null | false)[]).filter(truthy)
+    }
+  }
 
 
   /**
@@ -354,16 +382,11 @@ export class StateObject<
     this.store.okEntityType(entityType);
     var extensionRegex = /\.[A-Za-z0-9]{1,4}$/;
 
-    // First, replace '%3A' with ':' to handle TiddlyWiki's system tiddlers
-    var partiallyDecoded = entityName?.replace(/%3A/g, ":");
-    // Then use decodeURIComponent for the rest
-    var decodedEntityName = decodeURIComponent(partiallyDecoded) as
-      PrismaField<"bags", "bag_name"> | PrismaField<"recipes", "recipe_name">;
-    var [aclRecord] = await this.store.sql.getACLByName(entityType, decodedEntityName, undefined, false);
+    var [aclRecord] = await this.store.sql.getACLByName(entityType, entityName, undefined, false);
     var isGetRequest = this.method === "GET";
     var hasAnonymousAccess = this.allowAnon ? (isGetRequest ? this.allowAnonReads : this.allowAnonWrites) : false;
     var anonymousAccessConfigured = this.anonAccessConfigured;
-    const { value: entity } = await this.store.sql.getEntityByName(entityType, decodedEntityName) as any;
+    const { value: entity } = await this.store.sql.getEntityByName(entityType, entityName) as any;
 
     var isAdmin = this.authenticatedUser?.isAdmin;
 
@@ -374,8 +397,8 @@ export class StateObject<
     if (entity?.owner_id) {
       if (this.authenticatedUser?.user_id && (this.authenticatedUser?.user_id !== entity.owner_id) || !this.authenticatedUser?.user_id && !hasAnonymousAccess) {
         const hasPermission = this.authenticatedUser?.user_id ?
-          entityType === 'recipe' ? await this.store.sql.hasRecipePermission(this.authenticatedUser?.user_id, decodedEntityName as any, isGetRequest ? 'READ' : 'WRITE')
-            : await this.store.sql.hasBagPermission(this.authenticatedUser?.user_id, decodedEntityName as any, isGetRequest ? 'READ' : 'WRITE')
+          entityType === 'recipe' ? await this.store.sql.hasRecipePermission(this.authenticatedUser?.user_id, entityName as any, isGetRequest ? 'READ' : 'WRITE')
+            : await this.store.sql.hasBagPermission(this.authenticatedUser?.user_id, entityName as any, isGetRequest ? 'READ' : 'WRITE')
           : false
         if (!hasPermission) {
           throw this.sendEmpty(403);
@@ -406,7 +429,7 @@ export class StateObject<
         var hasPermission = this.authenticatedUser && await this.store.sql.checkACLPermission(
           this.authenticatedUser.user_id,
           entityType,
-          decodedEntityName,
+          entityName,
           permissionName,
         );
 
@@ -437,9 +460,9 @@ export class StateObject<
 }
 
 
-export class ApiStateObject<M extends "READ" | "WRITE", Q extends Record<string, z.ZodTypeAny>> {
+export class ApiStateObject {
   get headers() { return this.state.headers }
-
+  getBagWhereACL;
   authenticatedUser
   store
   allowAnon
@@ -449,8 +472,6 @@ export class ApiStateObject<M extends "READ" | "WRITE", Q extends Record<string,
   constructor(
     private state: StateObject,
     public prisma: PrismaTxnClient,
-    public methodType: M,
-    public reqData: z.infer<z.ZodObject<Q>>
   ) {
     if (state.method === "OPTIONS")
       throw new Error("Invalid method");
@@ -461,10 +482,12 @@ export class ApiStateObject<M extends "READ" | "WRITE", Q extends Record<string,
     this.allowAnonReads = state.allowAnonReads;
     this.firstGuestUser = state.firstGuestUser;
     this.showAnonConfig = state.showAnonConfig;
+
+    this.getBagWhereACL = this.state.getBagWhereACL.bind(this.state);
+    
   }
 
 }
-
 
 const zodURIComponent = (val: string, ctx: z.RefinementCtx) => {
   try {

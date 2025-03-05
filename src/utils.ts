@@ -145,7 +145,7 @@ callback - invoked as callback(err,results). Results is an array of titles of im
  */
 export async function processIncomingStream(
   this: StateObject,
-  bag_name: PrismaField<"bags", "bag_name">,
+  bag_name: PrismaField<"Bags", "bag_name">,
 ): Promise<string[]> {
   const state = this;
   // Process the incoming data
@@ -464,4 +464,11 @@ export async function filterAsync<T, V>(array: T[], callback: (this: V, value: T
     }
   }
   return results as any;
+}
+
+
+export function truthy<T>(
+  obj: T
+): obj is Exclude<T, false | null | undefined | 0 | '' | void> {
+  return !!obj;
 }

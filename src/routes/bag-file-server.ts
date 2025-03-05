@@ -1,0 +1,223 @@
+import { Readable } from "stream";
+import { ApiStateObject, StateObject } from "../StateObject";
+import { TiddlerFields } from "../store/new-sql-tiddler-database";
+
+
+export default function (root: rootRoute, zodAssert: ZodAssert) {
+  root.defineRoute({
+    method: ["GET"],
+    path: /^\/bags\/([^\/]+)\/tiddlers\/(.+)$/,
+    pathParams: ["bag_name", "title"],
+    useACL: {},
+  }, async state => {
+    return await state.$transaction(async prisma => {
+      const server = new BagFileServer(state, zodAssert, prisma);
+      return await server.serveBagTiddler(state);
+    });
+  });
+  const SYSTEM_FILE_TITLE_PREFIX = "$:/plugins/tiddlywiki/multiwikiserver/system-files/";
+  // the system wiki will hopefully be replaced by a bag in the database
+  root.defineRoute({
+    method: ["GET"],
+    path: /^\/\.system\/(.+)$/,
+    pathParams: ["filename"],
+    useACL: {},
+  }, async state => {
+    zodAssert.pathParams(state, z => ({
+      filename: z.prismaField("Tiddlers", "title", "string"),
+    }));
+    // Get the  parameters
+    const filename = state.pathParams.filename,
+      title = SYSTEM_FILE_TITLE_PREFIX + filename,
+      tiddler = state.store.adminWiki.getTiddler(title),
+      isSystemFile = tiddler && tiddler.hasTag("$:/tags/MWS/SystemFile"),
+      isSystemFileWikified = tiddler && tiddler.hasTag("$:/tags/MWS/SystemFileWikified");
+
+    if (tiddler && (isSystemFile || isSystemFileWikified)) {
+      let text = tiddler.fields.text || "";
+      const sysFileType = tiddler.fields["system-file-type"];
+      const type = typeof sysFileType === "string" && sysFileType || tiddler.fields.type || "text/plain",
+        encoding = (state.config.contentTypeInfo[type] || { encoding: "utf8" }).encoding;
+      if (isSystemFileWikified) {
+        text = state.store.adminWiki.renderTiddler("text/plain", title);
+      }
+      return state.sendString(200, {
+        "content-type": type
+      }, text, encoding);
+    } else {
+      return state.sendEmpty(404);
+    }
+  })
+}
+
+class BagFileServer {
+  getBagWhereACL;
+  attachmentStore
+  contentTypeInfo;
+  pathParams;
+  constructor(
+    state: StateObject,
+    zodAssert: ZodAssert,
+    private prisma: PrismaTxnClient
+  ) {
+    this.contentTypeInfo = state.config.contentTypeInfo;
+    zodAssert.pathParams(state, z => ({
+      bag_name: z.prismaField("Bags", "bag_name", "string"),
+      title: z.prismaField("Tiddlers", "title", "string"),
+    }));
+
+    this.pathParams = state.pathParams;
+    this.attachmentStore = state.attachmentStore;
+
+    this.getBagWhereACL = state.getBagWhereACL.bind(state);
+  }
+
+  async serveBagTiddler(state: StateObject) {
+
+    const { bag_name, title } = this.pathParams;
+
+    const { OR } = this.getBagWhereACL("READ");
+    const tiddler = await this.prisma.tiddlers.findFirst({
+      where: {
+        title,
+        bag: { bag_name, OR },
+        is_deleted: false,
+      }
+    });
+
+    if (!tiddler) return state.sendEmpty(404);
+
+    const tiddlerInfo = await this.getBagTiddler(bag_name, title);
+    if (tiddlerInfo && tiddlerInfo.tiddler) {
+      // If application/json is requested then this is an API request, and gets the response in JSON
+      if (state.headers.accept && state.headers.accept.indexOf("application/json") !== -1) {
+        return state.sendResponse(200, {
+          Etag: state.makeTiddlerEtag(tiddlerInfo),
+          "Content-Type": "application/json"
+        }, JSON.stringify(tiddlerInfo.tiddler), "utf8");
+
+      } else {
+        // This is not a JSON API request, we should return the raw tiddler content
+        const result = await state.store.getBagTiddlerStream(title, bag_name);
+        if (result) {
+          return state.sendStream(200, {
+            Etag: state.makeTiddlerEtag(result),
+            "Content-Type": result.type
+          }, result.stream);
+        } else {
+          return state.sendEmpty(404);
+        }
+      }
+    } else {
+      // Redirect to fallback URL if tiddler not found
+      const fallback = state.queryParams.fallback?.[0];
+      if (fallback) {
+        return state.redirect(fallback);
+      } else {
+        return state.sendEmpty(404);
+      }
+    }
+  }
+
+  async getBagTiddler(
+    bag_name: PrismaField<"Bags", "bag_name">,
+    title: PrismaField<"Tiddlers", "title">
+  ) {
+    const tiddlerInfo = await this.getBagTiddlerInner(bag_name, title);
+    if (tiddlerInfo) {
+      return Object.assign(
+        {},
+        tiddlerInfo,
+        {
+          tiddler: await this.processOutgoingTiddler(tiddlerInfo.tiddler, tiddlerInfo.tiddler_id, bag_name, tiddlerInfo.attachment_blob)
+        });
+    } else {
+      return null;
+    }
+  }
+
+  async getBagTiddlerInner(
+    bag_name: PrismaField<"Bags", "bag_name">,
+    title: PrismaField<"Tiddlers", "title">,
+  ) {
+    const { OR } = this.getBagWhereACL("READ");
+    const tiddler = await this.prisma.tiddlers.findFirst({
+      where: {
+        title,
+        bag: { bag_name, OR },
+        is_deleted: false
+      },
+      include: {
+        fields: true
+      }
+    });
+
+    if (!tiddler) return null;
+
+    return {
+      bag_name: bag_name as PrismaField<"Bags", "bag_name">,
+      tiddler_id: tiddler.tiddler_id as PrismaField<"Tiddlers", "tiddler_id">,
+      attachment_blob: tiddler.attachment_blob as PrismaField<"Tiddlers", "attachment_blob">,
+      tiddler: Object.fromEntries([
+        ...tiddler.fields.map(e => [e.field_name, e.field_value] as const),
+        ["title", title]
+      ]) as TiddlerFields
+    }
+
+  }
+  async processOutgoingTiddler(
+    tiddlerFields: TiddlerFields,
+    tiddler_id: PrismaField<"Tiddlers", "tiddler_id">,
+    bag_name: PrismaField<"Bags", "bag_name">,
+    attachment_blob: PrismaField<"Tiddlers", "attachment_blob"> | null
+  ) {
+    if (attachment_blob !== null) {
+      return Object.assign({}, tiddlerFields, {
+        text: undefined,
+        _canonical_uri: `/bags/${encodeURIComponentExtended(bag_name)}/tiddlers/${encodeURIComponentExtended(tiddlerFields.title)}/blob`
+      }
+      );
+    } else {
+      return tiddlerFields;
+    }
+  }
+  async getBagTiddlerStream(
+    title: PrismaField<"Tiddlers", "title">,
+    bag_name: PrismaField<"Bags", "bag_name">
+  ) {
+    const self = this;
+    const tiddlerInfo = await this.getBagTiddlerInner(bag_name, title);
+    if (tiddlerInfo) {
+      if (tiddlerInfo.attachment_blob) {
+        return Object.assign(
+          {},
+          this.attachmentStore.getAttachmentStream(tiddlerInfo.attachment_blob),
+          {
+            tiddler_id: tiddlerInfo.tiddler_id,
+            bag_name: bag_name
+          }
+        );
+      } else {
+
+        const stream = new Readable();
+        const type = tiddlerInfo.tiddler.type || "text/plain";
+        const { encoding } = (this.contentTypeInfo[type] || { encoding: "utf8" });
+        stream._read = function () {
+          // Push data
+
+          stream.push(tiddlerInfo.tiddler.text || "", encoding);
+          // Push null to indicate the end of the stream
+          stream.push(null);
+        };
+        return {
+          tiddler_id: tiddlerInfo.tiddler_id,
+          bag_name: bag_name,
+          stream: stream,
+          type: tiddlerInfo.tiddler.type || "text/plain"
+        };
+      }
+    } else {
+      return null;
+    }
+  }
+}

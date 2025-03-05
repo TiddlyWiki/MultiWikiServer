@@ -11,13 +11,13 @@ interface FormValues {
 
 
 interface ManageAcl {
-  recipe_name: PrismaField<"recipes", "recipe_name">
-  bag_name: PrismaField<"bags", "bag_name">
+  recipe_name: PrismaField<"Recipes", "recipe_name">
+  bag_name: PrismaField<"Bags", "bag_name">
 }
 
 const ManageAcl = DataLoader(async ({ recipe_name, bag_name }: ManageAcl) => {
 
-  const result = await serverRequest("ListACL", "READ", { recipe_name, bag_name });
+  const result = await serverRequest("ListACL", { recipe_name, bag_name });
 
   return {
     ...result,

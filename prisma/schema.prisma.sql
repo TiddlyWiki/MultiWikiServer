@@ -1,35 +1,20 @@
 -- CreateTable
-CREATE TABLE "config" (
-    "realm_id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
-    "allowReads" BOOLEAN NOT NULL,
-    "allowWrites" BOOLEAN NOT NULL
-);
-
--- CreateTable
 CREATE TABLE "acl" (
     "acl_id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
-    "entity_name" TEXT NOT NULL,
-    "entity_type" TEXT NOT NULL,
+    "bag_id" INTEGER NOT NULL,
     "role_id" INTEGER NOT NULL,
     "permission" TEXT NOT NULL,
+    CONSTRAINT "acl_bag_id_fkey" FOREIGN KEY ("bag_id") REFERENCES "bags" ("bag_id") ON DELETE CASCADE ON UPDATE CASCADE,
     CONSTRAINT "acl_role_id_fkey" FOREIGN KEY ("role_id") REFERENCES "roles" ("role_id") ON DELETE NO ACTION ON UPDATE NO ACTION
 );
 
 -- CreateTable
-CREATE TABLE "bags" (
-    "bag_id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
-    "bag_name" TEXT NOT NULL,
-    "accesscontrol" TEXT,
+CREATE TABLE "recipes" (
+    "recipe_id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+    "recipe_name" TEXT NOT NULL,
     "description" TEXT NOT NULL,
     "owner_id" INTEGER,
-    CONSTRAINT "bags_owner_id_fkey" FOREIGN KEY ("owner_id") REFERENCES "users" ("user_id") ON DELETE NO ACTION ON UPDATE NO ACTION
-);
-
--- CreateTable
-CREATE TABLE "groups" (
-    "group_id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
-    "group_name" TEXT NOT NULL,
-    "description" TEXT
+    CONSTRAINT "recipes_owner_id_fkey" FOREIGN KEY ("owner_id") REFERENCES "users" ("user_id") ON DELETE NO ACTION ON UPDATE NO ACTION
 );
 
 -- CreateTable
@@ -42,12 +27,19 @@ CREATE TABLE "recipe_bags" (
 );
 
 -- CreateTable
-CREATE TABLE "recipes" (
-    "recipe_id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
-    "recipe_name" TEXT NOT NULL,
+CREATE TABLE "bags" (
+    "bag_id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+    "bag_name" TEXT NOT NULL,
     "description" TEXT NOT NULL,
     "owner_id" INTEGER,
-    CONSTRAINT "recipes_owner_id_fkey" FOREIGN KEY ("owner_id") REFERENCES "users" ("user_id") ON DELETE NO ACTION ON UPDATE NO ACTION
+    CONSTRAINT "bags_owner_id_fkey" FOREIGN KEY ("owner_id") REFERENCES "users" ("user_id") ON DELETE NO ACTION ON UPDATE NO ACTION
+);
+
+-- CreateTable
+CREATE TABLE "groups" (
+    "group_id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+    "group_name" TEXT NOT NULL,
+    "description" TEXT
 );
 
 -- CreateTable
@@ -99,37 +91,31 @@ CREATE TABLE "users" (
 );
 
 -- CreateTable
-CREATE TABLE "_groupsToroles" (
+CREATE TABLE "_GroupsToRoles" (
     "A" INTEGER NOT NULL,
     "B" INTEGER NOT NULL,
-    CONSTRAINT "_groupsToroles_A_fkey" FOREIGN KEY ("A") REFERENCES "groups" ("group_id") ON DELETE CASCADE ON UPDATE CASCADE,
-    CONSTRAINT "_groupsToroles_B_fkey" FOREIGN KEY ("B") REFERENCES "roles" ("role_id") ON DELETE CASCADE ON UPDATE CASCADE
+    CONSTRAINT "_GroupsToRoles_A_fkey" FOREIGN KEY ("A") REFERENCES "groups" ("group_id") ON DELETE CASCADE ON UPDATE CASCADE,
+    CONSTRAINT "_GroupsToRoles_B_fkey" FOREIGN KEY ("B") REFERENCES "roles" ("role_id") ON DELETE CASCADE ON UPDATE CASCADE
 );
 
 -- CreateTable
-CREATE TABLE "_groupsTousers" (
+CREATE TABLE "_GroupsToUsers" (
     "A" INTEGER NOT NULL,
     "B" INTEGER NOT NULL,
-    CONSTRAINT "_groupsTousers_A_fkey" FOREIGN KEY ("A") REFERENCES "groups" ("group_id") ON DELETE CASCADE ON UPDATE CASCADE,
-    CONSTRAINT "_groupsTousers_B_fkey" FOREIGN KEY ("B") REFERENCES "users" ("user_id") ON DELETE CASCADE ON UPDATE CASCADE
+    CONSTRAINT "_GroupsToUsers_A_fkey" FOREIGN KEY ("A") REFERENCES "groups" ("group_id") ON DELETE CASCADE ON UPDATE CASCADE,
+    CONSTRAINT "_GroupsToUsers_B_fkey" FOREIGN KEY ("B") REFERENCES "users" ("user_id") ON DELETE CASCADE ON UPDATE CASCADE
 );
 
 -- CreateTable
-CREATE TABLE "_rolesTousers" (
+CREATE TABLE "_RolesToUsers" (
     "A" INTEGER NOT NULL,
     "B" INTEGER NOT NULL,
-    CONSTRAINT "_rolesTousers_A_fkey" FOREIGN KEY ("A") REFERENCES "roles" ("role_id") ON DELETE CASCADE ON UPDATE CASCADE,
-    CONSTRAINT "_rolesTousers_B_fkey" FOREIGN KEY ("B") REFERENCES "users" ("user_id") ON DELETE CASCADE ON UPDATE CASCADE
+    CONSTRAINT "_RolesToUsers_A_fkey" FOREIGN KEY ("A") REFERENCES "roles" ("role_id") ON DELETE CASCADE ON UPDATE CASCADE,
+    CONSTRAINT "_RolesToUsers_B_fkey" FOREIGN KEY ("B") REFERENCES "users" ("user_id") ON DELETE CASCADE ON UPDATE CASCADE
 );
 
 -- CreateIndex
-CREATE INDEX "acl_entity_name_idx" ON "acl"("entity_name");
-
--- CreateIndex
-CREATE UNIQUE INDEX "bags_bag_name_key" ON "bags"("bag_name");
-
--- CreateIndex
-CREATE UNIQUE INDEX "groups_group_name_key" ON "groups"("group_name");
+CREATE UNIQUE INDEX "recipes_recipe_name_key" ON "recipes"("recipe_name");
 
 -- CreateIndex
 CREATE INDEX "recipe_bags_recipe_id_idx" ON "recipe_bags"("recipe_id");
@@ -138,7 +124,10 @@ CREATE INDEX "recipe_bags_recipe_id_idx" ON "recipe_bags"("recipe_id");
 CREATE UNIQUE INDEX "recipe_bags_recipe_id_bag_id_key" ON "recipe_bags"("recipe_id", "bag_id");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "recipes_recipe_name_key" ON "recipes"("recipe_name");
+CREATE UNIQUE INDEX "bags_bag_name_key" ON "bags"("bag_name");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "groups_group_name_key" ON "groups"("group_name");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "roles_role_name_key" ON "roles"("role_name");
@@ -159,20 +148,20 @@ CREATE UNIQUE INDEX "users_username_key" ON "users"("username");
 CREATE UNIQUE INDEX "users_email_key" ON "users"("email");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "_groupsToroles_AB_unique" ON "_groupsToroles"("A", "B");
+CREATE UNIQUE INDEX "_GroupsToRoles_AB_unique" ON "_GroupsToRoles"("A", "B");
 
 -- CreateIndex
-CREATE INDEX "_groupsToroles_B_index" ON "_groupsToroles"("B");
+CREATE INDEX "_GroupsToRoles_B_index" ON "_GroupsToRoles"("B");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "_groupsTousers_AB_unique" ON "_groupsTousers"("A", "B");
+CREATE UNIQUE INDEX "_GroupsToUsers_AB_unique" ON "_GroupsToUsers"("A", "B");
 
 -- CreateIndex
-CREATE INDEX "_groupsTousers_B_index" ON "_groupsTousers"("B");
+CREATE INDEX "_GroupsToUsers_B_index" ON "_GroupsToUsers"("B");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "_rolesTousers_AB_unique" ON "_rolesTousers"("A", "B");
+CREATE UNIQUE INDEX "_RolesToUsers_AB_unique" ON "_RolesToUsers"("A", "B");
 
 -- CreateIndex
-CREATE INDEX "_rolesTousers_B_index" ON "_rolesTousers"("B");
+CREATE INDEX "_RolesToUsers_B_index" ON "_RolesToUsers"("B");
 

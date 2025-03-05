@@ -1,12 +1,13 @@
 import { Prisma } from "@prisma/client";
 import { proxy } from "./prisma-proxy";
 import React from "react";
+import { ServerMapResponse } from "../../../src/routes/api/_index";
 
 
 type PrismaField<T extends Prisma.ModelName, K extends keyof PrismaPayloadScalars<T>> =
   // manually map foriegn keys to their corresponding primary key so comparisons work
-  [T, K] extends ["acl", "role_id"] ? PrismaField<"roles", "role_id"> :
-  [T, K] extends ["user_roles", "role_id"] ? PrismaField<"roles", "role_id"> :
+  [T, K] extends ["Acl", "role_id"] ? PrismaField<"Roles", "role_id"> :
+  [T, K] extends ["user_roles", "role_id"] ? PrismaField<"Roles", "role_id"> :
   (PrismaPayloadScalars<T>[K] & { __prisma_table: T, __prisma_field: K })
   | (null extends PrismaPayloadScalars<T>[K] ? null : never);
 type PrismaPayloadScalars<T extends Prisma.ModelName>
@@ -19,7 +20,6 @@ const listBags = () => proxy.bags.findMany({
     bag_id: true,
     bag_name: true,
     description: true,
-    accesscontrol: true,
   },
   orderBy: {
     bag_name: "asc"
@@ -57,20 +57,13 @@ export interface IndexJson {
   "show-anon-config": boolean;
   "user-is-logged-in": boolean;
   user: {
-    user_id: PrismaField<"users", "user_id">;
-    recipe_owner_id: PrismaField<"recipes", "owner_id"> & {};
+    user_id: PrismaField<"Users", "user_id">;
+    recipe_owner_id: PrismaField<"Recipes", "owner_id"> & {};
     isAdmin: boolean;
     username: string;
-    sessionId: PrismaField<"sessions", "session_id">;
+    sessionId: PrismaField<"Sessions", "session_id">;
   } | null;
   "has-profile-access": boolean;
   allowReads: boolean;
   allowWrites: boolean;
 };
-
-export const IndexJsonContext = React.createContext<ServerMapResponse["IndexJson"] >(null as any);
-
-export function useIndexJson() {
-  return React.useContext(IndexJsonContext);
-}
-

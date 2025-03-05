@@ -4,14 +4,13 @@ import './styles/login.css';
 import { createRoot } from 'react-dom/client';
 import Login from './components/Login';
 import { Frame } from './components/Frame/Frame';
-import { DataLoader } from './helpers/utils';
-import { IndexJsonContext } from './helpers/server-types';
+import { DataLoader, getIndexJson, IndexJsonContext, serverRequest } from './helpers/utils';
+
 
 
 export const App = DataLoader(async () => {
-  const res = await fetch("/api/IndexJson");
-  return await res.json();
-}, (indexJson: ServerMapResponse["IndexJson"], refresh, props) => {
+  return await getIndexJson();
+}, (indexJson, refresh, props) => {
   return (
     <StrictMode>
       <IndexJsonContext.Provider value={indexJson}>

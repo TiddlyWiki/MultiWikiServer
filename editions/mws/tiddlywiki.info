@@ -1,9 +1,6 @@
 {
 	"description": "Multiple wiki client-server edition",
-	"plugins": [
-		"tiddlywiki/tiddlyweb",
-		"tiddlywiki/filesystem"
-	],
+	"plugins": [],
 	"themes": [
 		"tiddlywiki/vanilla",
 		"tiddlywiki/snowwhite"

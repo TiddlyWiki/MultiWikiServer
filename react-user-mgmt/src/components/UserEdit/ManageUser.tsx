@@ -1,7 +1,7 @@
 import React, { ReactNode, useCallback, useState } from 'react';
 import Header from '../Frame/Header';
 import { useAsyncEffect } from '../../helpers/useAsyncEffect';
-import { changePassword, DataLoader, fetchPostSearchParams } from '../../helpers/utils';
+import { changePassword, DataLoader, fetchPostSearchParams, FormFieldInput, serverRequest, useFormFieldHandler } from '../../helpers/utils';
 
 
 interface Role {
@@ -76,39 +76,32 @@ const ManageUser = DataLoader(async (): Promise<ManageUserProps> => {
   userIsLoggedIn = true,
 }, setRefreshData, props: { userID: string }) => {
 
-  const [updateError, setUpdateError] = useState<string | null>(null);
-  const [updateSuccess, setUpdateSuccess] = useState<string | null>(null);
-  const [passwordError, setPasswordError] = useState<string | null>(null);
-  const [passwordSuccess, setPasswordSuccess] = useState<string | null>(null);
-  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const update = useFormFieldHandler(setRefreshData);
+  const password = useFormFieldHandler<ChangePasswordFields>(setRefreshData);
+  const deleteForm = useFormFieldHandler<DeleteAccountFields>(setRefreshData);
 
   const userInitials = user.username?.[0].toUpperCase();
 
-  const handler = (endpoint: string, success: (msg: string) => void, error: (msg: string) => void) =>
-    async (formData: FormData) => {
-      const res = await fetchPostSearchParams(endpoint, formData);
-      const body = await res.text();
+  const handleUpdateProfile = async (formData: FormData) => {
+    await serverRequest('UpdateUserProfile', formData);
+  }
 
-      if (!res.ok)
-        error(body);
-      else {
-        success(body);
-        setRefreshData();
-      }
-    }
-
-  const handleUpdateProfile = handler('/update-user-profile', setUpdateSuccess, setUpdateError);
-
-
-  const handleDeleteAccount = async (formData: FormData) => {
+  interface DeleteAccountFields {
+    user_id: string;
+  }
+  const handleDeleteAccount = async (formData: DeleteAccountFields) => {
     if (window.confirm('Are you sure you want to delete this user account? This action cannot be undone.'))
-      await handler('/delete-user-account', () => location.pathname = '/admin/users', setDeleteError)(formData);
+      await serverRequest('DeleteUserAccount', { user_id: +formData.user_id });
+    // await handler('/delete-user-account', () => location.pathname = '/admin/users', setDeleteError)(formData);
   };
+  interface ChangePasswordFields {
+    userId: string;
+    newPassword: string;
+    confirmPassword: string;
+  }
+  const handleChangePassword = async (formData: ChangePasswordFields) => {
+    const { userId, newPassword: password, confirmPassword } = formData;
 
-  const handleChangePassword = async (formData: FormData) => {
-    const userId = formData.get("userId") as string;
-    const password = formData.get("newPassword") as string;
-    const confirmPassword = formData.get("confirmPassword");
     if (!userId || !password || !confirmPassword) throw false;
 
     if (password !== confirmPassword) {
@@ -166,64 +159,76 @@ const ManageUser = DataLoader(async (): Promise<ManageUserProps> => {
           <div className="mws-user-profile-management">
             <h2>Manage Account</h2>
             <form className="mws-user-profile-form" action={handleUpdateProfile}>
-              <input type="hidden" name="userId" value={user.user_id} />
-              <div className="mws-form-group">
-                <label htmlFor="username">Username:</label>
-                <input type="text" id="username" name="username" defaultValue={user.username} required />
-              </div>
-              <div className="mws-form-group">
-                <label htmlFor="email">Email:</label>
-                <input type="email" id="email" name="email" defaultValue={user.email} required />
-              </div>
+              <FormFieldInput {...update.register("userId", { required: true, value: user.user_id })}
+                type="hidden" id title="" />
+              <FormFieldInput {...update.register("username", { required: true })}
+                type="text" id title="Username:" />
+              <FormFieldInput {...update.register("email", { required: true })}
+                type="email" id title="Email:" />
               {userIsAdmin && (
-                <div className="mws-form-group">
-                  <label htmlFor="role">Role:</label>
-                  <select id="role" name="role" defaultValue={userRole.role_id} required>
-                    {allRoles.map((role) => (
-                      <option key={role.role_id} value={role.role_id}>
-                        {role.role_name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+                <FormFieldInput {...update.register("role", { required: true })}
+                  type="select" id title="Role:">
+                  {allRoles.map((role) => (
+                    <option key={role.role_id} value={role.role_id}>
+                      {role.role_name}
+                    </option>
+                  ))}
+                </FormFieldInput>
               )}
-              <button type="submit" className="mws-update-profile-btn">Update Profile</button>
-
-              {updateError && <div className="mws-error-message">{updateError}</div>}
-              {updateSuccess && <div className="mws-success-message">{updateSuccess}</div>}
+              {update.footer("Update Profile")}
             </form>
 
             {userIsAdmin && !isCurrentUserProfile && (
               <>
                 <hr />
-                <form className="mws-user-profile-form" action={handleDeleteAccount}>
-                  <input type="hidden" name="userId" value={user.user_id} />
-                  <button type="submit" className="mws-delete-account-btn">Delete User Account</button>
-                  {deleteError && <div className="mws-error-message">{deleteError}</div>}
+                <form className="mws-user-profile-form" onSubmit={deleteForm.handler(handleDeleteAccount)}>
+                  <FormFieldInput {...deleteForm.register("user_id", { required: true })}
+                    type="hidden" id title="" />
+                  {deleteForm.footer("Delete Account")}
                 </form>
               </>
             )}
 
             {isCurrentUserProfile && (
-              <>
-                <hr />
-                <h2>Change Password</h2>
-                <form className="mws-user-profile-form" action={handleChangePassword}>
-                  <input type="hidden" name="userId" value={user.user_id} />
-                  <div className="mws-form-group">
-                    <label htmlFor="new-password">New Password:</label>
-                    <input type="password" id="new-password" name="newPassword" required />
-                  </div>
-                  <div className="mws-form-group">
-                    <label htmlFor="confirm-password">Confirm New Password:</label>
-                    <input type="password" id="confirm-password" name="confirmPassword" required />
-                  </div>
-                  <button type="submit" className="mws-update-password-btn">Change Password</button>
 
-                  {passwordError && <div className="mws-error-message">{passwordError}</div>}
-                  {passwordSuccess && <div className="mws-success-message">{passwordSuccess}</div>}
-                </form>
-              </>
+              <form className="mws-user-profile-form" onSubmit={password.handler(handleChangePassword)}>
+                <FormFieldInput {...password.register("userId", { required: true })}
+                  type="hidden" id title="" />
+                <FormFieldInput
+                  {...password.register("newPassword", { required: true })}
+                  type="password"
+                  id
+                  title="New Password:"
+                  autoComplete='new-password'
+                />
+                <FormFieldInput
+                  {...password.register("confirmPassword", { required: true })}
+                  type="password"
+                  id
+                  title="Confirm Password:"
+                  autoComplete='new-password'
+                />
+                {password.footer("Change Password")}
+              </form>
+              // <>
+              //   <hr />
+              //   <h2>Change Password</h2>
+              //   <form className="mws-user-profile-form" action={handleChangePassword}>
+              //     <input type="hidden" name="userId" value={user.user_id} />
+              //     <div className="mws-form-group">
+              //       <label htmlFor="new-password">New Password:</label>
+              //       <input type="password" id="new-password" name="newPassword" required />
+              //     </div>
+              //     <div className="mws-form-group">
+              //       <label htmlFor="confirm-password">Confirm New Password:</label>
+              //       <input type="password" id="confirm-password" name="confirmPassword" required />
+              //     </div>
+              //     <button type="submit" className="mws-update-password-btn">Change Password</button>
+
+              //     {passwordError && <div className="mws-error-message">{passwordError}</div>}
+              //     {passwordSuccess && <div className="mws-success-message">{passwordSuccess}</div>}
+              //   </form>
+              // </>
             )}
           </div>
         )}

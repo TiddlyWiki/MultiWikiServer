@@ -3,7 +3,7 @@ import * as http2 from 'node:http2';
 import send from 'send';
 import { Readable } from 'stream';
 import { IncomingMessage, ServerResponse, IncomingHttpHeaders as NodeIncomingHeaders, OutgoingHttpHeaders } from 'node:http';
-import { is } from './helpers';
+import { is } from './utils';
 import { createReadStream } from 'node:fs';
 import { Writable } from 'node:stream';
 

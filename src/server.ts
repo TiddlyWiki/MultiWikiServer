@@ -97,7 +97,10 @@ async function setupServers(useHTTPS: boolean, port: number) {
   // await lazy-loaded or async models
   await opaque.ready;
 
-  const router = await Router.makeRouter("./editions/mws");
+  const router = await Router.makeRouter("./editions/mws").catch(e => {
+    console.log(e.stack);
+    throw "Router failed to load";
+  });
 
   const { server } = useHTTPS
     ? new ListenerHTTPS(router,

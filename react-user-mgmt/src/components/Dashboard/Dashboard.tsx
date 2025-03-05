@@ -2,9 +2,7 @@ import React, { useState, PropsWithChildren } from 'react';
 import WikiCard from './WikiCard';
 import BagPill from './BagPill';
 import { useFormStatus } from 'react-dom';
-import { IndexJson, useIndexJson } from '../../helpers/server-types';
-import { useAsyncEffect } from '../../helpers/useAsyncEffect';
-import { DataLoader } from '../../helpers/utils';
+import { DataLoader, serverRequest, useIndexJson } from '../../helpers/utils';
 
 interface Recipe {
   recipe_name: string;
@@ -34,28 +32,27 @@ const Dashboard = () => {
 
   const indexJson = useIndexJson();
 
-  const [recipes, setRecipes] = useState(indexJson.allowedRecipesWithWrite);
-  const [bags, setBags] = useState(indexJson.allowedBags);
+  const recipes = indexJson.recipes;
+  // const [recipes, setRecipes] = useState([]);
+  // const [bags, setBags] = useState();
   const [showSystem, setShowSystem] = useState(false);
 
   // Filter system bags based on showSystem state
   const filteredBags = showSystem
-    ? bags
-    : bags.filter(bag => !bag.bag_name.startsWith("$:/"));
+    ? indexJson.bagList
+    : indexJson.bagList.filter(bag => !bag.bag_name.startsWith("$:/"));
 
   const handleRecipeSubmit = async (e: any) => {
     const formData: any = Object.fromEntries(e.entries());
     formData.bag_names = formData.bag_names.split(' ');
     console.log(formData);
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    setRecipes(prev => [...prev, formData]);
+    await serverRequest("CreateRecipe", formData);
   };
 
   const handleBagSubmit = async (e: any) => {
     const formData: any = Object.fromEntries(e.entries());
     console.log(formData);
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    setBags(prev => [...prev, formData]);
+    await serverRequest("CreateBag", formData);
   }
 
   const handleShowSystemChange = (e: React.ChangeEvent<HTMLInputElement>) => {

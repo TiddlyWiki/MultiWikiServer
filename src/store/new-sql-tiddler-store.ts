@@ -1,10 +1,11 @@
 import { Wiki } from "tiddlywiki";
-import { createStrictAwaitProxy } from "../helpers";
+import { createStrictAwaitProxy } from "../utils";
 import { StateObject } from "../StateObject";
 import { DataChecks } from "./data-checks";
 import { SqlTiddlerDatabase, TiddlerFields } from "./new-sql-tiddler-database";
 import { Readable } from "stream";
 import { resolve } from "path";
+import { Prisma } from "@prisma/client";
 
 
 interface SqlTiddlerStoreEvents {
@@ -120,9 +121,9 @@ export class SqlTiddlerStore extends DataChecks {
   */
   async processOutgoingTiddler(
     tiddlerFields: TiddlerFields,
-    tiddler_id: PrismaField<"tiddlers", "tiddler_id">,
-    bag_name: PrismaField<"bags", "bag_name">,
-    attachment_blob: PrismaField<"tiddlers", "attachment_blob"> | null
+    tiddler_id: PrismaField<"Tiddlers", "tiddler_id">,
+    bag_name: PrismaField<"Bags", "bag_name">,
+    attachment_blob: PrismaField<"Tiddlers", "attachment_blob"> | null
   ) {
     if (attachment_blob !== null) {
       return Object.assign({}, tiddlerFields, {
@@ -138,7 +139,7 @@ export class SqlTiddlerStore extends DataChecks {
   */
   async processIncomingTiddler(
     tiddlerFields: TiddlerFields,
-    existing_attachment_blob: PrismaField<"tiddlers", "attachment_blob">,
+    existing_attachment_blob: PrismaField<"Tiddlers", "attachment_blob">,
     existing_canonical_uri: string | undefined,
   ) {
     let attachmentSizeLimit = parseFloat(this.adminWiki.getTiddlerText("$:/config/MultiWikiServer/AttachmentSizeLimit") ?? "") || 0;
@@ -187,7 +188,7 @@ export class SqlTiddlerStore extends DataChecks {
     }
   }
   /** For backward-compatibility reasons, this is retained, but the $tw global is required to be passed in. */
-  async saveTiddlersFromPath($tw: any, tiddler_files_path: string, bag_name: PrismaField<"bags", "bag_name">) {
+  async saveTiddlersFromPath($tw: any, tiddler_files_path: string, bag_name: PrismaField<"Bags", "bag_name">) {
     // var self = this;
     // await this.sql.$transaction(async store => {
     // Clear out the bag
@@ -212,8 +213,8 @@ export class SqlTiddlerStore extends DataChecks {
   allowPrivilegedCharacters - allows "$", ":" and "/" to appear in recipe name
   */
   async createBag(
-    bag_name: PrismaField<"bags", "bag_name">,
-    description: PrismaField<"bags", "description">,
+    bag_name: PrismaField<"Bags", "bag_name">,
+    description: PrismaField<"Bags", "description">,
     { allowPrivilegedCharacters = false }: { allowPrivilegedCharacters?: boolean; } = {}
   ) {
     // return await this.sql.transaction(function () {
@@ -235,9 +236,9 @@ export class SqlTiddlerStore extends DataChecks {
   allowPrivilegedCharacters - allows "$", ":" and "/" to appear in recipe name
   */
   async createRecipe(
-    recipe_name: PrismaField<"recipes", "recipe_name">,
-    bag_names: PrismaField<"bags", "bag_name">[] = [],
-    description: PrismaField<"recipes", "description">,
+    recipe_name: PrismaField<"Recipes", "recipe_name">,
+    bag_names: PrismaField<"Bags", "bag_name">[] = [],
+    description: PrismaField<"Recipes", "description">,
     { allowPrivilegedCharacters = false }: { allowPrivilegedCharacters?: boolean } = {}
   ) {
 
@@ -260,11 +261,11 @@ export class SqlTiddlerStore extends DataChecks {
   */
   async saveBagTiddler(
     incomingTiddlerFields: TiddlerFields,
-    bag_name: PrismaField<"bags", "bag_name">
+    bag_name: PrismaField<"Bags", "bag_name">
   ) {
 
     let _canonical_uri;
-    const existing_attachment_blob = await this.sql.getBagTiddlerAttachmentBlob(incomingTiddlerFields.title as PrismaField<"tiddlers", "title">, bag_name);
+    const existing_attachment_blob = await this.sql.getBagTiddlerAttachmentBlob(incomingTiddlerFields.title as PrismaField<"Tiddlers", "title">, bag_name);
     if (existing_attachment_blob) {
       _canonical_uri = `/bags/${encodeURIComponentExtended(bag_name)}/tiddlers/${encodeURIComponentExtended(incomingTiddlerFields.title)}/blob`;
     }
@@ -285,7 +286,7 @@ export class SqlTiddlerStore extends DataChecks {
   */
   async saveBagTiddlerWithAttachment(
     incomingTiddlerFields: TiddlerFields,
-    bag_name: PrismaField<"bags", "bag_name">,
+    bag_name: PrismaField<"Bags", "bag_name">,
     options: {
       filepath: string;
       hash: string;
@@ -305,7 +306,7 @@ export class SqlTiddlerStore extends DataChecks {
   /**
   Returns {tiddler_id:,bag_name:}
   */
-  async saveRecipeTiddler(incomingTiddlerFields: TiddlerFields, recipe_name: PrismaField<"recipes", "recipe_name">) {
+  async saveRecipeTiddler(incomingTiddlerFields: TiddlerFields, recipe_name: PrismaField<"Recipes", "recipe_name">) {
     this.okTiddlerFields(incomingTiddlerFields);
     this.okTiddlerTitle(incomingTiddlerFields.title);
     const existing_attachment_blob = await this.sql.getRecipeTiddlerAttachmentBlob(incomingTiddlerFields.title, recipe_name);
@@ -315,8 +316,8 @@ export class SqlTiddlerStore extends DataChecks {
     return result;
   }
   deleteTiddler(
-    title: PrismaField<"tiddlers", "title">,
-    bag_name: PrismaField<"bags", "bag_name">
+    title: PrismaField<"Tiddlers", "title">,
+    bag_name: PrismaField<"Bags", "bag_name">
   ) {
     const result = this.sql.deleteTiddler(title, bag_name);
     this.dispatchEvent("change");
@@ -326,8 +327,8 @@ export class SqlTiddlerStore extends DataChecks {
   returns {tiddler_id:,tiddler:}
   */
   async getBagTiddler(
-    title: PrismaField<"tiddlers", "title">,
-    bag_name: PrismaField<"bags", "bag_name">
+    title: PrismaField<"Tiddlers", "title">,
+    bag_name: PrismaField<"Bags", "bag_name">
   ) {
     var tiddlerInfo = await this.sql.getBagTiddler(title, bag_name);
     if (tiddlerInfo) {
@@ -349,8 +350,8 @@ export class SqlTiddlerStore extends DataChecks {
   Returns {tiddler_id:,bag_name:}
   */
   async getBagTiddlerStream(
-    title: PrismaField<"tiddlers", "title">,
-    bag_name: PrismaField<"bags", "bag_name">
+    title: PrismaField<"Tiddlers", "title">,
+    bag_name: PrismaField<"Bags", "bag_name">
   ) {
     const self = this;
     const tiddlerInfo = await this.sql.getBagTiddler(title, bag_name);
@@ -391,8 +392,8 @@ export class SqlTiddlerStore extends DataChecks {
   Returns {bag_name:, tiddler: {fields}, tiddler_id:}
   */
   async getRecipeTiddler(
-    title: PrismaField<"tiddlers", "title">,
-    recipe_name: PrismaField<"recipes", "recipe_name">
+    title: PrismaField<"Tiddlers", "title">,
+    recipe_name: PrismaField<"Recipes", "recipe_name">
   ) {
     var tiddlerInfo = await this.sql.getRecipeTiddler(title, recipe_name, { attachment_blob: true, fields: true });
     if (tiddlerInfo) {
@@ -406,20 +407,20 @@ export class SqlTiddlerStore extends DataChecks {
   /**
   Get the titles of the tiddlers in a bag. Returns an empty array for bags that do not exist
   */
-  getBagTiddlers(bag_name: PrismaField<"bags", "bag_name">) {
+  getBagTiddlers(bag_name: PrismaField<"Bags", "bag_name">) {
     return this.sql.getBagTiddlers(bag_name);
   }
   /**
   Get the tiddler_id of the newest tiddler in a bag. Returns null for bags that do not exist
   */
-  getBagLastTiddlerId(bag_name: PrismaField<"bags", "bag_name">) {
+  getBagLastTiddlerId(bag_name: PrismaField<"Bags", "bag_name">) {
     return this.sql.getBagLastTiddlerId(bag_name);
   }
   /**
   Get the titles of the tiddlers in a recipe as {title:,bag_name:}. Returns null for recipes that do not exist
   */
   async getRecipeTiddlers(
-    recipe_name: PrismaField<"recipes", "recipe_name">,
+    recipe_name: PrismaField<"Recipes", "recipe_name">,
     options: {
       last_known_tiddler_id?: number;
       include_deleted?: boolean;
@@ -430,10 +431,10 @@ export class SqlTiddlerStore extends DataChecks {
   /**
   Get the tiddler_id of the newest tiddler in a recipe. Returns null for recipes that do not exist
   */
-  async getRecipeLastTiddlerId(recipe_name: PrismaField<"recipes", "recipe_name">) {
+  async getRecipeLastTiddlerId(recipe_name: PrismaField<"Recipes", "recipe_name">) {
     return await this.sql.getRecipeLastTiddlerId(recipe_name);
   }
-  async deleteAllTiddlersInBag(bag_name: PrismaField<"bags", "bag_name">) {
+  async deleteAllTiddlersInBag(bag_name: PrismaField<"Bags", "bag_name">) {
 
     // return await this.sql.transaction(function () {
     const result = this.sql.deleteAllTiddlersInBag(bag_name);
@@ -444,8 +445,10 @@ export class SqlTiddlerStore extends DataChecks {
   /**
   Get the names of the bags in a recipe. Returns an empty array for recipes that do not exist
   */
-  getRecipeBags(recipe_name: PrismaField<"recipes", "recipe_name">) {
+  getRecipeBags(recipe_name: PrismaField<"Recipes", "recipe_name">) {
     return this.sql.getRecipeBags(recipe_name);
   }
-  
+
+
+
 }

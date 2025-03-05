@@ -6,7 +6,7 @@ import { Commander } from "./commander";
 import { createClient } from "@libsql/client";
 import { PrismaLibSQL } from "@prisma/adapter-libsql";
 import { PrismaClient } from "@prisma/client";
-import { createStrictAwaitProxy } from "./helpers";
+import { createStrictAwaitProxy } from "./utils";
 import { SqlTiddlerDatabase } from "./store/new-sql-tiddler-database";
 import { SqlTiddlerStore } from "./store/new-sql-tiddler-store";
 
@@ -40,8 +40,8 @@ export async function bootTiddlyWiki(createTables: boolean, commands: boolean, w
     "++src/commands",
     wikiPath,
     ...commands ? [
-      "--mws-load-plugin-bags",
-      "--build", "load-mws-demo-data",
+      // "--mws-load-plugin-bags",
+      // "--build", "load-mws-demo-data",
     ] : []
   ];
 
@@ -75,8 +75,8 @@ export async function bootTiddlyWiki(createTables: boolean, commands: boolean, w
 
 
         const libsql = createClient({ url: "file:" + resolve(wikiPath, "store/database.sqlite") });
-        // if (createTables) await libsql.executeMultiple(readFileSync("./prisma/schema.prisma.sql", "utf8"));
-        if (createTables) await libsql.executeMultiple(readFileSync("./prisma/old-db.sql", "utf8"));
+        if (createTables) await libsql.executeMultiple(readFileSync("./prisma/schema.prisma.sql", "utf8"));
+        // if (createTables) await libsql.executeMultiple(readFileSync("./prisma/old-db.sql", "utf8"));
         libsql.execute("pragma synchronous=off");
         const adapter = new PrismaLibSQL(libsql)
         const engine = new PrismaClient({ adapter, log: ["error", "warn", "info"] });
@@ -97,7 +97,7 @@ export async function bootTiddlyWiki(createTables: boolean, commands: boolean, w
     delete $tw.mws.store;
   }
   console.log("booted");
-  throw "cancel";
+  // throw "cancel";
   return $tw;
 
 }

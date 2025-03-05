@@ -1,13 +1,11 @@
 
 import { ReactNode, useState } from 'react';
-import { IndexJson, useIndexJson } from '../../helpers/server-types';
-import { useAsyncEffect } from '../../helpers/useAsyncEffect';
 import Header from './Header';
 import AnonConfigModal from './AnonConfigModal';
 import Dashboard from '../Dashboard/Dashboard';
 import UserManagement from '../UserList/UserManagement';
 import ManageUser from '../UserEdit/ManageUser';
-import { DataLoader } from '../../helpers/utils';
+import { DataLoader, useIndexJson } from '../../helpers/utils';
 import ManageAcl from '../ACL/ManageAcl';
 
 export const Frame = (props: {}) => {
@@ -31,8 +29,8 @@ export const Frame = (props: {}) => {
     [
       /^\/admin\/acl\/([^\/]+)\/([^\/]+)$/,
       ([, recipe_name, bag_name]) => <ManageAcl
-        recipe_name={decodeURIComponent(recipe_name) as PrismaField<"recipes", "recipe_name">}
-        bag_name={decodeURIComponent(bag_name) as PrismaField<"bags", "bag_name">}
+        recipe_name={decodeURIComponent(recipe_name) as PrismaField<"Recipes", "recipe_name">}
+        bag_name={decodeURIComponent(bag_name) as PrismaField<"Bags", "bag_name">}
       />,
       "ACL Management"
     ],
