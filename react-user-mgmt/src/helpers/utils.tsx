@@ -3,6 +3,7 @@ import { useAsyncEffect } from "./useAsyncEffect";
 import React, { ReactNode, useCallback, useId, useState } from "react";
 import { FieldValues, useForm, UseFormRegisterReturn } from "react-hook-form";
 import { RecipeManager, RecipeManagerMap } from "../../../src/routes/recipe-manager";
+import { UserManagerMap } from "../../../src/routes";
 
 
 type MapLike = { entries: () => Iterable<[string, any]> };
@@ -93,9 +94,9 @@ export const IndexJsonContext = React.createContext<Awaited<ReturnType<typeof ge
 export function useIndexJson() { return React.useContext(IndexJsonContext); }
 
 type PART<T extends (...args: any) => any> = Promise<Awaited<ReturnType<T>>>;
-function postRecipeManager<K extends keyof RecipeManager>(key: K) {
-  return async (...data: Parameters<RecipeManager[K]>): PART<RecipeManager[K]> => {
-    const req = await fetch("/recipe-manager/" + key, {
+function postRecipeManager<K extends keyof RecipeManagerMap>(key: K) {
+  return async (data: Parameters<RecipeManagerMap[K]>[0]): PART<RecipeManagerMap[K]> => {
+    const req = await fetch("/recipes/" + key, {
       method: "POST",
       headers: {
         'Content-Type': 'application/json',
@@ -108,20 +109,35 @@ function postRecipeManager<K extends keyof RecipeManager>(key: K) {
   }
 
 }
-const serverRequest: RecipeManagerMap = {
+function postUserManager<K extends keyof UserManagerMap>(key: K) {
+  return async (data: Parameters<UserManagerMap[K]>[0]): PART<UserManagerMap[K]> => {
+    const req = await fetch("/users/" + key, {
+      method: "POST",
+      headers: {
+        'Content-Type': 'application/json',
+        "X-Requested-With": "TiddlyWiki"
+      },
+      body: JSON.stringify(data),
+    });
+    if (!req.ok) throw new Error(`Failed to fetch data for getIndexJson: ${await req.text()}`);
+    return await req.json();
+  }
 
-  index_json: postRecipeManager("index_json"),
-  user_list: postRecipeManager("user_list"),
-  user_create: postRecipeManager("user_create"),
-  user_delete: postRecipeManager("user_delete"),
-  user_update: postRecipeManager("user_update"),
-  user_update_password: postRecipeManager("user_update_password"),
+}
+const serverRequest: UserManagerMap = {
+
+  // index_json: postRecipeManager("index_json"),
+  user_list: postUserManager("user_list"),
+  user_create: postUserManager("user_create"),
+  user_delete: postUserManager("user_delete"),
+  user_update: postUserManager("user_update"),
+  user_update_password: postUserManager("user_update_password"),
 
 }
 
 
 export async function getIndexJson() {
-  const res = await postRecipeManager("index_json")();
+  const res = await postRecipeManager("index_json")(undefined);
 
   const bagMap = new Map(res.bagList.map(bag => [bag.bag_id, bag]));
   const recipeMap = new Map(res.recipeList.map(recipe => [recipe.recipe_id, recipe]));

@@ -23,12 +23,13 @@ export class BaseManager {
 
   static defineManager(
     root: rootRoute, 
+    path: RegExp,
     Manager: { new(state: StateObject, prisma: PrismaTxnClient): BaseManager }
   ) {
     root.defineRoute({
       useACL: {},
       method: ["POST"],
-      path: /^\/users\/(.+)$/,
+      path,
       pathParams: ["action"],
       bodyFormat: "json",
     }, async state => {

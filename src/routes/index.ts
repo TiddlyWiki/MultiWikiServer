@@ -7,10 +7,13 @@ import { RecipeManager } from "./recipe-manager";
 import { UserManager } from "./user-manager";
 import { BaseManager } from "./BaseManager";
 
+export { UserManager, UserManagerMap } from "./user-manager";
+export { RecipeManager, RecipeManagerMap } from "./recipe-manager";
+
 export default async function RootRoute(root: rootRoute) {
   TiddlerServer.defineRoutes(root, ZodAssert);
-  BaseManager.defineManager(root, RecipeManager);
-  BaseManager.defineManager(root, UserManager);
+  BaseManager.defineManager(root, /^\/recipes\/(.+)$/, RecipeManager);
+  BaseManager.defineManager(root, /^\/users\/(.+)$/, UserManager);
 
   root.defineRoute({
     method: ["POST"],
