@@ -31,36 +31,7 @@ export type RecipeManagerMap = {
 }
 
 export class RecipeManager extends BaseManager {
-  static defineRoute(root: rootRoute, zodAssert: ZodAssert) {
-    root.defineRoute({
-      useACL: {},
-      method: ["POST"],
-      path: /^\/users\/(.+)$/,
-      pathParams: ["action"],
-      bodyFormat: "json",
-    }, async state => {
-
-      if (!state.pathParams.action) return state.sendEmpty(404, { "x-reason": "no-action" });
-
-      const [good, error, value] = await state.$transaction(async prisma => {
-        const server = new RecipeManager(state, prisma);
-        const action = server[state.pathParams.action as keyof RecipeManagerMap];
-        if (!action) throw "No such action";
-        return await action(state.data);
-      }).then(
-        e => [true, undefined, e] as const,
-        e => [false, e, undefined] as const
-      );
-
-      if (good) {
-        return state.sendJSON(200, value);
-      } else if (typeof error === "string") {
-        return state.sendSimple(400, error);
-      } else {
-        throw error;
-      }
-    });
-  }
+  
 
 
   index_json = this.ZodRequest(z => z.undefined(), async () => {

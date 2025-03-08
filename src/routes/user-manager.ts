@@ -11,36 +11,6 @@ export type UserManagerMap = {
 }
 
 export class UserManager extends BaseManager {
-  static defineRoute(root: rootRoute, zodAssert: ZodAssert) {
-    root.defineRoute({
-      useACL: {},
-      method: ["POST"],
-      path: /^\/users\/(.+)$/,
-      pathParams: ["action"],
-      bodyFormat: "json",
-    }, async state => {
-
-      if (!state.pathParams.action) return state.sendEmpty(404, { "x-reason": "no-action" });
-
-      const [good, error, value] = await state.$transaction(async prisma => {
-        const server = new UserManager(state, prisma);
-        const action = server[state.pathParams.action as keyof UserManagerMap];
-        if (!action) throw "No such action";
-        return await action(state.data as any);
-      }).then(
-        e => [true, undefined, e] as const,
-        e => [false, e, undefined] as const
-      );
-
-      if (good) {
-        return state.sendJSON(200, value);
-      } else if (typeof error === "string") {
-        return state.sendSimple(400, error);
-      } else {
-        throw error;
-      }
-    });
-  }
 
   user_list = this.ZodRequest(z => z.undefined(), async () => {
     const state = this.state;

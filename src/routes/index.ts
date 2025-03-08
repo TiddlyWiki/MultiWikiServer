@@ -5,11 +5,12 @@ import { ZodAssert } from "../zodAssert";
 import { TiddlerServer } from "./bag-file-server";
 import { RecipeManager } from "./recipe-manager";
 import { UserManager } from "./user-manager";
+import { BaseManager } from "./BaseManager";
 
 export default async function RootRoute(root: rootRoute) {
   TiddlerServer.defineRoutes(root, ZodAssert);
-  RecipeManager.defineRoute(root, ZodAssert);
-  UserManager.defineRoute(root, ZodAssert);
+  BaseManager.defineManager(root, RecipeManager);
+  BaseManager.defineManager(root, UserManager);
 
   root.defineRoute({
     method: ["POST"],

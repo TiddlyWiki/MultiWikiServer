@@ -1,5 +1,4 @@
-import { ZodTypeAny, ZodType } from "zod";
-import { z } from "zod/lib/external";
+import { ZodTypeAny, ZodType, z } from "zod";
 import { StateObject } from "../StateObject";
 import { Z2 } from "../zodAssert";
 
@@ -21,6 +20,39 @@ Nothing should be happening to tiddlers in a bag unless they're in a writable la
 
 */
 export class BaseManager {
+
+  static defineManager(
+    root: rootRoute, 
+    Manager: { new(state: StateObject, prisma: PrismaTxnClient): BaseManager }
+  ) {
+    root.defineRoute({
+      useACL: {},
+      method: ["POST"],
+      path: /^\/users\/(.+)$/,
+      pathParams: ["action"],
+      bodyFormat: "json",
+    }, async state => {
+
+      const [good, error, value] = await state.$transaction(async prisma => {
+        if (!state.pathParams.action) throw "No action";
+        const server = new Manager(state, prisma);
+        const action = (server as any)[state.pathParams.action];
+        if (!action) throw "No such action";
+        return await action(state.data);
+      }).then(
+        e => [true, undefined, e] as const,
+        e => [false, e, undefined] as const
+      );
+
+      if (good) {
+        return state.sendJSON(200, value);
+      } else if (typeof error === "string") {
+        return state.sendSimple(400, error);
+      } else {
+        throw error;
+      }
+    });
+  }
 
   constructor(protected state: StateObject, protected prisma: PrismaTxnClient) { }
 
