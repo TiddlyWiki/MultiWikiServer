@@ -22,8 +22,10 @@ declare global {
     // manually map foriegn keys to their corresponding primary key so comparisons work
     // this should remove the need for any global helper functions to convert between types
     (
-      [T, K] extends ["Acl", "role_id"] ? PrismaField<"Roles", "role_id"> :
-      [T, K] extends ["user_roles", "role_id"] ? PrismaField<"Roles", "role_id"> :
+      // [T, K] extends ["Acl", "role_id"] ? PrismaField<"Roles", "role_id"> :
+      // [T, K] extends ["", "role_id"] ? PrismaField<"Roles", "role_id"> :
+      [T, K] extends ["Recipe_bags", "bag_id"] ? PrismaField<"Bags", "bag_id"> :
+      [T, K] extends ["Recipe_bags", "recipe_id"] ? PrismaField<"Recipes", "recipe_id"> :
       [T, K] extends ["Recipes", "owner_id"] ? PrismaField<"Users", "user_id"> :
       [T, K] extends ["Bags", "owner_id"] ? PrismaField<"Users", "user_id"> :
       (PrismaPayloadScalars<T>[K] & { __prisma_table: T, __prisma_field: K })

@@ -16,22 +16,10 @@ generator client {
 //   createRelationValuesTypes = true
 // }
 
-
 enum Permission {
   READ
   WRITE
   ADMIN
-}
-
-model Acl {
-  acl_id     Int        @id @default(autoincrement())
-  bag_id     Int
-  bag        Bags       @relation(fields: [bag_id], references: [bag_id], onDelete: Cascade)
-  role_id    Int
-  permission Permission
-  role       Roles      @relation(fields: [role_id], references: [role_id], onDelete: NoAction, onUpdate: NoAction)
-
-  @@map("acl")
 }
 
 model Recipes {
@@ -41,9 +29,22 @@ model Recipes {
   owner_id    Int?
   owner       Users?        @relation(fields: [owner_id], references: [user_id], onDelete: NoAction, onUpdate: NoAction)
   recipe_bags Recipe_bags[]
+  acl         RecipeAcl[]
 
   @@map("recipes")
 }
+
+model RecipeAcl {
+  acl_id     Int        @id @default(autoincrement())
+  role_id    Int
+  role       Roles      @relation(fields: [role_id], references: [role_id], onDelete: NoAction, onUpdate: NoAction)
+  permission Permission
+  Recipes    Recipes?   @relation(fields: [recipe_id], references: [recipe_id], onDelete: Cascade)
+  recipe_id  Int?
+
+  @@map("recipe_acl")
+}
+
 model Recipe_bags {
   recipe_id Int
   bag_id    Int
@@ -55,17 +56,29 @@ model Recipe_bags {
   @@index([recipe_id])
   @@map("recipe_bags")
 }
+
 model Bags {
-  bag_id        Int           @id @default(autoincrement())
-  bag_name      String        @unique
-  description   String
-  owner_id      Int?
-  owner         Users?        @relation(fields: [owner_id], references: [user_id], onDelete: NoAction, onUpdate: NoAction)
-  acl           Acl[]
-  recipe_bags   Recipe_bags[]
-  tiddlers      Tiddlers[]
+  bag_id      Int           @id @default(autoincrement())
+  bag_name    String        @unique
+  description String
+  owner_id    Int?
+  owner       Users?        @relation(fields: [owner_id], references: [user_id], onDelete: NoAction, onUpdate: NoAction)
+  recipe_bags Recipe_bags[]
+  tiddlers    Tiddlers[]
+  acl         BagAcl[]
 
   @@map("bags")
+}
+
+model BagAcl {
+  acl_id     Int        @id @default(autoincrement())
+  bag_id     Int
+  bag        Bags       @relation(fields: [bag_id], references: [bag_id], onDelete: Cascade)
+  role_id    Int
+  role       Roles      @relation(fields: [role_id], references: [role_id], onDelete: NoAction, onUpdate: NoAction)
+  permission Permission
+
+  @@map("bag_acl")
 }
 
 model Groups {
@@ -78,15 +91,14 @@ model Groups {
   @@map("groups")
 }
 
-
-
 model Roles {
-  role_id     Int      @id @default(autoincrement())
-  role_name   String   @unique()
+  role_id     Int         @id @default(autoincrement())
+  role_name   String      @unique()
   description String?
-  acls        Acl[]
+  acls        BagAcl[]
   groups      Groups[]
   users       Users[]
+  RecipeAcl   RecipeAcl[]
 
   @@map("roles")
 }

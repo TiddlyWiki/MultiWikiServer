@@ -110,7 +110,12 @@ export class Streamer {
     this.checkHeadersSentBy(true);
     headers['content-length'] = Buffer.byteLength(data, encoding);
     this.res.writeHead(status, headers);
-    this.res.end(data, encoding);
+
+    if (this.method === "HEAD")
+      this.res.end();
+    else
+      this.res.end(data, encoding);
+
     return STREAM_ENDED;
   }
 
@@ -118,14 +123,20 @@ export class Streamer {
     this.checkHeadersSentBy(true);
     headers['content-length'] = data.length;
     this.res.writeHead(status, headers);
-    this.res.end(data);
+    if (this.method === "HEAD")
+      this.res.end();
+    else
+      this.res.end(data);
     return STREAM_ENDED;
   }
-
+  /** If this is a HEAD request, the stream will be ignored AND LEFT OPEN. */
   sendStream(status: number, headers: OutgoingHttpHeaders, stream: Readable): typeof STREAM_ENDED {
     this.checkHeadersSentBy(true);
     this.res.writeHead(status, headers);
-    stream.pipe(this.res);
+    if (this.method === "HEAD")
+      this.res.end();
+    else
+      stream.pipe(this.res);
     return STREAM_ENDED;
   }
   // I'm not sure if there's a use case for this

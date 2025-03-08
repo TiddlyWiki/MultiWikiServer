@@ -1,18 +1,37 @@
 import { readdirSync, statSync } from "fs";
-import { rootRoute, Router } from "../router";
-import AuthRoutes from "./auth";
-import { TWRoutes } from "./tw-test";
-import * as esbuild from "esbuild"
-import { request } from "http";
-import ApiRoutes from "./api/_index";
+import { rootRoute } from "../router";
+import apiRoutes from "./api/_index";
 import { ZodAssert } from "../zodAssert";
-import bagFileServer from "./bag-file-server";
+import { TiddlerServer } from "./bag-file-server";
+import { RecipeManager } from "./recipe-manager";
+import { UserManager } from "./user-manager";
 
 export default async function RootRoute(root: rootRoute) {
-  await bagFileServer(root, ZodAssert);
-  // await TWRoutes(root);
-  await ApiRoutes(root);
-  // await importDir(root, 'handlers');
+  TiddlerServer.defineRoutes(root, ZodAssert);
+  RecipeManager.defineRoute(root, ZodAssert);
+  UserManager.defineRoute(root, ZodAssert);
+
+  root.defineRoute({
+    method: ["POST"],
+    path: /^\/prisma$/,
+    bodyFormat: "json",
+    useACL: {},
+  }, async state => {
+    ZodAssert.data(state, z => z.object({
+      table: z.string(),
+      action: z.string(),
+      arg: z.object({}).nullish(),
+    }));
+    return await state.$transaction(async prisma => {
+      const p: any = prisma;
+      const table = p[state.data.table];
+      if (!table) throw new Error(`No such table`);
+      const fn = table[state.data.action];
+      if (!fn) throw new Error(`No such table or action`);
+      return state.sendJSON(200, await fn.apply(table, state.data.arg));
+    });
+  });
+  // await apiRoutes(root);
   await importEsbuild(root);
 }
 async function importDir(root: rootRoute, folder: string) {
@@ -32,7 +51,7 @@ async function importEsbuild(root: rootRoute) {
   // "build": "tsc -b; esbuild main=src/main.tsx 
   // --outdir=public --bundle --target=es2020 
   // --platform=browser --jsx=automatic"
-  
+
 
   root.defineRoute({
     method: ['GET'],

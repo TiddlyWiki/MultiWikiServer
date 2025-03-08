@@ -4,12 +4,12 @@ import './styles/login.css';
 import { createRoot } from 'react-dom/client';
 import Login from './components/Login';
 import { Frame } from './components/Frame/Frame';
-import { DataLoader, getIndexJson, IndexJsonContext, serverRequest } from './helpers/utils';
+import { DataLoader, IndexJsonContext, serverRequest } from './helpers/utils';
 
 
 
 export const App = DataLoader(async () => {
-  return await getIndexJson();
+  return await serverRequest.getIndexJson();
 }, (indexJson, refresh, props) => {
   return (
     <StrictMode>

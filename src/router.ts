@@ -105,7 +105,8 @@ export class Router {
         where: { user_id: user.user_id }
       })
     }
-    await router.engine.acl.deleteMany();
+    // await router.engine.acl.deleteMany();
+  
     await router.engine.users.deleteMany();
     await router.engine.groups.deleteMany();
     await router.engine.roles.deleteMany();
@@ -137,11 +138,11 @@ export class Router {
   engine: PrismaClient<{ datasourceUrl: string }, never, {
     result: {
       // this types every output field with PrismaField
-      // [T in Prisma.ModelName]: {
-      //   [K in keyof PrismaPayloadScalars<T>]: () => {
-      //     compute: () => PrismaField<T, K>
-      //   }
-      // }
+      [T in Uncapitalize<Prisma.ModelName>]: {
+        [K in keyof PrismaPayloadScalars<Capitalize<T>>]: () => {
+          compute: () => PrismaField<Capitalize<T>, K>
+        }
+      }
     },
     client: {},
     model: {},
@@ -167,7 +168,7 @@ export class Router {
     /** This should always have a length of at least 1 because of the root route. */
     const routePath = this.findRoute(streamer);
     if (!routePath.length || routePath[routePath.length - 1]?.route.denyFinal)
-      return streamer.sendString(404, {}, "Not found", "utf8");
+      return streamer.sendString(404, { "x-reason": "no-route" }, "Not found", "utf8");
 
     // Optionally output debug info
     console.log("Request path:", JSON.stringify(streamer.url));

@@ -12,13 +12,13 @@ export const Frame = (props: {}) => {
 
   const indexJson = useIndexJson();
 
-  const username = indexJson.authUser?.username;
-  const userIsAdmin = indexJson.authUser?.isAdmin || false;
-  const userIsLoggedIn = !!indexJson.authUser;
+  const username = indexJson?.username;
+  const userIsAdmin = indexJson?.isAdmin || false;
+  const userIsLoggedIn = !!indexJson.isLoggedIn;
   const firstGuestUser = indexJson.firstGuestUser;
-  const user = indexJson.authUser;
-  const allowReads = indexJson.allowReads;
-  const allowWrites = indexJson.allowWrites;
+  const user = indexJson;
+  const allowReads = indexJson.allowAnonReads;
+  const allowWrites = indexJson.allowAnonWrites;
 
   const [showAnonConfig, setShowAnonConfig] = useState(false);
 
@@ -27,10 +27,9 @@ export const Frame = (props: {}) => {
     [/^\/admin\/users\/?$/, () => <UserManagement />, "User Management"],
     [/^\/admin\/users\/(\d+)$/, ([, user_id]) => <ManageUser userID={user_id} />, "Manage User"],
     [
-      /^\/admin\/acl\/([^\/]+)\/([^\/]+)$/,
-      ([, recipe_name, bag_name]) => <ManageAcl
+      /^\/admin\/acl\/([^\/]+)$/,
+      ([, recipe_name]) => <ManageAcl
         recipe_name={decodeURIComponent(recipe_name) as PrismaField<"Recipes", "recipe_name">}
-        bag_name={decodeURIComponent(bag_name) as PrismaField<"Bags", "bag_name">}
       />,
       "ACL Management"
     ],

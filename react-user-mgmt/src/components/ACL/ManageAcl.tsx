@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import { useAsyncEffect } from '../../helpers/useAsyncEffect';
-import { DataLoader, serverRequest } from '../../helpers/utils';
+import { DataLoader, serverRequests } from '../../helpers/utils';
 
 
 interface FormValues {
@@ -12,12 +12,11 @@ interface FormValues {
 
 interface ManageAcl {
   recipe_name: PrismaField<"Recipes", "recipe_name">
-  bag_name: PrismaField<"Bags", "bag_name">
 }
 
-const ManageAcl = DataLoader(async ({ recipe_name, bag_name }: ManageAcl) => {
+const ManageAcl = DataLoader(async ({ recipe_name }: ManageAcl) => {
 
-  const result = await serverRequest("ListACL", { recipe_name, bag_name });
+  const result = await serverRequest("ListACL", { recipe_name });
 
   return {
     ...result,

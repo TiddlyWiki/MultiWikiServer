@@ -2,7 +2,7 @@ import React, { useState, PropsWithChildren } from 'react';
 import WikiCard from './WikiCard';
 import BagPill from './BagPill';
 import { useFormStatus } from 'react-dom';
-import { DataLoader, serverRequest, useIndexJson } from '../../helpers/utils';
+import { serverRequest, useIndexJson } from '../../helpers/utils';
 
 interface Recipe {
   recipe_name: string;
@@ -30,9 +30,10 @@ interface DashboardProps {
 
 const Dashboard = () => {
 
-  const indexJson = useIndexJson();
+  const { getBagName, hasBagAclAccess, hasRecipeAclAccess, ...indexJson } = useIndexJson();
 
-  const recipes = indexJson.recipes;
+
+  // const recipes = indexJson.recipeList;
   // const [recipes, setRecipes] = useState([]);
   // const [bags, setBags] = useState();
   const [showSystem, setShowSystem] = useState(false);
@@ -46,13 +47,13 @@ const Dashboard = () => {
     const formData: any = Object.fromEntries(e.entries());
     formData.bag_names = formData.bag_names.split(' ');
     console.log(formData);
-    await serverRequest("CreateRecipe", formData);
+    // await serverRequest("CreateRecipe", formData);
   };
 
   const handleBagSubmit = async (e: any) => {
     const formData: any = Object.fromEntries(e.entries());
     console.log(formData);
-    await serverRequest("CreateBag", formData);
+    // await serverRequest("CreateBag", formData);
   }
 
   const handleShowSystemChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -72,13 +73,17 @@ const Dashboard = () => {
   return (
     <>
       <ul className="mws-vertical-list">
-        {recipes.map((recipe) => (
+        {indexJson.recipeList.map((recipe) => (
           <li key={recipe.recipe_name}>
             <WikiCard
               recipeName={recipe.recipe_name}
               description={recipe.description}
-              bagNames={recipe.bag_names}
-              hasAclAccess={recipe.has_acl_access}
+              bags={recipe.recipe_bags.map((recipeBag) => ({
+                bag_id: recipeBag.bag_id,
+                position: recipeBag.position,
+                bag_name: getBagName(recipeBag.bag_id)
+              })).sort((a, b) => a.position - b.position).reverse()}
+              hasAclAccess={hasRecipeAclAccess(recipe)}
               showSystem={showSystem}
             />
           </li>

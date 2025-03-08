@@ -61,13 +61,13 @@ export default async function ApiRoutes(parent: rootRoute) {
     bodyFormat: "json",
   }, async state => {
 
-    if (state.method === "OPTIONS")
+    if (state.method === "OPTIONS") {
       return state.sendEmpty(200, {
         "Access-Control-Allow-Origin": "*",
         "Access-Control-Allow-Methods": "GET, HEAD, POST, PUT, DELETE",
         "Access-Control-Allow-Headers": "Content-Type",
       });
-
+    }
     zodAssert.pathParams(state, z => ({
       endpoint: z.string().refine(
         (s): s is ServerMapKeys => (serverMap as any)[`server${s}`] !== undefined,

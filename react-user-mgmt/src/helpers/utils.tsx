@@ -1,8 +1,8 @@
 import * as opaque from "@serenity-kit/opaque";
 import { useAsyncEffect } from "./useAsyncEffect";
 import React, { ReactNode, useCallback, useId, useState } from "react";
-import { ServerMapKeys, ServerMapRequest, ServerMapResponse, ServerMapType } from "../../../src/routes/api/_index";
 import { FieldValues, useForm, UseFormRegisterReturn } from "react-hook-form";
+import { RecipeManager, RecipeManagerMap } from "../../../src/routes/recipe-manager";
 
 
 type MapLike = { entries: () => Iterable<[string, any]> };
@@ -40,22 +40,17 @@ export async function changePassword(input: ChangePasswordForm) {
 
   const { clientRegistrationState, registrationRequest } = opaque.client.startRegistration({ password });
 
-  const register1 = await fetchPostSearchParams('/change-user-password/1', { userId, registrationRequest, });
-  const registrationResponse = await register1.text();
-  if (!register1.ok) throw registrationResponse;
+  const registrationResponse = await serverRequest.user_update_password({ user_id: +userId, registrationRequest });
+
+  if (!registrationResponse) throw 'Failed to update password'; // wierd, but shouldn't happen
 
   const { registrationRecord } = opaque.client.finishRegistration({
     clientRegistrationState, registrationResponse, password,
   });
 
-  const register2 = await fetchPostSearchParams('/change-user-password/2', { userId, registrationRecord, });
-  if (!register2.ok) throw await register2.text();
+  await serverRequest.user_update_password({ user_id: +userId, registrationRecord });
 
 }
-
-
-
-
 
 export function DataLoader<T, P>(
   loader: (props: P) => Promise<T>,
@@ -78,34 +73,81 @@ export function DataLoader<T, P>(
 
 export function Render({ useRender }: { useRender: () => ReactNode }) { return useRender(); }
 
-export async function serverRequest<T extends ServerMapKeys>(key: T, data: ServerMapRequest[T]) {
+// export async function serverRequest<T extends ServerMapKeys>(key: T, data: ServerMapRequest[T]) {
 
-  const res = await fetch(`${location.origin}/api/${key}`, {
-    method: "POST",
-    headers: {
-      'Content-Type': 'application/json',
-      "X-Requested-With": "TiddlyWiki"
-    },
-    body: data !== undefined ? JSON.stringify(data) : undefined,
-  });
-  if (!res.ok) throw new Error(`Failed to fetch data for ${key}: ${await res.text()}`);
-  return await res.json() as ServerMapResponse[T];
-}
-
+//   const res = await fetch(`${location.origin}/api/${key}`, {
+//     method: "POST",
+//     headers: {
+//       'Content-Type': 'application/json',
+//       "X-Requested-With": "TiddlyWiki"
+//     },
+//     body: data !== undefined ? JSON.stringify(data) : undefined,
+//   });
+//   if (!res.ok) throw new Error(`Failed to fetch data for ${key}: ${await res.text()}`);
+//   return await res.json() as ServerMapResponse[T];
+// }
+// export const serverRequest = new ServerRequests();
 
 export const IndexJsonContext = React.createContext<Awaited<ReturnType<typeof getIndexJson>>>(null as any);
 
 export function useIndexJson() { return React.useContext(IndexJsonContext); }
 
+type PART<T extends (...args: any) => any> = Promise<Awaited<ReturnType<T>>>;
+function postRecipeManager<K extends keyof RecipeManager>(key: K) {
+  return async (...data: Parameters<RecipeManager[K]>): PART<RecipeManager[K]> => {
+    const req = await fetch("/recipe-manager/" + key, {
+      method: "POST",
+      headers: {
+        'Content-Type': 'application/json',
+        "X-Requested-With": "TiddlyWiki"
+      },
+      body: JSON.stringify(data),
+    });
+    if (!req.ok) throw new Error(`Failed to fetch data for getIndexJson: ${await req.text()}`);
+    return await req.json();
+  }
 
-export async function getIndexJson() {
-  const index = await serverRequest("IndexJson", undefined);
-  const recipes = new Map();
-  index.bagList.forEach(e => e.recipe_bags.forEach(f => recipes.set(f.recipe.recipe_id, f.recipe)));
-  return { ...index, recipes: [...recipes.values()], }
+}
+const serverRequest: RecipeManagerMap = {
+
+  index_json: postRecipeManager("index_json"),
+  user_list: postRecipeManager("user_list"),
+  user_create: postRecipeManager("user_create"),
+  user_delete: postRecipeManager("user_delete"),
+  user_update: postRecipeManager("user_update"),
+  user_update_password: postRecipeManager("user_update_password"),
+
 }
 
 
+export async function getIndexJson() {
+  const res = await postRecipeManager("index_json")();
+
+  const bagMap = new Map(res.bagList.map(bag => [bag.bag_id, bag]));
+  const recipeMap = new Map(res.recipeList.map(recipe => [recipe.recipe_id, recipe]));
+  const hasRecipeAclAccess = (recipe: typeof res.recipeList[number]) => {
+    if (res.isAdmin) return true;
+    if (res.user_id && recipe.owner_id === res.user_id) return true;
+    return recipe.recipe_bags.some(recipeBag => bagMap.get(recipeBag.bag_id)?._count.acl);
+  }
+  const hasBagAclAccess = (bag: typeof res.bagList[number]) => {
+    if (res.isAdmin) return true;
+    if (res.user_id && bag.owner_id === res.user_id) return true;
+    if (bag._count.acl) return true;
+    return true;
+  }
+
+  const getBagName = (bagId: number) => bagMap.get(bagId as any)?.bag_name;
+
+  return {
+    ...res,
+    bagMap,
+    recipeMap,
+    hasBagAclAccess,
+    getBagName,
+    hasRecipeAclAccess,
+  }
+}
 
 
 export function useFormFieldHandler<T extends FieldValues>(refreshPage: () => void) {
@@ -121,9 +163,9 @@ export function useFormFieldHandler<T extends FieldValues>(refreshPage: () => vo
   } = useForm<T>();
   const { isSubmitting, isLoading } = formState;
 
-  function handler(fn: (input: T) => Promise<void>) {
+  function handler(fn: (input: T) => Promise<string>) {
     return handleSubmit((input: T) => fn(input).then(
-      e => { setSuccess(`User added`); setError(''); reset(); refreshPage(); },
+      e => { setSuccess(e); setError(''); reset(); refreshPage(); },
       e => { setSuccess(''); setError(`${e}`); }
     ));
   }

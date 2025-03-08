@@ -1,26 +1,50 @@
 import { Prisma, PrismaClient } from "@prisma/client";
 
-class ProxyPromise {
-  static getErrorStack(t: ProxyPromise) { return t.#error.stack; }
+class ProxyPromise<T> implements Promise<T> {
+  static getErrorStack<T>(t: ProxyPromise<T>) { return t.#error.stack; }
   action: any;
   table: any;
   arg: any;
   #error = new Error("An error occured for this request");
-  constructor({ action, table, arg }: Omit<ProxyPromise, "#error">) {
+  constructor({ action, table, arg }: Record<"action" | "table" | "arg", any>) {
     this.action = action;
     this.table = table;
     this.arg = arg;
-    Object.defineProperty(this, "toJSON", {
-      configurable: true,
-      enumerable: true,
-      value: () => ({
-        action: this.action,
-        table: this.table,
-        arg: this.arg,
-        dbnulls: this.arg.data && findValueInObject(this.arg.data, e => e === Prisma.DbNull),
-        jsnulls: this.arg.data && findValueInObject(this.arg.data, e => e === Prisma.JsonNull),
-      })
-    })
+  }
+  then<TResult1 = T, TResult2 = never>(onfulfilled?: ((value: T) => TResult1 | PromiseLike<TResult1>) | undefined | null, onrejected?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | undefined | null): Promise<TResult1 | TResult2> {
+    return this._await().then(onfulfilled, onrejected);
+  }
+  catch<TResult = never>(onrejected?: ((reason: any) => TResult | PromiseLike<TResult>) | undefined | null): Promise<T | TResult> {
+    return this._await().catch(onrejected);
+  }
+  finally(onfinally?: (() => void) | undefined | null): Promise<T> {
+    return this._await().finally(onfinally);
+  }
+  toJSON = () => ({
+    action: this.action,
+    table: this.table,
+    arg: this.arg,
+    dbnulls: this.arg.data && findValueInObject(this.arg.data, e => e === Prisma.DbNull),
+    jsnulls: this.arg.data && findValueInObject(this.arg.data, e => e === Prisma.JsonNull),
+  });
+  get [Symbol.toStringTag](): string { return "Promise"; }
+  _internalPromise?: Promise<T>;
+  _await() {
+    if (this._internalPromise) return this._internalPromise;
+    return this._internalPromise = new Promise<T>(async (resolve, reject) => {
+      const [good, req] = await fetch("/prisma", {
+        method: "POST",
+        headers: {
+          'Content-Type': 'application/json',
+          "X-Requested-With": "TiddlyWiki"
+        },
+        body: JSON.stringify(this.toJSON())
+      }).then(e => [true, e] as const, e => [false, e] as const);
+      if (!good) return reject(req);
+      const [good2, res] = await req.json().then(e => [true, e] as const, e => [false, e] as const)
+      if (!good2) return reject(res)
+      resolve(res);
+    });
   }
 }
 

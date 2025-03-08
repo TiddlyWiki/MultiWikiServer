@@ -1,20 +1,20 @@
 -- CreateTable
-CREATE TABLE "acl" (
-    "acl_id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
-    "bag_id" INTEGER NOT NULL,
-    "role_id" INTEGER NOT NULL,
-    "permission" TEXT NOT NULL,
-    CONSTRAINT "acl_bag_id_fkey" FOREIGN KEY ("bag_id") REFERENCES "bags" ("bag_id") ON DELETE CASCADE ON UPDATE CASCADE,
-    CONSTRAINT "acl_role_id_fkey" FOREIGN KEY ("role_id") REFERENCES "roles" ("role_id") ON DELETE NO ACTION ON UPDATE NO ACTION
-);
-
--- CreateTable
 CREATE TABLE "recipes" (
     "recipe_id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
     "recipe_name" TEXT NOT NULL,
     "description" TEXT NOT NULL,
     "owner_id" INTEGER,
     CONSTRAINT "recipes_owner_id_fkey" FOREIGN KEY ("owner_id") REFERENCES "users" ("user_id") ON DELETE NO ACTION ON UPDATE NO ACTION
+);
+
+-- CreateTable
+CREATE TABLE "recipe_acl" (
+    "acl_id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+    "role_id" INTEGER NOT NULL,
+    "permission" TEXT NOT NULL,
+    "recipe_id" INTEGER,
+    CONSTRAINT "recipe_acl_role_id_fkey" FOREIGN KEY ("role_id") REFERENCES "roles" ("role_id") ON DELETE NO ACTION ON UPDATE NO ACTION,
+    CONSTRAINT "recipe_acl_recipe_id_fkey" FOREIGN KEY ("recipe_id") REFERENCES "recipes" ("recipe_id") ON DELETE CASCADE ON UPDATE CASCADE
 );
 
 -- CreateTable
@@ -33,6 +33,16 @@ CREATE TABLE "bags" (
     "description" TEXT NOT NULL,
     "owner_id" INTEGER,
     CONSTRAINT "bags_owner_id_fkey" FOREIGN KEY ("owner_id") REFERENCES "users" ("user_id") ON DELETE NO ACTION ON UPDATE NO ACTION
+);
+
+-- CreateTable
+CREATE TABLE "bag_acl" (
+    "acl_id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+    "bag_id" INTEGER NOT NULL,
+    "role_id" INTEGER NOT NULL,
+    "permission" TEXT NOT NULL,
+    CONSTRAINT "bag_acl_bag_id_fkey" FOREIGN KEY ("bag_id") REFERENCES "bags" ("bag_id") ON DELETE CASCADE ON UPDATE CASCADE,
+    CONSTRAINT "bag_acl_role_id_fkey" FOREIGN KEY ("role_id") REFERENCES "roles" ("role_id") ON DELETE NO ACTION ON UPDATE NO ACTION
 );
 
 -- CreateTable

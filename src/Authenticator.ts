@@ -54,7 +54,7 @@ export class Authenticator {
       registrationRequest,
     });
 
-    return this.state.sendSimple(200, registrationResponse);
+    return registrationResponse;
 
   }
 

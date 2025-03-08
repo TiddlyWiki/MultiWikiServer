@@ -125,10 +125,9 @@ export namespace ZodAssert {
   ): z.infer<T> { return _zodAssertAny("response", state, schemaShape, data, onError); }
 
 
-
 }
-
-export interface Z2<T extends FieldTypeGroups = never> extends _zod {
+// type t = number extends PrismaPayloadScalars<"Roles">["role_id"] ? FieldTypeNumberSelector<"JSON"> : false;
+export interface Z2<T extends FieldTypeGroups> extends _zod {
   /** 
    * Tags the resulting value as being from the specified table field.
    * 
@@ -143,9 +142,9 @@ export interface Z2<T extends FieldTypeGroups = never> extends _zod {
   prismaField<Table extends Prisma.ModelName, Field extends keyof PrismaPayloadScalars<Table>>(
     table: Table, field: Field,
     fieldtype:
-      (PrismaPayloadScalars<Table>[Field] & {}) extends string ? FieldTypeStringSelector<T> :
-      (PrismaPayloadScalars<Table>[Field] & {}) extends number ? FieldTypeNumberSelector<T> :
-      (PrismaPayloadScalars<Table>[Field] & {}) extends boolean ? FieldTypeBooleanSelector<T> :
+      string extends (PrismaPayloadScalars<Table>[Field]) ? FieldTypeStringSelector<T> :
+      number extends (PrismaPayloadScalars<Table>[Field]) ? FieldTypeNumberSelector<T> :
+      boolean extends (PrismaPayloadScalars<Table>[Field]) ? FieldTypeBooleanSelector<T> :
       never,
     nullable?: null extends PrismaPayloadScalars<Table>[Field] ? true : false
   ): ZodEffects<any, PrismaField<Table, Field>, PrismaPayloadScalars<Table>[Field]>;
@@ -214,7 +213,7 @@ type FieldTypeStringSelector<T extends FieldTypeGroups> = T extends "STRING" ? "
 type FieldTypeNumberSelector<T extends FieldTypeGroups> = T extends "STRING" ? "parse-number" : "number";
 type FieldTypeBooleanSelector<T extends FieldTypeGroups> = T extends "STRING" ? "parse-boolean" : "boolean";
 
-
+export const Z2 = makeZ2("any");
 
 
 function makeZ2<T extends FieldTypeGroups>(input: "data" | "pathParams" | "queryParams" | "any" | "response" | string): Z2<T> {

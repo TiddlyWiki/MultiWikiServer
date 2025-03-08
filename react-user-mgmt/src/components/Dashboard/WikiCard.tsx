@@ -4,32 +4,32 @@ import BagPill from './BagPill';
 interface WikiCardProps {
   recipeName: string;
   description: string;
-  bagNames: string[];
+  bags: { bag_id: number; position: number; bag_name: string | undefined; }[];
   hasAclAccess: boolean;
   showSystem: boolean;
 }
 
-const WikiCard: React.FC<WikiCardProps> = ({
+export default function WikiCard({
   recipeName,
   description,
-  bagNames,
+  bags,
   hasAclAccess,
   showSystem
-}) => {
+}: WikiCardProps): React.ReactNode | Promise<React.ReactNode> {
   // Filter system bags if needed
-  const filteredBags = showSystem ? bagNames : bagNames.filter(bag => !bag.startsWith("$:/"));
-  
+  const filteredBags = showSystem ? bags.slice() : bags.filter(bag => !bag.bag_name || !bag.bag_name.startsWith("$:/"));
+
   return (
     <div className="mws-wiki-card">
       <div className="mws-wiki-card-image">
         <img
           src={`/recipes/${encodeURIComponent(recipeName)}/tiddlers/%24%3A%2Ffavicon.ico?fallback=/.system/missing-favicon.png`}
           className="mws-favicon"
-          alt=""
-          onError={({ currentTarget }) => {
-            currentTarget.onerror = null; // prevents looping
-            currentTarget.src="/missing-favicon.png";
-          }}
+          // alt=""
+          // onError={({ currentTarget }) => {
+          //   currentTarget.onerror = null; // prevents looping
+          //   currentTarget.src = "/missing-favicon.png";
+          // }}
         />
       </div>
       <div className="mws-wiki-card-content">
@@ -45,11 +45,11 @@ const WikiCard: React.FC<WikiCardProps> = ({
         <div className="mws-wiki-card-meta">
           {filteredBags.length > 0 ? (
             <ol className="mws-vertical-list">
-              {filteredBags.reverse().map((bagName, index) => (
-                <BagPill 
-                  key={bagName}
-                  bagName={bagName} 
-                  isTopmost={index === 0} 
+              {filteredBags.map((bag, index) => (
+                <BagPill
+                  key={bag.bag_id}
+                  bagName={bag.bag_name}
+                  isTopmost={index === 0}
                   elementTag="li"
                 />
               ))}
@@ -64,8 +64,8 @@ const WikiCard: React.FC<WikiCardProps> = ({
       </div>
       <div className="mws-wiki-card-actions">
         {hasAclAccess && (
-          <a 
-            href={`/admin/acl/${recipeName}/${bagNames[bagNames.length - 1]}`}
+          <a
+            href={`/admin/acl/${recipeName}`}
             className="mws-wiki-card-action"
             title="Manage ACL"
           >
@@ -80,4 +80,3 @@ const WikiCard: React.FC<WikiCardProps> = ({
   );
 };
 
-export default WikiCard;

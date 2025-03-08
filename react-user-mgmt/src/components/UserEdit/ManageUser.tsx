@@ -76,14 +76,28 @@ const ManageUser = DataLoader(async (): Promise<ManageUserProps> => {
   userIsLoggedIn = true,
 }, setRefreshData, props: { userID: string }) => {
 
-  const update = useFormFieldHandler(setRefreshData);
+  const update = useFormFieldHandler<UpdateAccountFields>(setRefreshData);
   const password = useFormFieldHandler<ChangePasswordFields>(setRefreshData);
   const deleteForm = useFormFieldHandler<DeleteAccountFields>(setRefreshData);
 
   const userInitials = user.username?.[0].toUpperCase();
-
-  const handleUpdateProfile = async (formData: FormData) => {
-    await serverRequest('UpdateUserProfile', formData);
+  interface UpdateAccountFields {
+    userId: string;
+    username: string;
+    email: string;
+    role: string;
+  }
+  const handleUpdateProfile = async (formData: UpdateAccountFields) => {
+    return await serverRequest.user_update({
+      user_id: +formData.userId,
+      username: formData.username,
+      email: formData.email,
+      role_id: +formData.role,
+    }).then(() => {
+      return "User updated successfully.";
+    }).catch(e => {
+      throw `${e}`;
+    });
   }
 
   interface DeleteAccountFields {
@@ -91,8 +105,13 @@ const ManageUser = DataLoader(async (): Promise<ManageUserProps> => {
   }
   const handleDeleteAccount = async (formData: DeleteAccountFields) => {
     if (window.confirm('Are you sure you want to delete this user account? This action cannot be undone.'))
-      await serverRequest('DeleteUserAccount', { user_id: +formData.user_id });
-    // await handler('/delete-user-account', () => location.pathname = '/admin/users', setDeleteError)(formData);
+      return await serverRequest.user_delete({ user_id: +formData.user_id }).then(() => {
+        return "User deleted successfully.";
+      }).catch(e => {
+        throw `${e}`;
+      });
+    else
+      throw "Cancelled.";
   };
   interface ChangePasswordFields {
     userId: string;
@@ -105,16 +124,13 @@ const ManageUser = DataLoader(async (): Promise<ManageUserProps> => {
     if (!userId || !password || !confirmPassword) throw false;
 
     if (password !== confirmPassword) {
-      setPasswordError("Passwords do not match.");
-      throw false;
+      throw "Passwords do not match.";
     }
 
-    await changePassword({ userId, password, confirmPassword }).then(() => {
-      setPasswordSuccess("Password successfully changed.");
-      setRefreshData();
+    return await changePassword({ userId, password, confirmPassword }).then(() => {
+      return "Password successfully changed.";
     }).catch(e => {
-      setPasswordError(`${e}`);
-      throw false;
+      throw `${e}`;
     });
 
   }
@@ -158,7 +174,7 @@ const ManageUser = DataLoader(async (): Promise<ManageUserProps> => {
         {(userIsAdmin || isCurrentUserProfile) && (
           <div className="mws-user-profile-management">
             <h2>Manage Account</h2>
-            <form className="mws-user-profile-form" action={handleUpdateProfile}>
+            <form className="mws-user-profile-form" onSubmit={update.handler(handleUpdateProfile)}>
               <FormFieldInput {...update.register("userId", { required: true, value: user.user_id })}
                 type="hidden" id title="" />
               <FormFieldInput {...update.register("username", { required: true })}
