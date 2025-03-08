@@ -3,17 +3,47 @@ import { rootRoute } from "../router";
 import apiRoutes from "./api/_index";
 import { ZodAssert } from "../zodAssert";
 import { TiddlerServer } from "./bag-file-server";
-import { RecipeManager } from "./recipe-manager";
-import { UserManager } from "./user-manager";
+import { RecipeManager } from "./manager-recipes";
+import { UserManager } from "./manager-users";
 import { BaseManager } from "./BaseManager";
 
-export { UserManager, UserManagerMap } from "./user-manager";
-export { RecipeManager, RecipeManagerMap } from "./recipe-manager";
+export { UserManager, UserManagerMap } from "./manager-users";
+export { RecipeManager, RecipeManagerMap } from "./manager-recipes";
 
 export default async function RootRoute(root: rootRoute) {
   TiddlerServer.defineRoutes(root, ZodAssert);
-  BaseManager.defineManager(root, /^\/recipes\/(.+)$/, RecipeManager);
-  BaseManager.defineManager(root, /^\/users\/(.+)$/, UserManager);
+
+  root.defineRoute({
+    useACL: {},
+    method: ["POST"],
+    path: /^\/manager\/(.*)/,
+    pathParams: ["action"],
+    bodyFormat: "json",
+  }, async state => {
+
+    const [good, error, value] = await state.$transaction(async prisma => {
+      if (!state.pathParams.action) throw "No action";
+      const user = new UserManager(state, prisma);
+      const recipe = new RecipeManager(state, prisma);
+      let action;
+      if(action = (user as any)[state.pathParams.action])
+        return await action(state.data);
+      if(action = (recipe as any)[state.pathParams.action])
+        return await action(state.data);
+      throw "No such action";
+    }).then(
+      e => [true, undefined, e] as const,
+      e => [false, e, undefined] as const
+    );
+
+    if (good) {
+      return state.sendJSON(200, value);
+    } else if (typeof error === "string") {
+      return state.sendSimple(400, error);
+    } else {
+      throw error;
+    }
+  });
 
   root.defineRoute({
     method: ["POST"],
@@ -24,7 +54,7 @@ export default async function RootRoute(root: rootRoute) {
     ZodAssert.data(state, z => z.object({
       table: z.string(),
       action: z.string(),
-      arg: z.object({}).nullish(),
+      arg: z.any(),
     }));
     return await state.$transaction(async prisma => {
       const p: any = prisma;
@@ -32,7 +62,8 @@ export default async function RootRoute(root: rootRoute) {
       if (!table) throw new Error(`No such table`);
       const fn = table[state.data.action];
       if (!fn) throw new Error(`No such table or action`);
-      return state.sendJSON(200, await fn.apply(table, state.data.arg));
+      console.log(state.data.arg);
+      return state.sendJSON(200, await fn.call(table, state.data.arg));
     });
   });
   // await apiRoutes(root);

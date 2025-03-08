@@ -1,11 +1,6 @@
-import { Readable } from "stream";
-import { StateObject } from "../StateObject";
-import { TiddlerFields } from "../store/new-sql-tiddler-database";
-import { z, ZodType, ZodTypeAny } from "zod";
-import { Z2, ZodAssert } from "../zodAssert";
-import { ZodInput, Validate } from 'ts-zod-decorators';
-import { AllowedMethod } from "../router";
-import { BaseManager } from "./BaseManager";
+import { z, ZodTypeAny } from "zod";
+import { BaseManager, BaseManagerMap, } from "./BaseManager";
+
 
 /*
 You must have admin permission on a bag to add it to a recipe because it is an implicit ACL operation. 
@@ -26,19 +21,18 @@ Nothing should be happening to tiddlers in a bag unless they're in a writable la
 */
 
 
-export type RecipeManagerMap = {
-  [K in keyof RecipeManager]: RecipeManager[K] extends (input: any) => any ? RecipeManager[K] : never;
-}
+
+
+
+export type RecipeManagerMap = BaseManagerMap<RecipeManager>;
 
 export class RecipeManager extends BaseManager {
-  
-
 
   index_json = this.ZodRequest(z => z.undefined(), async () => {
 
-    const { OR } = this.state.getBagWhereACL("READ");
+    const { isAdmin, user_id, username } = this.user;
 
-    const { isAdmin, user_id, username } = this.state.authenticatedUser ?? { isAdmin: false, user_id: 0, username: "(anon)" };
+    const { OR } = this.checks.getBagWhereACL({ permission: "READ", user_id, });
 
     const bagList = await this.prisma.bags.findMany({
       include: {
@@ -67,6 +61,83 @@ export class RecipeManager extends BaseManager {
       allowAnonReads: false,
       allowAnonWrites: false,
     }
+  });
+
+  recipe_create = this.ZodRequest(z => z.object({
+    recipe_name: z.string(),
+    description: z.string(),
+    bag_names: z.array(z.string()),
+    owned: z.boolean(),
+    withAcl: z.boolean(),
+  }), async (input) => {
+
+    if (!this.user) throw "User not authenticated";
+
+    const { isAdmin, user_id } = this.user;
+
+    const { recipe_name, description, bag_names, owned } = input;
+
+    if (!isAdmin && !owned) throw "User is not an admin and cannot create a recipe that is not owned";
+
+    const { OR } = this.checks.getBagWhereACL({ permission: "ADMIN", user_id, });
+
+    const bags = new Map(await this.prisma.bags.findMany({
+      where: { bag_name: { in: bag_names } },
+    }).then(bags => bags.map(bag => [bag.bag_name as string, bag])));
+
+    const missing = bag_names.filter(e => !bags.has(e));
+    if (missing.length) throw "Some bags not found: " + JSON.stringify(missing);
+
+    const bagsAcl = input.withAcl && new Map(await this.prisma.bags.findMany({
+      where: { bag_name: { in: bag_names }, OR },
+    }).then(bags => bags.map(bag => [bag.bag_name as string, bag])));
+
+    const recipe = await this.prisma.recipes.create({
+      data: {
+        recipe_name,
+        description,
+        recipe_bags: {
+          create: bag_names.map((bag, position) => ({
+            bag_id: bags.get(bag)!.bag_id,
+            with_acl: bagsAcl && bagsAcl.has(bag),
+            position,
+          }))
+        },
+        owner_id: owned ? user_id : null
+      },
+      include: {
+        recipe_bags: {
+          include: { bag: true }
+        }
+      }
+    });
+
+    return recipe;
+  });
+
+  bag_create = this.ZodRequest(z => z.object({
+    bag_name: z.string(),
+    description: z.string(),
+    owned: z.boolean(),
+  }), async (input) => {
+
+    if (!this.user) throw "User not authenticated";
+
+    const { isAdmin, user_id } = this.user;
+
+    const { bag_name, description, owned } = input;
+
+    if (!isAdmin && !owned) throw "User is not an admin and cannot create a bag that is not owned";
+
+    const bag = await this.prisma.bags.create({
+      data: {
+        bag_name,
+        description,
+        owner_id: owned ? user_id : null
+      }
+    });
+
+    return bag;
   });
 
   // async acl_list() {

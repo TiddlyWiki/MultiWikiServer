@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import Header from '../Frame/Header';
 import { useAsyncEffect } from '../../helpers/useAsyncEffect';
 import AddUserForm from './AddUserForm';
+import { DataLoader, serverRequest, useIndexJson } from '../../helpers/utils';
 
 interface User {
   user_id: string;
@@ -18,26 +19,18 @@ interface UserManagementResponse {
   username: string;
 }
 
-const UserManagement: React.FC = () => {
-  const [userList, setUserList] = useState<User[]>([]);
-  const [userIsAdmin, setUserIsAdmin] = useState<boolean>(false);
-  const [firstGuestUser, setFirstGuestUser] = useState<boolean>(false);
-  const [username, setUsername] = useState<string>("");
-  const [refresh, setRefresh] = useState({});
-  const refreshPage = useCallback(() => setRefresh({}), []);
+export const UserManagement = DataLoader(async () => {
+  return await serverRequest.user_list(undefined);
+}, (userList, refreshUsers, props) => {
+  const [indexJson, refreshIndex] = useIndexJson();
+  const userIsAdmin = indexJson?.isAdmin || false;
+  const firstGuestUser = indexJson?.firstGuestUser || false;
+  const username = indexJson?.username || "";
 
-  useAsyncEffect(async () => {
-    try {
-      const response = await fetch('/admin/users.json');
-      const data: UserManagementResponse = await response.json();
-      setUserList(data["user-list"] || []);
-      setUserIsAdmin(data["user-is-admin"] || false);
-      setFirstGuestUser(data["first-guest-user"] || false);
-      setUsername(data.username || "");
-    } catch (error) {
-      console.error('Error fetching user data:', error);
-    }
-  }, undefined, undefined, [refresh]);
+  const refreshPage = useCallback(() => {
+    refreshUsers();
+    refreshIndex();
+  }, [refreshUsers, refreshIndex]);
 
   return (
     <>
@@ -45,9 +38,9 @@ const UserManagement: React.FC = () => {
         {userList.length > 0 ? (
           <div className="mws-users-list">
             {userList.map((user) => (
-              <a 
-                key={user.user_id} 
-                href={`/admin/users/${user.user_id}?q=preview`} 
+              <a
+                key={user.user_id}
+                href={`/admin/users/${user.user_id}?q=preview`}
                 className="mws-user-item"
               >
                 <div className="mws-user-info">
@@ -74,7 +67,7 @@ const UserManagement: React.FC = () => {
             No users found
           </div>
         )}
-        
+
         {(userIsAdmin || firstGuestUser) && (
           <div className="mws-add-user-card">
             <AddUserForm refreshPage={refreshPage} />
@@ -83,6 +76,6 @@ const UserManagement: React.FC = () => {
       </div>
     </>
   );
-};
+});
 
 export default UserManagement;

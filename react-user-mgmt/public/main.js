@@ -20339,7 +20339,8 @@ In case this error is unexpected for you, please report it in https://pris.ly/pr
       exports.Prisma.Recipe_bagsScalarFieldEnum = {
         recipe_id: "recipe_id",
         bag_id: "bag_id",
-        position: "position"
+        position: "position",
+        with_acl: "with_acl"
       };
       exports.Prisma.BagsScalarFieldEnum = {
         bag_id: "bag_id",
@@ -23288,46 +23289,6 @@ ${val.stack}`;
     }
   }))();
 
-  // react-user-mgmt/src/helpers/server-requests.ts
-  var ServerRequests = class {
-    constructor() {
-      __publicField(this, "prisma", proxy);
-    }
-    async getIndexJson() {
-      const req = await fetch("/index-json", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "X-Requested-With": "TiddlyWiki"
-        }
-      });
-      if (!req.ok) throw new Error(`Failed to fetch data for getIndexJson: ${await req.text()}`);
-      const res = await req.json();
-      const bagMap = new Map(res.bagList.map((bag) => [bag.bag_id, bag]));
-      const recipeMap = new Map(res.recipeList.map((recipe) => [recipe.recipe_id, recipe]));
-      const hasRecipeAclAccess = (recipe) => {
-        if (res.isAdmin) return true;
-        if (res.user_id && recipe.owner_id === res.user_id) return true;
-        return recipe.recipe_bags.some((recipeBag) => bagMap.get(recipeBag.bag_id)?._count.acl);
-      };
-      const hasBagAclAccess = (bag) => {
-        if (res.isAdmin) return true;
-        if (res.user_id && bag.owner_id === res.user_id) return true;
-        if (bag._count.acl) return true;
-        return true;
-      };
-      const getBagName = (bagId) => bagMap.get(bagId)?.bag_name;
-      return {
-        ...res,
-        bagMap,
-        recipeMap,
-        hasBagAclAccess,
-        getBagName,
-        hasRecipeAclAccess
-      };
-    }
-  };
-
   // react-user-mgmt/src/helpers/utils.tsx
   var import_jsx_runtime = __toESM(require_jsx_runtime(), 1);
   function toSearchParams(formData) {
@@ -23350,16 +23311,14 @@ ${val.stack}`;
     const { userId, password, confirmPassword } = input;
     if (password !== confirmPassword) throw "Passwords do not match";
     const { clientRegistrationState, registrationRequest } = client.startRegistration({ password });
-    const register1 = await fetchPostSearchParams("/change-user-password/1", { userId, registrationRequest });
-    const registrationResponse = await register1.text();
-    if (!register1.ok) throw registrationResponse;
+    const registrationResponse = await serverRequest2.user_update_password({ user_id: +userId, registrationRequest });
+    if (!registrationResponse) throw "Failed to update password";
     const { registrationRecord } = client.finishRegistration({
       clientRegistrationState,
       registrationResponse,
       password
     });
-    const register2 = await fetchPostSearchParams("/change-user-password/2", { userId, registrationRecord });
-    if (!register2.ok) throw await register2.text();
+    await serverRequest2.user_update_password({ user_id: +userId, registrationRecord });
   }
   function DataLoader(loader, useRender) {
     return (props) => {
@@ -23376,10 +23335,59 @@ ${val.stack}`;
   function Render({ useRender }) {
     return useRender();
   }
-  var serverRequest2 = new ServerRequests();
   var IndexJsonContext = import_react3.default.createContext(null);
   function useIndexJson() {
     return import_react3.default.useContext(IndexJsonContext);
+  }
+  function postManager(key) {
+    return async (data) => {
+      const req = await fetch("/manager/" + key, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Requested-With": "TiddlyWiki"
+        },
+        body: JSON.stringify(data)
+      });
+      if (!req.ok) throw new Error(`Failed to fetch data for /manager/${key}: ${await req.text()}`);
+      return await req.json();
+    };
+  }
+  var serverRequest2 = {
+    index_json: postManager("index_json"),
+    user_list: postManager("user_list"),
+    user_create: postManager("user_create"),
+    user_delete: postManager("user_delete"),
+    user_update: postManager("user_update"),
+    user_update_password: postManager("user_update_password"),
+    recipe_create: postManager("recipe_create"),
+    bag_create: postManager("bag_create"),
+    prisma: proxy
+  };
+  async function getIndexJson() {
+    const res = await postManager("index_json")(void 0);
+    const bagMap = new Map(res.bagList.map((bag) => [bag.bag_id, bag]));
+    const recipeMap = new Map(res.recipeList.map((recipe) => [recipe.recipe_id, recipe]));
+    const hasRecipeAclAccess = (recipe) => {
+      if (res.isAdmin) return true;
+      if (res.user_id && recipe.owner_id === res.user_id) return true;
+      return recipe.recipe_bags.some((recipeBag) => bagMap.get(recipeBag.bag_id)?._count.acl);
+    };
+    const hasBagAclAccess = (bag) => {
+      if (res.isAdmin) return true;
+      if (res.user_id && bag.owner_id === res.user_id) return true;
+      if (bag._count.acl) return true;
+      return true;
+    };
+    const getBagName = (bagId) => bagMap.get(bagId)?.bag_name;
+    return {
+      ...res,
+      bagMap,
+      recipeMap,
+      hasBagAclAccess,
+      getBagName,
+      hasRecipeAclAccess
+    };
   }
   function useFormFieldHandler(refreshPage) {
     const [error, setError] = (0, import_react3.useState)("");
@@ -23394,12 +23402,13 @@ ${val.stack}`;
     function handler(fn) {
       return handleSubmit((input) => fn(input).then(
         (e) => {
-          setSuccess(`User added`);
+          setSuccess(e);
           setError("");
           reset();
           refreshPage();
         },
         (e) => {
+          console.log(e);
           setSuccess("");
           setError(`${e}`);
         }
@@ -23468,8 +23477,8 @@ ${val.stack}`;
     return { username, sessionKey, exportKey, serverStaticPublicKey };
   }
   var Login = () => {
-    const index = useIndexJson();
-    const isLoggedIn = !!index.authUser;
+    const [index] = useIndexJson();
+    const isLoggedIn = !!index.isLoggedIn;
     const [errorMessage, setErrorMessage] = (0, import_react4.useState)(null);
     const returnUrl = new URLSearchParams(location.search).get("returnUrl") || "/";
     const handleSubmit = async (formData) => {
@@ -23757,18 +23766,9 @@ ${val.stack}`;
   var import_react_dom = __toESM(require_react_dom(), 1);
   var import_jsx_runtime7 = __toESM(require_jsx_runtime(), 1);
   var Dashboard = () => {
-    const { getBagName, hasBagAclAccess, hasRecipeAclAccess, ...indexJson } = useIndexJson();
+    const [{ getBagName, hasBagAclAccess, hasRecipeAclAccess, ...indexJson }, refresh] = useIndexJson();
     const [showSystem, setShowSystem] = (0, import_react7.useState)(false);
     const filteredBags = showSystem ? indexJson.bagList : indexJson.bagList.filter((bag) => !bag.bag_name.startsWith("$:/"));
-    const handleRecipeSubmit = async (e) => {
-      const formData = Object.fromEntries(e.entries());
-      formData.bag_names = formData.bag_names.split(" ");
-      console.log(formData);
-    };
-    const handleBagSubmit = async (e) => {
-      const formData = Object.fromEntries(e.entries());
-      console.log(formData);
-    };
     const handleShowSystemChange = (e) => {
       const newShowSystem = e.target.checked;
       setShowSystem(newShowSystem);
@@ -23780,6 +23780,26 @@ ${val.stack}`;
         console.error("Error updating URL:", error);
       }
     };
+    const handleRecipeSubmit = async (formData) => {
+      console.log(formData);
+      const { recipe_name, bag_names, description } = formData;
+      const bag_list = bag_names.split(" ");
+      await serverRequest2.recipe_create({
+        recipe_name,
+        description,
+        bag_names: bag_list,
+        owned: true,
+        withAcl: formData.with_acl
+      });
+      return "Recipe created successfully.";
+    };
+    const recipeForm = useFormFieldHandler(refresh);
+    const handleBagSubmit = async (formData) => {
+      console.log(formData);
+      await serverRequest2.bag_create(formData);
+      return "Bag created successfully.";
+    };
+    const bagForm = useFormFieldHandler(refresh);
     return /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)(import_jsx_runtime7.Fragment, { children: [
       /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("ul", { className: "mws-vertical-list", children: indexJson.recipeList.map((recipe) => /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("li", { children: /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(
         WikiCard,
@@ -23795,20 +23815,75 @@ ${val.stack}`;
           showSystem
         }
       ) }, recipe.recipe_name)) }),
-      /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("form", { className: "mws-form", action: handleRecipeSubmit, children: /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)(MwsFormChild, { title: "Create a new recipe or modify an existing one", submitText: "Create or Update Recipe", children: [
-        /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(FormField, { name: "recipe_name", children: "Recipe name" }),
-        /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(FormField, { name: "description", children: "Recipe description" }),
-        /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(FormField, { name: "bag_names", children: "Bags in recipe (space separated)" })
-      ] }) }),
+      /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("form", { className: "mws-form", onSubmit: recipeForm.handler(handleRecipeSubmit), children: [
+        /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("h2", { children: "Create a new recipe or modify an existing one" }),
+        /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(
+          FormFieldInput,
+          {
+            ...recipeForm.register("recipe_name", { required: true }),
+            type: "text",
+            title: "Recipe name"
+          }
+        ),
+        /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(
+          FormFieldInput,
+          {
+            ...recipeForm.register("description", { required: true }),
+            type: "text",
+            title: "Recipe description"
+          }
+        ),
+        /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(
+          FormFieldInput,
+          {
+            ...recipeForm.register("bag_names", { required: true }),
+            type: "text",
+            title: "Bags in recipe (space separated)"
+          }
+        ),
+        /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(
+          FormFieldInput,
+          {
+            ...recipeForm.register("with_acl", { required: true }),
+            type: "checkbox",
+            title: "Apply implicit ACL permissions to bags which you have admin privelages on."
+          }
+        ),
+        recipeForm.footer("Create Recipe")
+      ] }),
       /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("h1", { children: "Bags" }),
       /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("ul", { className: "mws-vertical-list", children: filteredBags.map((bag) => /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("li", { className: "mws-wiki-card", children: [
         /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(BagPill, { bagName: bag.bag_name }),
         /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("span", { children: bag.description })
       ] }, bag.bag_name)) }),
-      /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("form", { className: "mws-form", action: handleBagSubmit, children: /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)(MwsFormChild, { title: "Create a new bag or modify an existing one", submitText: "Create or Update Bag", children: [
-        /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(FormField, { name: "bag_name", children: "Bag name" }),
-        /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(FormField, { name: "description", children: "Bag description" })
-      ] }) }),
+      /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("form", { className: "mws-form", onSubmit: bagForm.handler(handleBagSubmit), children: [
+        /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("h2", { children: "Create a new bag or modify an existing one" }),
+        /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(
+          FormFieldInput,
+          {
+            ...bagForm.register("bag_name", { required: true }),
+            type: "text",
+            title: "Bag name"
+          }
+        ),
+        /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(
+          FormFieldInput,
+          {
+            ...bagForm.register("description", { required: true }),
+            type: "text",
+            title: "Bag description"
+          }
+        ),
+        /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(
+          FormFieldInput,
+          {
+            ...bagForm.register("owned", { required: false }),
+            type: "checkbox",
+            title: "Make this a personal bag."
+          }
+        ),
+        bagForm.footer("Create Bag")
+      ] }),
       /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("h1", { children: "Advanced" }),
       /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("div", { id: "checkboxForm", children: [
         /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(
@@ -23826,20 +23901,6 @@ ${val.stack}`;
       ] })
     ] });
   };
-  function MwsFormChild({ title, submitText, children }) {
-    const status = (0, import_react_dom.useFormStatus)();
-    return /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)(import_jsx_runtime7.Fragment, { children: [
-      /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("div", { className: "mws-form-heading", children: title }),
-      /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("div", { className: "mws-form-fields", children }),
-      /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("div", { className: "mws-form-buttons", children: /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("button", { type: "submit", disabled: status.pending, children: status.pending ? "Processing..." : submitText }) })
-    ] });
-  }
-  function FormField({ name, children }) {
-    return /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("div", { className: "mws-form-field", children: [
-      /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("label", { className: "mws-form-field-description", children }),
-      /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("input", { name, type: "text", required: true })
-    ] }, name);
-  }
   var Dashboard_default = Dashboard;
 
   // react-user-mgmt/src/components/UserList/UserManagement.tsx
@@ -23854,6 +23915,7 @@ ${val.stack}`;
     if (!createUser.ok) throw await createUser.text() || "Failed to add user";
     const userId = (await createUser.json()).userId.toString();
     await changePassword({ userId, password, confirmPassword });
+    return "User added successfully";
   }
   var AddUserForm = (props) => {
     const {
@@ -23870,7 +23932,8 @@ ${val.stack}`;
             ...register("username", { required: true }),
             type: "text",
             autoComplete: "new-password",
-            id: true
+            id: true,
+            title: "Username"
           }
         ),
         /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(
@@ -23879,7 +23942,8 @@ ${val.stack}`;
             ...register("email", { required: true }),
             type: "email",
             autoComplete: "new-password",
-            id: true
+            id: true,
+            title: "Email"
           }
         ),
         /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(
@@ -23888,7 +23952,8 @@ ${val.stack}`;
             ...register("password", { required: true }),
             type: "password",
             autoComplete: "new-password",
-            id: true
+            id: true,
+            title: "Password"
           }
         ),
         /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(
@@ -23897,7 +23962,8 @@ ${val.stack}`;
             ...register("confirmPassword", { required: true }),
             type: "password",
             autoComplete: "new-password",
-            id: true
+            id: true,
+            title: "Confirm Password"
           }
         ),
         footer("Add User")
@@ -23908,25 +23974,17 @@ ${val.stack}`;
 
   // react-user-mgmt/src/components/UserList/UserManagement.tsx
   var import_jsx_runtime9 = __toESM(require_jsx_runtime(), 1);
-  var UserManagement = () => {
-    const [userList, setUserList] = (0, import_react8.useState)([]);
-    const [userIsAdmin, setUserIsAdmin] = (0, import_react8.useState)(false);
-    const [firstGuestUser, setFirstGuestUser] = (0, import_react8.useState)(false);
-    const [username, setUsername] = (0, import_react8.useState)("");
-    const [refresh, setRefresh] = (0, import_react8.useState)({});
-    const refreshPage = (0, import_react8.useCallback)(() => setRefresh({}), []);
-    useAsyncEffect(async () => {
-      try {
-        const response = await fetch("/admin/users.json");
-        const data = await response.json();
-        setUserList(data["user-list"] || []);
-        setUserIsAdmin(data["user-is-admin"] || false);
-        setFirstGuestUser(data["first-guest-user"] || false);
-        setUsername(data.username || "");
-      } catch (error) {
-        console.error("Error fetching user data:", error);
-      }
-    }, void 0, void 0, [refresh]);
+  var UserManagement = DataLoader(async () => {
+    return await serverRequest2.user_list(void 0);
+  }, (userList, refreshUsers, props) => {
+    const [indexJson, refreshIndex] = useIndexJson();
+    const userIsAdmin = indexJson?.isAdmin || false;
+    const firstGuestUser = indexJson?.firstGuestUser || false;
+    const username = indexJson?.username || "";
+    const refreshPage = (0, import_react8.useCallback)(() => {
+      refreshUsers();
+      refreshIndex();
+    }, [refreshUsers, refreshIndex]);
     return /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(import_jsx_runtime9.Fragment, { children: /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)("div", { className: "mws-users-container", children: [
       userList.length > 0 ? /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("div", { className: "mws-users-list", children: userList.map((user) => /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)(
         "a",
@@ -23954,59 +24012,71 @@ ${val.stack}`;
       )) }) : /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("div", { className: "mws-no-users-message", children: "No users found" }),
       (userIsAdmin || firstGuestUser) && /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("div", { className: "mws-add-user-card", children: /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(AddUserForm_default, { refreshPage }) })
     ] }) });
-  };
+  });
   var UserManagement_default = UserManagement;
 
   // react-user-mgmt/src/components/UserEdit/ManageUser.tsx
   var import_jsx_runtime10 = __toESM(require_jsx_runtime(), 1);
-  var ManageUser = DataLoader(async () => {
-    const res = await fetch(location.pathname + ".json", {});
-    if (res.status !== 200) throw new Error("Failed to fetch user data");
-    const result = await res.json();
-    return {
-      user: JSON.parse(result.user),
-      userRole: JSON.parse(result["user-role"]).roles[0],
-      allRoles: JSON.parse(result["all-roles"]),
-      userIsAdmin: result["user-is-admin"] === "yes",
-      isCurrentUserProfile: result["is-current-user-profile"] === "yes",
-      username: result.username,
-      firstGuestUser: result["first-guest-user"] === "yes",
-      userIsLoggedIn: result["user-is-logged-in"] === "yes"
-    };
-  }, ({
-    user,
-    userRole,
-    allRoles,
-    userIsAdmin,
-    isCurrentUserProfile,
-    username,
-    firstGuestUser = false,
-    userIsLoggedIn = true
-  }, setRefreshData, props) => {
-    const update = useFormFieldHandler(setRefreshData);
-    const password = useFormFieldHandler(setRefreshData);
-    const deleteForm = useFormFieldHandler(setRefreshData);
+  var ManageUser = DataLoader(async (props) => {
+    const res = await serverRequest2.prisma.users.findUnique({
+      where: { user_id: +props.userID },
+      select: {
+        user_id: true,
+        username: true,
+        email: true,
+        roles: true,
+        last_login: true,
+        created_at: true
+      }
+    });
+    if (!res) throw "User not found";
+    const allRoles = await serverRequest2.prisma.roles.findMany({
+      select: {
+        role_id: true,
+        role_name: true
+      }
+    });
+    return [res, allRoles];
+  }, ([user, allRoles], refreshUser, props) => {
+    const [indexJson] = useIndexJson();
+    const isCurrentUserProfile = indexJson.user_id === user.user_id;
+    const userIsAdmin = indexJson.isAdmin;
+    const update = useFormFieldHandler(refreshUser);
+    const password = useFormFieldHandler(refreshUser);
+    const deleteForm = useFormFieldHandler(refreshUser);
     const userInitials = user.username?.[0].toUpperCase();
     const handleUpdateProfile = async (formData) => {
-      await serverRequest("UpdateUserProfile", formData);
+      return await serverRequest2.user_update({
+        user_id: +formData.userId,
+        username: formData.username,
+        email: formData.email,
+        role_id: +formData.role
+      }).then(() => {
+        return "User updated successfully.";
+      }).catch((e) => {
+        throw `${e}`;
+      });
     };
     const handleDeleteAccount = async (formData) => {
       if (window.confirm("Are you sure you want to delete this user account? This action cannot be undone."))
-        await serverRequest("DeleteUserAccount", { user_id: +formData.user_id });
+        return await serverRequest2.user_delete({ user_id: +formData.user_id }).then(() => {
+          return "User deleted successfully.";
+        }).catch((e) => {
+          throw `${e}`;
+        });
+      else
+        throw "Cancelled.";
     };
     const handleChangePassword = async (formData) => {
       const { userId, newPassword: password2, confirmPassword } = formData;
       if (!userId || !password2 || !confirmPassword) throw false;
       if (password2 !== confirmPassword) {
-        setPasswordError("Passwords do not match.");
-        throw false;
+        throw "Passwords do not match.";
       }
-      await changePassword({ userId, password: password2, confirmPassword }).then(() => {
-        setPasswordSuccess("Password successfully changed.");
-        setRefreshData();
+      return await changePassword({ userId, password: password2, confirmPassword }).then(() => {
+        return "Password successfully changed.";
       }).catch((e) => {
-        setPasswordError(`${e}`);
-        throw false;
+        throw `${e}`;
       });
     };
     return /* @__PURE__ */ (0, import_jsx_runtime10.jsx)(import_jsx_runtime10.Fragment, { children: /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)("div", { className: "mws-main-wrapper", children: [
@@ -24031,17 +24101,17 @@ ${val.stack}`;
           ] }),
           /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)("div", { className: "mws-user-profile-roles", children: [
             /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("h2", { children: "User Role" }),
-            /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("ul", { children: /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("li", { children: userRole.role_name }) })
+            /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("ul", { children: user.roles.map((e) => /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("li", { children: e.role_name }, e.role_id)) })
           ] })
         ] })
       ] }),
       (userIsAdmin || isCurrentUserProfile) && /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)("div", { className: "mws-user-profile-management", children: [
         /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("h2", { children: "Manage Account" }),
-        /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)("form", { className: "mws-user-profile-form", action: handleUpdateProfile, children: [
+        /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)("form", { className: "mws-user-profile-form", onSubmit: update.handler(handleUpdateProfile), children: [
           /* @__PURE__ */ (0, import_jsx_runtime10.jsx)(
             FormFieldInput,
             {
-              ...update.register("userId", { required: true, value: user.user_id }),
+              ...update.register("userId", { required: true, value: `${user.user_id}` }),
               type: "hidden",
               id: true,
               title: ""
@@ -24319,14 +24389,14 @@ ${val.stack}`;
   // react-user-mgmt/src/components/Frame/Frame.tsx
   var import_jsx_runtime12 = __toESM(require_jsx_runtime(), 1);
   var Frame = (props) => {
-    const indexJson = useIndexJson();
+    const [indexJson, refresh] = useIndexJson();
     const username = indexJson?.username;
     const userIsAdmin = indexJson?.isAdmin || false;
     const userIsLoggedIn = !!indexJson.isLoggedIn;
     const firstGuestUser = indexJson.firstGuestUser;
     const user = indexJson;
-    const allowReads = indexJson.allowReads;
-    const allowWrites = indexJson.allowWrites;
+    const allowReads = indexJson.allowAnonReads;
+    const allowWrites = indexJson.allowAnonWrites;
     const [showAnonConfig, setShowAnonConfig] = (0, import_react9.useState)(false);
     const pages = [
       [/^\/$/, () => /* @__PURE__ */ (0, import_jsx_runtime12.jsx)(Dashboard_default, {}), "Wikis Available Here"],
@@ -24382,9 +24452,9 @@ ${val.stack}`;
   // react-user-mgmt/src/main.tsx
   var import_jsx_runtime13 = __toESM(require_jsx_runtime(), 1);
   var App = DataLoader(async () => {
-    return await serverRequest2.getIndexJson();
+    return await getIndexJson();
   }, (indexJson, refresh, props) => {
-    return /* @__PURE__ */ (0, import_jsx_runtime13.jsx)(import_react10.StrictMode, { children: /* @__PURE__ */ (0, import_jsx_runtime13.jsx)(IndexJsonContext.Provider, { value: indexJson, children: location.pathname === "/login" ? /* @__PURE__ */ (0, import_jsx_runtime13.jsx)(Login_default, {}) : /* @__PURE__ */ (0, import_jsx_runtime13.jsx)(Frame, {}) }) });
+    return /* @__PURE__ */ (0, import_jsx_runtime13.jsx)(import_react10.StrictMode, { children: /* @__PURE__ */ (0, import_jsx_runtime13.jsx)(IndexJsonContext.Provider, { value: [indexJson, refresh], children: location.pathname === "/login" ? /* @__PURE__ */ (0, import_jsx_runtime13.jsx)(Login_default, {}) : /* @__PURE__ */ (0, import_jsx_runtime13.jsx)(Frame, {}) }) });
   });
   (async () => {
     (0, import_client2.createRoot)(document.getElementById("root")).render(/* @__PURE__ */ (0, import_jsx_runtime13.jsx)(App, {}));

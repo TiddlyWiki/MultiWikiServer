@@ -2,7 +2,7 @@ import React, { useState, PropsWithChildren } from 'react';
 import WikiCard from './WikiCard';
 import BagPill from './BagPill';
 import { useFormStatus } from 'react-dom';
-import { serverRequest, useIndexJson } from '../../helpers/utils';
+import { FormFieldInput, serverRequest, useFormFieldHandler, useIndexJson } from '../../helpers/utils';
 
 interface Recipe {
   recipe_name: string;
@@ -30,7 +30,7 @@ interface DashboardProps {
 
 const Dashboard = () => {
 
-  const { getBagName, hasBagAclAccess, hasRecipeAclAccess, ...indexJson } = useIndexJson();
+  const [{ getBagName, hasBagAclAccess, hasRecipeAclAccess, ...indexJson }, refresh] = useIndexJson();
 
 
   // const recipes = indexJson.recipeList;
@@ -43,18 +43,9 @@ const Dashboard = () => {
     ? indexJson.bagList
     : indexJson.bagList.filter(bag => !bag.bag_name.startsWith("$:/"));
 
-  const handleRecipeSubmit = async (e: any) => {
-    const formData: any = Object.fromEntries(e.entries());
-    formData.bag_names = formData.bag_names.split(' ');
-    console.log(formData);
-    // await serverRequest("CreateRecipe", formData);
-  };
 
-  const handleBagSubmit = async (e: any) => {
-    const formData: any = Object.fromEntries(e.entries());
-    console.log(formData);
-    // await serverRequest("CreateBag", formData);
-  }
+
+
 
   const handleShowSystemChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newShowSystem = e.target.checked;
@@ -69,6 +60,35 @@ const Dashboard = () => {
       console.error('Error updating URL:', error);
     }
   };
+
+  interface RecipeCreateForm {
+    recipe_name: string;
+    description: string;
+    bag_names: string;
+    with_acl: boolean;
+  }
+  const handleRecipeSubmit = async (formData: RecipeCreateForm) => {
+    console.log(formData);
+    const { recipe_name, bag_names, description } = formData;
+    const bag_list = bag_names.split(" "); // this should really be a tw list
+    await serverRequest.recipe_create({
+      recipe_name, description, bag_names: bag_list, owned: true, withAcl: formData.with_acl
+    });
+    return "Recipe created successfully.";
+  };
+  const recipeForm = useFormFieldHandler<RecipeCreateForm>(refresh);
+
+  interface BagCreateForm {
+    bag_name: string;
+    description: string;
+    owned: boolean;
+  }
+  const handleBagSubmit = async (formData: BagCreateForm) => {
+    console.log(formData);
+    await serverRequest.bag_create(formData);
+    return "Bag created successfully.";
+  }
+  const bagForm = useFormFieldHandler<BagCreateForm>(refresh);
 
   return (
     <>
@@ -90,12 +110,17 @@ const Dashboard = () => {
         ))}
       </ul>
 
-      <form className="mws-form" action={handleRecipeSubmit}>
-        <MwsFormChild title="Create a new recipe or modify an existing one" submitText="Create or Update Recipe">
-          <FormField name="recipe_name">Recipe name</FormField>
-          <FormField name="description">Recipe description</FormField>
-          <FormField name="bag_names">Bags in recipe (space separated)</FormField>
-        </MwsFormChild>
+      <form className="mws-form" onSubmit={recipeForm.handler(handleRecipeSubmit)}>
+        <h2>Create a new recipe or modify an existing one</h2>
+        <FormFieldInput {...recipeForm.register("recipe_name", { required: true })}
+          type="text" title="Recipe name" />
+        <FormFieldInput {...recipeForm.register("description", { required: true })}
+          type="text" title="Recipe description" />
+        <FormFieldInput {...recipeForm.register("bag_names", { required: true })}
+          type="text" title="Bags in recipe (space separated)" />
+        <FormFieldInput {...recipeForm.register("with_acl", { required: false })}
+          type="checkbox" title="Apply implicit ACL permissions to bags which you have admin privelages on." />
+        {recipeForm.footer("Create Recipe")}
       </form>
 
       <h1>Bags</h1>
@@ -109,11 +134,23 @@ const Dashboard = () => {
         ))}
       </ul>
 
-      <form className="mws-form" action={handleBagSubmit}>
-        <MwsFormChild title="Create a new bag or modify an existing one" submitText="Create or Update Bag"        >
+      {/* <form className="mws-form" action={handleBagSubmit}>
+        <h2>Create a new bag or modify an existing one</h2>
+        <MwsFormChild title="" submitText=""        >
           <FormField name="bag_name">Bag name</FormField>
           <FormField name="description">Bag description</FormField>
         </MwsFormChild>
+      </form> */}
+      <form className="mws-form" onSubmit={bagForm.handler(handleBagSubmit)}>
+        <h2>Create a new bag or modify an existing one</h2>
+        <FormFieldInput {...bagForm.register("bag_name", { required: true })}
+          type="text" title="Bag name" />
+        <FormFieldInput {...bagForm.register("description", { required: true })}
+          type="text" title="Bag description" />
+        <FormFieldInput {...bagForm.register("owned", { required: false })}
+          type="checkbox" title="Make this a personal bag." />
+
+        {bagForm.footer("Create Bag")}
       </form>
 
       <h1>Advanced</h1>

@@ -55,7 +55,7 @@ export class SqlTiddlerDatabase extends DataChecks {
 	}
 	// public $transaction: <T>(fn: (store: SqlTiddlerStore) => Promise<T>) => Promise<T>
 	constructor(public engine: PrismaTxnClient) {
-		super();
+		super({ allowAnonReads: false, allowAnonWrites: false });
 	}
 
 	async createTables() {

@@ -31,8 +31,8 @@ async function loginWithOpaque(username: string, password: string) {
 
 const Login: React.FC<{}> = () => {
 
-  const index = useIndexJson();
-  const isLoggedIn = !!index.authUser;
+  const [index] = useIndexJson();
+  const isLoggedIn = !!index.isLoggedIn;
 
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 

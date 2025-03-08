@@ -411,6 +411,7 @@
   border: 1px solid #ddd;
   border-radius: 4px;
   font-size: 1rem;
+  box-sizing: border-box;
 }
 .mws-update-profile-btn,
 .mws-update-password-btn {

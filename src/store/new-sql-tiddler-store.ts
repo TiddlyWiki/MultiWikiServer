@@ -35,7 +35,7 @@ export class SqlTiddlerStore extends DataChecks {
     public config: any
   ) {
     ok(config);
-    super();
+    super({ allowAnonReads: false, allowAnonWrites: false });
     this.sqlTiddlerDatabase = sql;
 
     this.eventListeners = {}; // Hashmap by type of array of event listener functions

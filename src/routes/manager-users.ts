@@ -1,14 +1,6 @@
-import { Readable } from "stream";
-import { StateObject } from "../StateObject";
-import { TiddlerFields } from "../store/new-sql-tiddler-database";
-import { ZodAssert } from "../zodAssert";
-import { ZodInput, Validate } from 'ts-zod-decorators';
-import { AllowedMethod } from "../router";
-import { BaseManager } from "./BaseManager";
+import { BaseManager, BaseManagerMap,  } from "./BaseManager";
 
-export type UserManagerMap = {
-  [K in keyof UserManager]: UserManager[K] extends (input: any) => any ? UserManager[K] : never;
-}
+export type UserManagerMap = BaseManagerMap<UserManager>;
 
 export class UserManager extends BaseManager {
 
@@ -34,6 +26,7 @@ export class UserManager extends BaseManager {
       created_at: e.created_at.toISOString(),
     }));
   });
+
 
   user_create = this.ZodRequest(z => z.object({
     username: z.string(),
@@ -74,6 +67,7 @@ export class UserManager extends BaseManager {
     return null;
   }, z => z.object({}));
 
+
   user_delete = this.ZodRequest(z => z.object({
     user_id: z.number(),
   }), async ({ user_id }) => {
@@ -92,6 +86,7 @@ export class UserManager extends BaseManager {
 
     return null;
   });
+
 
   user_update_password = this.ZodRequest(z => z.object({
     user_id: z.prismaField("Users", "user_id", "number"),

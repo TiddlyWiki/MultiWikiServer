@@ -66,8 +66,24 @@ function findValueInObject(val: any, predicate: (val: any) => boolean, keys: str
 function capitalize<T extends string>(table: T): Capitalize<T> {
   return table.slice(0, 1).toUpperCase() + table.slice(1) as any;
 }
+type ClientTypes<T> =
+  T extends Date ? string :
+  T;
+type PrismaProxyClient = PrismaClient<{ datasourceUrl: string }, never, {
+  result: {
+    // this types every output field with PrismaField
+    [T in Uncapitalize<Prisma.ModelName>]: {
+      [K in keyof PrismaPayloadScalars<Capitalize<T>>]: () => {
+        compute: () => ClientTypes<PrismaPayloadScalars<Capitalize<T>>[K]>
+      }
+    }
+  },
+  client: {},
+  model: {},
+  query: {},
+}>;
 
-export const proxy: PrismaClient = (() => new Proxy<any>({}, {
+export const proxy: PrismaProxyClient = (() => new Proxy<any>({}, {
   get(target: any, table: any) {
     return target[table] = target[table] || new Proxy<any>({}, {
       get(target: any, action: any) {

@@ -264,98 +264,6 @@ export class StateObject<
     return this.bodyFormat as BodyFormat === format;
   }
 
-  getBagWhereACL(permission: ACLPermissionName) {
-
-    const OR = this.getWhereACL({
-      permission,
-      user_id: this.authenticatedUser?.user_id ?? 0,
-    });
-
-    return this.authenticatedUser?.isAdmin ? {} : {
-      OR: ([
-        // all system bags are allowed for any user
-        { bag_name: { startsWith: "$:/" } },
-        ...OR,
-        permission === "ADMIN" ? undefined : {
-          recipe_bags: {
-            some: {
-              // check if we're in position 0 (for write) or any position (for read)
-              position: permission === "WRITE" ? 0 : undefined,
-              // of a recipe that the user has permission to read or write
-              recipe: { OR }
-              // the client must not try to write to a bag from a recipe that is not in position 0,
-              // but currently the api does not enforce this
-            }
-          }
-        }
-      ] satisfies (Prisma.BagsWhereInput | undefined | null | false)[]).filter(truthy)
-    }
-  }
-  getWhereACL({ permission, user_id }: {
-    permission: ACLPermissionName,
-    user_id: number,
-  }) {
-    const anonRead = this.allowAnon && this.allowAnonReads && permission === "READ";
-    const anonWrite = this.allowAnon && this.allowAnonWrites && permission === "WRITE";
-    const allowAnon = anonRead || anonWrite;
-    const allperms = ["READ", "WRITE", "ADMIN"] as const;
-    const index = allperms.indexOf(permission);
-    if (index === -1) throw new Error("Invalid permission");
-    const checkPerms = allperms.slice(index);
-
-    return ([
-      // allow unowned for any user (conditional for anon reads)
-      (user_id || allowAnon) && { acl: { none: {} }, owner_id: null },
-      // allow owner for user 
-      user_id && { owner_id: user_id },
-      // allow acl for user 
-      user_id && {
-        acl: {
-          some: {
-            permission: { in: checkPerms },
-            role: { users: { some: { user_id } } }
-          }
-        }
-      },
-      user_id && {
-        acl: {
-          some: {
-            permission: { in: checkPerms },
-            role: { users: { some: { user_id } } }
-          }
-        }
-      },
-    ] satisfies (Prisma.RecipesWhereInput | Prisma.BagsWhereInput | undefined | null | false | 0)[]
-    ).filter(truthy)
-  }
-  getRecipeWhereACL(permission: ACLPermissionName) {
-    const anonRead = this.allowAnon && this.allowAnonReads && permission === "READ";
-    const allperms = ["READ", "WRITE", "ADMIN"] as const;
-    const index = allperms.indexOf(permission);
-    if (index === -1) throw new Error("Invalid permission");
-    const checkperms = allperms.slice(index);
-    return this.authenticatedUser?.isAdmin ? {} : {
-      OR: ([
-        // all system bags are allowed for any user
-        { bag_name: { startsWith: "$:/" } },
-        // allow unowned for any user (conditional for anon reads)
-        (this.authenticatedUser || anonRead) && { acl: { none: {} }, owner_id: null },
-        // allow owner for user
-        this.authenticatedUser && { owner_id: this.authenticatedUser.user_id },
-        // allow acl for user 
-        this.authenticatedUser && {
-          acl: {
-            some: {
-              permission: { in: checkperms },
-              role: { users: { some: { user_id: this.authenticatedUser.user_id } } }
-            }
-          }
-        },
-
-      ] satisfies (Prisma.BagsWhereInput | undefined | null | false)[]).filter(truthy)
-    }
-  }
-
 
   /**
    *
@@ -547,7 +455,7 @@ export class ApiStateObject {
     this.firstGuestUser = state.firstGuestUser;
     this.showAnonConfig = state.showAnonConfig;
 
-    this.getBagWhereACL = this.state.getBagWhereACL.bind(this.state);
+    this.getBagWhereACL = this.state.store.getBagWhereACL.bind(this.state.store);
 
   }
 

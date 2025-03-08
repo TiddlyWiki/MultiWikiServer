@@ -1,7 +1,7 @@
 import React, { ReactNode, useCallback, useState } from 'react';
 import Header from '../Frame/Header';
 import { useAsyncEffect } from '../../helpers/useAsyncEffect';
-import { changePassword, DataLoader, fetchPostSearchParams, FormFieldInput, serverRequest, useFormFieldHandler } from '../../helpers/utils';
+import { changePassword, DataLoader, fetchPostSearchParams, FormFieldInput, serverRequest, useFormFieldHandler, useIndexJson } from '../../helpers/utils';
 
 
 interface Role {
@@ -51,34 +51,45 @@ interface UserJson {
 }
 
 
-const ManageUser = DataLoader(async (): Promise<ManageUserProps> => {
-  const res = await fetch(location.pathname + ".json", {});
-  if (res.status !== 200) throw new Error("Failed to fetch user data");
-  const result = await res.json()
-  return {
-    user: JSON.parse(result.user),
-    userRole: JSON.parse(result["user-role"]).roles[0],
-    allRoles: JSON.parse(result["all-roles"]),
-    userIsAdmin: result["user-is-admin"] === "yes",
-    isCurrentUserProfile: result["is-current-user-profile"] === "yes",
-    username: result.username,
-    firstGuestUser: result["first-guest-user"] === "yes",
-    userIsLoggedIn: result["user-is-logged-in"] === "yes",
-  }
-}, ({
-  user,
-  userRole,
-  allRoles,
-  userIsAdmin,
-  isCurrentUserProfile,
-  username,
-  firstGuestUser = false,
-  userIsLoggedIn = true,
-}, setRefreshData, props: { userID: string }) => {
+const ManageUser = DataLoader(async (props: { userID: string }) => {
+  const res = await serverRequest.prisma.users.findUnique({
+    where: { user_id: +props.userID },
+    select: {
+      user_id: true,
+      username: true,
+      email: true,
+      roles: true,
+      last_login: true,
+      created_at: true,
+    }
+  });
+  if (!res) throw "User not found";
+  const allRoles = await serverRequest.prisma.roles.findMany({
+    select: {
+      role_id: true,
+      role_name: true,
+    }
+  });
+  return [res, allRoles] as const;
+  // return {
+  //   user: JSON.parse(result.user),
+  //   userRole: JSON.parse(result["user-role"]).roles[0],
+  //   allRoles: JSON.parse(result["all-roles"]),
+  //   userIsAdmin: result["user-is-admin"] === "yes",
+  //   isCurrentUserProfile: result["is-current-user-profile"] === "yes",
+  //   username: result.username,
+  //   firstGuestUser: result["first-guest-user"] === "yes",
+  //   userIsLoggedIn: result["user-is-logged-in"] === "yes",
+  // }
+}, ([user, allRoles], refreshUser, props) => {
 
-  const update = useFormFieldHandler<UpdateAccountFields>(setRefreshData);
-  const password = useFormFieldHandler<ChangePasswordFields>(setRefreshData);
-  const deleteForm = useFormFieldHandler<DeleteAccountFields>(setRefreshData);
+  const [indexJson] = useIndexJson();
+  const isCurrentUserProfile = indexJson.user_id === user.user_id;
+  const userIsAdmin = indexJson.isAdmin;
+
+  const update = useFormFieldHandler<UpdateAccountFields>(refreshUser);
+  const password = useFormFieldHandler<ChangePasswordFields>(refreshUser);
+  const deleteForm = useFormFieldHandler<DeleteAccountFields>(refreshUser);
 
   const userInitials = user.username?.[0].toUpperCase();
   interface UpdateAccountFields {
@@ -165,7 +176,9 @@ const ManageUser = DataLoader(async (): Promise<ManageUserProps> => {
             <div className="mws-user-profile-roles">
               <h2>User Role</h2>
               <ul>
-                <li>{userRole.role_name}</li>
+                {user.roles.map(e => (
+                  <li key={e.role_id}>{e.role_name}</li>
+                ))}
               </ul>
             </div>
           </div>
@@ -175,7 +188,7 @@ const ManageUser = DataLoader(async (): Promise<ManageUserProps> => {
           <div className="mws-user-profile-management">
             <h2>Manage Account</h2>
             <form className="mws-user-profile-form" onSubmit={update.handler(handleUpdateProfile)}>
-              <FormFieldInput {...update.register("userId", { required: true, value: user.user_id })}
+              <FormFieldInput {...update.register("userId", { required: true, value: `${user.user_id}` })}
                 type="hidden" id title="" />
               <FormFieldInput {...update.register("username", { required: true })}
                 type="text" id title="Username:" />

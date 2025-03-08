@@ -22,6 +22,7 @@ CREATE TABLE "recipe_bags" (
     "recipe_id" INTEGER NOT NULL,
     "bag_id" INTEGER NOT NULL,
     "position" INTEGER NOT NULL,
+    "with_acl" BOOLEAN NOT NULL,
     CONSTRAINT "recipe_bags_bag_id_fkey" FOREIGN KEY ("bag_id") REFERENCES "bags" ("bag_id") ON DELETE CASCADE ON UPDATE CASCADE,
     CONSTRAINT "recipe_bags_recipe_id_fkey" FOREIGN KEY ("recipe_id") REFERENCES "recipes" ("recipe_id") ON DELETE CASCADE ON UPDATE CASCADE
 );

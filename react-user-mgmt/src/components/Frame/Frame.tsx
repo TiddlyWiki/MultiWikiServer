@@ -10,7 +10,7 @@ import ManageAcl from '../ACL/ManageAcl';
 
 export const Frame = (props: {}) => {
 
-  const indexJson = useIndexJson();
+  const [indexJson, refresh] = useIndexJson();
 
   const username = indexJson?.username;
   const userIsAdmin = indexJson?.isAdmin || false;

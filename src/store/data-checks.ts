@@ -1,6 +1,14 @@
+import { Prisma } from "@prisma/client";
+import { truthy } from "../utils";
 
 
 export class DataChecks {
+  allowAnonReads;
+  allowAnonWrites;
+  constructor(options: { allowAnonReads: boolean, allowAnonWrites: boolean }) {
+    this.allowAnonReads = options.allowAnonReads;
+    this.allowAnonWrites = options.allowAnonWrites;
+  }
 
   okTiddlerFields(tiddlerFields: Record<string, any>) {
     ok(tiddlerFields.title, 'title must not be empty');
@@ -63,6 +71,80 @@ export class DataChecks {
   isEntityType = (x: any): x is "recipe" | "bag" => ["recipe", "bag"].includes(x);
 
   entityTypes: { [K in EntityType]: K } = { recipe: "recipe", bag: "bag" };
+
+
+  getBagWhereACL({ recipe_id, permission, user_id = 0 }: {
+    /** Recipe ID can be provided as an extra restriction */
+    recipe_id?: number,
+    permission: ACLPermissionName,
+    user_id?: number,
+  }) {
+
+    const OR = this.getWhereACL({ permission, user_id });
+
+    return {
+      OR: ([
+        // all system bags are allowed for any user
+        { bag_name: { startsWith: "$:/" } },
+        ...OR,
+        permission === "ADMIN" ? undefined : {
+          recipe_bags: {
+            some: {
+              // check if we're in position 0 (for write) or any position (for read)
+              position: permission === "WRITE" ? 0 : undefined,
+              // of a recipe that the user has permission to read or write
+              recipe: { OR },
+              // if the connection was created with admin permissions
+              with_acl: true,
+              // for the specific recipe, if provided
+              recipe_id,
+            }
+          }
+        }
+      ] satisfies (Prisma.BagsWhereInput | undefined | null | false)[]).filter(truthy)
+    }
+  }
+  getWhereACL({ permission, user_id }: {
+    permission: ACLPermissionName,
+    user_id?: number,
+  }) {
+    const { allowAnonReads, allowAnonWrites } = this;
+    const anonRead = allowAnonReads && permission === "READ";
+    const anonWrite = allowAnonWrites && permission === "WRITE";
+    const allowAnon = anonRead || anonWrite;
+    const allperms = ["READ", "WRITE", "ADMIN"] as const;
+    const index = allperms.indexOf(permission);
+    if (index === -1) throw new Error("Invalid permission");
+    const checkPerms = allperms.slice(index);
+
+    return ([
+      // allow unowned for any user (conditional for anon reads)
+      (user_id || allowAnon) && { acl: { none: {} }, owner_id: null },
+      // allow owner for user 
+      user_id && { owner_id: user_id },
+      // allow acl for user 
+      user_id && {
+        acl: {
+          some: {
+            permission: { in: checkPerms },
+            role: { users: { some: { user_id } } }
+          }
+        }
+      },
+      user_id && {
+        acl: {
+          some: {
+            permission: { in: checkPerms },
+            role: { users: { some: { user_id } } }
+          }
+        }
+      },
+    
+    ] satisfies (Prisma.RecipesWhereInput | Prisma.BagsWhereInput | undefined | null | false | 0)[]
+    ).filter(truthy)
+  }
+
+
 
 }
 

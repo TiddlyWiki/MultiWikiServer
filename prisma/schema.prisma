@@ -49,6 +49,7 @@ model Recipe_bags {
   recipe_id Int
   bag_id    Int
   position  Int
+  with_acl   Boolean
   bag       Bags    @relation(fields: [bag_id], references: [bag_id], onDelete: Cascade)
   recipe    Recipes @relation(fields: [recipe_id], references: [recipe_id], onDelete: Cascade)
 

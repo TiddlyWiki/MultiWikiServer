@@ -24,6 +24,8 @@ export async function addNewUser(input: CreateUserForm) {
 
   await changePassword({ userId, password, confirmPassword });
 
+  return "User added successfully";
+
 }
 
 
@@ -39,19 +41,19 @@ const AddUserForm: React.FC<{ refreshPage: () => void }> = (props) => {
       <form onSubmit={handler(addNewUser)}>
         <FormFieldInput
           {...register("username", { required: true })}
-          type="text" autoComplete="new-password" id
+          type="text" autoComplete="new-password" id title="Username"
         />
         <FormFieldInput
           {...register("email", { required: true })}
-          type="email" autoComplete="new-password" id
+          type="email" autoComplete="new-password" id title="Email"
         />
         <FormFieldInput
           {...register("password", { required: true })}
-          type="password" autoComplete="new-password" id
+          type="password" autoComplete="new-password" id title="Password"
         />
         <FormFieldInput
           {...register("confirmPassword", { required: true })}
-          type="password" autoComplete="new-password" id
+          type="password" autoComplete="new-password" id title="Confirm Password"
         />
 
         {footer("Add User")}

@@ -1,6 +1,7 @@
 import { Readable } from "stream";
 import { StateObject } from "../StateObject";
 import { TiddlerFields } from "../store/new-sql-tiddler-database";
+import { DataChecks } from "../store/data-checks";
 
 
 export class TiddlerServer {
@@ -64,9 +65,8 @@ export class TiddlerServer {
       }
     });
   }
-
-
-  getBagWhereACL;
+  user;
+  checks;
   attachmentStore;
   contentTypeInfo;
   constructor(
@@ -77,7 +77,9 @@ export class TiddlerServer {
 
     this.attachmentStore = state.attachmentStore;
 
-    this.getBagWhereACL = state.getBagWhereACL.bind(state);
+    this.checks = new DataChecks({ allowAnonReads: false, allowAnonWrites: false });
+
+    this.user = state.authenticatedUser;
   }
 
   async serveRecipeTiddler(state: StateObject, zodAssert: ZodAssert) {
@@ -110,7 +112,10 @@ export class TiddlerServer {
   }
 
   async getRecipeBagWithTiddler({ recipe_name, title }: { recipe_name: string; title: string; }) {
-    const { OR } = this.getBagWhereACL("READ");
+    const { OR } = this.checks.getBagWhereACL({
+      permission: "READ",
+      user_id: this.user?.user_id
+    });
     return await this.prisma.recipe_bags.findFirst({
       include: { bag: true, recipe: true },
       where: {
@@ -183,7 +188,10 @@ export class TiddlerServer {
     bag_name: PrismaField<"Bags", "bag_name">;
     title: PrismaField<"Tiddlers", "title">;
   }) {
-    const { OR } = this.getBagWhereACL("READ");
+    const { OR } = this.checks.getBagWhereACL({
+      permission: "READ",
+      user_id: this.user?.user_id
+    });
     const tiddler = await this.prisma.tiddlers.findFirst({
       where: {
         title,

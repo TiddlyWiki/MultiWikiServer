@@ -2,8 +2,9 @@ import * as opaque from "@serenity-kit/opaque";
 import { useAsyncEffect } from "./useAsyncEffect";
 import React, { ReactNode, useCallback, useId, useState } from "react";
 import { FieldValues, useForm, UseFormRegisterReturn } from "react-hook-form";
-import { RecipeManager, RecipeManagerMap } from "../../../src/routes/recipe-manager";
+import { RecipeManager, RecipeManagerMap } from "../../../src/routes/manager-recipes";
 import { UserManagerMap } from "../../../src/routes";
+import { proxy } from "./prisma-proxy";
 
 
 type MapLike = { entries: () => Iterable<[string, any]> };
@@ -89,14 +90,19 @@ export function Render({ useRender }: { useRender: () => ReactNode }) { return u
 // }
 // export const serverRequest = new ServerRequests();
 
-export const IndexJsonContext = React.createContext<Awaited<ReturnType<typeof getIndexJson>>>(null as any);
+export const IndexJsonContext = React.createContext<[Awaited<ReturnType<typeof getIndexJson>>, () => void]>(null as any);
 
 export function useIndexJson() { return React.useContext(IndexJsonContext); }
 
 type PART<T extends (...args: any) => any> = Promise<Awaited<ReturnType<T>>>;
-function postRecipeManager<K extends keyof RecipeManagerMap>(key: K) {
-  return async (data: Parameters<RecipeManagerMap[K]>[0]): PART<RecipeManagerMap[K]> => {
-    const req = await fetch("/recipes/" + key, {
+
+function postManager<K extends keyof RecipeManagerMap>(key: K):
+  (data: Parameters<RecipeManagerMap[K]>[0]) => PART<RecipeManagerMap[K]>;
+function postManager<K extends keyof UserManagerMap>(key: K):
+  (data: Parameters<UserManagerMap[K]>[0]) => PART<UserManagerMap[K]>;
+function postManager(key: string) {
+  return async (data: any) => {
+    const req = await fetch("/manager/" + key, {
       method: "POST",
       headers: {
         'Content-Type': 'application/json',
@@ -104,40 +110,35 @@ function postRecipeManager<K extends keyof RecipeManagerMap>(key: K) {
       },
       body: JSON.stringify(data),
     });
-    if (!req.ok) throw new Error(`Failed to fetch data for getIndexJson: ${await req.text()}`);
+    if (!req.ok) throw new Error(`Failed to fetch data for /manager/${key}: ${await req.text()}`);
     return await req.json();
   }
 
 }
-function postUserManager<K extends keyof UserManagerMap>(key: K) {
-  return async (data: Parameters<UserManagerMap[K]>[0]): PART<UserManagerMap[K]> => {
-    const req = await fetch("/users/" + key, {
-      method: "POST",
-      headers: {
-        'Content-Type': 'application/json',
-        "X-Requested-With": "TiddlyWiki"
-      },
-      body: JSON.stringify(data),
-    });
-    if (!req.ok) throw new Error(`Failed to fetch data for getIndexJson: ${await req.text()}`);
-    return await req.json();
-  }
 
+interface ManagerMap extends RecipeManagerMap, UserManagerMap {
+  prisma: typeof proxy;
 }
-const serverRequest: UserManagerMap = {
 
-  // index_json: postRecipeManager("index_json"),
-  user_list: postUserManager("user_list"),
-  user_create: postUserManager("user_create"),
-  user_delete: postUserManager("user_delete"),
-  user_update: postUserManager("user_update"),
-  user_update_password: postUserManager("user_update_password"),
 
+export const serverRequest: ManagerMap = {
+
+  index_json: postManager("index_json"),
+  user_list: postManager("user_list"),
+  user_create: postManager("user_create"),
+  user_delete: postManager("user_delete"),
+  user_update: postManager("user_update"),
+  user_update_password: postManager("user_update_password"),
+
+  recipe_create: postManager("recipe_create"),
+  bag_create: postManager("bag_create"),
+
+  prisma: proxy,
 }
 
 
 export async function getIndexJson() {
-  const res = await postRecipeManager("index_json")(undefined);
+  const res = await postManager("index_json")(undefined);
 
   const bagMap = new Map(res.bagList.map(bag => [bag.bag_id, bag]));
   const recipeMap = new Map(res.recipeList.map(recipe => [recipe.recipe_id, recipe]));
@@ -182,7 +183,7 @@ export function useFormFieldHandler<T extends FieldValues>(refreshPage: () => vo
   function handler(fn: (input: T) => Promise<string>) {
     return handleSubmit((input: T) => fn(input).then(
       e => { setSuccess(e); setError(''); reset(); refreshPage(); },
-      e => { setSuccess(''); setError(`${e}`); }
+      e => { console.log(e); setSuccess(''); setError(`${e}`); }
     ));
   }
 

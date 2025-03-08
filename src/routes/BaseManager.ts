@@ -1,6 +1,7 @@
 import { ZodTypeAny, ZodType, z } from "zod";
 import { StateObject } from "../StateObject";
 import { Z2 } from "../zodAssert";
+import { DataChecks } from "../store/data-checks";
 
 /*
 You must have admin permission on a bag to add it to a recipe because it is an implicit ACL operation.
@@ -19,43 +20,34 @@ Nothing should be happening to tiddlers in a bag unless they're in a writable la
 
 
 */
+
+export type BaseManagerMap<T> = {
+  [K in keyof T as T[K] extends (input: any) => Promise<any> ? K : never]: T[K];
+}
+
 export class BaseManager {
 
   static defineManager(
-    root: rootRoute, 
+    root: rootRoute,
     path: RegExp,
     Manager: { new(state: StateObject, prisma: PrismaTxnClient): BaseManager }
   ) {
-    root.defineRoute({
-      useACL: {},
-      method: ["POST"],
-      path,
-      pathParams: ["action"],
-      bodyFormat: "json",
-    }, async state => {
-
-      const [good, error, value] = await state.$transaction(async prisma => {
-        if (!state.pathParams.action) throw "No action";
-        const server = new Manager(state, prisma);
-        const action = (server as any)[state.pathParams.action];
-        if (!action) throw "No such action";
-        return await action(state.data);
-      }).then(
-        e => [true, undefined, e] as const,
-        e => [false, e, undefined] as const
-      );
-
-      if (good) {
-        return state.sendJSON(200, value);
-      } else if (typeof error === "string") {
-        return state.sendSimple(400, error);
-      } else {
-        throw error;
-      }
-    });
+    
   }
 
-  constructor(protected state: StateObject, protected prisma: PrismaTxnClient) { }
+  user;
+  checks;
+  constructor(protected state: StateObject, protected prisma: PrismaTxnClient) {
+    const isLoggedIn = !!this.state.authenticatedUser;
+
+    const { isAdmin, user_id, username } = this.state.authenticatedUser ?? {
+      // isAdmin: false, user_id: 0, username: "(anon)"
+      isAdmin: true, user_id: 1, username: "admin"
+    };
+
+    this.user = { isAdmin, user_id, username, isLoggedIn };
+    this.checks = new DataChecks({ allowAnonReads: false, allowAnonWrites: false });
+  }
 
   protected ZodRequest<T extends ZodTypeAny, R>(
     zodRequest: (z: Z2<"JSON">) => T,

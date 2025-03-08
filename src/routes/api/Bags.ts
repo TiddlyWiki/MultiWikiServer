@@ -143,9 +143,6 @@ export const serverCreateRecipe = makeEndpoint({
   zodResponse: z => z.any(),
 });
 
-
-const checks = new DataChecks();
-
 export const serverListACL = makeEndpoint({
   zodRequest: z => z.object({
     recipe_name: z.prismaField("Recipes", "recipe_name", "string", false),
