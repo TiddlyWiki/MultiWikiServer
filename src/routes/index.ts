@@ -6,6 +6,9 @@ import { RecipeKeyMap, RecipeManager } from "./manager-recipes";
 import { UserKeyMap, UserManager } from "./manager-users";
 import { StateObject } from "../StateObject";
 import { ZodAction } from "./BaseManager";
+import { SessionManager } from "../sessions";
+
+import { Prisma, PrismaClient } from "@prisma/client";
 
 export { UserManager, UserManagerMap } from "./manager-users";
 export { RecipeManager, RecipeManagerMap } from "./manager-recipes";
@@ -44,25 +47,15 @@ export default async function RootRoute(root: rootRoute) {
       }
     })();
 
-    const [good, error, value] = await state.$transaction(async prisma => {
+    return await state.$transaction(async prisma => {
       // the zodRequest handler does the input and output checking. 
       // this just sorts the requests into the correct classes.
       // the transaction will rollback if this throws an error.
       // the key maps are defined in the manager classes based on the zodRequest handlers.
       const action = new Handler(state, prisma)[state.pathParams.action as string] as ZodAction<any, any>;
-      return await action(state.data);
-    }).then(
-      e => [true, undefined, e] as const,
-      e => [false, e, undefined] as const
-    );
+      return await action();
+    })
 
-    if (good) {
-      return state.sendJSON(200, value);
-    } else if (typeof error === "string") {
-      return state.sendSimple(400, error);
-    } else {
-      throw error;
-    }
   });
 
   root.defineRoute({
@@ -89,6 +82,7 @@ export default async function RootRoute(root: rootRoute) {
       return state.sendJSON(200, await fn.call(table, state.data.arg));
     });
   });
+
 
   await importEsbuild(root);
 }
@@ -121,3 +115,72 @@ async function importEsbuild(root: rootRoute) {
     await state.sendDevServer();
   });
 }
+
+
+class ProxyPromise {
+  static getErrorStack(t: ProxyPromise) { return t.#error.stack; }
+  action: any;
+  table: any;
+  arg: any;
+  #error = new Error("An error occured for this request");
+  constructor({ action, table, arg }: Omit<ProxyPromise, "#error">) {
+    this.action = action;
+    this.table = table;
+    this.arg = arg;
+    Object.defineProperty(this, "toJSON", {
+      configurable: true,
+      enumerable: true,
+      value: () => ({
+        action: this.action,
+        table: this.table,
+        arg: this.arg,
+        dbnulls: this.arg.data && findValueInObject(this.arg.data, e => e === Prisma.DbNull),
+        jsnulls: this.arg.data && findValueInObject(this.arg.data, e => e === Prisma.JsonNull),
+      })
+    })
+  }
+}
+
+function findValueInObject(val: any, predicate: (val: any) => boolean, keys: string[] = [], paths: string[] = []): any {
+  if (predicate(val)) {
+    paths.push(keys.join("/"));
+    return paths;
+  }
+  if (val && typeof val === "object") {
+    for (const key of Object.keys(val)) {
+      if (!val.hasOwnProperty(key)) continue;
+      findValueInObject(val[key], predicate, [...keys, key], paths);
+    }
+  }
+  console.log(paths, keys);
+  return paths;
+}
+
+function capitalize<T extends string>(table: T): Capitalize<T> {
+  return table.slice(0, 1).toUpperCase() + table.slice(1) as any;
+}
+
+
+const argproxy: {
+  [Table in keyof PrismaClient]: {
+    [Action in keyof PrismaClient[Table]]:
+    PrismaClient[Table][Action] extends (...args: any) => any
+    ? <T extends Parameters<PrismaClient[Table][Action]>[0]>(arg: T) => {
+      table: Table,
+      action: Action,
+      arg: T,
+      result: Awaited<ReturnType<PrismaClient[Table][Action]>>,
+    }
+    : never
+  }
+} = (() => new Proxy<any>({}, {
+  get(target: any, table: any) {
+    return target[table] = target[table] || new Proxy<any>({}, {
+      get(target: any, action: any) {
+        return target[action] = target[action] || ((arg: any) => {
+          return new ProxyPromise({ action, table: capitalize(table) as any, arg });
+        })
+      },
+    })
+  },
+}))();

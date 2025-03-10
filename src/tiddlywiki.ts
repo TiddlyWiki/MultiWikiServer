@@ -66,14 +66,9 @@ export async function bootTiddlyWiki(createTables: boolean, commands: boolean, w
         }
       };
 
-      // console.log($tw.config);
-
       $tw.mws.attachmentStore = new AttachmentStore(storePath, $tw.sjcl, $tw.config);
 
       if (commands) {
-
-
-
         const libsql = createClient({ url: "file:" + resolve(wikiPath, "store/database.sqlite") });
         if (createTables) await libsql.executeMultiple(readFileSync("./prisma/schema.prisma.sql", "utf8"));
         // if (createTables) await libsql.executeMultiple(readFileSync("./prisma/old-db.sql", "utf8"));

@@ -437,9 +437,9 @@ export class TypedGenerator<T extends [any, any][]> {
     };
   }
   constructor(private inner: Generator<any, any, any>, private index = 0) { }
-  next<I extends number>(index: I, ...args: T[I][0] extends void ? [] : [T[I][0]]): (
+  async next<I extends number>(index: I, ...args: T[I][0] extends void ? [] : [T[I][0]]): Promise<(
     T extends [...any[], T[I]] ? IteratorReturnResult<T[I][1]> : IteratorYieldResult<T[I][1]>
-  ) {
+  )> {
     if (index !== this.index) throw new Error("Invalid index");
     this.index++;
     return this.inner.next(...args) as any;

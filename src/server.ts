@@ -1,21 +1,17 @@
 import "./StateObject"; // <- load this first so it waits for streamer to be defined
 import "./streamer";
 import "./router";
-import "./global"; 
+import "./global";
 import * as http2 from 'node:http2';
 import * as opaque from "@serenity-kit/opaque";
 import { createServer, IncomingMessage, Server, ServerResponse } from 'node:http';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { Streamer } from "./streamer";
 import { Router } from './router';
+import * as sessions from "./sessions";
+import { resolve } from "node:path";
 
-
-interface ListenerOptions {
-  key?: Buffer
-  cert?: Buffer
-  port: number
-  hostname?: string
-}
+export * from "./sessions";
 
 declare module 'node:net' {
   interface Socket {
@@ -93,23 +89,60 @@ function errorHandler(server: http2.Http2SecureServer | Server, port: any) {
   }
 }
 
-async function setupServers(useHTTPS: boolean, port: number) {
+export default async function startServer(config: MWSConfig) {
   // await lazy-loaded or async models
   await opaque.ready;
 
-  const router = await Router.makeRouter("./editions/mws").catch(e => {
+  const router = await Router.makeRouter(
+    config.config,
+    config.passwordMasterKey
+      ? readFileSync(config.passwordMasterKey, "utf8")
+      : opaque.server.createSetup(),
+    config.SessionManager,
+  ).catch(e => {
     console.log(e.stack);
     throw "Router failed to load";
   });
 
-  const { server } = useHTTPS
+  const { host, port } = config;
+
+  const { server } = config.https
     ? new ListenerHTTPS(router,
-      readFileSync("./localhost.key"),
-      readFileSync("./localhost.crt")
+      readFileSync(config.https.key),
+      readFileSync(config.https.cert)
     ) : new ListenerHTTP(router);
   server.on('error', errorHandler(server, port));
   server.on('listening', listenHandler(server));
-  server.listen(port, "::");
+  server.listen(port, host);
+
 }
 
-setupServers(true, 5000);
+export interface MWSConfig {
+  https?: {
+    /** The key file for the HTTPS server */
+    key: string
+    /** The cert file for the HTTPS server */
+    cert: string
+  };
+  /** The port to listen on */
+  port: number
+  /** The hostname to listen on */
+  host?: string
+  /** The key file for the password encryption. If this key changes, passwords will need to be reset. */
+  passwordMasterKey?: string
+  config: {
+    /** Path to the mws datafolder. */
+    readonly wikiPath: string
+    /** If true, allow users that aren't logged in to read. */
+    readonly allowAnonReads?: boolean
+    /** If true, allow users that aren't logged in to write. */
+    readonly allowAnonWrites?: boolean
+    /** If true, recipes will allow access to a user who does not have read access to all its bags. */
+    readonly allowUnreadableBags?: boolean
+    contentTypeInfo?: any;
+  }
+  /** 
+   * The session manager class registers the login handler routes and sets the auth user 
+   */
+  SessionManager: typeof sessions.SessionManager;
+}

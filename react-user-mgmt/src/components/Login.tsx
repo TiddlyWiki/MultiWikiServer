@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { fetchPostSearchParams, useIndexJson } from '../helpers/utils';
+import { fetchPostJSON, fetchPostSearchParams, useIndexJson } from '../helpers/utils';
 import * as opaque from "@serenity-kit/opaque";
 
 
@@ -9,11 +9,11 @@ async function loginWithOpaque(username: string, password: string) {
 
   const { clientLoginState, startLoginRequest } = opaque.client.startLogin({ password });
 
-  const login1 = await fetchPostSearchParams('/login/1', { username, startLoginRequest });
+  const login1 = await fetchPostJSON('/login/1', { username, startLoginRequest });
 
   if (!login1.ok) throw await login1.text() || LOGIN_FAILED;
 
-  const loginResponse = await login1.text();
+  const { loginResponse } = await login1.json();
 
   const loginResult = opaque.client.finishLogin({ clientLoginState, loginResponse, password, });
 
@@ -21,7 +21,7 @@ async function loginWithOpaque(username: string, password: string) {
 
   const { finishLoginRequest, sessionKey, exportKey, serverStaticPublicKey } = loginResult;
 
-  const login2 = await fetchPostSearchParams('/login/2', { username, finishLoginRequest });
+  const login2 = await fetchPostJSON('/login/2', { username, finishLoginRequest });
 
   if (!login2.ok) throw await login2.text() || LOGIN_FAILED;
 

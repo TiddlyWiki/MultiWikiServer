@@ -15,8 +15,9 @@ import {
   RouteMatch,
 } from "./rootRoute";
 import { setupDevServer } from "./serve-esbuild";
-import { Authenticator, PasswordCreation } from "./Authenticator";
-import * as opaque from "@serenity-kit/opaque";
+import { createPasswordService, PasswordService } from "./Authenticator";
+import { MWSConfig } from "./server";
+import * as sessions from "./sessions";
 
 export { RouteMatch, Route, rootRoute };
 
@@ -28,6 +29,9 @@ export type BodyFormat = typeof BodyFormats[number];
 
 export const PermissionName = []
 
+export function adminWiki(){
+  return (global as any).$tw;
+}
 
 const zodTransformJSON = (arg: string, ctx: z.RefinementCtx) => {
   try {
@@ -52,20 +56,9 @@ const zodTransformJSON = (arg: string, ctx: z.RefinementCtx) => {
 
 export class Router {
 
-  pathPrefix: string = "";
-  enableBrowserCache: boolean = true;
-  enableGzip: boolean = true;
-  csrfDisable: boolean = false;
-  servername: string = "";
-  variables = new Map();
-  get(name: string): string {
-    return this.variables.get(name) || "";
-  }
 
-
-  static async makeRouter(wikiPath: string) {
-
-
+  static async makeRouter(config: MWSConfig["config"], passwordKey: string, SessionManager: typeof sessions.SessionManager) {
+    const { wikiPath } = config;
 
     const rootRoute = defineRoute(ROOT_ROUTE, {
       useACL: { csrfDisable: true },
@@ -73,6 +66,8 @@ export class Router {
       path: /^/,
       denyFinal: true,
     }, async (state: any) => state);
+
+    await SessionManager.defineRoutes(rootRoute);
 
     await RootRoute(rootRoute);
 
@@ -84,11 +79,14 @@ export class Router {
 
     const $tw = (global as any).$tw = await bootTiddlyWiki(createTables, createTables, wikiPath);
 
+    const attachmentStore: AttachmentStore = $tw.mws.attachmentStore;
+    config.contentTypeInfo = $tw.config.contentTypeInfo;
+
     const sendDevServer = await setupDevServer();
 
-    const router = new Router(rootRoute, $tw, wikiPath, sendDevServer);
+    const PasswordService = await createPasswordService(passwordKey);
 
-    await Authenticator.ready;
+    const router = new Router(rootRoute, config, attachmentStore, sendDevServer, PasswordService, SessionManager);
 
     await this.initDatabase(router);
 
@@ -128,7 +126,7 @@ export class Router {
       });
 
 
-      const password = PasswordCreation(user.user_id.toString(), "1234");
+      const password = await router.PasswordService.PasswordCreation(user.user_id.toString(), "1234");
 
       await router.engine.users.update({
         where: { user_id: user.user_id },
@@ -141,9 +139,28 @@ export class Router {
         where: { username: "admin" },
         select: { user_id: true }
       });
-      router.devuser = user?.user_id ?? 0;
+      if (user) {
+        const password = await router.PasswordService.PasswordCreation(user.user_id.toString(), "1234");
+        await router.engine.users.update({
+          where: { user_id: user.user_id },
+          data: { password: password }
+        });
+        router.devuser = user.user_id
+      } else {
+        router.devuser = 0;
+      }
     }
 
+  }
+
+  pathPrefix: string = "";
+  enableBrowserCache: boolean = true;
+  enableGzip: boolean = true;
+  csrfDisable: boolean = false;
+  servername: string = "";
+  variables = new Map();
+  get(name: string): string {
+    return this.variables.get(name) || "";
   }
 
   engine: PrismaClient<Prisma.PrismaClientOptions, never, {
@@ -162,25 +179,36 @@ export class Router {
   devuser: number = 0;
   storePath: string;
   databasePath: string;
-  attachmentStore: AttachmentStore
   constructor(
     private rootRoute: rootRoute,
-    public $tw: any,
-    public wikiPath: string,
+    public config: MWSConfig["config"],
+    public attachmentStore: AttachmentStore,
     public sendDevServer: (this: Router, state: StateObject) => Promise<symbol>,
+    public PasswordService: PasswordService,
+    public SessionManager: typeof sessions.SessionManager
   ) {
-    this.attachmentStore = $tw.mws.attachmentStore;
-    this.storePath = resolve(wikiPath, "store");
+    this.storePath = resolve(config.wikiPath, "store");
     this.databasePath = resolve(this.storePath, "database.sqlite");
-    this.engine = new PrismaClient({ log: ["error", "info", "warn", "query"], datasourceUrl: "file:" + this.databasePath });
+    this.engine = new PrismaClient({
+      log: ["error", "info", "warn", "query"],
+      datasourceUrl: "file:" + this.databasePath,
+    });
   }
 
   async handle(streamer: Streamer) {
+    // const devuser = this.devuser;
+    // const authUser = {
+    //   get isAdmin() { return true },
+    //   get user_id(): PrismaField<"Users", "user_id"> { return devuser as any; },
+    //   get username(): PrismaField<"Users", "username"> { return "admin" as any; },
+    //   get sessionId(): PrismaField<"Sessions", "session_id"> { throw new Error("not implemented") },
+    // };
+    const authUser = await this.SessionManager.parseIncomingRequest(streamer, this);
 
     /** This should always have a length of at least 1 because of the root route. */
     const routePath = this.findRoute(streamer);
     if (!routePath.length || routePath[routePath.length - 1]?.route.denyFinal)
-      return streamer.sendString(404, { "x-reason": "no-route" }, "Not found", "utf8");
+      return streamer.sendEmpty(404, { "x-reason": "no-route" });
 
     // Optionally output debug info
     console.log("Request path:", JSON.stringify(streamer.url));
@@ -191,27 +219,19 @@ export class Router {
 
     type statetype = { [K in BodyFormat]: StateObject<K> }[BodyFormat]
 
-
     const state = createStrictAwaitProxy(
-      new StateObject(streamer, routePath, bodyFormat, this) as statetype
+      new StateObject(streamer, routePath, bodyFormat, authUser, this) as statetype
     );
-
-
-    // Object.assign(state, await state.getOldAuthState());
-    state.authenticatedUser = {
-      isAdmin: true,
-      user_id: this.devuser,
-      username: "admin",
-      get sessionId() { throw new Error("not implemented") },
-    } as any;
 
     routePath.forEach(match => {
       if (!this.csrfDisable
         && !match.route.useACL.csrfDisable
-        && state.authLevelNeeded === "writers"
+        && ["POST", "PUT", "DELETE"].includes(streamer.method)
         && state.headers["x-requested-with"] !== "TiddlyWiki"
       )
-        throw streamer.sendString(403, {}, "'X-Requested-With' header required to login to '" + this.servername + "'", "utf8");
+        throw streamer.sendString(403, {
+          "x-reason": "x-requested-with missing"
+        }, `'X-Requested-With' header required to login to '${this.servername}'`, "utf8");
     })
 
 
@@ -261,9 +281,6 @@ export class Router {
 
 
   async handleRoute(state: StateObject<BodyFormat>, route: RouteMatch[]) {
-    ok(!state.authenticatedUser || state.authenticatedUser.user_id, "authenticatedUser must have a user_id");
-    ok(!state.authenticatedUser || state.authenticatedUser.username, "authenticatedUser must have a username");
-
 
     let result: any = state;
     for (const match of route) {

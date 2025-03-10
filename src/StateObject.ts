@@ -1,28 +1,16 @@
 import { Readable } from 'stream';
-import { createStrictAwaitProxy, filterAsync, mapAsync, processIncomingStream, readMultipartData, sendResponse, truthy } from './utils';
+import { filterAsync, mapAsync, processIncomingStream, readMultipartData, sendResponse } from './utils';
 import { STREAM_ENDED, Streamer, StreamerState } from './streamer';
 import { PassThrough } from 'node:stream';
 import { AllowedMethod, BodyFormat, RouteMatch, Router } from './router';
-import { SqlTiddlerStore } from './store/new-sql-tiddler-store';
 import * as z from 'zod';
-import { SqlTiddlerDatabase } from './store/new-sql-tiddler-database';
-import { Authenticator } from './Authenticator';
-import { Prisma } from '@prisma/client';
-import { argproxy } from './prisma-proxy';
-
-const authLevelNeededForMethod: Record<AllowedMethod, "readers" | "writers" | undefined> = {
-  "GET": "readers",
-  "OPTIONS": "readers",
-  "HEAD": "readers",
-  "PUT": "writers",
-  "POST": "writers",
-  "DELETE": "writers"
-} as const;
+import { AuthUser } from './sessions';
 
 export interface AuthStateRouteACL {
   /** Every level in the route path must have this disabled for it to be disabled */
   csrfDisable?: boolean;
 }
+
 
 
 // This class abstracts the request/response cycle into a single object.
@@ -39,13 +27,13 @@ export class StateObject<
 
 
   /** sends a status and plain text string body */
-  sendSimple(status: number, msg: string) {
+  sendSimple(status: number, msg: string): typeof STREAM_ENDED {
     return this.sendString(status, {
       "content-type": "text/plain"
     }, msg, "utf8");
   }
   /** Stringify the value (unconditionally) and send it with content-type `application/json` */
-  sendJSON(status: number, obj: any) {
+  sendJSON(status: number, obj: any): typeof STREAM_ENDED {
     return this.sendString(status, {
       "content-type": "application/json"
     }, JSON.stringify(obj), "utf8");
@@ -57,6 +45,7 @@ export class StateObject<
   get enableBrowserCache() { return this.router.enableBrowserCache; }
   get enableGzip() { return this.router.enableGzip; }
   get pathPrefix() { return this.router.pathPrefix; }
+  get config() { return this.router.config; }
   get method(): M { return super.method as M; }
   readMultipartData
   processIncomingStream
@@ -86,33 +75,25 @@ export class StateObject<
    * This will always satisfy the zod schema: `z.record(z.array(z.string()))`
    */
   queryParams: Record<string, string[] | undefined>;
-  authLevelNeeded: "readers" | "writers";
-  authorizationType: string;
-  authenticatedUser: {
-    user_id: PrismaField<"Users", "user_id">,
-    isAdmin: boolean,
-    username: PrismaField<"Users", "username">,
-    sessionId: PrismaField<"Sessions", "session_id">,
-  } | null = null;
 
-  anonAccessConfigured: boolean = false;
-  allowAnon: boolean = false;
+
   allowAnonReads: boolean = false;
   allowAnonWrites: boolean = false;
-  showAnonConfig: boolean = false;
   // This isn't necessary on the route state. Something this temporary needs to be more self-contained.
   // however it is used in client state as well, so I have to leave it here for now.
   firstGuestUser: boolean = false;
-  store!: SqlTiddlerStore;
-  auth: Authenticator;
   databasePath
   attachmentStore
-  adminWiki
-  Tiddler
-  sjcl
-  config
 
+  // auth: Authenticator;
+  // store!: SqlTiddlerStore;
+  // adminWiki
+  // Tiddler
+  // sjcl
+  // config
 
+  PasswordService;
+  authenticatedUser;
 
   constructor(
     streamer: Streamer,
@@ -120,18 +101,20 @@ export class StateObject<
     private routePath: RouteMatch[],
     /** The bodyformat that ended up taking precedence. This should be correctly typed. */
     public bodyFormat: B,
+    public user: AuthUser | null,
     private router: Router
   ) {
     super(streamer);
+    this.authenticatedUser = user;
 
     this.databasePath = this.router.databasePath;
     this.attachmentStore = this.router.attachmentStore;
-    this.adminWiki = this.router.$tw.wiki;
-    this.store = this.createStore(this.router.engine);
+    // this.store = this.createStore(this.router.engine);
 
-    this.Tiddler = this.router.$tw.Tiddler;
-    this.sjcl = this.router.$tw.sjcl;
-    this.config = this.router.$tw.config;
+    // this.adminWiki = this.router.$tw.wiki;
+    // this.Tiddler = this.router.$tw.Tiddler;
+    // this.sjcl = this.router.$tw.sjcl;
+    // this.config = this.router.$tw.config;
 
     this.readMultipartData = readMultipartData.bind(this);
     this.processIncomingStream = processIncomingStream.bind(this);
@@ -156,19 +139,18 @@ export class StateObject<
     const queryParamsZodCheck = z.record(z.array(z.string())).safeParse(this.queryParams);
     if (!queryParamsZodCheck.success) console.log("BUG: Query params zod error", queryParamsZodCheck.error, this.queryParams);
 
-    this.cookies = this.parseCookieString(this.headers.cookie ?? "");
 
-    this.auth = createStrictAwaitProxy(new Authenticator(this));
 
-    this.authLevelNeeded = authLevelNeededForMethod[this.method] ?? "writers";
-    this.authorizationType = this.authLevelNeeded;
+    this.allowAnonReads = this.router.config.allowAnonReads ?? false;
+    this.allowAnonWrites = this.router.config.allowAnonWrites ?? false;
 
+    this.PasswordService = router.PasswordService;
   }
 
-  createStore(engine: PrismaTxnClient) {
-    const sql = createStrictAwaitProxy(new SqlTiddlerDatabase(engine));
-    return createStrictAwaitProxy(new SqlTiddlerStore(sql, this.attachmentStore, this.adminWiki, this.router.$tw.config));
-  }
+  // createStore(engine: PrismaTxnClient) {
+  //   const sql = createStrictAwaitProxy(new SqlTiddlerDatabase(engine));
+  //   return createStrictAwaitProxy(new SqlTiddlerStore(sql, this.attachmentStore));
+  // }
 
   $transaction = async <T>(fn: (prisma: PrismaTxnClient) => Promise<T>): Promise<T> => {
     return await this.router.engine.$transaction(async prisma => {
@@ -177,76 +159,9 @@ export class StateObject<
     });
   }
 
-  public cookies: Record<string, string | undefined>;
-  parseCookieString(cookieString: string) {
-    const cookies: any = {};
-    if (typeof cookieString !== 'string') throw new Error('cookieString must be a string');
-    cookieString.split(';').forEach(cookie => {
-      const parts = cookie.split('=');
-      if (parts.length >= 2) {
-        const key = parts[0]!.trim();
-        const value = parts.slice(1).join('=').trim();
-        cookies[key] = decodeURIComponent(value);
-      }
-    });
-    return cookies;
-  }
-  async authUser() {
-    const session_id = this.cookies.session;
-    if (!session_id) { return null; }
-
-    this.store.okSessionID(session_id);
-    // get user info
-    const user: any = await this.store.sql.findUserBySessionId(session_id);
-    if (!user) {
-      return null;
-    }
-
-    // var admin = await this.store.sql.getRoleByName("ADMIN");
-    // if (admin) { await this.store.sql.addRoleToUser(user.user_id, admin.role_id); }
-    // console.log(admin, await this.store.sql.getUserRoles(user.user_id));
 
 
-    delete user.password;
-    // console.log(await this.engine.roles.findMany())
-    const userRole = await this.store.sql.getUserRoles(user.user_id);
-    // console.log(user.user_id, userRole);
-    user['isAdmin'] = userRole?.roles.some(e => e.role_name === 'ADMIN');
-    user['sessionId'] = session_id;
 
-    return user;
-  }
-
-  getAnonymousAccessConfig() {
-    const allowReadsTiddler = this.store.adminWiki.getTiddlerText("$:/config/MultiWikiServer/AllowAnonymousReads", "undefined");
-    const allowWritesTiddler = this.store.adminWiki.getTiddlerText("$:/config/MultiWikiServer/AllowAnonymousWrites", "undefined");
-    const showAnonymousAccessModal = this.store.adminWiki.getTiddlerText("$:/config/MultiWikiServer/ShowAnonymousAccessModal", "undefined");
-
-    return {
-      allowReads: allowReadsTiddler === "yes",
-      allowWrites: allowWritesTiddler === "yes",
-      isEnabled: allowReadsTiddler !== "undefined" && allowWritesTiddler !== "undefined",
-      showAnonConfig: showAnonymousAccessModal === "yes"
-    };
-  }
-
-  async getOldAuthState() {
-    // const state: any = {};
-    // Authenticate the user
-    const authenticatedUser = await this.authUser();
-    var { allowReads, allowWrites, isEnabled, showAnonConfig } = this.getAnonymousAccessConfig();
-
-    return {
-      authenticatedUser,
-      anonAccessConfigured: isEnabled,
-      allowAnon: isEnabled && (this.method === 'GET' ? allowReads : allowWrites),
-      allowAnonReads: allowReads,
-      allowAnonWrites: allowWrites,
-      showAnonConfig: !!this.authenticatedUser?.isAdmin && showAnonConfig,
-      firstGuestUser: (await this.store.sql.listUsers()).length === 0 && !this.authenticatedUser,
-    };
-
-  }
   makeTiddlerEtag(options: { bag_name: string; tiddler_id: string | number; }) {
     // why do we need tiddler_id AND bag_name? tiddler_id is unique across all tiddlers
     if (options.bag_name || options.tiddler_id) {
@@ -337,79 +252,10 @@ export class StateObject<
   // - it does not check whether headers have been sent before throwing. 
   // - headers should not be sent before it is called. 
   // - it should not send a response more than once since it should throw every time it does.
+  // and now it is replaced by the getACL prisma query.
   async checkACL(entityType: EntityType, entityName: string, permissionName: ACLPermissionName): Promise<void> {
-
-    if (permissionName !== {
-      "GET": "READ",
-      "HEAD": "READ",
-      "OPTIONS": "READ",
-      "PUT": "WRITE",
-      "POST": "WRITE",
-      "DELETE": "WRITE"
-    }[this.method as AllowedMethod]) {
-      this.sendEmpty(500);
-      throw new Error("invalid permissionName for method")
-    }
-
-    this.store.okEntityType(entityType);
-    var extensionRegex = /\.[A-Za-z0-9]{1,4}$/;
-
-    var [aclRecord] = await this.store.sql.getACLByName(entityType, entityName, undefined, false);
-    var isGetRequest = this.method === "GET";
-    var hasAnonymousAccess = this.allowAnon ? (isGetRequest ? this.allowAnonReads : this.allowAnonWrites) : false;
-    var anonymousAccessConfigured = this.anonAccessConfigured;
-    const { value: entity } = await this.store.sql.getEntityByName(entityType, entityName) as any;
-
-    var isAdmin = this.authenticatedUser?.isAdmin;
-
-    if (isAdmin) {
-      return;
-    }
-
-    if (entity?.owner_id) {
-      if (this.authenticatedUser?.user_id && (this.authenticatedUser?.user_id !== entity.owner_id) || !this.authenticatedUser?.user_id && !hasAnonymousAccess) {
-        const hasPermission = this.authenticatedUser?.user_id ?
-          entityType === 'recipe' ? await this.store.sql.hasRecipePermission(this.authenticatedUser?.user_id, entityName as any, isGetRequest ? 'READ' : 'WRITE')
-            : await this.store.sql.hasBagPermission(this.authenticatedUser?.user_id, entityName as any, isGetRequest ? 'READ' : 'WRITE')
-          : false
-        if (!hasPermission) {
-          throw this.sendEmpty(403);
-        }
-        return;
-      }
-    } else {
-      // First, we need to check if anonymous access is allowed
-      if (!this.authenticatedUser?.user_id && (anonymousAccessConfigured && !hasAnonymousAccess)) {
-        if (!extensionRegex.test(this.url))
-          throw this.sendEmpty(401);
-
-        return;
-      } else {
-        // Get permission record
-        // const permission = await this.store.sql.getPermissionByName(permissionName);
-        // ACL Middleware will only apply if the entity has a middleware record
-        if (aclRecord && aclRecord?.permission === permissionName) {
-          // If not authenticated and anonymous access is not allowed, request authentication
-          if (!this.authenticatedUser && !this.allowAnon) {
-            if (this.urlInfo.pathname !== '/login') {
-              throw this.redirectToLogin(this.url);
-            }
-          }
-        }
-
-        // Check ACL permission
-        var hasPermission = this.authenticatedUser && await this.store.sql.checkACLPermission(
-          this.authenticatedUser.user_id,
-          entityType,
-          entityName,
-          permissionName,
-        );
-
-        if (!hasPermission && !hasAnonymousAccess) {
-          throw this.sendEmpty(403);
-        }
-      }
-    }
+    console.error("checkACL is not implemented");
+    throw this.sendEmpty(500);
   }
   redirectToLogin(returnUrl: string) {
 
@@ -428,36 +274,6 @@ export class StateObject<
   };
 
 
-
-}
-
-
-export class ApiStateObject {
-  get headers() { return this.state.headers }
-  getBagWhereACL;
-  authenticatedUser
-  store
-  allowAnon
-  allowAnonReads
-  firstGuestUser
-  showAnonConfig
-  constructor(
-    private state: StateObject,
-    public prisma: PrismaTxnClient,
-  ) {
-    if (state.method === "OPTIONS")
-      throw new Error("Invalid method");
-
-    this.store = state.createStore(prisma);
-    this.authenticatedUser = state.authenticatedUser;
-    this.allowAnon = state.allowAnon;
-    this.allowAnonReads = state.allowAnonReads;
-    this.firstGuestUser = state.firstGuestUser;
-    this.showAnonConfig = state.showAnonConfig;
-
-    this.getBagWhereACL = this.state.store.getBagWhereACL.bind(this.state.store);
-
-  }
 
 }
 

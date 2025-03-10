@@ -92,6 +92,7 @@ const Dashboard = () => {
   const handleBagSubmit = async (formData: BagCreateForm) => {
     console.log(formData);
     if (!isAdmin) formData.owned = true;
+    formData.owned = !!formData.owned;
     await serverRequest.bag_create(formData);
     return "Bag created successfully.";
   }

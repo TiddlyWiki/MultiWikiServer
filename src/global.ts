@@ -24,6 +24,7 @@ declare global {
     (
       // [T, K] extends ["Acl", "role_id"] ? PrismaField<"Roles", "role_id"> :
       // [T, K] extends ["", "role_id"] ? PrismaField<"Roles", "role_id"> :
+      [T, K] extends ["Sessions", "user_id"] ? PrismaField<"Users", "user_id"> :
       [T, K] extends ["Recipe_bags", "bag_id"] ? PrismaField<"Bags", "bag_id"> :
       [T, K] extends ["Recipe_bags", "recipe_id"] ? PrismaField<"Recipes", "recipe_id"> :
       [T, K] extends ["Recipes", "owner_id"] ? PrismaField<"Users", "user_id"> :

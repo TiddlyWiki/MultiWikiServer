@@ -14,9 +14,9 @@ export class UserManager extends BaseManager {
 
   user_list = this.ZodRequest(z => z.undefined(), async () => {
     const state = this.state;
-    if (!state.authenticatedUser) throw "User not authenticated";
+    if (!state.user) throw "User not authenticated";
 
-    if (!state.authenticatedUser.isAdmin) throw "User is not an admin";
+    if (!state.user.isAdmin) throw "User is not an admin";
 
     const res = await this.prisma.users.findMany({
       select: {
@@ -112,7 +112,7 @@ export class UserManager extends BaseManager {
     if (!userExists) throw this.state.sendSimple(404, "User not found");
 
     if (registrationRequest) {
-      return this.state.auth.register1({
+      return this.state.PasswordService.createRegistrationResponse({
         userID: user_id,
         registrationRequest
       });

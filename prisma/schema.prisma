@@ -49,7 +49,7 @@ model Recipe_bags {
   recipe_id Int
   bag_id    Int
   position  Int
-  with_acl   Boolean
+  with_acl  Boolean
   bag       Bags    @relation(fields: [bag_id], references: [bag_id], onDelete: Cascade)
   recipe    Recipes @relation(fields: [recipe_id], references: [recipe_id], onDelete: Cascade)
 
@@ -104,18 +104,6 @@ model Roles {
   @@map("roles")
 }
 
-model Sessions {
-  session_id          String  @id
-  created_at          String
-  last_accessed       String
-  session_key         String?
-  session_login_state String?
-  user_id             Int
-  user                Users   @relation(fields: [user_id], references: [user_id], onDelete: NoAction, onUpdate: NoAction)
-
-  @@map("sessions")
-}
-
 model Tiddlers {
   tiddler_id      Int      @id @default(autoincrement())
   bag_id          Int
@@ -157,4 +145,15 @@ model Users {
   bags       Bags[]
 
   @@map("users")
+}
+
+model Sessions {
+  session_id          String   @id
+  created_at          DateTime @default(now())
+  last_accessed       DateTime
+  session_key         String?
+  user_id             Int
+  user                Users    @relation(fields: [user_id], references: [user_id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@map("sessions")
 }

@@ -30,6 +30,7 @@ export class Streamer {
   url: string;
   headers: IncomingHttpHeaders;
   isSecure: boolean;
+  cookies: Record<string, string | undefined>;
   constructor(
     private req: IncomingMessage | http2.Http2ServerRequest,
     private res: ServerResponse | http2.Http2ServerResponse,
@@ -52,7 +53,23 @@ export class Streamer {
     this.method = req.method;
     this.isSecure = !!req.socket.encrypted;
     this.urlInfo = new URL(`https://${req.headers.host}${req.url}`);
-    req.complete
+
+    this.cookies = this.parseCookieString(req.headers.cookie || "");
+  }
+
+
+  parseCookieString(cookieString: string) {
+    const cookies: any = {};
+    if (typeof cookieString !== 'string') throw new Error('cookieString must be a string');
+    cookieString.split(';').forEach(cookie => {
+      const parts = cookie.split('=');
+      if (parts.length >= 2) {
+        const key = parts[0]!.trim();
+        const value = parts.slice(1).join('=').trim();
+        cookies[key] = decodeURIComponent(value);
+      }
+    });
+    return cookies;
   }
 
   get reader(): Readable { return this.req; }
@@ -342,6 +359,7 @@ export class StreamerState {
 
   /** Currently this is based on whether the socket is secure, so a proxy will cause problems. */
   get isSecure() { return this.streamer.isSecure; }
+  get cookies() { return this.streamer.cookies; }
 
 }
 

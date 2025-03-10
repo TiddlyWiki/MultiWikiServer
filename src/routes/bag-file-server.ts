@@ -2,6 +2,7 @@ import { Readable } from "stream";
 import { StateObject } from "../StateObject";
 import { TiddlerFields } from "../store/new-sql-tiddler-database";
 import { DataChecks } from "../store/data-checks";
+import { adminWiki } from "../router";
 
 
 export class TiddlerServer {
@@ -45,7 +46,7 @@ export class TiddlerServer {
       // Get the  parameters
       const filename = state.pathParams.filename,
         title = SYSTEM_FILE_TITLE_PREFIX + filename,
-        tiddler = state.store.adminWiki.getTiddler(title),
+        tiddler = adminWiki().getTiddler(title),
         isSystemFile = tiddler && tiddler.hasTag("$:/tags/MWS/SystemFile"),
         isSystemFileWikified = tiddler && tiddler.hasTag("$:/tags/MWS/SystemFileWikified");
 
@@ -55,7 +56,7 @@ export class TiddlerServer {
         const type = typeof sysFileType === "string" && sysFileType || tiddler.fields.type || "text/plain",
           encoding = (state.config.contentTypeInfo[type] || { encoding: "utf8" }).encoding;
         if (isSystemFileWikified) {
-          text = state.store.adminWiki.renderTiddler("text/plain", title);
+          text = adminWiki().renderTiddler("text/plain", title);
         }
         return state.sendString(200, {
           "content-type": type
@@ -145,7 +146,7 @@ export class TiddlerServer {
 
       } else {
         // This is not a JSON API request, we should return the raw tiddler content
-        const result = await state.store.getBagTiddlerStream(title, bag_name);
+        const result = await this.getBagTiddlerStream({ title, bag_name });
         if (result) {
           return state.sendStream(200, {
             "Etag": state.makeTiddlerEtag(result),

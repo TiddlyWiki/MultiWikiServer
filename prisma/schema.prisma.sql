@@ -61,17 +61,6 @@ CREATE TABLE "roles" (
 );
 
 -- CreateTable
-CREATE TABLE "sessions" (
-    "session_id" TEXT NOT NULL PRIMARY KEY,
-    "created_at" TEXT NOT NULL,
-    "last_accessed" TEXT NOT NULL,
-    "session_key" TEXT,
-    "session_login_state" TEXT,
-    "user_id" INTEGER NOT NULL,
-    CONSTRAINT "sessions_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "users" ("user_id") ON DELETE NO ACTION ON UPDATE NO ACTION
-);
-
--- CreateTable
 CREATE TABLE "tiddlers" (
     "tiddler_id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
     "bag_id" INTEGER NOT NULL,
@@ -99,6 +88,16 @@ CREATE TABLE "users" (
     "password" TEXT NOT NULL,
     "created_at" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "last_login" DATETIME
+);
+
+-- CreateTable
+CREATE TABLE "sessions" (
+    "session_id" TEXT NOT NULL PRIMARY KEY,
+    "created_at" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "last_accessed" DATETIME NOT NULL,
+    "session_key" TEXT,
+    "user_id" INTEGER NOT NULL,
+    CONSTRAINT "sessions_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "users" ("user_id") ON DELETE NO ACTION ON UPDATE NO ACTION
 );
 
 -- CreateTable

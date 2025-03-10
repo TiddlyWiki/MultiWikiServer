@@ -20364,14 +20364,6 @@ In case this error is unexpected for you, please report it in https://pris.ly/pr
         role_name: "role_name",
         description: "description"
       };
-      exports.Prisma.SessionsScalarFieldEnum = {
-        session_id: "session_id",
-        created_at: "created_at",
-        last_accessed: "last_accessed",
-        session_key: "session_key",
-        session_login_state: "session_login_state",
-        user_id: "user_id"
-      };
       exports.Prisma.TiddlersScalarFieldEnum = {
         tiddler_id: "tiddler_id",
         bag_id: "bag_id",
@@ -20391,6 +20383,13 @@ In case this error is unexpected for you, please report it in https://pris.ly/pr
         password: "password",
         created_at: "created_at",
         last_login: "last_login"
+      };
+      exports.Prisma.SessionsScalarFieldEnum = {
+        session_id: "session_id",
+        created_at: "created_at",
+        last_accessed: "last_accessed",
+        session_key: "session_key",
+        user_id: "user_id"
       };
       exports.Prisma.SortOrder = {
         asc: "asc",
@@ -20413,10 +20412,10 @@ In case this error is unexpected for you, please report it in https://pris.ly/pr
         BagAcl: "BagAcl",
         Groups: "Groups",
         Roles: "Roles",
-        Sessions: "Sessions",
         Tiddlers: "Tiddlers",
         Fields: "Fields",
-        Users: "Users"
+        Users: "Users",
+        Sessions: "Sessions"
       };
       var PrismaClient2 = class {
         constructor() {
@@ -23291,20 +23290,15 @@ ${val.stack}`;
 
   // react-user-mgmt/src/helpers/utils.tsx
   var import_jsx_runtime = __toESM(require_jsx_runtime(), 1);
-  function toSearchParams(formData) {
-    const entries = formData.entries ? formData.entries() : Object.entries(formData);
-    const data = [...entries].filter((e, i) => {
-      if (typeof e[1] !== "string") throw console.error(formData);
-      return true;
-    });
-    return new URLSearchParams(data);
-  }
-  function fetchPostSearchParams(url, formData) {
+  function fetchPostJSON(url, formData) {
     return fetch(url, {
       method: "POST",
       redirect: "manual",
-      headers: { "Content-Type": "application/x-www-form-urlencoded", "X-Requested-With": "TiddlyWiki" },
-      body: toSearchParams(formData)
+      headers: {
+        "Content-Type": "application/json",
+        "X-Requested-With": "TiddlyWiki"
+      },
+      body: JSON.stringify(formData)
     });
   }
   async function changePassword(input) {
@@ -23365,7 +23359,7 @@ ${val.stack}`;
     prisma: proxy
   };
   async function getIndexJson() {
-    const res = await postManager("index_json")(void 0);
+    const res = await serverRequest2.index_json(void 0);
     const bagMap = new Map(res.bagList.map((bag) => [bag.bag_id, bag]));
     const recipeMap = new Map(res.recipeList.map((recipe) => [recipe.recipe_id, recipe]));
     const hasRecipeAclAccess = (recipe) => {
@@ -23466,13 +23460,13 @@ ${val.stack}`;
   var LOGIN_FAILED = "Login failed. Please check your credentials.";
   async function loginWithOpaque(username, password) {
     const { clientLoginState, startLoginRequest } = client.startLogin({ password });
-    const login1 = await fetchPostSearchParams("/login/1", { username, startLoginRequest });
+    const login1 = await fetchPostJSON("/login/1", { username, startLoginRequest });
     if (!login1.ok) throw await login1.text() || LOGIN_FAILED;
-    const loginResponse = await login1.text();
+    const { loginResponse } = await login1.json();
     const loginResult = client.finishLogin({ clientLoginState, loginResponse, password });
     if (!loginResult) throw LOGIN_FAILED;
     const { finishLoginRequest, sessionKey, exportKey, serverStaticPublicKey } = loginResult;
-    const login2 = await fetchPostSearchParams("/login/2", { username, finishLoginRequest });
+    const login2 = await fetchPostJSON("/login/2", { username, finishLoginRequest });
     if (!login2.ok) throw await login2.text() || LOGIN_FAILED;
     return { username, sessionKey, exportKey, serverStaticPublicKey };
   }
@@ -23783,20 +23777,29 @@ ${val.stack}`;
     };
     const handleRecipeSubmit = async (formData) => {
       console.log(formData);
-      const { recipe_name, bag_names, description, owned = false, with_acl = false } = formData;
+      if (!isAdmin) formData.owned = true;
+      const {
+        recipe_name,
+        bag_names,
+        description,
+        owned = false,
+        with_acl = false
+      } = formData;
       const bag_list = bag_names.split(" ");
       await serverRequest2.recipe_create({
         recipe_name,
         description,
         bag_names: bag_list,
-        owned: isAdmin ? owned : true,
-        withAcl: with_acl
+        owned,
+        with_acl
       });
       return "Recipe created successfully.";
     };
     const recipeForm = useFormFieldHandler(refresh);
     const handleBagSubmit = async (formData) => {
       console.log(formData);
+      if (!isAdmin) formData.owned = true;
+      formData.owned = !!formData.owned;
       await serverRequest2.bag_create(formData);
       return "Bag created successfully.";
     };
@@ -23847,7 +23850,7 @@ ${val.stack}`;
           {
             ...recipeForm.register("owned", { required: false }),
             type: "checkbox",
-            title: "Admin: Is this your personal or a site-wide recipe?"
+            title: "Admin: Is this your personal recipe or a site-wide recipe?"
           }
         ),
         /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(
@@ -23883,12 +23886,12 @@ ${val.stack}`;
             title: "Bag description"
           }
         ),
-        /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(
+        isAdmin && /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(
           FormFieldInput,
           {
-            ...bagForm.register("owned", { required: false }),
+            ...recipeForm.register("owned", { required: false }),
             type: "checkbox",
-            title: "Make this a personal bag."
+            title: "Admin: Is this your personal recipe or a site-wide recipe?"
           }
         ),
         bagForm.footer("Create Bag")

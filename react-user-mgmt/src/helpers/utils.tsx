@@ -6,6 +6,7 @@ import { RecipeManager, RecipeManagerMap } from "../../../src/routes/manager-rec
 import { UserManagerMap } from "../../../src/routes";
 import { proxy } from "./prisma-proxy";
 import { ZodAction } from "../../../src/routes/BaseManager";
+import { z } from "zod";
 
 
 type MapLike = { entries: () => Iterable<[string, any]> };
@@ -24,11 +25,24 @@ export function fetchPostSearchParams(url: string, formData: MapLike | Record<st
   return fetch(url, {
     method: 'POST',
     redirect: "manual",
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded', "X-Requested-With": "TiddlyWiki" },
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded',
+      "X-Requested-With": "TiddlyWiki"
+    },
     body: toSearchParams(formData),
   });
 }
-
+export function fetchPostJSON(url: string, formData: any) {
+  return fetch(url, {
+    method: 'POST',
+    redirect: "manual",
+    headers: {
+      'Content-Type': 'application/json',
+      "X-Requested-With": "TiddlyWiki"
+    },
+    body: JSON.stringify(formData),
+  });
+}
 export interface ChangePasswordForm {
   userId: string
   password: string
@@ -98,10 +112,10 @@ export function useIndexJson() { return React.useContext(IndexJsonContext); }
 type PART<T extends (...args: any) => any> = Promise<Awaited<ReturnType<T>>>;
 
 type Handler<T extends Record<string, ZodAction<any, any>>, K extends keyof T> =
-  ((data: Parameters<T[K]>[0]) => PART<T[K]>) & { zodRequest: any; zodResponse: any; };
+  ((data: Parameters<z.input<ReturnType<T[K]["zodRequest"]>>>) => PART<z.output<ReturnType<T[K]["zodResponse"]>>>) & { zodRequest: any; zodResponse: any; };
 
-function postManager<K extends keyof RecipeManagerMap>(key: K): Handler<RecipeManagerMap, K>;
-function postManager<K extends keyof UserManagerMap>(key: K): Handler<UserManagerMap, K>;
+function postManager<K extends keyof RecipeManagerMap>(key: K): RecipeManagerMap[K]
+function postManager<K extends keyof UserManagerMap>(key: K): UserManagerMap[K]
 function postManager(key: string) {
   return async (data: any) => {
     const req = await fetch("/manager/" + key, {
@@ -130,7 +144,7 @@ export const serverRequest: ManagerMap = {
   user_delete: postManager("user_delete"),
   user_update: postManager("user_update"),
   user_update_password: postManager("user_update_password"),
-  
+
   index_json: postManager("index_json"),
   recipe_create: postManager("recipe_create"),
   bag_create: postManager("bag_create"),
@@ -140,7 +154,7 @@ export const serverRequest: ManagerMap = {
 
 
 export async function getIndexJson() {
-  const res = await postManager("index_json")(undefined);
+  const res = await serverRequest.index_json(undefined);
 
   const bagMap = new Map(res.bagList.map(bag => [bag.bag_id, bag]));
   const recipeMap = new Map(res.recipeList.map(recipe => [recipe.recipe_id, recipe]));
