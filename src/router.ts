@@ -96,46 +96,57 @@ export class Router {
   }
 
   static async initDatabase(router: Router) {
-    await router.engine.sessions.deleteMany();
+    // await router.engine.sessions.deleteMany();
     // delete these during dev stuff
-    const users = await router.engine.users.findMany();
-    for (const user of users) {
-      await router.engine.users.update({
-        data: { roles: { set: [] } },
-        where: { user_id: user.user_id }
-      })
-    }
+    // const users = await router.engine.users.findMany();
+    // for (const user of users) {
+    //   await router.engine.users.update({
+    //     data: { roles: { set: [] } },
+    //     where: { user_id: user.user_id }
+    //   })
+    // }
     // await router.engine.acl.deleteMany();
-  
-    await router.engine.users.deleteMany();
-    await router.engine.groups.deleteMany();
-    await router.engine.roles.deleteMany();
+    // await router.engine.users.deleteMany();
+    // await router.engine.groups.deleteMany();
+    // await router.engine.roles.deleteMany();
     // await router.engine.permissions.deleteMany();
 
 
+    const userCount = await router.engine.users.count();
+
+    if (!userCount) {
+
+      await router.engine.roles.createMany({
+        data: [
+          { role_id: 1, role_name: "ADMIN", description: "System Administrator" },
+          { role_id: 2, role_name: "USER", description: "Basic User" },
+        ]
+      });
+      const user = await router.engine.users.create({
+        data: { username: "admin", email: "", password: "", roles: { connect: { role_id: 1 } } },
+        select: { user_id: true }
+      });
 
 
-    await router.engine.roles.createMany({
-      data: [
-        { role_id: 1, role_name: "ADMIN", description: "System Administrator" },
-        { role_id: 2, role_name: "USER", description: "Basic User" },
-      ]
-    });
-    const user = await router.engine.users.create({
-      data: { username: "admin", email: "", password: "", roles: { connect: { role_id: 1 } } },
-      select: { user_id: true }
-    });
+      const password = PasswordCreation(user.user_id.toString(), "1234");
 
-    const password = PasswordCreation(user.user_id.toString(), "1234");
+      await router.engine.users.update({
+        where: { user_id: user.user_id },
+        data: { password: password }
+      });
 
-    await router.engine.users.update({
-      where: { user_id: user.user_id },
-      data: { password: password }
-    })
+      router.devuser = user.user_id;
+    } else {
+      const user = await router.engine.users.findFirst({
+        where: { username: "admin" },
+        select: { user_id: true }
+      });
+      router.devuser = user?.user_id ?? 0;
+    }
 
   }
 
-  engine: PrismaClient<{ datasourceUrl: string }, never, {
+  engine: PrismaClient<Prisma.PrismaClientOptions, never, {
     result: {
       // this types every output field with PrismaField
       [T in Uncapitalize<Prisma.ModelName>]: {
@@ -148,6 +159,7 @@ export class Router {
     model: {},
     query: {},
   }>;
+  devuser: number = 0;
   storePath: string;
   databasePath: string;
   attachmentStore: AttachmentStore
@@ -160,7 +172,7 @@ export class Router {
     this.attachmentStore = $tw.mws.attachmentStore;
     this.storePath = resolve(wikiPath, "store");
     this.databasePath = resolve(this.storePath, "database.sqlite");
-    this.engine = new PrismaClient({ datasourceUrl: "file:" + this.databasePath });
+    this.engine = new PrismaClient({ log: ["error", "info", "warn", "query"], datasourceUrl: "file:" + this.databasePath });
   }
 
   async handle(streamer: Streamer) {
@@ -187,7 +199,9 @@ export class Router {
 
     // Object.assign(state, await state.getOldAuthState());
     state.authenticatedUser = {
-      isAdmin: true, user_id: 1, username: "admin",
+      isAdmin: true,
+      user_id: this.devuser,
+      username: "admin",
       get sessionId() { throw new Error("not implemented") },
     } as any;
 

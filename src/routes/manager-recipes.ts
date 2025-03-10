@@ -1,5 +1,5 @@
 import { z, ZodTypeAny } from "zod";
-import { BaseManager, BaseManagerMap, } from "./BaseManager";
+import { BaseKeyMap, BaseManager, BaseManagerMap, } from "./BaseManager";
 
 
 /*
@@ -21,8 +21,21 @@ Nothing should be happening to tiddlers in a bag unless they're in a writable la
 */
 
 
+function TestDecorator<This, T extends ZodTypeAny>(zod: T) {
+  return function (
+    target: (this: This, input: z.infer<T>) => void,
+    context: ClassMethodDecoratorContext<This, (input: z.infer<T>) => void>
+  ) {
+    console.log("TestDecorator", target, context);
 
+  }
+}
 
+export const RecipeKeyMap: BaseKeyMap<RecipeManager, true> = {
+  bag_create: true,
+  index_json: true,
+  recipe_create: true,
+}
 
 export type RecipeManagerMap = BaseManagerMap<RecipeManager>;
 
@@ -68,40 +81,46 @@ export class RecipeManager extends BaseManager {
     description: z.string(),
     bag_names: z.array(z.string()),
     owned: z.boolean(),
-    withAcl: z.boolean(),
+    with_acl: z.boolean(),
   }), async (input) => {
 
     if (!this.user) throw "User not authenticated";
 
     const { isAdmin, user_id } = this.user;
 
-    const { recipe_name, description, bag_names, owned } = input;
+    const { recipe_name, description, bag_names, owned, with_acl } = input;
 
     if (!isAdmin && !owned) throw "User is not an admin and cannot create a recipe that is not owned";
 
     const { OR } = this.checks.getBagWhereACL({ permission: "ADMIN", user_id, });
 
-    const bags = new Map(await this.prisma.bags.findMany({
-      where: { bag_name: { in: bag_names } },
-    }).then(bags => bags.map(bag => [bag.bag_name as string, bag])));
+    const bags = new Map(
+      await this.prisma.bags.findMany({
+        where: { bag_name: { in: bag_names } },
+      }).then(bags => bags.map(bag => [bag.bag_name as string, bag]))
+    );
 
     const missing = bag_names.filter(e => !bags.has(e));
     if (missing.length) throw "Some bags not found: " + JSON.stringify(missing);
 
-    const bagsAcl = input.withAcl && new Map(await this.prisma.bags.findMany({
-      where: { bag_name: { in: bag_names }, OR },
-    }).then(bags => bags.map(bag => [bag.bag_name as string, bag])));
+    const bagsAcl = with_acl && new Map(
+      await this.prisma.bags.findMany({
+        where: { bag_name: { in: bag_names }, OR },
+      }).then(bags => bags.map(bag => [bag.bag_name as string, bag]))
+    );
+
+    const createBags = bag_names.map((bag, position) => ({
+      bag_id: bags.get(bag)!.bag_id,
+      with_acl: bagsAcl && bagsAcl.has(bag),
+      position,
+    }));
 
     const recipe = await this.prisma.recipes.create({
       data: {
         recipe_name,
         description,
         recipe_bags: {
-          create: bag_names.map((bag, position) => ({
-            bag_id: bags.get(bag)!.bag_id,
-            with_acl: bagsAcl && bagsAcl.has(bag),
-            position,
-          }))
+          create: createBags
         },
         owner_id: owned ? user_id : null
       },

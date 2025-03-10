@@ -1,4 +1,12 @@
-import { BaseManager, BaseManagerMap,  } from "./BaseManager";
+import { BaseKeyMap, BaseManager, BaseManagerMap,  } from "./BaseManager";
+
+export const UserKeyMap: BaseKeyMap<UserManager, true> = {
+  user_create: true,
+  user_delete: true,
+  user_list: true,
+  user_update: true,
+  user_update_password: true,
+} 
 
 export type UserManagerMap = BaseManagerMap<UserManager>;
 

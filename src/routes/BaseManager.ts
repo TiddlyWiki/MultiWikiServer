@@ -21,8 +21,18 @@ Nothing should be happening to tiddlers in a bag unless they're in a writable la
 
 */
 
+export interface ZodAction<T extends ZodTypeAny, R> {
+  (input: z.input<T>): Promise<R>;
+  zodRequest: (z: Z2<"JSON">) => T;
+  zodResponse: (z: Z2<"JSON">) => ZodType<R>;
+}
+
 export type BaseManagerMap<T> = {
-  [K in keyof T as T[K] extends (input: any) => Promise<any> ? K : never]: T[K];
+  [K in keyof T as T[K] extends ZodAction<any, any> ? K : never]: T[K];
+}
+
+export type BaseKeyMap<T, V> = {
+  [K in keyof T as T[K] extends ZodAction<any, any> ? K : never]: V;
 }
 
 export class BaseManager {
@@ -32,7 +42,7 @@ export class BaseManager {
     path: RegExp,
     Manager: { new(state: StateObject, prisma: PrismaTxnClient): BaseManager }
   ) {
-    
+
   }
 
   user;
@@ -41,8 +51,8 @@ export class BaseManager {
     const isLoggedIn = !!this.state.authenticatedUser;
 
     const { isAdmin, user_id, username } = this.state.authenticatedUser ?? {
-      // isAdmin: false, user_id: 0, username: "(anon)"
-      isAdmin: true, user_id: 1, username: "admin"
+      isAdmin: false, user_id: 0, username: "(anon)"
+      // isAdmin: true, user_id: 1, username: "admin"
     };
 
     this.user = { isAdmin, user_id, username, isLoggedIn };
@@ -53,8 +63,8 @@ export class BaseManager {
     zodRequest: (z: Z2<"JSON">) => T,
     handler: (route: z.output<T>) => Promise<R>,
     zodResponse: (z: Z2<"JSON">) => ZodType<R> = z => z.any()
-  ) {
-    return async (input: z.input<T>): Promise<R> => {
+  ): ZodAction<T, R> {
+    const action = async (input: z.input<T>): Promise<R> => {
 
       const inputCheck = zodRequest(Z2).safeParse(input);
       if (!inputCheck.success) {
@@ -73,5 +83,10 @@ export class BaseManager {
       return outputCheck.data;
 
     };
+
+    action.zodRequest = zodRequest;
+    action.zodResponse = zodResponse;
+
+    return action
   }
 }

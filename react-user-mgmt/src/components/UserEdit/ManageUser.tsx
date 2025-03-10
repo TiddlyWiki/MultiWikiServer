@@ -71,16 +71,7 @@ const ManageUser = DataLoader(async (props: { userID: string }) => {
     }
   });
   return [res, allRoles] as const;
-  // return {
-  //   user: JSON.parse(result.user),
-  //   userRole: JSON.parse(result["user-role"]).roles[0],
-  //   allRoles: JSON.parse(result["all-roles"]),
-  //   userIsAdmin: result["user-is-admin"] === "yes",
-  //   isCurrentUserProfile: result["is-current-user-profile"] === "yes",
-  //   username: result.username,
-  //   firstGuestUser: result["first-guest-user"] === "yes",
-  //   userIsLoggedIn: result["user-is-logged-in"] === "yes",
-  // }
+
 }, ([user, allRoles], refreshUser, props) => {
 
   const [indexJson] = useIndexJson();
@@ -132,7 +123,7 @@ const ManageUser = DataLoader(async (props: { userID: string }) => {
   const handleChangePassword = async (formData: ChangePasswordFields) => {
     const { userId, newPassword: password, confirmPassword } = formData;
 
-    if (!userId || !password || !confirmPassword) throw false;
+    if (!userId || !password || !confirmPassword) throw "All fields are required.";
 
     if (password !== confirmPassword) {
       throw "Passwords do not match.";
@@ -211,7 +202,7 @@ const ManageUser = DataLoader(async (props: { userID: string }) => {
               <>
                 <hr />
                 <form className="mws-user-profile-form" onSubmit={deleteForm.handler(handleDeleteAccount)}>
-                  <FormFieldInput {...deleteForm.register("user_id", { required: true })}
+                  <FormFieldInput {...deleteForm.register("user_id", { required: true, value: `${user.user_id}` })}
                     type="hidden" id title="" />
                   {deleteForm.footer("Delete Account")}
                 </form>
@@ -221,7 +212,7 @@ const ManageUser = DataLoader(async (props: { userID: string }) => {
             {isCurrentUserProfile && (
 
               <form className="mws-user-profile-form" onSubmit={password.handler(handleChangePassword)}>
-                <FormFieldInput {...password.register("userId", { required: true })}
+                <FormFieldInput {...password.register("userId", { required: true, value: `${user.user_id}` })}
                   type="hidden" id title="" />
                 <FormFieldInput
                   {...password.register("newPassword", { required: true })}
@@ -239,25 +230,7 @@ const ManageUser = DataLoader(async (props: { userID: string }) => {
                 />
                 {password.footer("Change Password")}
               </form>
-              // <>
-              //   <hr />
-              //   <h2>Change Password</h2>
-              //   <form className="mws-user-profile-form" action={handleChangePassword}>
-              //     <input type="hidden" name="userId" value={user.user_id} />
-              //     <div className="mws-form-group">
-              //       <label htmlFor="new-password">New Password:</label>
-              //       <input type="password" id="new-password" name="newPassword" required />
-              //     </div>
-              //     <div className="mws-form-group">
-              //       <label htmlFor="confirm-password">Confirm New Password:</label>
-              //       <input type="password" id="confirm-password" name="confirmPassword" required />
-              //     </div>
-              //     <button type="submit" className="mws-update-password-btn">Change Password</button>
 
-              //     {passwordError && <div className="mws-error-message">{passwordError}</div>}
-              //     {passwordSuccess && <div className="mws-success-message">{passwordSuccess}</div>}
-              //   </form>
-              // </>
             )}
           </div>
         )}

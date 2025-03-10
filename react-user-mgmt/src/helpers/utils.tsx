@@ -5,6 +5,7 @@ import { FieldValues, useForm, UseFormRegisterReturn } from "react-hook-form";
 import { RecipeManager, RecipeManagerMap } from "../../../src/routes/manager-recipes";
 import { UserManagerMap } from "../../../src/routes";
 import { proxy } from "./prisma-proxy";
+import { ZodAction } from "../../../src/routes/BaseManager";
 
 
 type MapLike = { entries: () => Iterable<[string, any]> };
@@ -96,10 +97,11 @@ export function useIndexJson() { return React.useContext(IndexJsonContext); }
 
 type PART<T extends (...args: any) => any> = Promise<Awaited<ReturnType<T>>>;
 
-function postManager<K extends keyof RecipeManagerMap>(key: K):
-  (data: Parameters<RecipeManagerMap[K]>[0]) => PART<RecipeManagerMap[K]>;
-function postManager<K extends keyof UserManagerMap>(key: K):
-  (data: Parameters<UserManagerMap[K]>[0]) => PART<UserManagerMap[K]>;
+type Handler<T extends Record<string, ZodAction<any, any>>, K extends keyof T> =
+  ((data: Parameters<T[K]>[0]) => PART<T[K]>) & { zodRequest: any; zodResponse: any; };
+
+function postManager<K extends keyof RecipeManagerMap>(key: K): Handler<RecipeManagerMap, K>;
+function postManager<K extends keyof UserManagerMap>(key: K): Handler<UserManagerMap, K>;
 function postManager(key: string) {
   return async (data: any) => {
     const req = await fetch("/manager/" + key, {
@@ -112,7 +114,7 @@ function postManager(key: string) {
     });
     if (!req.ok) throw new Error(`Failed to fetch data for /manager/${key}: ${await req.text()}`);
     return await req.json();
-  }
+  };
 
 }
 
@@ -123,13 +125,13 @@ interface ManagerMap extends RecipeManagerMap, UserManagerMap {
 
 export const serverRequest: ManagerMap = {
 
-  index_json: postManager("index_json"),
   user_list: postManager("user_list"),
   user_create: postManager("user_create"),
   user_delete: postManager("user_delete"),
   user_update: postManager("user_update"),
   user_update_password: postManager("user_update_password"),
-
+  
+  index_json: postManager("index_json"),
   recipe_create: postManager("recipe_create"),
   bag_create: postManager("bag_create"),
 

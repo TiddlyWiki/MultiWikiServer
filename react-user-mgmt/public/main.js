@@ -23354,12 +23354,12 @@ ${val.stack}`;
     };
   }
   var serverRequest2 = {
-    index_json: postManager("index_json"),
     user_list: postManager("user_list"),
     user_create: postManager("user_create"),
     user_delete: postManager("user_delete"),
     user_update: postManager("user_update"),
     user_update_password: postManager("user_update_password"),
+    index_json: postManager("index_json"),
     recipe_create: postManager("recipe_create"),
     bag_create: postManager("bag_create"),
     prisma: proxy
@@ -23767,6 +23767,7 @@ ${val.stack}`;
   var import_jsx_runtime7 = __toESM(require_jsx_runtime(), 1);
   var Dashboard = () => {
     const [{ getBagName, hasBagAclAccess, hasRecipeAclAccess, ...indexJson }, refresh] = useIndexJson();
+    const isAdmin = indexJson.isAdmin;
     const [showSystem, setShowSystem] = (0, import_react7.useState)(false);
     const filteredBags = showSystem ? indexJson.bagList : indexJson.bagList.filter((bag) => !bag.bag_name.startsWith("$:/"));
     const handleShowSystemChange = (e) => {
@@ -23782,14 +23783,14 @@ ${val.stack}`;
     };
     const handleRecipeSubmit = async (formData) => {
       console.log(formData);
-      const { recipe_name, bag_names, description } = formData;
+      const { recipe_name, bag_names, description, owned = false, with_acl = false } = formData;
       const bag_list = bag_names.split(" ");
       await serverRequest2.recipe_create({
         recipe_name,
         description,
         bag_names: bag_list,
-        owned: true,
-        withAcl: formData.with_acl
+        owned: isAdmin ? owned : true,
+        withAcl: with_acl
       });
       return "Recipe created successfully.";
     };
@@ -23841,10 +23842,18 @@ ${val.stack}`;
             title: "Bags in recipe (space separated)"
           }
         ),
+        isAdmin && /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(
+          FormFieldInput,
+          {
+            ...recipeForm.register("owned", { required: false }),
+            type: "checkbox",
+            title: "Admin: Is this your personal or a site-wide recipe?"
+          }
+        ),
         /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(
           FormFieldInput,
           {
-            ...recipeForm.register("with_acl", { required: true }),
+            ...recipeForm.register("with_acl", { required: false }),
             type: "checkbox",
             title: "Apply implicit ACL permissions to bags which you have admin privelages on."
           }
@@ -23911,10 +23920,8 @@ ${val.stack}`;
   async function addNewUser(input) {
     const { username, email, password, confirmPassword } = input;
     if (password !== confirmPassword) throw "Passwords do not match";
-    const createUser = await fetchPostSearchParams("/admin/post-user", { username, email });
-    if (!createUser.ok) throw await createUser.text() || "Failed to add user";
-    const userId = (await createUser.json()).userId.toString();
-    await changePassword({ userId, password, confirmPassword });
+    const { user_id } = await serverRequest2.user_create({ username, email, role_id: 2 });
+    await changePassword({ userId: user_id.toString(), password, confirmPassword });
     return "User added successfully";
   }
   var AddUserForm = (props) => {
@@ -24069,7 +24076,7 @@ ${val.stack}`;
     };
     const handleChangePassword = async (formData) => {
       const { userId, newPassword: password2, confirmPassword } = formData;
-      if (!userId || !password2 || !confirmPassword) throw false;
+      if (!userId || !password2 || !confirmPassword) throw "All fields are required.";
       if (password2 !== confirmPassword) {
         throw "Passwords do not match.";
       }
@@ -24153,7 +24160,7 @@ ${val.stack}`;
             /* @__PURE__ */ (0, import_jsx_runtime10.jsx)(
               FormFieldInput,
               {
-                ...deleteForm.register("user_id", { required: true }),
+                ...deleteForm.register("user_id", { required: true, value: `${user.user_id}` }),
                 type: "hidden",
                 id: true,
                 title: ""
@@ -24166,7 +24173,7 @@ ${val.stack}`;
           /* @__PURE__ */ (0, import_jsx_runtime10.jsx)(
             FormFieldInput,
             {
-              ...password.register("userId", { required: true }),
+              ...password.register("userId", { required: true, value: `${user.user_id}` }),
               type: "hidden",
               id: true,
               title: ""

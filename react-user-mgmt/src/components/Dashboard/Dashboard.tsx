@@ -32,20 +32,14 @@ const Dashboard = () => {
 
   const [{ getBagName, hasBagAclAccess, hasRecipeAclAccess, ...indexJson }, refresh] = useIndexJson();
 
+  const isAdmin = indexJson.isAdmin;
 
-  // const recipes = indexJson.recipeList;
-  // const [recipes, setRecipes] = useState([]);
-  // const [bags, setBags] = useState();
   const [showSystem, setShowSystem] = useState(false);
 
   // Filter system bags based on showSystem state
   const filteredBags = showSystem
     ? indexJson.bagList
     : indexJson.bagList.filter(bag => !bag.bag_name.startsWith("$:/"));
-
-
-
-
 
   const handleShowSystemChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newShowSystem = e.target.checked;
@@ -66,13 +60,25 @@ const Dashboard = () => {
     description: string;
     bag_names: string;
     with_acl: boolean;
+    owned: boolean;
   }
   const handleRecipeSubmit = async (formData: RecipeCreateForm) => {
     console.log(formData);
-    const { recipe_name, bag_names, description } = formData;
+    if (!isAdmin) formData.owned = true;
+    const {
+      recipe_name,
+      bag_names,
+      description,
+      owned = false,
+      with_acl = false
+    } = formData;
     const bag_list = bag_names.split(" "); // this should really be a tw list
     await serverRequest.recipe_create({
-      recipe_name, description, bag_names: bag_list, owned: true, withAcl: formData.with_acl
+      recipe_name,
+      description,
+      bag_names: bag_list,
+      owned,
+      with_acl
     });
     return "Recipe created successfully.";
   };
@@ -85,6 +91,7 @@ const Dashboard = () => {
   }
   const handleBagSubmit = async (formData: BagCreateForm) => {
     console.log(formData);
+    if (!isAdmin) formData.owned = true;
     await serverRequest.bag_create(formData);
     return "Bag created successfully.";
   }
@@ -118,6 +125,8 @@ const Dashboard = () => {
           type="text" title="Recipe description" />
         <FormFieldInput {...recipeForm.register("bag_names", { required: true })}
           type="text" title="Bags in recipe (space separated)" />
+        {isAdmin && <FormFieldInput {...recipeForm.register("owned", { required: false })}
+          type="checkbox" title="Admin: Is this your personal recipe or a site-wide recipe?" />}
         <FormFieldInput {...recipeForm.register("with_acl", { required: false })}
           type="checkbox" title="Apply implicit ACL permissions to bags which you have admin privelages on." />
         {recipeForm.footer("Create Recipe")}
@@ -134,21 +143,14 @@ const Dashboard = () => {
         ))}
       </ul>
 
-      {/* <form className="mws-form" action={handleBagSubmit}>
-        <h2>Create a new bag or modify an existing one</h2>
-        <MwsFormChild title="" submitText=""        >
-          <FormField name="bag_name">Bag name</FormField>
-          <FormField name="description">Bag description</FormField>
-        </MwsFormChild>
-      </form> */}
       <form className="mws-form" onSubmit={bagForm.handler(handleBagSubmit)}>
         <h2>Create a new bag or modify an existing one</h2>
         <FormFieldInput {...bagForm.register("bag_name", { required: true })}
           type="text" title="Bag name" />
         <FormFieldInput {...bagForm.register("description", { required: true })}
           type="text" title="Bag description" />
-        <FormFieldInput {...bagForm.register("owned", { required: false })}
-          type="checkbox" title="Make this a personal bag." />
+        {isAdmin && <FormFieldInput {...recipeForm.register("owned", { required: false })}
+          type="checkbox" title="Admin: Is this your personal recipe or a site-wide recipe?" />}
 
         {bagForm.footer("Create Bag")}
       </form>

@@ -1,6 +1,6 @@
 import React, { useId, useState } from 'react';
 import { useForm, UseFormRegisterReturn } from "react-hook-form";
-import { changePassword, fetchPostSearchParams, FormFieldInput, useFormFieldHandler } from '../../helpers/utils';
+import { changePassword, fetchPostSearchParams, FormFieldInput, serverRequest, useFormFieldHandler } from '../../helpers/utils';
 
 
 export interface CreateUserForm {
@@ -16,13 +16,9 @@ export async function addNewUser(input: CreateUserForm) {
 
   if (password !== confirmPassword) throw 'Passwords do not match';
 
-  const createUser = await fetchPostSearchParams('/admin/post-user', { username, email });
+  const { user_id } = await serverRequest.user_create({ username, email, role_id: 2 })
 
-  if (!createUser.ok) throw await createUser.text() || 'Failed to add user'
-
-  const userId = (await createUser.json()).userId.toString();
-
-  await changePassword({ userId, password, confirmPassword });
+  await changePassword({ userId: user_id.toString(), password, confirmPassword });
 
   return "User added successfully";
 
