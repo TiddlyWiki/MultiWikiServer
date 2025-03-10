@@ -30,7 +30,7 @@ export type BodyFormat = typeof BodyFormats[number];
 export const PermissionName = []
 
 export function adminWiki(){
-  return (global as any).$tw;
+  return (global as any).$tw.wiki;
 }
 
 const zodTransformJSON = (arg: string, ctx: z.RefinementCtx) => {
