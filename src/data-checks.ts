@@ -5,7 +5,7 @@ import { truthy } from "./utils";
 export class DataChecks {
   allowAnonReads;
   allowAnonWrites;
-  constructor(options: { allowAnonReads: boolean, allowAnonWrites: boolean }) {
+  constructor(options: { allowAnonReads?: boolean, allowAnonWrites?: boolean }) {
     this.allowAnonReads = options.allowAnonReads;
     this.allowAnonWrites = options.allowAnonWrites;
   }
@@ -82,27 +82,26 @@ export class DataChecks {
 
     const OR = this.getWhereACL({ permission, user_id });
 
-    return {
-      OR: ([
-        // all system bags are allowed for any user
-        { bag_name: { startsWith: "$:/" } },
-        ...OR,
-        permission === "ADMIN" ? undefined : {
-          recipe_bags: {
-            some: {
-              // check if we're in position 0 (for write) or any position (for read)
-              position: permission === "WRITE" ? 0 : undefined,
-              // of a recipe that the user has permission to read or write
-              recipe: { OR },
-              // if the connection was created with admin permissions
-              with_acl: true,
-              // for the specific recipe, if provided
-              recipe_id,
-            }
+    return ([
+      // all system bags are allowed to be read by any user
+      permission === "READ" && { bag_name: { startsWith: "$:/" } },
+      ...OR,
+      permission === "ADMIN" ? undefined : {
+        recipe_bags: {
+          some: {
+            // check if we're in position 0 (for write) or any position (for read)
+            position: permission === "WRITE" ? 0 : undefined,
+            // of a recipe that the user has permission to read or write
+            recipe: { OR },
+            // if the connection was created with admin permissions
+            with_acl: true,
+            // for the specific recipe, if provided
+            recipe_id,
           }
         }
-      ] satisfies (Prisma.BagsWhereInput | undefined | null | false)[]).filter(truthy)
-    }
+      }
+    ] satisfies (Prisma.BagsWhereInput | undefined | null | false)[]).filter(truthy)
+
   }
   getWhereACL({ permission, user_id }: {
     permission: ACLPermissionName,
@@ -139,7 +138,7 @@ export class DataChecks {
           }
         }
       },
-    
+
     ] satisfies (Prisma.RecipesWhereInput | Prisma.BagsWhereInput | undefined | null | false | 0)[]
     ).filter(truthy)
   }

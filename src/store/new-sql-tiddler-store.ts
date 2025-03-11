@@ -2,10 +2,10 @@ import { Wiki } from "tiddlywiki";
 import { createStrictAwaitProxy } from "../utils";
 import { StateObject } from "../StateObject";
 import { DataChecks } from "../data-checks";
-import { SqlTiddlerDatabase, TiddlerFields } from "./new-sql-tiddler-database";
 import { Readable } from "stream";
 import { resolve } from "path";
 import { Prisma } from "@prisma/client";
+import { TiddlerFields } from "../routes/services/attachments";
 
 
 interface SqlTiddlerStoreEvents {

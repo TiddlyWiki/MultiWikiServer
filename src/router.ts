@@ -208,7 +208,7 @@ export class Router {
     this.storePath = resolve(config.wikiPath, "store");
     this.databasePath = resolve(this.storePath, "database.sqlite");
     this.engine = new PrismaClient({
-      log: ["error", "info", "warn", "query"],
+      log: ["error", "info", "warn"],
       datasourceUrl: "file:" + this.databasePath,
     });
   }
@@ -238,7 +238,7 @@ export class Router {
     type statetype = { [K in BodyFormat]: StateObject<K> }[BodyFormat]
 
     const state = createStrictAwaitProxy(
-      new StateObject(streamer, routePath, bodyFormat, authUser, this) as statetype
+      new StateObject(streamer, routePath, bodyFormat, authUser.isLoggedIn ? authUser : null, this) as statetype
     );
 
     routePath.forEach(match => {
@@ -273,7 +273,6 @@ export class Router {
         // make sure this parses as valid data
         const { success, data } = z.string().transform(zodTransformJSON).safeParse(state.data);
         if (!success) return state.sendEmpty(400, {});
-        console.log(state.data, data);
         state.data = data;
       }
     } else if (state.bodyFormat === "www-form-urlencoded-urlsearchparams"

@@ -2,7 +2,6 @@ import { bigint, z, ZodEffects, ZodNumber, ZodString, ZodType, ZodTypeAny } from
 import { STREAM_ENDED } from "./streamer";
 import { StateObject } from "./StateObject";
 import { rootRoute as _rootRoute } from "./router";
-import * as sql from "./store/new-sql-tiddler-database";
 import * as path from "path";
 import * as fs from "fs";
 import * as assert from "assert";
@@ -27,6 +26,7 @@ declare global {
     (
       // [T, K] extends ["Acl", "role_id"] ? PrismaField<"Roles", "role_id"> :
       // [T, K] extends ["", "role_id"] ? PrismaField<"Roles", "role_id"> :
+      [T, K] extends ["Tiddlers", "bag_id"] ? PrismaField<"Bags", "bag_id"> :
       [T, K] extends ["Sessions", "user_id"] ? PrismaField<"Users", "user_id"> :
       [T, K] extends ["Recipe_bags", "bag_id"] ? PrismaField<"Bags", "bag_id"> :
       [T, K] extends ["Recipe_bags", "recipe_id"] ? PrismaField<"Recipes", "recipe_id"> :
@@ -58,7 +58,6 @@ declare global { const ok: typeof assert.ok; }
 
 // these are some $tw.utils functions that seemed important enough to just copy across
 declare global {
-  const sjcl: any;
   function hop(object: any, property: any): boolean;
   function each<T>(object: T[], callback: (value: T, index: number, object: T[]) => void): void;
   function each<T>(object: Record<string, T>, callback: (value: T, key: string, object: Record<string, T>) => void): void;

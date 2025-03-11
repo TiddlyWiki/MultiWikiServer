@@ -1,14 +1,13 @@
 import { mkdirSync, readFileSync } from "fs";
 import { resolve } from "path";
 import { TiddlyWiki } from "tiddlywiki";
-import { AttachmentStore } from "./routes/attachments";
+
 import { Commander } from "./commander";
 import { createClient } from "@libsql/client";
 import { PrismaLibSQL } from "@prisma/adapter-libsql";
 import { PrismaClient } from "@prisma/client";
 import { createStrictAwaitProxy } from "./utils";
-import { SqlTiddlerDatabase } from "./store/new-sql-tiddler-database";
-import { SqlTiddlerStore } from "./store/new-sql-tiddler-store";
+
 
 
 export async function bootTiddlyWiki(createTables: boolean, commands: boolean, wikiPath: string) {
@@ -39,6 +38,7 @@ export async function bootTiddlyWiki(createTables: boolean, commands: boolean, w
     "++plugins/server",
     "++src/commands",
     wikiPath,
+    "--mws-render-tiddler",
     ...commands ? [
       // "--mws-load-plugin-bags",
       // "--build", "load-mws-demo-data",
@@ -66,7 +66,7 @@ export async function bootTiddlyWiki(createTables: boolean, commands: boolean, w
         }
       };
 
-      $tw.mws.attachmentStore = new AttachmentStore(storePath, $tw.sjcl, $tw.config);
+      // $tw.mws.attachmentStore = new AttachmentService(storePath, $tw.sjcl, $tw.config);
 
       if (commands) {
         const libsql = createClient({ url: "file:" + resolve(wikiPath, "store/database.sqlite") });
@@ -75,8 +75,6 @@ export async function bootTiddlyWiki(createTables: boolean, commands: boolean, w
         libsql.execute("pragma synchronous=off");
         const adapter = new PrismaLibSQL(libsql)
         const engine = new PrismaClient({ adapter, log: ["error", "warn", "info"] });
-        const sql = createStrictAwaitProxy(new SqlTiddlerDatabase(engine as any));
-        $tw.mws.store = createStrictAwaitProxy(new SqlTiddlerStore(sql, $tw.mws.attachmentStore, $tw.wiki, $tw.config));
 
       }
 

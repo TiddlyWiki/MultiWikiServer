@@ -1,10 +1,12 @@
 import { Readable } from 'stream';
-import { filterAsync, mapAsync, processIncomingStream, readMultipartData, sendResponse } from './utils';
+import { filterAsync, mapAsync, readMultipartData, sendResponse } from './utils';
 import { STREAM_ENDED, Streamer, StreamerState } from './streamer';
 import { PassThrough } from 'node:stream';
 import { AllowedMethod, BodyFormat, RouteMatch, Router } from './router';
 import * as z from 'zod';
 import { AuthUser } from './routes/services/sessions';
+import { Prisma } from '@prisma/client';
+import { Types } from '@prisma/client/runtime/library';
 
 export interface AuthStateRouteACL {
   /** Every level in the route path must have this disabled for it to be disabled */
@@ -48,7 +50,7 @@ export class StateObject<
   get config() { return this.router.config; }
   get method(): M { return super.method as M; }
   readMultipartData
-  processIncomingStream
+  // processIncomingStream
   sendResponse
   sendDevServer
   mapAsync
@@ -113,11 +115,10 @@ export class StateObject<
 
     // this.adminWiki = this.router.$tw.wiki;
     // this.Tiddler = this.router.$tw.Tiddler;
-    this.sjcl = this.router.sjcl;
+    // this.sjcl = this.router.sjcl;
     // this.config = this.router.$tw.config;
 
     this.readMultipartData = readMultipartData.bind(this);
-    this.processIncomingStream = processIncomingStream.bind(this);
     this.sendResponse = sendResponse.bind(this.router, this);
     this.sendDevServer = this.router.sendDevServer.bind(this.router, this);
     this.mapAsync = mapAsync;
@@ -132,13 +133,15 @@ export class StateObject<
 
     const pathParamsZodCheck = z.record(z.string().transform(zodURIComponent).optional()).safeParse(this.pathParams);
     if (!pathParamsZodCheck.success) console.log("BUG: Path params zod error", pathParamsZodCheck.error, this.pathParams);
+    else this.pathParams = pathParamsZodCheck.data;
+    console.log("pathParams", this.pathParams);
 
     this.queryParams = Object.fromEntries([...this.urlInfo.searchParams.keys()]
       .map(key => [key, this.urlInfo.searchParams.getAll(key)] as const));
 
     const queryParamsZodCheck = z.record(z.array(z.string())).safeParse(this.queryParams);
     if (!queryParamsZodCheck.success) console.log("BUG: Query params zod error", queryParamsZodCheck.error, this.queryParams);
-
+    else this.queryParams = queryParamsZodCheck.data;
 
 
     this.allowAnonReads = this.router.config.allowAnonReads ?? false;
@@ -157,6 +160,10 @@ export class StateObject<
       // return await fn(this.createStore(prisma as PrismaTxnClient))
       return await fn(prisma as PrismaTxnClient);
     });
+  }
+
+  $transactionTuple<P extends Prisma.PrismaPromise<any>[]>(arg: (prisma: Router["engine"]) => [...P], options?: { isolationLevel?: Prisma.TransactionIsolationLevel }): Promise<Types.Utils.UnwrapTuple<P>> {
+    return this.router.engine.$transaction(arg(this.router.engine), options);
   }
 
 

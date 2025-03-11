@@ -1,8 +1,7 @@
 import * as fs from "fs";
 import * as path from "path";
 import { RouterConfig } from "../router";
-import { TiddlerFields } from "../store/new-sql-tiddler-database";
-import { AttachmentService } from "./services/attachments";
+import { AttachmentService, TiddlerFields } from "./services/attachments";
 
 /**
 
@@ -201,6 +200,10 @@ export class TiddlerStore {
   }) {
     const { title, bag_name, bag_id } = options;
     ok(bag_name || bag_id, "bag_name or bag_id must be provided");
+    console.log({ title, bag_name, bag_id });
+    console.log(await this.prisma.tiddlers.findMany({
+      where: { title }
+    }));
     const tiddler_id = await this.prisma.tiddlers.findFirst({
       where: bag_name
         ? { title, bag: { bag_name }, is_deleted: false }
@@ -320,18 +323,18 @@ export class TiddlerStore {
       where: { recipe_name },
       include: {
         recipe_bags: {
-          // if we're saving to the top most bag, we don't check whether it already has the tiddler
-          // where: { bag: { tiddlers: { some: { title: tiddlerFields.title } } } },
-          select: { bag: { select: { bag_name: true } } },
-          orderBy: { position: "desc" },
-          take: 1,
+          // we're saving to the top most bag
+          where: { position: 0 },
+          select: { bag: { select: { bag_id: true, bag_name: true } } },
         }
       }
     });
 
-    const bag_name = recipe?.recipe_bags[0]?.bag.bag_name;
+    if (!recipe) throw new Error("Recipe not found");
 
-    if (!bag_name) return null;
+    const bag_name = recipe.recipe_bags[0]?.bag.bag_name;
+
+    if (!bag_name) throw new Error("Recipe has no bag at position 0");
 
     // Save the tiddler to the specified bag
     var { tiddler_id } = await this.saveBagTiddlerFields(tiddlerFields, bag_name, attachment_blob);
@@ -503,5 +506,85 @@ export class TiddlerStore {
     // 		$bag_name: bag_name
     // 	});
     // 	return { tiddler_id: rowDeleteMarker.lastInsertRowid };
+  }
+  async getRecipeTiddlersByBag(
+    recipe_name: PrismaField<"Recipes", "recipe_name">,
+    options: {
+      // how do you limit a list of unique titles?
+      // limit?: number, 
+      last_known_tiddler_id?: number,
+      include_deleted?: boolean,
+    } = {}
+  ) {
+    // In prisma it's easy to get the top bag for a specific title. 
+    // To get all titles we basically have to get all bags and manually find the top one. 
+    const lastid = options.last_known_tiddler_id;
+    const withDeleted = options.include_deleted;
+    const bags = await this.prisma.recipe_bags.findMany({
+      where: { recipe: { recipe_name } },
+      select: {
+        position: true,
+        bag: {
+          select: {
+            bag_name: true,
+            tiddlers: {
+              select: {
+                title: true,
+                tiddler_id: true,
+                is_deleted: true,
+              },
+              where: {
+                is_deleted: withDeleted ? undefined : false,
+                tiddler_id: lastid ? { gt: lastid } : undefined
+              },
+            }
+          }
+        }
+      },
+    });
+
+
+    return bags.map(e => ({
+      bag_name: e.bag.bag_name,
+      position: e.position,
+      tiddlers: e.bag.tiddlers
+    }));
+
+    // 	// Get the recipe ID
+    // 	const rowsCheckRecipe = this.engine.runStatementGet(`
+    // 	SELECT recipe_id FROM recipes WHERE recipes.recipe_name = $recipe_name
+    // `, {
+    // 		$recipe_name: recipe_name
+    // 	});
+    // 	if (!rowsCheckRecipe) {
+    // 		return null;
+    // 	}
+    // 	const recipe_id = rowsCheckRecipe.recipe_id;
+    // 	// Compose the query to get the tiddlers
+    // 	const params = {
+    // 		$recipe_id: recipe_id
+    // 	};
+    // 	if (options.limit) {
+    // 		params.$limit = options.limit.toString();
+    // 	}
+    // 	if (options.last_known_tiddler_id) {
+    // 		params.$last_known_tiddler_id = options.last_known_tiddler_id;
+    // 	}
+    // 	const rows = this.engine.runStatementGetAll(`
+    // 	SELECT title, tiddler_id, is_deleted, bag_name
+    // 	FROM (
+    // 		SELECT t.title, t.tiddler_id, t.is_deleted, b.bag_name, MAX(rb.position) AS position
+    // 		FROM bags AS b
+    // 		INNER JOIN recipe_bags AS rb ON b.bag_id = rb.bag_id
+    // 		INNER JOIN tiddlers AS t ON b.bag_id = t.bag_id
+    // 		WHERE rb.recipe_id = $recipe_id
+    // 		${options.include_deleted ? "" : "AND t.is_deleted = FALSE"}
+    // 		${options.last_known_tiddler_id ? "AND tiddler_id > $last_known_tiddler_id" : ""}
+    // 		GROUP BY t.title
+    // 		ORDER BY t.title, tiddler_id DESC
+    // 		${options.limit ? "LIMIT $limit" : ""}
+    // 	)
+    // `, params);
+    // 	return rows;
   }
 }

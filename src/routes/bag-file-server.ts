@@ -1,40 +1,57 @@
-import { Readable } from "stream";
 import { StateObject } from "../StateObject";
-import { SqlTiddlerDatabase } from "../store/new-sql-tiddler-database";
-import { DataChecks } from "../data-checks";
 import { adminWiki } from "../router";
-import { tryParseJSON } from "../utils";
-import { AuthUser } from "./services/sessions";
 import { TiddlerStore } from "./TiddlerStore";
 import { resolve } from "path";
-import { createWriteStream } from "fs";
+import { createWriteStream, readFileSync } from "fs";
+import sjcl from "sjcl";
+import { TiddlerFields } from "./services/attachments";
+import { DataChecks } from "../data-checks";
 
 
 export class TiddlerServer extends TiddlerStore {
   static defineRoutes(root: rootRoute, zodAssert: ZodAssert) {
 
-    root.defineRoute({
-      method: ["GET"],
-      path: /^\/bags\/([^\/]+)\/tiddlers\/(.+)$/,
-      pathParams: ["bag_name", "title"],
-      useACL: {},
-    }, async state => {
-      zodAssert.pathParams(state, z => ({
-        bag_name: z.prismaField("Bags", "bag_name", "string"),
-        title: z.prismaField("Tiddlers", "title", "string"),
-      }));
+    async function assertRecipeACL(state: StateObject, recipe_name: string, user_id: number | undefined, needWrite: boolean) {
 
-      console.error("ACL not implemented");
 
-      return await state.$transaction(async prisma => {
-        const server = new TiddlerServer(state, prisma);
-        return server.sendBagTiddler({
-          state,
-          bag_name: state.pathParams.bag_name,
-          title: state.pathParams.title
-        });
-      });
-    });
+      const [recipe, canRead, canWrite] = await state.$transactionTuple(prisma => [
+        prisma.recipes.findUnique({
+          select: { recipe_id: true },
+          where: { recipe_name }
+        }),
+        prisma.recipes.findUnique({
+          select: { recipe_id: true },
+          where: {
+            recipe_name,
+            recipe_bags: {
+              every: {
+                bag: {
+                  OR: new DataChecks(state.config).getBagWhereACL({ permission: "READ", user_id })
+                }
+              }
+            }
+          }
+        }),
+        needWrite ? prisma.recipes.findUnique({
+          select: { recipe_id: true },
+          where: {
+            recipe_name,
+            recipe_bags: {
+              some: {
+                position: 0, bag: {
+                  OR: new DataChecks(state.config).getBagWhereACL({ permission: "WRITE", user_id })
+                }
+              }
+            }
+          }
+        }) : prisma.$queryRaw`SELECT 1`,
+      ]);
+
+      if (!recipe) throw state.sendEmpty(404, { "x-reason": "recipe not found" });
+      if (!canRead) throw state.sendEmpty(403, { "x-reason": "no read permission" });
+      if (needWrite && !canWrite) throw state.sendEmpty(403, { "x-reason": "no write permission" });
+
+    }
 
     root.defineRoute({
       method: ["GET"],
@@ -53,12 +70,12 @@ export class TiddlerServer extends TiddlerStore {
 
       const { recipe_name, title } = state.pathParams;
 
-      console.error("ACL not implemented");
+      await assertRecipeACL(state, recipe_name, state.user?.user_id, false);
 
       return await state.$transaction(async prisma => {
         const server = new TiddlerServer(state, prisma);
         const bag = await server.getRecipeBagWithTiddler({ recipe_name, title });
-        if (!bag) return state.sendEmpty(404);
+        if (!bag) return state.sendEmpty(404, { "x-reason": "bag not found" });
         return await server.sendBagTiddler({ state, bag_id: bag.bag_id, title });
       });
     });
@@ -79,15 +96,19 @@ export class TiddlerServer extends TiddlerStore {
       }));
       const { recipe_name } = state.pathParams;
       const include_deleted = state.queryParams.include_deleted?.[0] === "true";
-      const last_known_tiddler_id = state.queryParams.last_known_tiddler_id?.[0];
+      const last_known_tiddler_id = +(state.queryParams.last_known_tiddler_id?.[0] ?? 0) || undefined;
 
-      console.error("ACL not implemented");
+      await assertRecipeACL(state, recipe_name, state.user?.user_id, false);
 
-      return await state.$transaction(async prisma => {
+      const result = await state.$transaction(async prisma => {
         const server = new TiddlerServer(state, prisma);
-        return await server.serveAllTiddlers(recipe_name, include_deleted, last_known_tiddler_id);
-      });
+        return await server.getRecipeTiddlers(recipe_name, {
+          include_deleted,
+          last_known_tiddler_id
+        });
 
+      });
+      return state.sendJSON(200, result);
     });
 
     root.defineRoute({
@@ -97,6 +118,7 @@ export class TiddlerServer extends TiddlerStore {
       bodyFormat: "json",
       useACL: {},
     }, async state => {
+
       zodAssert.pathParams(state, z => ({
         recipe_name: z.prismaField("Recipes", "recipe_name", "string"),
         title: z.prismaField("Tiddlers", "title", "string"),
@@ -106,12 +128,17 @@ export class TiddlerServer extends TiddlerStore {
         title: z.prismaField("Tiddlers", "title", "string", false),
       }).and(z.record(z.string())));
 
-      console.error("ACL not implemented");
+      const { recipe_name, title } = state.pathParams;
 
-      return await state.$transaction(async prisma => {
+      await assertRecipeACL(state, recipe_name, state.user?.user_id, true);
+
+      await state.$transaction(async prisma => {
         const server = new TiddlerServer(state, prisma);
         await server.saveRecipeTiddler(state.data, state.pathParams.recipe_name);
       });
+
+      return state.sendEmpty(204);
+
     })
 
     root.defineRoute({
@@ -137,12 +164,37 @@ export class TiddlerServer extends TiddlerStore {
         return await server.deleteTiddler(title, bag_name);
       });
 
+      console.log("delete result", result);
+
       return state.sendEmpty(204, {
         "X-Revision-Number": result.tiddler_id.toString(),
         Etag: state.makeTiddlerEtag(result),
         "Content-Type": "text/plain"
       });
 
+    });
+
+    root.defineRoute({
+      method: ["GET"],
+      path: /^\/bags\/([^\/]+)\/tiddlers\/(.+)$/,
+      pathParams: ["bag_name", "title"],
+      useACL: {},
+    }, async state => {
+      zodAssert.pathParams(state, z => ({
+        bag_name: z.prismaField("Bags", "bag_name", "string"),
+        title: z.prismaField("Tiddlers", "title", "string"),
+      }));
+
+      console.error("ACL not implemented");
+
+      return await state.$transaction(async prisma => {
+        const server = new TiddlerServer(state, prisma);
+        return server.sendBagTiddler({
+          state,
+          bag_name: state.pathParams.bag_name,
+          title: state.pathParams.title
+        });
+      });
     });
 
     root.defineRoute({
@@ -161,8 +213,10 @@ export class TiddlerServer extends TiddlerStore {
       // Get the parameters
       const bag_name = state.pathParams.bag_name;
 
-      // Process the incoming data
-      const results = await state.processIncomingStream(bag_name);
+      const results = await state.$transaction(async prisma => {
+        const server = new TiddlerServer(state, prisma);
+        return await server.processIncomingStream(bag_name);
+      });
 
       // we aren't rendering html anymore, so just return json
       return state.sendJSON(200, { bag_name, results });
@@ -232,32 +286,38 @@ export class TiddlerServer extends TiddlerStore {
         return state.sendEmpty(404);
       }
     });
+
+    root.defineRoute({
+      method: ["GET"],
+      path: /^\/wiki\/([^\/]+)$/,
+      pathParams: ["recipe_name"],
+      useACL: {},
+    }, async state => {
+      zodAssert.pathParams(state, z => ({
+        recipe_name: z.prismaField("Recipes", "recipe_name", "string"),
+      }));
+
+      await assertRecipeACL(state, state.pathParams.recipe_name, state.user?.user_id, false);
+
+      return await state.$transaction(async prisma => {
+        const server = new TiddlerServer(state, prisma);
+        return await server.serveIndexFile(state.pathParams.recipe_name);
+      });
+
+    })
   }
-  // user;
-  // checks;
-  // attachmentStore;
-  // contentTypeInfo;
-  // public storePath: string = ""
-  // public sjcl: any
-  // public config: any
+
   constructor(
     protected state: StateObject,
     prisma: PrismaTxnClient
   ) {
-
     super(state.config, prisma);
-    // this.contentTypeInfo = state.config.contentTypeInfo;
-    // this.attachmentStore = state.attachmentStore;
-
-    // this.checks = new DataChecks({ allowAnonReads: false, allowAnonWrites: false });
-
-    // this.user = state.authenticatedUser;
   }
 
   async serveAllTiddlers(
     recipe_name: string,
     include_deleted: boolean,
-    last_known_tiddler_id: string | undefined
+    last_known_tiddler_id: number | null
   ) {
     console.error("Not implemented");
 
@@ -292,7 +352,47 @@ export class TiddlerServer extends TiddlerStore {
     //   return;
     // }
 
-    return this.state.sendEmpty(404);
+    // const tiddlers = await this.prisma.tiddlers.findMany({
+    //   where: { bag: { recipe_bags: { some: { recipe: { recipe_name } } } } },
+    //   select: { title: true, tiddler_id: true, is_deleted: true, bag_id: true, },
+    //   orderBy: { title: "asc", tiddler_id: "desc" }
+    // });
+
+    const recipe = await this.prisma.recipes.findUnique({
+      where: { recipe_name },
+      include: { recipe_bags: { select: { bag_id: true, position: true, bag: true } } }
+    });
+
+    if (!recipe) return this.state.sendEmpty(404);
+
+    const bags = new Map(recipe.recipe_bags.map(bag => [bag.bag_id, bag]));
+
+    const tiddlers = await this.prisma.tiddlers.findMany({
+      where: { bag_id: { in: recipe.recipe_bags.map(bag => bag.bag_id) } },
+      include: { bag: true }
+    });
+
+    const recipeTiddlers = new Map<PrismaField<"Tiddlers", "title">, typeof tiddlers[number]>();
+
+    tiddlers.forEach(tiddler => {
+      const current = recipeTiddlers.get(tiddler.title);
+      if (!current || bags.get(tiddler.bag_id)!.position < bags.get(current.bag_id)!.position)
+        recipeTiddlers.set(tiddler.title, tiddler);
+    });
+
+    const result = Array.from(recipeTiddlers.values())
+      .map(tiddler => ({
+        title: tiddler.title,
+        tiddler_id: tiddler.tiddler_id,
+        is_deleted: tiddler.is_deleted,
+        bag_name: tiddler.bag.bag_name,
+        // fields: tiddler.fields
+      }))
+      .filter(e => include_deleted || !e.is_deleted)
+      .filter(e => !last_known_tiddler_id || e.tiddler_id > last_known_tiddler_id);
+
+    return this.state.sendJSON(200, result);
+
   }
 
 
@@ -305,7 +405,7 @@ export class TiddlerServer extends TiddlerStore {
 
     ok(bag_name || bag_id, 'bag_name or bag_id must be provided');
 
-    const tiddlerInfo = bag_name && await this.getBagTiddler({ bag_name, bag_id, title });
+    const tiddlerInfo = await this.getBagTiddler({ bag_name, bag_id, title });
 
     if (!tiddlerInfo || !tiddlerInfo.tiddler) {
       // Redirect to fallback URL if tiddler not found
@@ -313,7 +413,7 @@ export class TiddlerServer extends TiddlerStore {
       if (fallback) {
         return state.redirect(fallback);
       } else {
-        return state.sendEmpty(404);
+        return state.sendEmpty(404, { "x-reason": "tiddler not found (no fallback)" });
       }
     }
 
@@ -331,7 +431,7 @@ export class TiddlerServer extends TiddlerStore {
     } else {
 
       // This is not a JSON API request, we should return the raw tiddler content
-      const result = await this.getBagTiddlerStream(title, bag_name);
+      const result = await this.getBagTiddlerStream(title, tiddlerInfo.bag_name);
       if (!result || !result.stream) return state.sendEmpty(404);
 
       return state.sendStream(200, {
@@ -410,11 +510,10 @@ export class TiddlerServer extends TiddlerStore {
     if (!partFile) {
       throw await this.state.sendResponse(400, { "Content-Type": "text/plain" }, "Missing file to upload");
     }
+
     const type = partFile.headers["content-type"];
-    const tiddlerFields = {
-      title: partFile.filename,
-      type: type
-    };
+    const tiddlerFields = { title: partFile.filename, type };
+
     for (const part of parts) {
       const tiddlerFieldPrefix = "tiddler-field-";
       if (part.name.startsWith(tiddlerFieldPrefix)) {
@@ -434,6 +533,101 @@ export class TiddlerServer extends TiddlerStore {
     });
 
     return parts;
+  }
+
+  async getRecipeTiddlers(recipe_name: PrismaField<"Recipes", "recipe_name">, options: { include_deleted?: boolean, last_known_tiddler_id?: number } = {}) {
+    // Get the recipe name from the parameters
+    const bagTiddlers = recipe_name && await this.getRecipeTiddlersByBag(recipe_name);
+    bagTiddlers.forEach(tiddler => { console.log(tiddler.tiddlers); });
+
+    bagTiddlers.sort((a, b) => a.position - b.position).reverse();
+
+    const recipeTiddlers = Array.from(new Map(bagTiddlers.flatMap(bag =>
+      bag.tiddlers.map(tiddler => [tiddler.title, {
+        title: tiddler.title,
+        tiddler_id: tiddler.tiddler_id,
+        is_deleted: tiddler.is_deleted,
+        bag_name: bag.bag_name
+      }])
+    )).values());
+
+    return recipeTiddlers;
+
+  }
+  async serveIndexFile(recipe_name: PrismaField<"Recipes", "recipe_name">) {
+    const state = this.state;
+
+    console.log(await this.prisma.tiddlers.findMany({}));
+    const recipeTiddlers = await this.getRecipeTiddlers(recipe_name);
+
+    recipeTiddlers.forEach(tiddler => {
+      console.log(tiddler.title, tiddler.is_deleted);
+    });
+
+    // Check request is valid
+    if (!recipe_name || !recipeTiddlers) {
+      return state.sendEmpty(404);
+    }
+
+    state.writeHead(200, {
+      "Content-Type": "text/html"
+    });
+    // Get the tiddlers in the recipe
+    // Render the template
+    const template = readFileSync("tiddlywiki5.html", "utf8");
+    // Splice in our tiddlers
+    var marker = `<` + `script class="tiddlywiki-tiddler-store" type="application/json">[`,
+      markerPos = template.indexOf(marker);
+    if (markerPos === -1) {
+      throw new Error("Cannot find tiddler store in template");
+    }
+    /**
+     * 
+     * @param {Record<string, string>} tiddlerFields 
+     */
+    function writeTiddler(tiddlerFields: Record<string, string>) {
+      state.write(JSON.stringify(tiddlerFields).replace(/</g, "\\u003c"));
+      state.write(",\n");
+    }
+    state.write(template.substring(0, markerPos + marker.length));
+    const
+      bagInfo: Record<string, string> = {},
+      revisionInfo: Record<string, string> = {};
+
+    for (const recipeTiddlerInfo of recipeTiddlers) {
+      var result = await this.getRecipeTiddler(recipeTiddlerInfo.title, recipe_name);
+      if (result) {
+        bagInfo[result.tiddler.title] = result.bag_name;
+        revisionInfo[result.tiddler.title] = result.tiddler_id.toString();
+        writeTiddler(result.tiddler);
+      }
+    }
+
+    writeTiddler({
+      title: "$:/state/multiwikiclient/tiddlers/bag",
+      text: JSON.stringify(bagInfo),
+      type: "application/json"
+    });
+    writeTiddler({
+      title: "$:/state/multiwikiclient/tiddlers/revision",
+      text: JSON.stringify(revisionInfo),
+      type: "application/json"
+    });
+    writeTiddler({
+      title: "$:/config/multiwikiclient/recipe",
+      text: recipe_name
+    });
+    const lastTiddlerId = await this.prisma.tiddlers.aggregate({
+      where: { bag: { recipe_bags: { some: { recipe: { recipe_name } } } } },
+      _max: { tiddler_id: true }
+    });
+    writeTiddler({
+      title: "$:/state/multiwikiclient/recipe/last_tiddler_id",
+      text: (lastTiddlerId._max.tiddler_id ?? 0).toString()
+    });
+    state.write(template.substring(markerPos + marker.length))
+    // Finish response
+    return state.end();
   }
 
 }
