@@ -200,10 +200,7 @@ export class TiddlerStore {
   }) {
     const { title, bag_name, bag_id } = options;
     ok(bag_name || bag_id, "bag_name or bag_id must be provided");
-    console.log({ title, bag_name, bag_id });
-    console.log(await this.prisma.tiddlers.findMany({
-      where: { title }
-    }));
+
     const tiddler_id = await this.prisma.tiddlers.findFirst({
       where: bag_name
         ? { title, bag: { bag_name }, is_deleted: false }

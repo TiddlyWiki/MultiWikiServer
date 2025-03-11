@@ -45,7 +45,7 @@ export class RecipeManager extends BaseManager {
 
     const { isAdmin, user_id, username } = this.user;
 
-    const { OR } = this.checks.getBagWhereACL({ permission: "READ", user_id, });
+    const OR = this.checks.getBagWhereACL({ permission: "READ", user_id, });
 
     const bagList = await this.prisma.bags.findMany({
       include: {
@@ -92,7 +92,7 @@ export class RecipeManager extends BaseManager {
 
     if (!isAdmin && !owned) throw "User is not an admin and cannot create a recipe that is not owned";
 
-    const { OR } = this.checks.getBagWhereACL({ permission: "ADMIN", user_id, });
+    const OR = this.checks.getBagWhereACL({ permission: "ADMIN", user_id, });
 
     const bags = new Map(
       await this.prisma.bags.findMany({
