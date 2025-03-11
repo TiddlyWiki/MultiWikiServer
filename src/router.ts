@@ -4,7 +4,7 @@ import RootRoute from "./routes";
 import * as z from "zod";
 import { createStrictAwaitProxy } from "./utils";
 import { existsSync, mkdirSync } from "fs";
-import { AttachmentStore } from "./store/attachments";
+// import { AttachmentStore } from "./routes/attachments";
 import { resolve } from "path";
 import { Prisma, PrismaClient } from "@prisma/client";
 import { bootTiddlyWiki } from "./tiddlywiki";
@@ -16,8 +16,8 @@ import {
 } from "./rootRoute";
 import { setupDevServer } from "./serve-esbuild";
 import { createPasswordService, PasswordService } from "./Authenticator";
-import { MWSConfig } from "./server";
-import * as sessions from "./sessions";
+import { MWSConfig, MWSConfigConfig } from "./server";
+import * as sessions from "./routes/services/sessions";
 
 export { RouteMatch, Route, rootRoute };
 
@@ -29,7 +29,7 @@ export type BodyFormat = typeof BodyFormats[number];
 
 export const PermissionName = []
 
-export function adminWiki(){
+export function adminWiki() {
   return (global as any).$tw.wiki;
 }
 
@@ -54,10 +54,22 @@ const zodTransformJSON = (arg: string, ctx: z.RefinementCtx) => {
   }
 };
 
+export interface RouterConfig extends MWSConfigConfig {
+  attachmentSizeLimit: number;
+  attachmentsEnabled: boolean;
+  contentTypeInfo: Record<string, any>;
+  saveLargeTextToFileSystem: never;
+  storePath: string;
+}
+
 export class Router {
 
 
-  static async makeRouter(config: MWSConfig["config"], passwordKey: string, SessionManager: typeof sessions.SessionManager) {
+  static async makeRouter(
+    config: MWSConfig["config"], 
+    passwordKey: string, 
+    SessionManager: typeof sessions.SessionManager
+  ) {
     const { wikiPath } = config;
 
     const rootRoute = defineRoute(ROOT_ROUTE, {
@@ -79,14 +91,20 @@ export class Router {
 
     const $tw = (global as any).$tw = await bootTiddlyWiki(createTables, createTables, wikiPath);
 
-    const attachmentStore: AttachmentStore = $tw.mws.attachmentStore;
-    config.contentTypeInfo = $tw.config.contentTypeInfo;
+    const routerConfig: RouterConfig = {
+      ...config,
+      attachmentsEnabled: !!config.saveLargeTextToFileSystem,
+      attachmentSizeLimit: config.saveLargeTextToFileSystem ?? 0,
+      contentTypeInfo: $tw.config.contentTypeInfo,
+      saveLargeTextToFileSystem: undefined as never,
+      storePath: storePath,
+    };
 
     const sendDevServer = await setupDevServer();
 
     const PasswordService = await createPasswordService(passwordKey);
 
-    const router = new Router(rootRoute, config, attachmentStore, sendDevServer, PasswordService, SessionManager);
+    const router = new Router(rootRoute, routerConfig, sendDevServer, PasswordService, SessionManager);
 
     await this.initDatabase(router);
 
@@ -181,8 +199,8 @@ export class Router {
   databasePath: string;
   constructor(
     private rootRoute: rootRoute,
-    public config: MWSConfig["config"],
-    public attachmentStore: AttachmentStore,
+    public config: RouterConfig,
+    // public attachmentStore: AttachmentStore,
     public sendDevServer: (this: Router, state: StateObject) => Promise<symbol>,
     public PasswordService: PasswordService,
     public SessionManager: typeof sessions.SessionManager

@@ -1,7 +1,7 @@
 import { mkdirSync, readFileSync } from "fs";
 import { resolve } from "path";
 import { TiddlyWiki } from "tiddlywiki";
-import { AttachmentStore } from "./store/attachments";
+import { AttachmentStore } from "./routes/attachments";
 import { Commander } from "./commander";
 import { createClient } from "@libsql/client";
 import { PrismaLibSQL } from "@prisma/adapter-libsql";

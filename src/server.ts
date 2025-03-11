@@ -8,10 +8,10 @@ import { createServer, IncomingMessage, Server, ServerResponse } from 'node:http
 import { existsSync, readFileSync } from 'node:fs';
 import { Streamer } from "./streamer";
 import { Router } from './router';
-import * as sessions from "./sessions";
+import * as sessions from "./routes/services/sessions";
 import { resolve } from "node:path";
 
-export * from "./sessions";
+export * from "./routes/services/sessions";
 
 declare module 'node:net' {
   interface Socket {
@@ -117,6 +117,21 @@ export default async function startServer(config: MWSConfig) {
 
 }
 
+export interface MWSConfigConfig {
+  /** Path to the mws datafolder. */
+  readonly wikiPath: string
+  /** If true, allow users that aren't logged in to read. */
+  readonly allowAnonReads?: boolean
+  /** If true, allow users that aren't logged in to write. */
+  readonly allowAnonWrites?: boolean
+  /** If true, recipes will allow access to a user who does not have read access to all its bags. */
+  readonly allowUnreadableBags?: boolean
+  /** If true, files larger than `this * 1024` will be saved to disk alongside the database instead of in the database. */
+  readonly saveLargeTextToFileSystem?: number;
+
+
+}
+
 export interface MWSConfig {
   https?: {
     /** The key file for the HTTPS server */
@@ -130,17 +145,7 @@ export interface MWSConfig {
   host?: string
   /** The key file for the password encryption. If this key changes, passwords will need to be reset. */
   passwordMasterKey?: string
-  config: {
-    /** Path to the mws datafolder. */
-    readonly wikiPath: string
-    /** If true, allow users that aren't logged in to read. */
-    readonly allowAnonReads?: boolean
-    /** If true, allow users that aren't logged in to write. */
-    readonly allowAnonWrites?: boolean
-    /** If true, recipes will allow access to a user who does not have read access to all its bags. */
-    readonly allowUnreadableBags?: boolean
-    contentTypeInfo?: any;
-  }
+  config: MWSConfigConfig
   /** 
    * The session manager class registers the login handler routes and sets the auth user 
    */

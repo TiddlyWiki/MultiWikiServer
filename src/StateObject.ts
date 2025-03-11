@@ -4,7 +4,7 @@ import { STREAM_ENDED, Streamer, StreamerState } from './streamer';
 import { PassThrough } from 'node:stream';
 import { AllowedMethod, BodyFormat, RouteMatch, Router } from './router';
 import * as z from 'zod';
-import { AuthUser } from './sessions';
+import { AuthUser } from './routes/services/sessions';
 
 export interface AuthStateRouteACL {
   /** Every level in the route path must have this disabled for it to be disabled */
@@ -83,7 +83,7 @@ export class StateObject<
   // however it is used in client state as well, so I have to leave it here for now.
   firstGuestUser: boolean = false;
   databasePath
-  attachmentStore
+  // attachmentStore
 
   // auth: Authenticator;
   // store!: SqlTiddlerStore;
@@ -108,12 +108,12 @@ export class StateObject<
     this.authenticatedUser = user;
 
     this.databasePath = this.router.databasePath;
-    this.attachmentStore = this.router.attachmentStore;
+    // this.attachmentStore = this.router.attachmentStore;
     // this.store = this.createStore(this.router.engine);
 
     // this.adminWiki = this.router.$tw.wiki;
     // this.Tiddler = this.router.$tw.Tiddler;
-    // this.sjcl = this.router.$tw.sjcl;
+    this.sjcl = this.router.sjcl;
     // this.config = this.router.$tw.config;
 
     this.readMultipartData = readMultipartData.bind(this);

@@ -14,10 +14,10 @@ Validation is for the most part left to the caller
 import { Prisma, PrismaClient } from "@prisma/client";
 import { Args, DefaultArgs, GetResult, Operation, Payload } from "@prisma/client/runtime/library";
 import * as z from "zod";
-import { DataChecks } from "./data-checks";
+import { DataChecks } from "../data-checks";
 import type { SqlTiddlerStore } from "./new-sql-tiddler-store";
 export interface TiddlerFields extends Record<string, any> {
-	title: string;
+	title: PrismaField<"Tiddlers", "title">;
 }
 const ModelNames = Object.keys(Prisma.ModelName);
 

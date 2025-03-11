@@ -1,8 +1,8 @@
 
-import { Streamer } from "./streamer";
-import { BaseKeyMap, BaseManager, BaseManagerMap } from "./routes/BaseManager";
+import { Streamer } from "../../streamer";
+import { BaseKeyMap, BaseManager, BaseManagerMap } from "../BaseManager";
 import { randomBytes } from "node:crypto";
-import { Router } from "./router";
+import { Router } from "../../router";
 
 export interface AuthUser {
   user_id: PrismaField<"Users", "user_id">;

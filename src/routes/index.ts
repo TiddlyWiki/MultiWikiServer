@@ -2,16 +2,16 @@ import { readdirSync, statSync } from "fs";
 import { rootRoute } from "../router";
 import { ZodAssert } from "../zodAssert";
 import { TiddlerServer } from "./bag-file-server";
-import { RecipeKeyMap, RecipeManager } from "./manager-recipes";
-import { UserKeyMap, UserManager } from "./manager-users";
+import { RecipeKeyMap, RecipeManager } from "./managers/manager-recipes";
+import { UserKeyMap, UserManager } from "./managers/manager-users";
 import { StateObject } from "../StateObject";
 import { ZodAction } from "./BaseManager";
-import { SessionManager } from "../sessions";
+import { SessionManager } from "./services/sessions";
 
 import { Prisma, PrismaClient } from "@prisma/client";
 
-export { UserManager, UserManagerMap } from "./manager-users";
-export { RecipeManager, RecipeManagerMap } from "./manager-recipes";
+export { UserManager, UserManagerMap } from "./managers/manager-users";
+export { RecipeManager, RecipeManagerMap } from "./managers/manager-recipes";
 
 function isKeyOf<T extends Record<string, any>>(obj: T, key: string | number | symbol): key is keyof T {
   return key in obj;

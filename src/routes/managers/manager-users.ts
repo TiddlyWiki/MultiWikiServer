@@ -1,4 +1,4 @@
-import { BaseKeyMap, BaseManager, BaseManagerMap,  } from "./BaseManager";
+import { BaseKeyMap, BaseManager, BaseManagerMap,  } from "../BaseManager";
 
 export const UserKeyMap: BaseKeyMap<UserManager, true> = {
   user_create: true,

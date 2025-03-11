@@ -9,6 +9,7 @@ import { Router } from "./router";
 import { mkdirSync } from "node:fs";
 import * as fs from "node:fs";
 import * as path from "node:path";
+import sjcl from "sjcl";
 /**
 Options include:
 - `cbPartStart(headers,name,filename)` - invoked when a file starts being received
@@ -123,110 +124,6 @@ export function readMultipartData(this: StateObject<any, any>, options: {
   });
 
 }
-
-
-/*
-Process an incoming new multipart/form-data stream. Options include:
-
-store - tiddler store
-state - provided by server.js
-response - provided by server.js
-bag_name - name of bag to write to
-callback - invoked as callback(err,results). Results is an array of titles of imported tiddlers
-*/
-/**
- * 
- * @param {Object} options 
- * @param {SqlTiddlerStore} options.store
- * @param {ServerState} options.state
- * @param {ServerResponse} options.response
- * @param {string} options.bag_name
- * @param {function} options.callback
- */
-export async function processIncomingStream(
-  this: StateObject,
-  bag_name: PrismaField<"Bags", "bag_name">,
-): Promise<string[]> {
-  const state = this;
-  // Process the incoming data
-  const inboxName = new Date().toISOString().replace(/:/g, "-");
-  const inboxPath = path.resolve(this.store.attachmentStore.storePath, "inbox", inboxName);
-  createDirectory(inboxPath);
-  let fileStream: { write: (arg0: any) => void; end: () => void; } | null = null; // Current file being written
-  let hash: { update: (arg0: any) => void; finalize: () => any; } | null = null; // Accumulating hash of current part
-  let length = 0; // Accumulating length of current part
-  const parts: any[] = []; // Array of {name:, headers:, value:, hash:} and/or {name:, filename:, headers:, inboxFilename:, hash:} 
-
-
-  const options = { callback: {} }
-  await this.readMultipartData({
-    cbPartStart: function (headers, name, filename) {
-      const part: any = {
-        name: name,
-        filename: filename,
-        headers: headers
-      };
-      if (filename) {
-        const inboxFilename = (parts.length).toString();
-        part.inboxFilename = path.resolve(inboxPath, inboxFilename);
-        fileStream = fs.createWriteStream(part.inboxFilename);
-      } else {
-        part.value = "";
-      }
-      hash = new state.sjcl.hash.sha256();
-      length = 0;
-      parts.push(part)
-    },
-    cbPartChunk: function (chunk) {
-      if (fileStream) {
-        fileStream.write(chunk);
-      } else {
-        parts[parts.length - 1].value += chunk;
-      }
-      length = length + chunk.length;
-      hash!.update(chunk);
-    },
-    cbPartEnd: function () {
-      if (fileStream) {
-        fileStream.end();
-      }
-      fileStream = null;
-      parts[parts.length - 1].hash = state.sjcl.codec.hex.fromBits(hash!.finalize()).slice(0, 64).toString();
-      hash = null;
-    },
-    // if an error is given here, it will also be thrown in the promise
-    cbFinished: (err) => { }
-  });
-
-  const partFile = parts.find(part => part.name === "file-to-upload" && !!part.filename);
-  if (!partFile) {
-    throw await this.sendResponse(400, { "Content-Type": "text/plain" }, "Missing file to upload");
-  }
-  const type = partFile.headers["content-type"];
-  const tiddlerFields = {
-    title: partFile.filename,
-    type: type
-  };
-  for (const part of parts) {
-    const tiddlerFieldPrefix = "tiddler-field-";
-    if (part.name.startsWith(tiddlerFieldPrefix)) {
-      (tiddlerFields as any)[part.name.slice(tiddlerFieldPrefix.length)] = part.value.trim();
-    }
-  }
-
-  await this.store.saveBagTiddlerWithAttachment(tiddlerFields, bag_name, {
-    filepath: partFile.inboxFilename,
-    type: type,
-    hash: partFile.hash
-  } as any).then(() => {
-    deleteDirectory(inboxPath);
-    return [tiddlerFields.title];
-  }, err => {
-    throw err;
-  });
-
-  return parts;
-};
 
 
 

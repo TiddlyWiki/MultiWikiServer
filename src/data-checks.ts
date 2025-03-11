@@ -1,5 +1,5 @@
 import { Prisma } from "@prisma/client";
-import { truthy } from "../utils";
+import { truthy } from "./utils";
 
 
 export class DataChecks {

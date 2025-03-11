@@ -17,6 +17,9 @@ declare global {
    * If you assign values like `5 as PrismaField<"Bags", "bag_name">`, 
    * this will result in a type error on the as keyword, 
    * allowing you to catch incorrect types quickly.
+   * 
+   * It also makes sure that arguments are used correctly 
+   * (so you can't switch a title and bag_name around).
   */
   type PrismaField<T extends Prisma.ModelName, K extends keyof PrismaPayloadScalars<T>> =
     // manually map foriegn keys to their corresponding primary key so comparisons work
@@ -55,7 +58,7 @@ declare global { const ok: typeof assert.ok; }
 
 // these are some $tw.utils functions that seemed important enough to just copy across
 declare global {
-
+  const sjcl: any;
   function hop(object: any, property: any): boolean;
   function each<T>(object: T[], callback: (value: T, index: number, object: T[]) => void): void;
   function each<T>(object: Record<string, T>, callback: (value: T, key: string, object: Record<string, T>) => void): void;

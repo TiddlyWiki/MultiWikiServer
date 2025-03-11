@@ -1,7 +1,7 @@
 import { Wiki } from "tiddlywiki";
 import { createStrictAwaitProxy } from "../utils";
 import { StateObject } from "../StateObject";
-import { DataChecks } from "./data-checks";
+import { DataChecks } from "../data-checks";
 import { SqlTiddlerDatabase, TiddlerFields } from "./new-sql-tiddler-database";
 import { Readable } from "stream";
 import { resolve } from "path";
@@ -307,8 +307,7 @@ export class SqlTiddlerStore extends DataChecks {
   Returns {tiddler_id:,bag_name:}
   */
   async saveRecipeTiddler(incomingTiddlerFields: TiddlerFields, recipe_name: PrismaField<"Recipes", "recipe_name">) {
-    this.okTiddlerFields(incomingTiddlerFields);
-    this.okTiddlerTitle(incomingTiddlerFields.title);
+
     const existing_attachment_blob = await this.sql.getRecipeTiddlerAttachmentBlob(incomingTiddlerFields.title, recipe_name);
     const { tiddlerFields, attachment_blob } = await this.processIncomingTiddler(incomingTiddlerFields, existing_attachment_blob, incomingTiddlerFields._canonical_uri);
     const result = this.sql.saveRecipeTiddler(tiddlerFields, recipe_name, attachment_blob);
@@ -448,7 +447,5 @@ export class SqlTiddlerStore extends DataChecks {
   getRecipeBags(recipe_name: PrismaField<"Recipes", "recipe_name">) {
     return this.sql.getRecipeBags(recipe_name);
   }
-
-
 
 }

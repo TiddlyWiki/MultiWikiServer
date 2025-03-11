@@ -1,7 +1,7 @@
 import { ZodTypeAny, ZodType, z } from "zod";
 import { StateObject } from "../StateObject";
 import { Z2 } from "../zodAssert";
-import { DataChecks } from "../store/data-checks";
+import { DataChecks } from "../data-checks";
 import { STREAM_ENDED } from "../streamer";
 
 /*

@@ -1,5 +1,5 @@
 import { z, ZodTypeAny } from "zod";
-import { BaseKeyMap, BaseManager, BaseManagerMap, } from "./BaseManager";
+import { BaseKeyMap, BaseManager, BaseManagerMap, } from "../BaseManager";
 
 
 /*
