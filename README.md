@@ -36,8 +36,3 @@ We need to find the best way to implement client-side rendering logic in TiddlyW
 - Replacing the root render tiddler with a custom tiddler that changes based on `location.pathname`. 
 - Loading the variables required by each render tiddler from the server via a Javascript tiddler.
 - Capturing form submissions and handing them off to a Javascript tiddler.
-
-### This is a map of the current database layout.
-
-![prisma-editor (3)](https://github.com/user-attachments/assets/295e243a-a1f4-4e2a-8ed8-7b05110703b2)
-

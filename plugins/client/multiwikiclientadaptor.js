@@ -15,8 +15,7 @@ previous operation to complete before sending a new one.
 
 \*/
 //@ts-check
-/** @type {any} */
-const $tw = {};
+
 /*jslint node: true, browser: true */
 /*global $tw: false */
 "use strict";
@@ -378,24 +377,6 @@ MultiWikiClientAdaptor.prototype.name = "multiwikiclient";
 
 MultiWikiClientAdaptor.prototype.supportsLazyLoading = true;
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 if($tw.browser && document.location.protocol.substr(0, 4) === "http") {
 	exports.adaptorClass = MultiWikiClientAdaptor;
 }
-
-

@@ -5,6 +5,7 @@ import { resolve } from "path";
 import { createWriteStream, readFileSync } from "fs";
 import sjcl from "sjcl";
 import { ZodAssert as zodAssert } from "../zodAssert";
+import { createHash } from "crypto";
 
 
 export class TiddlerServer extends TiddlerStore {
@@ -115,7 +116,7 @@ export class TiddlerServer extends TiddlerStore {
       const { bag_name, title } = state.pathParams;
       if (!bag_name || !title) return state.sendEmpty(404, { "x-reason": "bag_name or title not found" });
 
-      state.assertBagACL(bag_name, state.user?.user_id, true);
+      await state.assertBagACL(bag_name, state.user?.user_id, true);
 
       const result = await state.$transaction(async prisma => {
         const server = new TiddlerServer(state, prisma);
@@ -246,7 +247,7 @@ export class TiddlerServer extends TiddlerStore {
     });
 
     root.defineRoute({
-      method: ["GET"],
+      method: ["GET", "HEAD"],
       path: /^\/wiki\/([^\/]+)$/,
       pathParams: ["recipe_name"],
       useACL: {},
@@ -425,7 +426,9 @@ export class TiddlerServer extends TiddlerStore {
         is_deleted: tiddler.is_deleted,
         bag_name: bag.bag_name
       }])
-    )).values());
+    )).values())
+      .filter(tiddler => options.include_deleted || !tiddler.is_deleted)
+      .filter(tiddler => !options.last_known_tiddler_id || tiddler.tiddler_id > options.last_known_tiddler_id);
 
     //   SELECT title, tiddler_id, is_deleted, bag_name
     //   FROM (
@@ -445,7 +448,6 @@ export class TiddlerServer extends TiddlerStore {
   async serveIndexFile(recipe_name: PrismaField<"Recipes", "recipe_name">) {
     const state = this.state;
 
-    console.log(await this.prisma.tiddlers.findMany({}));
     const recipeTiddlers = await this.getRecipeTiddlers(recipe_name);
 
     recipeTiddlers.forEach(tiddler => {
@@ -456,13 +458,25 @@ export class TiddlerServer extends TiddlerStore {
     if (!recipe_name || !recipeTiddlers) {
       return state.sendEmpty(404);
     }
+    const template = readFileSync("tiddlywiki5.html", "utf8");
+    const hash = createHash('md5');
+    // Put everything into the hash that could change and invalidate the data that
+    // the browser already stored. The headers the data and the encoding.
+    hash.update(template);
+    hash.update(JSON.stringify(recipeTiddlers));
+    const contentDigest = hash.digest("hex");
+
 
     state.writeHead(200, {
-      "Content-Type": "text/html"
+      "Content-Type": "text/html",
+      "Etag": '"' + contentDigest + '"',
+      "Cache-Control": "max-age=0, must-revalidate",
     });
+
+    if (state.method === "HEAD") return state.end();
     // Get the tiddlers in the recipe
     // Render the template
-    const template = readFileSync("tiddlywiki5.html", "utf8");
+
     // Splice in our tiddlers
     var marker = `<` + `script class="tiddlywiki-tiddler-store" type="application/json">[`,
       markerPos = template.indexOf(marker);
