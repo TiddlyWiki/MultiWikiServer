@@ -14,8 +14,9 @@ A key aspect of the design is that the syncer never overlaps basic server operat
 previous operation to complete before sending a new one.
 
 \*/
-
-
+//@ts-check
+/** @type {any} */
+const $tw = {};
 /*jslint node: true, browser: true */
 /*global $tw: false */
 "use strict";
@@ -51,6 +52,7 @@ class MultiWikiClientAdaptor {
 		this.incomingUpdatesFilterFn = this.wiki.compileFilter(this.wiki.getTiddlerText(INCOMING_UPDATES_FILTER_TIDDLER));
 		this.setUpdateConnectionStatus(SERVER_NOT_CONNECTED);
 	}
+
 	setUpdateConnectionStatus(status) {
 		this.serverUpdateConnectionStatus = status;
 		this.wiki.addTiddler({
@@ -260,15 +262,18 @@ class MultiWikiClientAdaptor {
 	/*
 	Queue a load for a tiddler if there has been an update for it since the specified revision
 	*/
-	checkLastRecordedUpdate(title, revision, syncer) {
+	checkLastRecordedUpdate(title, revision) {
 		var lru = this.lastRecordedUpdate[title];
 		if(lru) {
 			var numRevision = $tw.utils.getInt(revision);
 			console.log(`Checking for updates to ${title} since ${JSON.stringify(revision)} comparing to ${numRevision}`);
 			if(lru.tiddler_id > numRevision) {
-				options.syncer.enqueueLoadTiddler(title);
+				this.syncer.enqueueLoadTiddler(title);
 			}
 		}
+	}
+	get syncer(){
+		if($tw.syncadaptor === this) return $tw.syncer;
 	}
 	/*
 	Save a tiddler and invoke the callback with (err,adaptorInfo,revision)
@@ -299,7 +304,7 @@ class MultiWikiClientAdaptor {
 				var revision = request.getResponseHeader("X-Revision-Number"), bag_name = request.getResponseHeader("X-Bag-Name");
 				console.log(`Saved ${title} with revision ${revision} and bag ${bag_name}`);
 				// If there has been a more recent update from the server then enqueue a load of this tiddler
-				self.checkLastRecordedUpdate(title, revision, options.syncer);
+				self.checkLastRecordedUpdate(title, revision);
 				// Invoke the callback
 				self.setTiddlerInfo(title, revision, bag_name);
 				callback(null, { bag: bag_name }, revision);
@@ -308,6 +313,8 @@ class MultiWikiClientAdaptor {
 	}
 	/*
 	Load a tiddler and invoke the callback with (err,tiddlerFields)
+
+	The syncer does not pass itself into options.
 	*/
 	loadTiddler(title, callback, options) {
 		var self = this;
@@ -323,7 +330,7 @@ class MultiWikiClientAdaptor {
 				}
 				var revision = request.getResponseHeader("X-Revision-Number"), bag_name = request.getResponseHeader("X-Bag-Name");
 				// If there has been a more recent update from the server then enqueue a load of this tiddler
-				self.checkLastRecordedUpdate(title, revision, options.syncer);
+				self.checkLastRecordedUpdate(title, revision);
 				// Invoke the callback
 				self.setTiddlerInfo(title, revision, bag_name);
 				callback(null, $tw.utils.parseJSONSafe(data));
@@ -357,7 +364,7 @@ class MultiWikiClientAdaptor {
 				}
 				var revision = request.getResponseHeader("X-Revision-Number");
 				// If there has been a more recent update from the server then enqueue a load of this tiddler
-				self.checkLastRecordedUpdate(title, revision, options.syncer);
+				self.checkLastRecordedUpdate(title, revision);
 				self.removeTiddlerInfo(title);
 				// Invoke the callback & return null adaptorInfo
 				callback(null, null);
