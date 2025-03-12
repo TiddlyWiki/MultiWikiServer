@@ -1,4 +1,4 @@
-import { Card, CardContent, Chip, List, ListItem, ListItemText } from '@mui/material';
+import { Avatar, Card, CardContent, Chip, IconButton, List, ListItem, ListItemText, Stack } from '@mui/material';
 import { JsonForm } from '../../helpers/forms';
 import {
   changePassword,
@@ -8,6 +8,23 @@ import {
   useFormFieldHandler,
   useIndexJson
 } from '../../helpers/utils';
+import { } from '@mui/material/colors';
+import React from 'react';
+import { useTheme } from '@mui/material/styles';
+import ArrowBack from '@mui/icons-material/ArrowBack';
+
+const MyComponent = () => {
+  const theme = useTheme();
+
+  console.log(theme.palette.primary.main);    // Primary main color
+  console.log(theme.palette.primary.light);   // Primary light color
+  console.log(theme.palette.primary.dark);    // Primary dark color
+  console.log(theme.palette.primary.contrastText); // Text color for contrast
+
+  return <div style={{ color: theme.palette.primary.main }}>
+    Primary color text
+  </div>;
+};
 
 
 interface Role {
@@ -83,6 +100,7 @@ const ManageUser = DataLoader(async (props: { userID: string }) => {
   const [indexJson] = useIndexJson();
   const isCurrentUserProfile = indexJson.user_id === user.user_id;
   const userIsAdmin = indexJson.isAdmin;
+  const theme = useTheme();
 
   const update = useFormFieldHandler<UpdateAccountFields>(refreshUser);
   const password = useFormFieldHandler<ChangePasswordFields>(refreshUser);
@@ -148,13 +166,35 @@ const ManageUser = DataLoader(async (props: { userID: string }) => {
 
       <div className="mws-main-wrapper">
         <Card className="mws-user-profile-container">
-          <div className="mws-user-profile-header">
-            <div className="mws-user-profile-avatar">
-              {userInitials}
-            </div>
-            <h1 className="mws-user-profile-name">{user.username}</h1>
-            <p className="mws-user-profile-email">{user.email}</p>
-          </div>
+          <Stack sx={{ bgcolor: theme.palette.primary.main }} direction="row" justifyContent="start">
+            <IconButton
+              size="large"
+              aria-label="account of current user"
+              aria-controls="menu-appbar"
+              aria-haspopup="true"
+              onClick={(event) => { location.pathname = "/admin/users"; }}
+              sx={{ color: theme.palette.primary.contrastText }}
+            >
+              <ArrowBack />
+            </IconButton>
+          </Stack>
+          <Stack spacing={0} sx={{
+            bgcolor: theme.palette.primary.main,
+            color: theme.palette.primary.contrastText,
+          }} alignItems="center" justifyContent="center" direction="column">
+
+            <Avatar sx={{
+              bgcolor: theme.palette.primary.contrastText,
+              color: theme.palette.primary.main,
+              width: "8rem",
+              height: "8rem",
+              fontSize: "3rem",
+              fontWeight: "bold",
+            }}>{userInitials}</Avatar>
+
+            <h1>{user.username}</h1>
+            <p>{user.email}</p>
+          </Stack>
           <CardContent>
             <List >
               <ListItem><ListItemText primary="User ID" secondary={user.user_id} /></ListItem>

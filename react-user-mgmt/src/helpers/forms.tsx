@@ -21,6 +21,8 @@ function filterProps(props: Record<string, JSONProps>, uischema: boolean) {
 }
 
 export function JsonForm<T extends Record<string, JSONProps>>(props: {
+  value: { [K in string & keyof T]?: any },
+  onChange: (value: { [K in string & keyof T]?: any }) => void,
   properties: T,
   required: (string & keyof T)[],
   onSubmit: (data: IChangeEvent<any, RJSFSchema, any>, event: React.FormEvent<any>) => Promise<string>,
@@ -58,6 +60,8 @@ export function JsonForm<T extends Record<string, JSONProps>>(props: {
           console.log(error);
         }
       }}
+      formData={props.value}
+      onChange={(data) => { props.onChange(data.formData); }}
     />
     <Stack paddingBlock={2}>
       {errorMessage && <Alert severity="error">{errorMessage}</Alert>}

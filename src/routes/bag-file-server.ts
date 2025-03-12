@@ -34,8 +34,7 @@ export class TiddlerServer extends TiddlerStore {
       return await state.$transaction(async prisma => {
         const server = new TiddlerServer(state, prisma);
         const bag = await server.getRecipeBagWithTiddler({ recipe_name, title });
-        if (!bag) return state.sendEmpty(404, { "x-reason": "bag not found" });
-        return await server.sendBagTiddler({ state, bag_id: bag.bag_id, title });
+        return await server.sendBagTiddler({ state, bag_id: bag?.bag_id, title });
       });
     });
 
@@ -272,7 +271,7 @@ export class TiddlerServer extends TiddlerStore {
   ) {
     super(state.config, prisma);
   }
-
+  /** If neither bag_name nor bag_id are specified, the fallback will be sent. */
   async sendBagTiddler({ state, bag_name, bag_id, title }: {
     state: StateObject;
     bag_name?: PrismaField<"Bags", "bag_name">;
@@ -280,9 +279,7 @@ export class TiddlerServer extends TiddlerStore {
     title: PrismaField<"Tiddlers", "title">;
   }) {
 
-    ok(bag_name || bag_id, 'bag_name or bag_id must be provided');
-
-    const tiddlerInfo = await this.getBagTiddler({ bag_name, bag_id, title });
+    const tiddlerInfo = (bag_id || bag_name) && await this.getBagTiddler({ bag_name, bag_id, title });
 
     if (!tiddlerInfo || !tiddlerInfo.tiddler) {
       // Redirect to fallback URL if tiddler not found

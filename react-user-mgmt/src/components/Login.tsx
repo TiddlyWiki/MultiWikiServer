@@ -79,6 +79,8 @@ const Login: React.FC<{}> = () => {
 
   };
 
+  const [value, onChange] = useState({});
+
   return (
     <Stack spacing={2} justifyContent="center" alignItems="center" height="100vh">
       <Container maxWidth="sm" >
@@ -100,6 +102,8 @@ const Login: React.FC<{}> = () => {
                 await handleSubmit(data.formData);
                 return "";
               }}
+              value={value}
+              onChange={onChange}
             />
             <Stack paddingBlock={2}>
               {errorMessage && <Alert severity="error">{errorMessage}</Alert>}

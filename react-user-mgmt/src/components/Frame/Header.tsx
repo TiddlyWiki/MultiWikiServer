@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { AppBar, Box, Button, IconButton, Menu, MenuItem, Toolbar, Typography } from '@mui/material';
 import MenuIcon from '@mui/icons-material/Menu';
 import SettingsIcon from '@mui/icons-material/Settings';
+import HomeIcon from '@mui/icons-material/Home';
 import { serverRequest } from '../../helpers/utils';
 import { logout } from '../Login';
 
@@ -59,15 +60,16 @@ const Header: React.FC<HeaderProps> = ({
     <Box sx={{ flexGrow: 0 }}>
       <AppBar position="static">
         <Toolbar>
-          {/* <IconButton
+          <IconButton
             size="large"
             edge="start"
             color="inherit"
-            aria-label="menu"
+            aria-label="home"
             sx={{ mr: 2 }}
+            onClick={() => { navigateTo('/'); }}
           >
-            <MenuIcon />
-          </IconButton> */}
+            <HomeIcon />
+          </IconButton>
           <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
             {pageTitle}
           </Typography>
