@@ -8,6 +8,7 @@
     "tsc": "tsc --noEmit"
   },
   "dependencies": {
+    "@mui/material": "^6.4.7",
     "@rjsf/core": "^5.24.7",
     "@rjsf/mui": "^5.24.7",
     "@rjsf/utils": "^5.24.7",

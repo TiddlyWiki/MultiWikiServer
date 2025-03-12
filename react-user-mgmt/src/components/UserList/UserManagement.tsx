@@ -3,6 +3,8 @@ import Header from '../Frame/Header';
 import { useAsyncEffect } from '../../helpers/useAsyncEffect';
 import AddUserForm from './AddUserForm';
 import { DataLoader, serverRequest, useIndexJson } from '../../helpers/utils';
+import { Box, Card, CardContent, Container, Grid, Stack } from '@mui/material';
+
 
 interface User {
   user_id: string;
@@ -31,6 +33,40 @@ export const UserManagement = DataLoader(async () => {
     refreshUsers();
     refreshIndex();
   }, [refreshUsers, refreshIndex]);
+
+  return (
+    <Container maxWidth="lg">
+      <Stack direction="row" width="100%" spacing={2} marginBlockStart={4}>
+        <Card sx={{ flexGrow: 1 }}><CardContent>{userList.map((user) => (
+
+          <a
+            key={user.user_id}
+            href={`/admin/users/${user.user_id}?q=preview`}
+            className="mws-user-item"
+          >
+            <div className="mws-user-info">
+              <span className="mws-user-name">
+                {user.username}
+              </span>
+              <span className="mws-user-email">
+                {user.email}
+              </span>
+            </div>
+            <div className="mws-user-details">
+              <span className="mws-user-created">
+                Created: {user.created_at.slice(0, 10)}
+              </span>
+              <span className="mws-user-last-login">
+                Last Login: {user.last_login?.slice(0, 10) || 'Never'}
+              </span>
+            </div>
+          </a>
+
+        ))}</CardContent></Card>
+        <AddUserForm refreshPage={refreshPage} />
+      </Stack>
+    </Container>
+  )
 
   return (
     <>

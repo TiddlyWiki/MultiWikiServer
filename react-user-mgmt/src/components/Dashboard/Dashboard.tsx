@@ -132,9 +132,9 @@ const Dashboard = () => {
               with_acl: { type: "boolean", title: "Apply implicit ACL permissions to bags which you have admin privelages on." },
               owned: { type: "boolean", title: "Admin: Is this your personal recipe or a site-wide recipe?" },
             }}
-            onSubmit={(data, event) => {
+            onSubmit={async (data, event) => {
               console.log(data);
-              handleRecipeSubmit(data.formData);
+              return await handleRecipeSubmit(data.formData);
             }}
           />
         </CardContent>
@@ -161,9 +161,9 @@ const Dashboard = () => {
               description: { type: "string", title: "Bag description" },
               owned: { type: "boolean", title: "Admin: Is this your personal recipe or a site-wide recipe?" },
             }}
-            onSubmit={(data, event) => {
+            onSubmit={async (data, event) => {
               console.log(data);
-              handleBagSubmit(data.formData);
+              return await handleBagSubmit(data.formData);
             }}
           />
         </CardContent>

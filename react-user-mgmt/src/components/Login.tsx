@@ -96,8 +96,9 @@ const Login: React.FC<{}> = () => {
                 username: { type: "string", title: "Username" },
                 password: { type: "string", title: "Password", "ui:widget": "password" }
               }}
-              onSubmit={(data, event) => {
-                handleSubmit(data.formData);
+              onSubmit={async (data, event) => {
+                await handleSubmit(data.formData);
+                return "";
               }}
             />
             <Stack paddingBlock={2}>

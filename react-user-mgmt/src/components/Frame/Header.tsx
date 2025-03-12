@@ -56,7 +56,7 @@ const Header: React.FC<HeaderProps> = ({
   const [anchorEl, setAnchorEl] = React.useState<null | HTMLElement>(null);
 
   return (
-    <Box sx={{ flexGrow: 1 }}>
+    <Box sx={{ flexGrow: 0 }}>
       <AppBar position="static">
         <Toolbar>
           {/* <IconButton

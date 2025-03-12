@@ -1,10 +1,12 @@
-import { 
-  changePassword, 
-  DataLoader, 
-  FormFieldInput, 
-  serverRequest, 
-  useFormFieldHandler, 
-  useIndexJson 
+import { Card, CardContent, Chip, List, ListItem, ListItemText } from '@mui/material';
+import { JsonForm } from '../../helpers/forms';
+import {
+  changePassword,
+  DataLoader,
+  FormFieldInput,
+  serverRequest,
+  useFormFieldHandler,
+  useIndexJson
 } from '../../helpers/utils';
 
 
@@ -145,7 +147,7 @@ const ManageUser = DataLoader(async (props: { userID: string }) => {
     <>
 
       <div className="mws-main-wrapper">
-        <div className="mws-user-profile-container">
+        <Card className="mws-user-profile-container">
           <div className="mws-user-profile-header">
             <div className="mws-user-profile-avatar">
               {userInitials}
@@ -153,90 +155,76 @@ const ManageUser = DataLoader(async (props: { userID: string }) => {
             <h1 className="mws-user-profile-name">{user.username}</h1>
             <p className="mws-user-profile-email">{user.email}</p>
           </div>
-
-          <div className="mws-user-profile-details">
-            <div className="mws-user-profile-item">
-              <span className="mws-user-profile-label">User ID:</span>
-              <span className="mws-user-profile-value">{user.user_id}</span>
-            </div>
-            <div className="mws-user-profile-item">
-              <span className="mws-user-profile-label">Created At:</span>
-              <span className="mws-user-profile-value">{user.created_at?.split('T')[0]}</span>
-            </div>
-            <div className="mws-user-profile-item">
-              <span className="mws-user-profile-label">Last Login:</span>
-              <span className="mws-user-profile-value">{user.last_login?.split('T')[0]}</span>
-            </div>
+          <CardContent>
+            <List >
+              <ListItem><ListItemText primary="User ID" secondary={user.user_id} /></ListItem>
+              <ListItem><ListItemText primary="Created At" secondary={user.created_at?.split('T')[0]} /></ListItem>
+              <ListItem><ListItemText primary="Last Login" secondary={user.last_login?.split('T')[0]} /></ListItem>
+            </List>
 
             <div className="mws-user-profile-roles">
               <h2>User Role</h2>
               <ul>
                 {user.roles.map(e => (
-                  <li key={e.role_id}>{e.role_name}</li>
+                  <Chip key={e.role_id} label={e.role_name} />
                 ))}
               </ul>
             </div>
-          </div>
-        </div>
+          </CardContent>
+        </Card>
 
         {(userIsAdmin || isCurrentUserProfile) && (
-          <div className="mws-user-profile-management">
+          <Card className="mws-user-profile-management">
             <h2>Manage Account</h2>
-            <form className="mws-user-profile-form" onSubmit={update.handler(handleUpdateProfile)}>
-              <FormFieldInput {...update.register("userId", { required: true, value: `${user.user_id}` })}
-                type="hidden" id title="" />
-              <FormFieldInput {...update.register("username", { required: true, value: `${user.username}` })}
-                type="text" id title="Username:" />
-              <FormFieldInput {...update.register("email", { required: true, value: `${user.email}` })}
-                type="email" id title="Email:" />
-              {userIsAdmin && (
-                <FormFieldInput {...update.register("role", { required: true })}
-                  type="select" id title="Role:">
-                  {allRoles.map((role) => (
-                    <option key={role.role_id} value={role.role_id}>
-                      {role.role_name}
-                    </option>
-                  ))}
-                </FormFieldInput>
-              )}
-              {update.footer("Update Profile")}
-            </form>
-
+            <JsonForm
+              required={["userId", "username", "email"]}
+              properties={{
+                userId: { type: "string", title: "User ID", "ui:widget": "hidden", default: `${user.user_id}` },
+                username: { type: "string", title: "Username" },
+                email: { type: "string", title: "Email" },
+                role: {
+                  type: "string", title: "Role", "ui:widget": "select",
+                  enum: allRoles.map(e => e.role_id),
+                  enumNames: allRoles.map(e => e.role_name)
+                },
+              }}
+              onSubmit={async (data, event) => {
+                return await handleUpdateProfile(data.formData);
+              }}
+              submitOptions={{
+                submitText: "Update Profile",
+              }}
+            />
+            {isCurrentUserProfile && <JsonForm
+              required={["userId", "newPassword", "confirmPassword"]}
+              properties={{
+                userId: { type: "string", title: "User ID", "ui:widget": "hidden", default: `${user.user_id}` },
+                newPassword: { type: "string", title: "New Password", "ui:widget": "password" },
+                confirmPassword: { type: "string", title: "Confirm Password", "ui:widget": "password" },
+              }}
+              onSubmit={async (data, event) => {
+                return await handleChangePassword(data.formData);
+              }}
+              submitOptions={{
+                submitText: "Change Password",
+              }}
+            />}
             {userIsAdmin && !isCurrentUserProfile && (
-              <>
-                <hr />
-                <form className="mws-user-profile-form" onSubmit={deleteForm.handler(handleDeleteAccount)}>
-                  <FormFieldInput {...deleteForm.register("user_id", { required: true, value: `${user.user_id}` })}
-                    type="hidden" id title="" />
-                  {deleteForm.footer("Delete Account")}
-                </form>
-              </>
+              <JsonForm
+                required={["user_id"]}
+                properties={{
+                  user_id: { type: "string", title: "User ID", "ui:widget": "hidden", default: `${user.user_id}` },
+                }}
+                onSubmit={async (data, event) => {
+                  return await handleDeleteAccount(data.formData);
+                }}
+                submitOptions={{
+                  submitText: "Delete Account",
+                }}
+              />
             )}
 
-            {isCurrentUserProfile && (
-
-              <form className="mws-user-profile-form" onSubmit={password.handler(handleChangePassword)}>
-                <FormFieldInput {...password.register("userId", { required: true, value: `${user.user_id}` })}
-                  type="hidden" id title="" />
-                <FormFieldInput
-                  {...password.register("newPassword", { required: true })}
-                  type="password"
-                  id
-                  title="New Password:"
-                  autoComplete='new-password'
-                />
-                <FormFieldInput
-                  {...password.register("confirmPassword", { required: true })}
-                  type="password"
-                  id
-                  title="Confirm Password:"
-                  autoComplete='new-password'
-                />
-                {password.footer("Change Password")}
-              </form>
-
-            )}
-          </div>
+          </Card>
         )}
       </div>
 
