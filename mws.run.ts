@@ -1,11 +1,11 @@
-import startServer, { SessionManager } from "./src/server.ts";
+import startServer from "./src/server.ts";
 
 startServer({
   https: {
     key: "./localhost.key",
     cert: "./localhost.crt",
   },
-  // passwordMaster: false,
+  passwordMasterKey: "./localpass.key",
   port: 5000,
   host: "::",
   config: {
@@ -14,5 +14,4 @@ startServer({
     allowAnonWrites: false,
     allowUnreadableBags: false,
   },
-  SessionManager,
 });

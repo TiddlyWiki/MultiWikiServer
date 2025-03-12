@@ -6,7 +6,7 @@
     "node": ">14"
   },
   "scripts": {
-    "start": "npm run tsc && NODE_DEV_PATH_STACKTRACE=true npx tsx src/server.ts",
+    "start": "NODE_DEV_PATH_STACKTRACE=true npx tsx mws.run.ts",
     "start-mws": "exit 1 && tiddlywiki ./editions/multiwikiserver --mws-load-plugin-bags --build load-mws-demo-data --mws-listen",
     "build:test-edition": "exit 1 && tiddlywiki ./editions/test --verbose --version --build index",
     "test:multiwikiserver-edition": "exit 1 && tiddlywiki ./editions/multiwikiserver/ --build load-mws-demo-data --mws-listen --mws-test-server http://127.0.0.1:8080/ --quit",
@@ -30,16 +30,20 @@
     "@types/mime-types": "^2.1.4",
     "@types/node": "^22.13.1",
     "@types/send": "^0.17.4",
+    "@types/sjcl": "^1.0.34",
     "@types/tiddlywiki": "npm:tw5-typed@^0.5.14",
     "better-sqlite3": "^11.8.1",
     "mime-types": "^2.1.35",
     "node-sqlite3-wasm": "^0.8.35",
     "prisma": "^6.4.0",
     "send": "^1.1.0",
+    "sjcl": "^1.0.8",
     "tiddlywiki": "^5.3.6",
+    "ts-zod-decorators": "^1.7.1",
     "tsx": "^4.19.2",
     "typescript": "^5.7.3",
-    "zod": "^3.24.2"
+    "zod": "^3.24.2",
+    "zod-prisma-types": "^3.2.4"
   },
   "devDependencies": {
     "esbuild": "^0.25.0"

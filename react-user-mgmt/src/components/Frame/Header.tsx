@@ -1,4 +1,9 @@
 import React, { useState } from 'react';
+import { AppBar, Box, Button, IconButton, Menu, MenuItem, Toolbar, Typography } from '@mui/material';
+import MenuIcon from '@mui/icons-material/Menu';
+import SettingsIcon from '@mui/icons-material/Settings';
+import { serverRequest } from '../../helpers/utils';
+import { logout } from '../Login';
 
 interface HeaderProps {
   pageTitle: string;
@@ -20,37 +25,92 @@ const Header: React.FC<HeaderProps> = ({
   setShowAnonConfig
 }) => {
   const [isLoggingOut, setIsLoggingOut] = useState(false);
-  
+
   const navigateTo = (path: string) => {
     window.location.href = path;
   };
-  
+
   const handleManageUsers = () => {
     navigateTo('/admin/users?q=*');
   };
-  
+
   const handleManageRoles = () => {
     navigateTo('/admin/roles?q=*');
   };
-  
+
   const handleAnonConfig = async () => {
     setShowAnonConfig(true);
   };
-  
+
+  const handleClickProfile = async () => {
+    navigateTo(`/admin/users/${userId}`)
+  };
+
   const handleLogout = async () => {
     setIsLoggingOut(true);
-    
-    try {
-      const response = await fetch('/logout', { method: 'POST' });
-      
-      if (response.ok) {
-        window.location.href = '/';
-      }
-    } catch (error) {
-      console.error('Error logging out:', error);
-      setIsLoggingOut(false);
-    }
+    await logout();
+    setIsLoggingOut(false);
+    window.location.href = '/';
   };
+
+  const [anchorEl, setAnchorEl] = React.useState<null | HTMLElement>(null);
+
+  return (
+    <Box sx={{ flexGrow: 1 }}>
+      <AppBar position="static">
+        <Toolbar>
+          {/* <IconButton
+            size="large"
+            edge="start"
+            color="inherit"
+            aria-label="menu"
+            sx={{ mr: 2 }}
+          >
+            <MenuIcon />
+          </IconButton> */}
+          <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
+            {pageTitle}
+          </Typography>
+          {userIsLoggedIn ? (
+            <div>
+              <IconButton
+                size="large"
+                aria-label="account of current user"
+                aria-controls="menu-appbar"
+                aria-haspopup="true"
+                onClick={(event) => { setAnchorEl(event.currentTarget); }}
+                color="inherit"
+              >
+                <SettingsIcon />
+              </IconButton>
+              <Menu
+                id="menu-appbar"
+                anchorEl={anchorEl}
+                anchorOrigin={{
+                  vertical: 'top',
+                  horizontal: 'right',
+                }}
+                keepMounted
+                transformOrigin={{
+                  vertical: 'top',
+                  horizontal: 'right',
+                }}
+                open={Boolean(anchorEl)}
+                onClose={() => { setAnchorEl(null); }}
+              >
+                <MenuItem divider onClick={handleClickProfile}>Profile</MenuItem>
+                <MenuItem onClick={handleManageUsers}>Manage Users</MenuItem>
+                <MenuItem divider onClick={handleManageRoles}>Manage Roles</MenuItem>
+                <MenuItem onClick={handleLogout}>Logout</MenuItem>
+              </Menu>
+            </div>
+          ) : <Button color="inherit" onClick={() => {
+            navigateTo('/login');
+          }}>Login</Button>}
+        </Toolbar>
+      </AppBar>
+    </Box>
+  )
 
   return (
     <div className="mws-header">
@@ -80,24 +140,24 @@ const Header: React.FC<HeaderProps> = ({
           </div>
         )}
         {userIsLoggedIn && !firstGuestUser && !userIsAdmin && userId && (
-          <button 
-            onClick={() => navigateTo(`/admin/users/${userId}`)} 
+          <button
+            onClick={() => navigateTo(`/admin/users/${userId}`)}
             className="mws-profile-btn"
           >
             Profile
           </button>
         )}
         {userIsLoggedIn ? (
-          <button 
-            onClick={handleLogout} 
+          <button
+            onClick={handleLogout}
             className="mws-logout-button"
             disabled={isLoggingOut}
           >
             {isLoggingOut ? 'Logging out...' : 'Logout'}
           </button>
         ) : (
-          <button 
-            onClick={() => navigateTo('/login')} 
+          <button
+            onClick={() => navigateTo('/login')}
             className="mws-login-btn"
           >
             Login

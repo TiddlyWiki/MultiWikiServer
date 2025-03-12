@@ -18,6 +18,7 @@ import { setupDevServer } from "./serve-esbuild";
 import { createPasswordService, PasswordService } from "./Authenticator";
 import { MWSConfig, MWSConfigConfig } from "./server";
 import * as sessions from "./routes/services/sessions";
+import * as attacher from "./routes/services/attachments";
 
 export { RouteMatch, Route, rootRoute };
 
@@ -66,9 +67,10 @@ export class Router {
 
 
   static async makeRouter(
-    config: MWSConfig["config"], 
-    passwordKey: string, 
-    SessionManager: typeof sessions.SessionManager
+    config: MWSConfig["config"],
+    passwordKey: string,
+    SessionManager: typeof sessions.SessionManager,
+    AttachmentService: typeof attacher.AttachmentService,
   ) {
     const { wikiPath } = config;
 
@@ -104,7 +106,12 @@ export class Router {
 
     const PasswordService = await createPasswordService(passwordKey);
 
-    const router = new Router(rootRoute, routerConfig, sendDevServer, PasswordService, SessionManager);
+    const router = new Router(rootRoute, routerConfig,
+      sendDevServer,
+      PasswordService,
+      SessionManager,
+      AttachmentService,
+    );
 
     await this.initDatabase(router);
 
@@ -203,7 +210,8 @@ export class Router {
     // public attachmentStore: AttachmentStore,
     public sendDevServer: (this: Router, state: StateObject) => Promise<symbol>,
     public PasswordService: PasswordService,
-    public SessionManager: typeof sessions.SessionManager
+    public SessionManager: typeof sessions.SessionManager,
+    public AttachmentService: typeof attacher.AttachmentService,
   ) {
     this.storePath = resolve(config.wikiPath, "store");
     this.databasePath = resolve(this.storePath, "database.sqlite");
@@ -214,13 +222,7 @@ export class Router {
   }
 
   async handle(streamer: Streamer) {
-    // const devuser = this.devuser;
-    // const authUser = {
-    //   get isAdmin() { return true },
-    //   get user_id(): PrismaField<"Users", "user_id"> { return devuser as any; },
-    //   get username(): PrismaField<"Users", "username"> { return "admin" as any; },
-    //   get sessionId(): PrismaField<"Sessions", "session_id"> { throw new Error("not implemented") },
-    // };
+
     const authUser = await this.SessionManager.parseIncomingRequest(streamer, this);
 
     /** This should always have a length of at least 1 because of the root route. */

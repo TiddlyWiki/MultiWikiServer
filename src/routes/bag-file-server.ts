@@ -144,7 +144,7 @@ export class TiddlerServer extends TiddlerStore {
         title: z.prismaField("Tiddlers", "title", "string"),
       }));
 
-      state.assertBagACL(state.pathParams.bag_name, state.user?.user_id, false);
+      await state.assertBagACL(state.pathParams.bag_name, state.user?.user_id, false);
 
       return await state.$transaction(async prisma => {
         const server = new TiddlerServer(state, prisma);
@@ -167,7 +167,7 @@ export class TiddlerServer extends TiddlerStore {
         bag_name: z.prismaField("Bags", "bag_name", "string"),
       }));
 
-      state.assertBagACL(state.pathParams.bag_name, state.user?.user_id, true);
+      await state.assertBagACL(state.pathParams.bag_name, state.user?.user_id, true);
 
       // Get the parameters
       const bag_name = state.pathParams.bag_name;
@@ -195,7 +195,7 @@ export class TiddlerServer extends TiddlerStore {
 
       const { bag_name, title } = state.pathParams;
 
-      state.assertBagACL(bag_name, state.user?.user_id, false);
+      await state.assertBagACL(bag_name, state.user?.user_id, false);
 
       const result = await state.$transaction(async prisma => {
         const server = new TiddlerServer(state, prisma);

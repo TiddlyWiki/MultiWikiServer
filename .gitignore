@@ -1,7 +1,9 @@
 node_modules
 scratch
 localhost.*
+*.key
 src/oldroutes
 oldtwserver
 editions/mws/store
 editions/mws/tiddlers
+

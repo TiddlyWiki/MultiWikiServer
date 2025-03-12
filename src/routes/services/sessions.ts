@@ -15,6 +15,7 @@ export interface AuthUser {
 export const SessionKeyMap: BaseKeyMap<SessionManager, true> = {
   login1: true,
   login2: true,
+  logout: true,
 }
 
 export type SessionManagerMap = BaseManagerMap<SessionManager>;
@@ -24,7 +25,7 @@ export class SessionManager extends BaseManager {
   static async defineRoutes(root: rootRoute) {
     root.defineRoute({
       method: ["POST"],
-      path: /^\/login\/(1|2)$/,
+      path: /^\/(login\/1|login\/2|logout)$/,
       pathParams: ["login"],
       bodyFormat: "json",
       useACL: {},
@@ -32,8 +33,9 @@ export class SessionManager extends BaseManager {
       return await state.$transaction(async prisma => {
         const session = new SessionManager(state, prisma);
         switch (state.pathParams.login) {
-          case "1": return await session.login1();
-          case "2": return await session.login2();
+          case "login/1": return await session.login1();
+          case "login/2": return await session.login2();
+          case "logout": return await session.logout();
           default: throw "No such login";
         }
       });
@@ -43,7 +45,7 @@ export class SessionManager extends BaseManager {
   static async parseIncomingRequest(streamer: Streamer, router: Router): Promise<AuthUser> {
 
     const sessionId = streamer.cookies.session as PrismaField<"Sessions", "session_id"> | undefined;
-    const session = await router.engine.sessions.findUnique({
+    const session = sessionId && await router.engine.sessions.findUnique({
       where: { session_id: sessionId },
       select: { user: { select: { user_id: true, username: true, roles: { select: { role_id: true } } } } }
     });
@@ -120,6 +122,22 @@ export class SessionManager extends BaseManager {
     return null;
 
   })
+
+  logout = this.ZodRequest(z => z.undefined(), async () => {
+    const state = this.state;
+    if (state.authenticatedUser) {
+      await this.prisma.sessions.delete({ where: { session_id: state.authenticatedUser.sessionId } });
+    }
+    var cookies = state.headers.cookie ? state.headers.cookie.split(";") : [];
+    for (var i = 0; i < cookies.length; i++) {
+      var cookie = cookies[i]?.trim().split("=")[0];
+      if (!cookie) continue;
+      // state.setHeader("Set-Cookie", cookie + "=; HttpOnly; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Strict");
+      state.setCookie(cookie, "", { httpOnly: true, path: "/", expires: new Date(0), secure: state.isSecure, sameSite: "Strict" });
+    }
+
+    return null;
+  });
 
   async createSession(user_id: PrismaField<"Users", "user_id">, session_key: string) {
     const session_id = randomBytes(16).toString("base64url");

@@ -3,6 +3,8 @@ import WikiCard from './WikiCard';
 import BagPill from './BagPill';
 import { useFormStatus } from 'react-dom';
 import { FormFieldInput, serverRequest, useFormFieldHandler, useIndexJson } from '../../helpers/utils';
+import { JsonForm } from '../../helpers/forms';
+import { Card, CardContent, CardHeader } from "@mui/material";
 
 interface Recipe {
   recipe_name: string;
@@ -118,20 +120,25 @@ const Dashboard = () => {
         ))}
       </ul>
 
-      <form className="mws-form" onSubmit={recipeForm.handler(handleRecipeSubmit)}>
-        <h2>Create a new recipe or modify an existing one</h2>
-        <FormFieldInput {...recipeForm.register("recipe_name", { required: true })}
-          type="text" title="Recipe name" />
-        <FormFieldInput {...recipeForm.register("description", { required: true })}
-          type="text" title="Recipe description" />
-        <FormFieldInput {...recipeForm.register("bag_names", { required: true })}
-          type="text" title="Bags in recipe (space separated)" />
-        {isAdmin && <FormFieldInput {...recipeForm.register("owned", { required: false })}
-          type="checkbox" title="Admin: Is this your personal recipe or a site-wide recipe?" />}
-        <FormFieldInput {...recipeForm.register("with_acl", { required: false })}
-          type="checkbox" title="Apply implicit ACL permissions to bags which you have admin privelages on." />
-        {recipeForm.footer("Create Recipe")}
-      </form>
+      <Card variant='outlined'>
+        <CardHeader title="Create a new recipe or modify an existing one" />
+        <CardContent>
+          <JsonForm
+            required={["recipe_name", "description", "bag_names"]}
+            properties={{
+              recipe_name: { type: "string", title: "Recipe name" },
+              description: { type: "string", title: "Recipe description" },
+              bag_names: { type: "string", title: "Bags in recipe (space separated)" },
+              with_acl: { type: "boolean", title: "Apply implicit ACL permissions to bags which you have admin privelages on." },
+              owned: { type: "boolean", title: "Admin: Is this your personal recipe or a site-wide recipe?" },
+            }}
+            onSubmit={(data, event) => {
+              console.log(data);
+              handleRecipeSubmit(data.formData);
+            }}
+          />
+        </CardContent>
+      </Card>
 
       <h1>Bags</h1>
 
@@ -144,17 +151,23 @@ const Dashboard = () => {
         ))}
       </ul>
 
-      <form className="mws-form" onSubmit={bagForm.handler(handleBagSubmit)}>
-        <h2>Create a new bag or modify an existing one</h2>
-        <FormFieldInput {...bagForm.register("bag_name", { required: true })}
-          type="text" title="Bag name" />
-        <FormFieldInput {...bagForm.register("description", { required: true })}
-          type="text" title="Bag description" />
-        {isAdmin && <FormFieldInput {...recipeForm.register("owned", { required: false })}
-          type="checkbox" title="Admin: Is this your personal recipe or a site-wide recipe?" />}
-
-        {bagForm.footer("Create Bag")}
-      </form>
+      <Card variant='outlined'>
+        <CardHeader title="Create a new bag or modify an existing one" />
+        <CardContent>
+          <JsonForm
+            required={["bag_name", "description"]}
+            properties={{
+              bag_name: { type: "string", title: "Bag name" },
+              description: { type: "string", title: "Bag description" },
+              owned: { type: "boolean", title: "Admin: Is this your personal recipe or a site-wide recipe?" },
+            }}
+            onSubmit={(data, event) => {
+              console.log(data);
+              handleBagSubmit(data.formData);
+            }}
+          />
+        </CardContent>
+      </Card>
 
       <h1>Advanced</h1>
 

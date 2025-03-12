@@ -2,11 +2,10 @@ import * as opaque from "@serenity-kit/opaque";
 import { useAsyncEffect } from "./useAsyncEffect";
 import React, { ReactNode, useCallback, useId, useState } from "react";
 import { FieldValues, useForm, UseFormRegisterReturn } from "react-hook-form";
-import { RecipeManager, RecipeManagerMap } from "../../../src/routes/manager-recipes";
-import { UserManagerMap } from "../../../src/routes";
 import { proxy } from "./prisma-proxy";
 import { ZodAction } from "../../../src/routes/BaseManager";
 import { z } from "zod";
+import { RecipeManagerMap, UserManagerMap } from "../../../src/routes/managers";
 
 
 type MapLike = { entries: () => Iterable<[string, any]> };
@@ -21,28 +20,7 @@ export function toSearchParams(formData: MapLike | Record<string, any>): URLSear
 }
 
 
-export function fetchPostSearchParams(url: string, formData: MapLike | Record<string, any>) {
-  return fetch(url, {
-    method: 'POST',
-    redirect: "manual",
-    headers: {
-      'Content-Type': 'application/x-www-form-urlencoded',
-      "X-Requested-With": "TiddlyWiki"
-    },
-    body: toSearchParams(formData),
-  });
-}
-export function fetchPostJSON(url: string, formData: any) {
-  return fetch(url, {
-    method: 'POST',
-    redirect: "manual",
-    headers: {
-      'Content-Type': 'application/json',
-      "X-Requested-With": "TiddlyWiki"
-    },
-    body: JSON.stringify(formData),
-  });
-}
+
 export interface ChangePasswordForm {
   userId: string
   password: string

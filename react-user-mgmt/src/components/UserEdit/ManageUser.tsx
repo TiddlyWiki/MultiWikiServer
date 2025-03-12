@@ -1,7 +1,11 @@
-import React, { ReactNode, useCallback, useState } from 'react';
-import Header from '../Frame/Header';
-import { useAsyncEffect } from '../../helpers/useAsyncEffect';
-import { changePassword, DataLoader, fetchPostSearchParams, FormFieldInput, serverRequest, useFormFieldHandler, useIndexJson } from '../../helpers/utils';
+import { 
+  changePassword, 
+  DataLoader, 
+  FormFieldInput, 
+  serverRequest, 
+  useFormFieldHandler, 
+  useIndexJson 
+} from '../../helpers/utils';
 
 
 interface Role {
@@ -181,9 +185,9 @@ const ManageUser = DataLoader(async (props: { userID: string }) => {
             <form className="mws-user-profile-form" onSubmit={update.handler(handleUpdateProfile)}>
               <FormFieldInput {...update.register("userId", { required: true, value: `${user.user_id}` })}
                 type="hidden" id title="" />
-              <FormFieldInput {...update.register("username", { required: true })}
+              <FormFieldInput {...update.register("username", { required: true, value: `${user.username}` })}
                 type="text" id title="Username:" />
-              <FormFieldInput {...update.register("email", { required: true })}
+              <FormFieldInput {...update.register("email", { required: true, value: `${user.email}` })}
                 type="email" id title="Email:" />
               {userIsAdmin && (
                 <FormFieldInput {...update.register("role", { required: true })}

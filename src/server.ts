@@ -9,12 +9,14 @@ import { existsSync, readFileSync } from 'node:fs';
 import { Streamer } from "./streamer";
 import { Router } from './router';
 import * as sessions from "./routes/services/sessions";
+import * as attacher from "./routes/services/attachments";
 import { resolve } from "node:path";
 
 export * from "./routes/services/sessions";
 
 declare module 'node:net' {
   interface Socket {
+    // this comment gets prepended to the other comment for this property, thus the hanging sentance.
     /** Not defined on net.Socket instances. 
      * 
      * On tls.Socket instances,  */
@@ -96,13 +98,20 @@ export default async function startServer(config: MWSConfig) {
   const router = await Router.makeRouter(
     config.config,
     config.passwordMasterKey
-      ? readFileSync(config.passwordMasterKey, "utf8")
+      ? readFileSync(config.passwordMasterKey, "utf8").trim()
       : opaque.server.createSetup(),
-    config.SessionManager,
+    config.SessionManager || sessions.SessionManager,
   ).catch(e => {
     console.log(e.stack);
     throw "Router failed to load";
   });
+
+  if (!config.passwordMasterKey) {
+    console.log("No password master key provided. The key will be regenerated each time the server starts.");
+    console.log("Here is a key you can use. Save it to a file and provide the path to the server.");
+    console.log("You must restart the server after saving this key. It is not the key being used this time.");
+    console.log(opaque.server.createSetup());
+  }
 
   const { host, port } = config;
 
@@ -149,5 +158,9 @@ export interface MWSConfig {
   /** 
    * The session manager class registers the login handler routes and sets the auth user 
    */
-  SessionManager: typeof sessions.SessionManager;
+  SessionManager?: typeof sessions.SessionManager;
+  /** 
+   * The attachment service class is used by routes to handle attachments
+   */
+  AttachmentService?: typeof attacher.AttachmentService;
 }

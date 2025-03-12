@@ -7,6 +7,7 @@ import UserManagement from '../UserList/UserManagement';
 import ManageUser from '../UserEdit/ManageUser';
 import { DataLoader, useIndexJson } from '../../helpers/utils';
 import ManageAcl from '../ACL/ManageAcl';
+import { Alert, CardContent, CardHeader, Container, Stack } from '@mui/material';
 
 export const Frame = (props: {}) => {
 
@@ -40,43 +41,43 @@ export const Frame = (props: {}) => {
   const index = matches.findIndex(m => m !== null);
   const page = index > -1 && pages[index][1](matches[index]!) || null;
 
-  return <>
-    <Header
-      pageTitle={page ? pages[index][2] : "TiddlyWiki"}
-      username={username}
-      userIsAdmin={userIsAdmin}
-      userIsLoggedIn={userIsLoggedIn}
-      firstGuestUser={firstGuestUser}
-      userId={user?.user_id}
-      setShowAnonConfig={setShowAnonConfig}
-    />
+  return (
+    <>
+      <Header
+        pageTitle={page ? pages[index][2] : "TiddlyWiki"}
+        username={username}
+        userIsAdmin={userIsAdmin}
+        userIsLoggedIn={userIsLoggedIn}
+        firstGuestUser={firstGuestUser}
+        userId={user?.user_id}
+        setShowAnonConfig={setShowAnonConfig}
+      />
 
-    {firstGuestUser && (
-      <div className="mws-security-warning">
-        <div className="mws-security-warning-content">
-          <div className="mws-security-warning-icon">⚠️</div>
-          <div className="mws-security-warning-text">
-            <strong>Warning:</strong> TiddlyWiki is currently running in anonymous access mode which allows anyone with access to the server to read and modify data.
-          </div>
-          <div className="mws-security-warning-action">
-            <a href="/admin/users" className="mws-security-warning-button">Add Admin Account</a>
+      {firstGuestUser && (
+        <div className="mws-security-warning">
+          <div className="mws-security-warning-content">
+            <div className="mws-security-warning-icon">⚠️</div>
+            <div className="mws-security-warning-text">
+              <strong>Warning:</strong> TiddlyWiki is currently running in anonymous access mode which allows anyone with access to the server to read and modify data.
+            </div>
+            <div className="mws-security-warning-action">
+              <a href="/admin/users" className="mws-security-warning-button">Add Admin Account</a>
+            </div>
           </div>
         </div>
-      </div>
-    )}
+      )}
 
-    {showAnonConfig && (
-      <AnonConfigModal
-        initialAllowReads={allowReads}
-        initialAllowWrites={allowWrites}
-        onClose={() => setShowAnonConfig(false)}
-      />
-    )}
+      {showAnonConfig && (
+        <AnonConfigModal
+          initialAllowReads={allowReads}
+          initialAllowWrites={allowWrites}
+          onClose={() => setShowAnonConfig(false)}
+        />
+      )}
 
-    {page ?? <div className="mws-error">Page not found</div>}
-
-
-  </>
+      {page ?? <div className="mws-error">Page not found</div>}
+    </>
+  )
 };
 
 
