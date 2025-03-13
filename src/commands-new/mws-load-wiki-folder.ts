@@ -11,7 +11,7 @@ Command to create and load a bag for the specified core editions
 
 
 import { resolve } from "path";
-import { Commander, CommandInfo } from "../commander";
+import { Commander, CommandInfo } from ".";
 import { TiddlerStore } from "../routes/TiddlerStore";
 import { TiddlerFields } from "../routes/services/attachments";
 

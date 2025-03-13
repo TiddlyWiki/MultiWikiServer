@@ -10,7 +10,7 @@ Command to create and load a bag for the specified core editions
 \*/
 
 
-import { Commander, CommandInfo } from "../commander";
+import { Commander, CommandInfo } from ".";
 
 const { writeFileSync } = require("fs");
 

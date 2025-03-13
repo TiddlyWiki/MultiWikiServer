@@ -1,6 +1,6 @@
 import { resolve } from "node:path";
 
-import { Commander, CommandInfo } from "../commander";
+import { Commander, CommandInfo } from ".";
 import { TiddlerStore } from "../routes/TiddlerStore";
 
 export const info: CommandInfo = {
