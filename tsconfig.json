@@ -31,7 +31,7 @@
   ],
   "exclude": [
     "src/oldroutes/**/*",
-    "src/commands/**/*",
+    "src/commands-old/**/*",
     "src/routes/handlers/**/*",
     "src/store/**/*",
   ]
