@@ -4,7 +4,7 @@ import { TiddlerStore } from "./TiddlerStore";
 import { resolve } from "path";
 import { createWriteStream, readFileSync } from "fs";
 import sjcl from "sjcl";
-import { ZodAssert as zodAssert } from "../zodAssert";
+import { ZodAssert as zodAssert } from "../utils";
 import { createHash } from "crypto";
 
 

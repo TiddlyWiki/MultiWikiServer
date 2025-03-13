@@ -1,6 +1,6 @@
 import { ZodTypeAny, ZodType, z } from "zod";
 import { StateObject } from "../StateObject";
-import { Z2 } from "../zodAssert";
+import { Z2 } from "../utils";
 import { DataChecks } from "../utils";
 import { STREAM_ENDED } from "../streamer";
 import { RouterConfig } from "../router";

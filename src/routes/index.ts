@@ -1,6 +1,6 @@
 import { readdirSync, statSync } from "fs";
 import { rootRoute } from "../router";
-import { ZodAssert } from "../zodAssert";
+import { ZodAssert } from "../utils";
 import { TiddlerServer } from "./bag-file-server";
 
 import { Prisma, PrismaClient } from "@prisma/client";
