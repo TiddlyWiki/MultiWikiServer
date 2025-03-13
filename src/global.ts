@@ -61,8 +61,8 @@ declare global {
   function hop(object: any, property: any): boolean;
   function each<T>(object: T[], callback: (value: T, index: number, object: T[]) => void): void;
   function each<T>(object: Record<string, T>, callback: (value: T, key: string, object: Record<string, T>) => void): void;
-  function eachAsync<T>(object: T[], callback: (value: T, index: number, object: T[]) => void): void;
-  function eachAsync<T>(object: Record<string, T>, callback: (value: T, key: string, object: Record<string, T>) => void): void;
+  function eachAsync<T>(object: T[], callback: (value: T, index: number, object: T[]) => void): Promise<void>;
+  function eachAsync<T>(object: Record<string, T>, callback: (value: T, key: string, object: Record<string, T>) => void): Promise<void>;
   function createDirectory(dirPath: string): void;
   function deleteDirectory(dirPath: string): void;
   function encodeURIComponentExtended(s: string): string;
@@ -161,4 +161,48 @@ declare global {
 };
 
 
+class _Result<OK extends boolean, T> {
+  constructor(
+    public ok: OK,
+    public error: OK extends true ? undefined : unknown,
+    public value: OK extends true ? T : undefined
+  ) { }
+  *[Symbol.iterator]() {
+    yield this.ok
+    yield this.error
+    yield this.value
+  }
+  static ok<T>(value: T) {
+    return new _Result(true, undefined, value)
+  }
+  static error(error: unknown) {
+    return new _Result(false, error, undefined)
+  }
 
+  /**
+   * @example
+   * // const result = try something();
+   * const result = Result.try_(() => {
+   *   something();
+   * });
+   */
+  static try_<T, This>(callback: (this: This) => T, thisarg: This) {
+    try {
+      return _Result.ok(callback.apply(thisarg));
+    } catch (e) {
+      return _Result.error(e);
+    }
+  }
+
+}
+//https://github.com/arthurfiorette/proposal-try-operator
+declare global {
+  const Result: typeof _Result;
+  interface Promise<T> {
+    try: () => Promise<_Result<true, T> | _Result<false, T>>;
+  }
+}
+(global as any).Result = _Result;
+Promise.prototype.try = function <T>(this: Promise<T>) {
+  return this.then(_Result.ok, _Result.error);
+}
