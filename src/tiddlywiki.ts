@@ -70,9 +70,7 @@ export async function bootTiddlyWiki(commands: boolean, wikiPath: string, router
   // tiddlywiki [+<pluginname> | ++<pluginpath>] [<wikipath>] ...[--command ...args]
   $tw.boot.argv = [
     "++plugins/client",
-    "++plugins/server",
-		"+tiddlywiki/vanilla",
-		"+tiddlywiki/snowwhite",
+    "+themes/tiddlywiki/vanilla",
     wikiPath,
     "--mws-render-tiddler",
     ...commands ? [
@@ -81,7 +79,6 @@ export async function bootTiddlyWiki(commands: boolean, wikiPath: string, router
       "--mws-load-wiki-folder","./node_modules/tiddlywiki/editions/tw5.com","docs", "TiddlyWiki Documentation from https://tiddlywiki.com","docs","TiddlyWiki Documentation from https://tiddlywiki.com",
       "--mws-load-wiki-folder","./node_modules/tiddlywiki/editions/dev","dev","TiddlyWiki Developer Documentation from https://tiddlywiki.com/dev","dev-docs", "TiddlyWiki Developer Documentation from https://tiddlywiki.com/dev",
       "--mws-load-wiki-folder","./node_modules/tiddlywiki/editions/tour","tour","TiddlyWiki Interactive Tour from https://tiddlywiki.com","tour", "TiddlyWiki Interactive Tour from https://tiddlywiki.com",
-      // "--build", "load-mws-demo-data",
     ] : []
   ];
 
