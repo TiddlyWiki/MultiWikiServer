@@ -188,7 +188,7 @@ export class Router {
 
   pathPrefix: string = "";
   enableBrowserCache: boolean = true;
-  enableGzip: boolean = true;
+  enableGzip: boolean = false;
   csrfDisable: boolean = false;
   servername: string = "";
   variables = new Map();
@@ -249,9 +249,9 @@ export class Router {
       return streamer.sendEmpty(404, { "x-reason": "no-route" });
 
     // Optionally output debug info
-    console.log("Request path:", JSON.stringify(streamer.url));
-    const matchedRoute = routePath[routePath.length - 1];
-    console.log("Matched route:", matchedRoute?.route.method, matchedRoute?.route.path.source)
+    console.log(streamer.method, streamer.url);
+    // const matchedRoute = routePath[routePath.length - 1];
+    // console.log("Matched route:", matchedRoute?.route.method, matchedRoute?.route.path.source)
 
     // if no bodyFormat is specified, we default to "buffer" since we do still need to recieve the body
     const bodyFormat = routePath.find(e => e.route.bodyFormat)?.route.bodyFormat || "buffer";

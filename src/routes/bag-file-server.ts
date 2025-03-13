@@ -221,6 +221,7 @@ export class TiddlerServer extends TiddlerStore {
       zodAssert.pathParams(state, z => ({
         filename: z.prismaField("Tiddlers", "title", "string"),
       }));
+
       // Get the  parameters
       const filename = state.pathParams.filename,
         title = SYSTEM_FILE_TITLE_PREFIX + filename,
@@ -236,7 +237,7 @@ export class TiddlerServer extends TiddlerStore {
         if (isSystemFileWikified) {
           text = adminWiki().renderTiddler("text/plain", title);
         }
-        return state.sendString(200, {
+        return state.sendResponse(200, {
           "content-type": type
         }, text, encoding);
       } else {
@@ -284,6 +285,7 @@ export class TiddlerServer extends TiddlerStore {
       // Redirect to fallback URL if tiddler not found
       const fallback = state.queryParams.fallback?.[0];
       if (fallback) {
+        // await state.pushStream(fallback);
         return state.redirect(fallback);
       } else {
         return state.sendEmpty(404, { "x-reason": "tiddler not found (no fallback)" });

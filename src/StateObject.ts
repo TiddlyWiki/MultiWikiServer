@@ -98,6 +98,8 @@ export class StateObject<
   PasswordService;
   authenticatedUser;
 
+  pushStream: Streamer["pushStream"];
+
   constructor(
     streamer: Streamer,
     /** The array of Route tree nodes the request matched. */
@@ -118,7 +120,7 @@ export class StateObject<
     // this.Tiddler = this.router.$tw.Tiddler;
     // this.sjcl = this.router.sjcl;
     // this.config = this.router.$tw.config;
-
+    this.pushStream = streamer.pushStream.bind(streamer);
     this.readMultipartData = readMultipartData.bind(this);
     this.sendResponse = sendResponse.bind(this.router, this);
     this.sendDevServer = this.router.sendDevServer.bind(this.router, this);
@@ -135,7 +137,6 @@ export class StateObject<
     const pathParamsZodCheck = z.record(z.string().transform(zodURIComponent).optional()).safeParse(this.pathParams);
     if (!pathParamsZodCheck.success) console.log("BUG: Path params zod error", pathParamsZodCheck.error, this.pathParams);
     else this.pathParams = pathParamsZodCheck.data;
-    console.log("pathParams", this.pathParams);
 
     this.queryParams = Object.fromEntries([...this.urlInfo.searchParams.keys()]
       .map(key => [key, this.urlInfo.searchParams.getAll(key)] as const));
@@ -199,7 +200,7 @@ export class StateObject<
    * - **307 Temporary Redirect:** The resource is temporarily located at a different URL; the same HTTP method should be used.
    * - **308 Permanent Redirect:** The resource has permanently moved; the client should use the new URL in future requests.
    */
-  redirect(location: string): typeof STREAM_ENDED {
+  redirect(location: string, pushLocation?: boolean): typeof STREAM_ENDED {
     return this.sendEmpty(302, { 'Location': location });
   }
 

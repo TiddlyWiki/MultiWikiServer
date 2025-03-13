@@ -83858,6 +83858,9 @@ To suppress this warning, you need to explicitly provide the \`palette.${key}Cha
 
   // react-user-mgmt/src/components/Dashboard/Dashboard.tsx
   var import_jsx_runtime183 = __toESM(require_jsx_runtime(), 1);
+  function MissingFavicon() {
+    return /* @__PURE__ */ (0, import_jsx_runtime183.jsx)(SvgIcon_default, { children: /* @__PURE__ */ (0, import_jsx_runtime183.jsx)("svg", { xmlns: "http://www.w3.org/2000/svg", width: "680", height: "317pt", viewBox: "34 107 510 317", children: /* @__PURE__ */ (0, import_jsx_runtime183.jsx)("path", { d: "m204.10294 372.67294 2.81039.8291c3.53151-1.58007 10.63031.86197 14.3959 2.05591-6.934-7.68695-17.38058-18.97509-24.90698-26.09145-2.4704-8.61546-1.41632-17.2848-.88481-26.0799l.10661-.7276c-2.96672 7.0407-6.73159 13.8847-8.75512 21.29577-2.36798 9.99817 10.5243 20.78568 15.5234 26.96817Zm214.89999 42.28504c-19.34998-.54698-27.86099-.49994-37.71558-16.70502l-7.68051.22004c-8.93988-.397-5.2142-.21705-11.1784-.51399-9.9719-.38803-8.37448-9.86297-10.12879-14.86898-2.8063-16.99305 3.71359-34.07392 3.50791-51.07032-.07282-6.03332-8.61032-27.38909-11.6604-35.02423-9.56162 1.80024-19.17511 2.14347-28.8754 2.62683-22.35922-.05477-44.5668-2.79281-66.61382-6.26983-4.29641 17.74804-17.06701 42.58935-6.5111 60.62682 12.81291 18.65766 21.80439 23.82667 35.7414 24.95164 13.93686 1.12406 17.0839 16.85904 13.71207 22.47903-2.98447 3.88403-8.22986 4.58905-12.68646 5.53003l-8.9144.41898c-7.01489-.23599-13.28491-2.12998-19.53552-5.051-10.43848-5.82696-21.2195-17.94095-29.22959-26.63797 1.86481 3.47299 2.97712 10.25293 1.28571 13.40802-4.7359 6.70896-25.21872 6.66797-34.59912 2.49897-10.65598-4.73502-36.40497-37.98197-40.386-62.88245 10.591-20.02872 26.02-37.47495 33.826-59.28323-17.015-10.85694-26.128-28.53113-24.94499-48.55152l.427-2.3175c-16.74199 3.13418-8.05998 1.96809-26.069976 3.33049-57.356004-.17549-107.796005-39.06484-79.393997-99.505786 1.846985-3.57904 3.603989-6.833004 6.735001-5.278994 2.512985 1.24695 2.152008 6.24898.887985 11.79598-16.234985 72.21878 63.111997 72.77153 111.887997 59.40782 4.84098-1.3266 14.46898-10.2612 21.13848-13.22311 10.9019-4.84113 22.7348-6.8053 34.47801-8.22059 29.20767-3.32814 64.31171 12.05838 82.14798 12.56079 17.83648.50239 43.20953-4.27082 58.785-3.26582 11.30133.51708 22.39853 2.55699 33.30252 5.46282 7.05802-34.3909 7.55701-59.737904 24.289-65.6059 9.82001 1.550995 17.38696 14.93298 22.98801 22.08301l.02298-.00403c11.40697-.45001 22.26203 2.44403 33.05499 5.65599 19.54004-2.772964 35.93702-13.74597 53.193-22.28198-.05396.268995-.33594.35998-.50397.54098-16.98199 13.73401-19.35405 36.95803-17.35602 58.43425.74304 11.14415-2.406 23.24344-6.29895 34.65357-7.28503 18.5899-21.35406 38.18498-37.68304 37.17997-6.17298-.19526-9.75901-3.69059-14.34699-7.4223-.89001 7.55863-4.388 14.30321-7.76001 20.98812-7.78698 14.82183-28.13598 21.35339-46.97802 37.18005-18.84076 15.8269 6.02902 72.35141 12.05902 82.65039 6.02902 10.29996 22.85998 14.06796 16.32901 23.36392-1.99799 3.07004-5.05301 4.16806-8.31803 5.35904Z" }) }) });
+  }
   var Dashboard = () => {
     const [{ getBagName, getBagDesc, hasBagAclAccess, hasRecipeAclAccess, ...indexJson }, refresh] = useIndexJson();
     const isAdmin = indexJson.isAdmin;
@@ -83912,7 +83915,7 @@ To suppress this warning, you need to explicitly provide the \`palette.${key}Cha
           /* @__PURE__ */ (0, import_jsx_runtime183.jsx)("h1", { children: "Recipes" }),
           /* @__PURE__ */ (0, import_jsx_runtime183.jsx)(List_default, { children: indexJson.recipeList.map((recipe) => /* @__PURE__ */ (0, import_jsx_runtime183.jsxs)(import_jsx_runtime183.Fragment, { children: [
             /* @__PURE__ */ (0, import_jsx_runtime183.jsxs)(ListItem_default, { children: [
-              /* @__PURE__ */ (0, import_jsx_runtime183.jsx)(ListItemAvatar_default, { children: /* @__PURE__ */ (0, import_jsx_runtime183.jsx)(Avatar_default, { src: `/recipes/${encodeURIComponent(recipe.recipe_name)}/tiddlers/%24%3A%2Ffavicon.ico?fallback=/.system/missing-favicon.png` }) }),
+              /* @__PURE__ */ (0, import_jsx_runtime183.jsx)(ListItemAvatar_default, { children: /* @__PURE__ */ (0, import_jsx_runtime183.jsx)(Avatar_default, { src: `/recipes/${encodeURIComponent(recipe.recipe_name)}/tiddlers/%24%3A%2Ffavicon.ico`, children: /* @__PURE__ */ (0, import_jsx_runtime183.jsx)(MissingFavicon, {}) }) }),
               /* @__PURE__ */ (0, import_jsx_runtime183.jsx)(
                 ListItemText_default,
                 {
@@ -83965,7 +83968,7 @@ To suppress this warning, you need to explicitly provide the \`palette.${key}Cha
               )
             ] }, recipe.recipe_name),
             /* @__PURE__ */ (0, import_jsx_runtime183.jsx)(Collapse_default, { in: openRecipeItems === recipe.recipe_name, timeout: "auto", unmountOnExit: true, children: /* @__PURE__ */ (0, import_jsx_runtime183.jsx)(List_default, { sx: { pl: "4.25rem" }, component: "div", disablePadding: true, children: recipe.recipe_bags.map((bag) => /* @__PURE__ */ (0, import_jsx_runtime183.jsxs)(ListItem_default, { children: [
-              /* @__PURE__ */ (0, import_jsx_runtime183.jsx)(ListItemAvatar_default, { children: /* @__PURE__ */ (0, import_jsx_runtime183.jsx)(Avatar_default, { src: `/bags/${getBagName(bag.bag_id)}/tiddlers/%24%3A%2Ffavicon.ico?fallback=/.system/missing-favicon.png` }) }),
+              /* @__PURE__ */ (0, import_jsx_runtime183.jsx)(ListItemAvatar_default, { children: /* @__PURE__ */ (0, import_jsx_runtime183.jsx)(Avatar_default, { src: `/bags/${encodeURIComponent(getBagName(bag.bag_id))}/tiddlers/%24%3A%2Ffavicon.ico`, children: /* @__PURE__ */ (0, import_jsx_runtime183.jsx)(MissingFavicon, {}) }) }),
               /* @__PURE__ */ (0, import_jsx_runtime183.jsx)(ListItemIcon_default, { children: bag.with_acl ? /* @__PURE__ */ (0, import_jsx_runtime183.jsx)(GppGood_default, {}) : /* @__PURE__ */ (0, import_jsx_runtime183.jsx)(GppBadOutlined_default, {}) }),
               /* @__PURE__ */ (0, import_jsx_runtime183.jsx)(
                 ListItemText_default,
@@ -84045,7 +84048,7 @@ To suppress this warning, you need to explicitly provide the \`palette.${key}Cha
         /* @__PURE__ */ (0, import_jsx_runtime183.jsxs)(CardContent_default, { children: [
           /* @__PURE__ */ (0, import_jsx_runtime183.jsx)("h1", { children: "Bags" }),
           /* @__PURE__ */ (0, import_jsx_runtime183.jsx)(List_default, { children: filteredBags.map((bag) => /* @__PURE__ */ (0, import_jsx_runtime183.jsxs)(ListItem_default, { children: [
-            /* @__PURE__ */ (0, import_jsx_runtime183.jsx)(ListItemAvatar_default, { children: /* @__PURE__ */ (0, import_jsx_runtime183.jsx)(Avatar_default, { src: `/bags/${encodeURIComponent(bag.bag_name)}/tiddlers/%24%3A%2Ffavicon.ico?fallback=/.system/missing-favicon.png` }) }),
+            /* @__PURE__ */ (0, import_jsx_runtime183.jsx)(ListItemAvatar_default, { children: /* @__PURE__ */ (0, import_jsx_runtime183.jsx)(Avatar_default, { src: `/bags/${encodeURIComponent(bag.bag_name)}/tiddlers/%24%3A%2Ffavicon.ico`, children: /* @__PURE__ */ (0, import_jsx_runtime183.jsx)(MissingFavicon, {}) }) }),
             /* @__PURE__ */ (0, import_jsx_runtime183.jsx)(
               ListItemText_default,
               {

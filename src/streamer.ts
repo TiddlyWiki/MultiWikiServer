@@ -58,6 +58,31 @@ export class Streamer {
   }
 
 
+  // RIP Push Stream. it was a great idea.
+  async pushStream(path: string) {
+    return new Promise<Streamer>((resolve, reject) => {
+      const req2: http2.Http2ServerRequest = this.req as any;
+      if (!req2.stream || !req2.stream.pushAllowed) return reject();
+      req2.stream.write
+      const newRawHeaders = this.req.rawHeaders.slice();
+      for (let i = 0; i < newRawHeaders.length; i += 2) {
+        if (newRawHeaders[i] === ":method") newRawHeaders[i + 1] = "GET";
+        if (newRawHeaders[i] === ":path") newRawHeaders[i + 1] = path;
+      }
+      req2.stream.pushStream({ ":method": "GET", ":path": path }, (err, pushStream, headers) => {
+        if (err) return reject(err);
+        const preq = new http2.Http2ServerRequest(pushStream, req2.headers, {}, newRawHeaders);
+        const pres = new http2.Http2ServerResponse(pushStream);
+        const pushStreamer = new Streamer(preq, pres, this.router);
+        resolve(pushStreamer);
+      });
+    }).then(async streamer => {
+      await this.router.handle(streamer);
+      return streamer;
+    }, (err) => { if (err) throw err; });
+  }
+
+
   parseCookieString(cookieString: string) {
     const cookies: any = {};
     if (typeof cookieString !== 'string') throw new Error('cookieString must be a string');

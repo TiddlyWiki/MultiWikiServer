@@ -37,30 +37,13 @@ export async function setupDevServer() {
     });
 
     const { statusCode, headers } = proxyRes;
-    if (statusCode === 404 || !statusCode)
+    if (statusCode === 404 || !statusCode) {
+      proxyRes.resume();
       return state.sendEmpty(404, { 'Content-Type': 'text/html' });
-
-    const body = await new Promise<Buffer>((resolve, reject) => {
-      const chunks: Buffer[] = [];
-      proxyRes.on("data", chunk => { chunks.push(chunk); });
-      proxyRes.on("end", () => { resolve(Buffer.concat(chunks)); });
-      proxyRes.on("error", reject);
-    });
-
-    // const text = body.toString("utf8");
-    // const part = `<script type="application/json" id="index-json"></script>`;
-    // const parts = text.split(part);
-    return state.sendBuffer(statusCode as number, headers, body);
-
-    // state.writeHead(proxyRes.statusCode as number, proxyRes.headers);
-    // state.write(parts[0] as string);
-    // // const json = await getIndexJson(state);
+    } else {
+      return state.sendStream(statusCode as number, headers, proxyRes);
+    }
     
-    // state.write(`<script type="application/json" id="index-json">${
-    //   JSON.stringify(json).replace(/<\/script>/g, '<\\/script>')
-    // }</script>`);
-    // state.write(parts[1] as string);
-    // return state.end();
   }
 }
 

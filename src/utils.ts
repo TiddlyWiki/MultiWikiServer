@@ -140,7 +140,9 @@ data: the data to send (passed to the end method of the response instance)
 encoding: the encoding of the data to send (passed to the end method of the response instance)
 */
 export async function sendResponse(this: Router, state: StateObject<any, any>, statusCode: number, headers: OutgoingHttpHeaders, data: string | Buffer, encoding?: NodeJS.BufferEncoding) {
+  // console.log("sendResponse");
   if (this.enableBrowserCache && (statusCode == 200)) {
+    // console.log("enableBrowserCache");
     var hash = createHash('md5');
     // Put everything into the hash that could change and invalidate the data that
     // the browser already stored. The headers the data and the encoding.
