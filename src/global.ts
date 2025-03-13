@@ -7,7 +7,7 @@ import * as fs from "fs";
 import * as assert from "assert";
 import "../jsglobal";
 import { Prisma } from "@prisma/client";
-import { ZodAssert } from "./zodAssert";
+import { ZodAssert } from "./utils";
 
 declare global {
 

@@ -1,7 +1,7 @@
 import { request } from "http";
 import * as esbuild from "esbuild"
-import { StateObject } from "./StateObject";
-import { Router } from "./router";
+import { StateObject } from "../StateObject";
+import { Router } from "../router";
 
 export async function setupDevServer() {
   let ctx = await esbuild.context({

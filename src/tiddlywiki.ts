@@ -71,7 +71,8 @@ export async function bootTiddlyWiki(commands: boolean, wikiPath: string, router
   $tw.boot.argv = [
     "++plugins/client",
     "++plugins/server",
-    "++src/commands",
+		"+tiddlywiki/vanilla",
+		"+tiddlywiki/snowwhite",
     wikiPath,
     "--mws-render-tiddler",
     ...commands ? [

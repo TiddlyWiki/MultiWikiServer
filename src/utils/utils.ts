@@ -1,11 +1,11 @@
 import { IncomingHttpHeaders, OutgoingHttpHeaders } from "node:http";
-import { Streamer } from "./streamer";
-import { StateObject } from './StateObject';
+import { Streamer } from "../streamer";
+import { StateObject } from '../StateObject';
 import { createHash } from "node:crypto";
 import * as zlib from "node:zlib";
 import { ok } from "node:assert";
 import { promisify } from "node:util";
-import { Router } from "./router";
+import { Router } from "../router";
 import { mkdirSync } from "node:fs";
 import * as fs from "node:fs";
 import * as path from "node:path";

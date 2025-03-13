@@ -1,7 +1,7 @@
 import { z, ZodEffects } from "zod";
-import { StateObject } from "./StateObject";
+import { StateObject } from "../StateObject";
 import { Prisma } from "@prisma/client";
-import { STREAM_ENDED } from "./streamer";
+import { STREAM_ENDED } from "../streamer";
 
 
 

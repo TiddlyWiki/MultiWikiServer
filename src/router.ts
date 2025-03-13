@@ -13,8 +13,8 @@ import {
   rootRoute,
   RouteOptAny,
   RouteMatch,
-} from "./rootRoute";
-import { setupDevServer } from "./serve-esbuild";
+} from "./utils";
+import { setupDevServer } from "./utils";
 import { createPasswordService, PasswordService } from "./Authenticator";
 import { MWSConfig, MWSConfigConfig } from "./server";
 import * as sessions from "./routes/services/sessions";

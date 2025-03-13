@@ -7,7 +7,7 @@ import * as z from 'zod';
 import { AuthUser } from './routes/services/sessions';
 import { Prisma } from '@prisma/client';
 import { Types } from '@prisma/client/runtime/library';
-import { DataChecks } from './data-checks';
+import { DataChecks } from './utils';
 
 export interface AuthStateRouteACL {
   /** Every level in the route path must have this disabled for it to be disabled */
@@ -54,8 +54,6 @@ export class StateObject<
   // processIncomingStream
   sendResponse
   sendDevServer
-  mapAsync
-  filterAsync
 
   data!:
     B extends "string" ? string :
@@ -98,7 +96,6 @@ export class StateObject<
   PasswordService;
   authenticatedUser;
 
-  pushStream: Streamer["pushStream"];
 
   constructor(
     streamer: Streamer,
@@ -113,19 +110,10 @@ export class StateObject<
     this.authenticatedUser = user;
 
     this.databasePath = this.router.databasePath;
-    // this.attachmentStore = this.router.attachmentStore;
-    // this.store = this.createStore(this.router.engine);
 
-    // this.adminWiki = this.router.$tw.wiki;
-    // this.Tiddler = this.router.$tw.Tiddler;
-    // this.sjcl = this.router.sjcl;
-    // this.config = this.router.$tw.config;
-    this.pushStream = streamer.pushStream.bind(streamer);
     this.readMultipartData = readMultipartData.bind(this);
     this.sendResponse = sendResponse.bind(this.router, this);
     this.sendDevServer = this.router.sendDevServer.bind(this.router, this);
-    this.mapAsync = mapAsync;
-    this.filterAsync = filterAsync;
 
     this.pathParams = Object.fromEntries<string | undefined>(routePath.map(r =>
       r.route.pathParams

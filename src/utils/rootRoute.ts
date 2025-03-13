@@ -1,6 +1,6 @@
-import { AuthStateRouteACL, StateObject } from "./StateObject";
+import { AuthStateRouteACL, StateObject } from "../StateObject";
 import * as z from "zod";
-import { AllowedMethod, BodyFormat } from "./router";
+import { AllowedMethod, BodyFormat } from "../router";
 
 
 export interface RouteOptAny extends RouteOptBase<BodyFormat, AllowedMethod[], string[]> { }

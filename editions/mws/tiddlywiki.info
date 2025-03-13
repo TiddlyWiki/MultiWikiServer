@@ -1,10 +1,7 @@
 {
 	"description": "Multiple wiki client-server edition",
 	"plugins": [],
-	"themes": [
-		"tiddlywiki/vanilla",
-		"tiddlywiki/snowwhite"
-	],
+	"themes": [],
 	"build": {
 		"load-mws-demo-data": [
 			"--mws-load-wiki-folder","./node_modules/tiddlywiki/editions/multiwikidocs","mws-docs", "MWS Documentation from https://mws.tiddlywiki.com","mws-docs","MWS Documentation from https://mws.tiddlywiki.com",
