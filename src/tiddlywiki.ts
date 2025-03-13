@@ -2,7 +2,7 @@ import { mkdirSync, readFileSync } from "fs";
 import { resolve } from "path";
 import { TiddlyWiki } from "tiddlywiki";
 
-import { Commander } from "./commands-new";
+import { Commander } from "./commands";
 import { createClient } from "@libsql/client";
 import { PrismaLibSQL } from "@prisma/adapter-libsql";
 import { PrismaClient } from "@prisma/client";
