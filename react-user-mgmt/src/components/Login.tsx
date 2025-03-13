@@ -7,7 +7,7 @@ import * as opaque from "@serenity-kit/opaque";
 // import validator from '@rjsf/validator-ajv8';
 import Card from '@mui/material/Card';
 import { Alert, CardContent, CardHeader, Container, Stack } from '@mui/material';
-import { JsonForm } from '../helpers/forms';
+import { JsonFormSimple } from '../helpers/forms';
 
 
 export function fetchPostJSON(url: string, formData: any) {
@@ -91,7 +91,7 @@ const Login: React.FC<{}> = () => {
               <a href="/">Explore as Guest</a>
               <h2>TiddlyWiki Login</h2>
             </div>
-            <JsonForm
+            <JsonFormSimple
               required={["username", "password"]}
               properties={{
                 returnUrl: { type: "string", default: "/dashboard", "ui:widget": "hidden" },

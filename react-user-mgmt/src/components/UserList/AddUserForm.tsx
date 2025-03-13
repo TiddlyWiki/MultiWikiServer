@@ -2,7 +2,7 @@ import React, { useId, useState } from 'react';
 import { useForm, UseFormRegisterReturn } from "react-hook-form";
 import { changePassword, FormFieldInput, serverRequest, useFormFieldHandler } from '../../helpers/utils';
 import { Alert, Card, CardContent, CardHeader, Stack } from '@mui/material';
-import { JsonForm } from '../../helpers/forms';
+import { JsonFormSimple } from '../../helpers/forms';
 
 
 export interface CreateUserForm {
@@ -29,13 +29,13 @@ export async function addNewUser(input: CreateUserForm) {
 
 const AddUserForm: React.FC<{ refreshPage: () => void }> = (props) => {
 
-
+  const [value, onChange] = useState({});
 
   return (
     <Card sx={{ width: "20rem" }}>
       <CardHeader title="Add New User" />
       <CardContent>
-        <JsonForm
+        <JsonFormSimple
           required={['username', 'email', 'password', 'confirmPassword']}
           properties={{
             username: { type: 'string', title: 'Username' },
@@ -43,6 +43,8 @@ const AddUserForm: React.FC<{ refreshPage: () => void }> = (props) => {
             password: { type: 'string', title: 'Password', 'ui:widget': 'password' },
             confirmPassword: { type: 'string', title: 'Confirm Password', 'ui:widget': 'password' }
           }}
+          value={value}
+          onChange={onChange}
           onSubmit={async (data, event) => {
             return await addNewUser(data.formData);
           }}

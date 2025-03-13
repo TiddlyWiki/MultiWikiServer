@@ -14,6 +14,7 @@ const theme = createTheme({
       paper: "#fff"
     }
   },
+  
   colorSchemes: {
     dark: true,
 

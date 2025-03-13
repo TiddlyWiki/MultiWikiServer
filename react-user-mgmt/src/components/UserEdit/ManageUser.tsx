@@ -1,5 +1,5 @@
 import { Avatar, Card, CardContent, Chip, IconButton, List, ListItem, ListItemText, Stack } from '@mui/material';
-import { JsonForm } from '../../helpers/forms';
+import { JsonFormSimple } from '../../helpers/forms';
 import {
   changePassword,
   DataLoader,
@@ -9,7 +9,7 @@ import {
   useIndexJson
 } from '../../helpers/utils';
 import { } from '@mui/material/colors';
-import React from 'react';
+import React, { useState } from 'react';
 import { useTheme } from '@mui/material/styles';
 import ArrowBack from '@mui/icons-material/ArrowBack';
 
@@ -102,16 +102,29 @@ const ManageUser = DataLoader(async (props: { userID: string }) => {
   const userIsAdmin = indexJson.isAdmin;
   const theme = useTheme();
 
-  const update = useFormFieldHandler<UpdateAccountFields>(refreshUser);
-  const password = useFormFieldHandler<ChangePasswordFields>(refreshUser);
-  const deleteForm = useFormFieldHandler<DeleteAccountFields>(refreshUser);
+  const [valueUpdate, onChangeUpdate] = useState<UpdateAccountFields>({
+    userId: `${user.user_id}`,
+    username: user.username,
+    email: user.email,
+    role: user.roles[0].role_id,
+  });
+  const [valueDelete, onChangeDelete] = useState<DeleteAccountFields>({
+    user_id: `${user.user_id}`,
+  });
+  const [valuePassword, onChangePassword] = useState({
+    userId: `${user.user_id}`,
+    newPassword: "",
+    confirmPassword: "",
+  });
+
+  console.log(valueUpdate, valueDelete, valuePassword);
 
   const userInitials = user.username?.[0].toUpperCase();
   interface UpdateAccountFields {
     userId: string;
     username: string;
     email: string;
-    role: string;
+    role: number;
   }
   const handleUpdateProfile = async (formData: UpdateAccountFields) => {
     return await serverRequest.user_update({
@@ -216,18 +229,20 @@ const ManageUser = DataLoader(async (props: { userID: string }) => {
         {(userIsAdmin || isCurrentUserProfile) && (
           <Card className="mws-user-profile-management">
             <h2>Manage Account</h2>
-            <JsonForm
+            <JsonFormSimple
               required={["userId", "username", "email"]}
               properties={{
                 userId: { type: "string", title: "User ID", "ui:widget": "hidden", default: `${user.user_id}` },
                 username: { type: "string", title: "Username" },
                 email: { type: "string", title: "Email" },
                 role: {
-                  type: "string", title: "Role", "ui:widget": "select",
+                  type: "number", title: "Role", "ui:widget": "select",
                   enum: allRoles.map(e => e.role_id),
                   enumNames: allRoles.map(e => e.role_name)
                 },
               }}
+              value={valueUpdate}
+              onChange={onChangeUpdate}
               onSubmit={async (data, event) => {
                 return await handleUpdateProfile(data.formData);
               }}
@@ -235,13 +250,15 @@ const ManageUser = DataLoader(async (props: { userID: string }) => {
                 submitText: "Update Profile",
               }}
             />
-            {isCurrentUserProfile && <JsonForm
+            {isCurrentUserProfile && <JsonFormSimple
               required={["userId", "newPassword", "confirmPassword"]}
               properties={{
                 userId: { type: "string", title: "User ID", "ui:widget": "hidden", default: `${user.user_id}` },
                 newPassword: { type: "string", title: "New Password", "ui:widget": "password" },
                 confirmPassword: { type: "string", title: "Confirm Password", "ui:widget": "password" },
               }}
+              value={valuePassword}
+              onChange={onChangePassword}
               onSubmit={async (data, event) => {
                 return await handleChangePassword(data.formData);
               }}
@@ -250,11 +267,13 @@ const ManageUser = DataLoader(async (props: { userID: string }) => {
               }}
             />}
             {userIsAdmin && !isCurrentUserProfile && (
-              <JsonForm
+              <JsonFormSimple
                 required={["user_id"]}
                 properties={{
                   user_id: { type: "string", title: "User ID", "ui:widget": "hidden", default: `${user.user_id}` },
                 }}
+                value={valueDelete}
+                onChange={onChangeDelete}
                 onSubmit={async (data, event) => {
                   return await handleDeleteAccount(data.formData);
                 }}

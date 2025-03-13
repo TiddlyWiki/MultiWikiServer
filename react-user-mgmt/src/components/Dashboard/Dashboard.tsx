@@ -3,13 +3,23 @@ import WikiCard from './WikiCard';
 import BagPill from './BagPill';
 import { useFormStatus } from 'react-dom';
 import { FormFieldInput, serverRequest, useFormFieldHandler, useIndexJson } from '../../helpers/utils';
-import { JsonForm } from '../../helpers/forms';
+import { JsonForm, JsonFormSimple } from '../../helpers/forms';
 import { Avatar, Button, Card, CardActions, CardContent, CardHeader, Chip, Dialog, DialogContent, DialogTitle, IconButton, Link, List, ListItem, ListItemAvatar, ListItemButton, ListItemText, Stack } from "@mui/material";
 // import LockIcon from '@mui/icons-material/Lock';
 // import VerifiedUserIcon from '@mui/icons-material/VerifiedUser';
 import ACLIcon from '@mui/icons-material/AdminPanelSettings';
 import EditIcon from '@mui/icons-material/Edit';
-import VerifiedUserIcon from '@mui/icons-material/VerifiedUser';
+import ListSubheader from '@mui/material/ListSubheader';
+import ListItemIcon from '@mui/material/ListItemIcon';
+import Collapse from '@mui/material/Collapse';
+import InboxIcon from '@mui/icons-material/MoveToInbox';
+import DraftsIcon from '@mui/icons-material/Drafts';
+import SendIcon from '@mui/icons-material/Send';
+import ExpandLess from '@mui/icons-material/ExpandLess';
+import ExpandMore from '@mui/icons-material/ExpandMore';
+import StarBorder from '@mui/icons-material/StarBorder';
+import WithACL from '@mui/icons-material/GppGood';
+import WithoutACL from '@mui/icons-material/GppBadOutlined';
 
 interface Recipe {
   recipe_name: string;
@@ -37,7 +47,7 @@ interface DashboardProps {
 
 const Dashboard = () => {
 
-  const [{ getBagName, hasBagAclAccess, hasRecipeAclAccess, ...indexJson }, refresh] = useIndexJson();
+  const [{ getBagName, getBagDesc, hasBagAclAccess, hasRecipeAclAccess, ...indexJson }, refresh] = useIndexJson();
 
   const isAdmin = indexJson.isAdmin;
 
@@ -65,7 +75,7 @@ const Dashboard = () => {
   interface RecipeCreateForm {
     recipe_name: string;
     description: string;
-    bag_names: string;
+    bag_names: { bag_name: string, with_acl: boolean }[];
     with_acl: boolean;
     owned: boolean;
   }
@@ -79,11 +89,11 @@ const Dashboard = () => {
       owned = false,
       with_acl = false
     } = formData;
-    const bag_list = bag_names.split(" "); // this should really be a tw list
+
     await serverRequest.recipe_create({
       recipe_name,
       description,
-      bag_names: bag_list,
+      bag_names,
       owned,
       with_acl
     });
@@ -103,15 +113,10 @@ const Dashboard = () => {
     return "Bag created successfully.";
   }
 
+  const [openRecipeItems, setOpenRecipeItems] = useState<string | null>(null);
   const [showRecipeDialog, setShowRecipeDialog] = useState(false);
   const [recipeTitle, setRecipeTitle] = useState("");
-  const [valueRecipe, onChangeRecipe] = useState<{
-    description?: any;
-    with_acl?: any;
-    recipe_name?: any;
-    bag_names?: any;
-    owned?: any;
-  }>({});
+  const [valueRecipe, onChangeRecipe] = useState<RecipeCreateForm>({} as any);
   const [showBagDialog, setShowBagDialog] = useState(false);
   const [bagTitle, setBagTitle] = useState("");
   const [valueBag, onChangeBag] = useState<{
@@ -120,6 +125,7 @@ const Dashboard = () => {
     owned?: any;
   }>({});
 
+  console.log(valueRecipe, valueBag);
 
 
   return (
@@ -131,7 +137,7 @@ const Dashboard = () => {
           <CardContent>
             <h1>Recipes</h1>
             <List>
-              {indexJson.recipeList.map((recipe) => (
+              {indexJson.recipeList.map((recipe) => (<>
 
                 <ListItem key={recipe.recipe_name}>
                   <ListItemAvatar>
@@ -147,18 +153,24 @@ const Dashboard = () => {
                     {recipe.recipe_bags.map((recipeBag) => ({
                       bag_id: recipeBag.bag_id,
                       position: recipeBag.position,
-                      bag_name: getBagName(recipeBag.bag_id)
-                    })).sort((a, b) => a.position - b.position).reverse().map((recipeBag, index) => (
-                      <BagPill
+                      bag_name: getBagName(recipeBag.bag_id),
+                      with_acl: recipeBag.with_acl,
+                    })).sort((a, b) => a.position - b.position).map((recipeBag, index) => (
+                      <Chip
+                        icon={recipeBag.with_acl ? <WithACL /> : <WithoutACL />}
                         key={recipeBag.bag_id}
-                        bagName={getBagName(recipeBag.bag_id)}
-                        isTopmost={index === 0}
+                        label={recipeBag.bag_name}
                       />
+                      // <BagPill
+                      //   key={recipeBag.bag_id}
+                      //   bagName={getBagName(recipeBag.bag_id)}
+                      //   isTopmost={index === 0}
+                      // />
                     ))}
                   </ListItemText>
                   <IconButton
                     edge="end"
-                    aria-label="delete"
+                    aria-label="edit recipe"
                     href=""
                     onClick={(event) => {
                       setShowRecipeDialog(true);
@@ -166,7 +178,10 @@ const Dashboard = () => {
                       onChangeRecipe({
                         recipe_name: recipe.recipe_name,
                         description: recipe.description,
-                        bag_names: recipe.recipe_bags.map((recipeBag) => getBagName(recipeBag.bag_id)).join(" "),
+                        bag_names: recipe.recipe_bags.map((recipeBag) => ({
+                          bag_name: getBagName(recipeBag.bag_id)!,
+                          with_acl: recipeBag.with_acl
+                        })),
                         with_acl: false,
                         owned: false
                       });
@@ -177,32 +192,86 @@ const Dashboard = () => {
                   {hasRecipeAclAccess(recipe) && (
                     <IconButton
                       edge="end"
-                      aria-label="delete"
+                      aria-label="open acl"
                       href={`/admin/acl/${recipe.recipe_name}`}
                     >
                       <ACLIcon />
                     </IconButton>
                   )}
+                  <IconButton
+                    edge="end"
+                    aria-label="show bags"
+                    onClick={() => { setOpenRecipeItems(recipe.recipe_name === openRecipeItems ? null : recipe.recipe_name) }}
+                  >
+                    {openRecipeItems === recipe.recipe_name ? <ExpandLess /> : <ExpandMore />}
+                  </IconButton>
                 </ListItem>
+                <Collapse in={openRecipeItems === recipe.recipe_name} timeout="auto" unmountOnExit>
+                  <List sx={{ pl: "4.25rem" }} component="div" disablePadding>
 
-              ))}
+                    {recipe.recipe_bags.map(bag => (
+                      <ListItem key={getBagName(bag.bag_id)}>
+                        <ListItemAvatar>
+                          <Avatar src={`/recipes/${getBagName(bag.bag_id)}/tiddlers/%24%3A%2Ffavicon.ico?fallback=/.system/missing-favicon.png`} />
+                        </ListItemAvatar>
+                        <ListItemIcon>
+                          {bag.with_acl ? <WithACL /> : <WithoutACL />}
+                        </ListItemIcon>
+                        <ListItemText
+                          primary={getBagName(bag.bag_id)}
+                          secondary={getBagDesc(bag.bag_id)} />
+                      </ListItem>
+                    ))}
+
+                  </List>
+                </Collapse>
+
+              </>))}
             </List>
             <Dialog open={showRecipeDialog} onClose={() => { setShowRecipeDialog(false); }}>
               <DialogTitle>{recipeTitle}</DialogTitle>
               <DialogContent>
                 <JsonForm
-                  required={["recipe_name", "description", "bag_names"]}
-                  properties={{
-                    recipe_name: { type: "string", title: "Recipe name" },
-                    description: { type: "string", title: "Recipe description" },
-                    bag_names: { type: "string", title: "Bags in recipe (space separated)" },
-                    with_acl: { type: "boolean", title: "Apply implicit ACL permissions to bags which you have admin privelages on." },
-                    owned: { type: "boolean", title: "Admin: Is this your personal recipe or a site-wide recipe?" },
+                  schema={{
+                    type: "object",
+                    required: ["recipe_name", "description", "bag_names"],
+                    properties: {
+                      recipe_name: { type: "string", title: "Recipe name" },
+                      description: { type: "string", title: "Recipe description" },
+                      bag_names: {
+                        type: "array",
+                        title: "Bags",
+                        items: {
+                          type: "object",
+                          required: ["bag_name"],
+                          properties: {
+                            bag_name: {
+                              type: "string", title: "Bag Name", default: ""
+                            },
+                            with_acl: {
+                              type: "boolean",
+                              title: "With ACL",
+                              description: "Set this bag to inherit permissions from this recipe:",
+                              default: false
+                            },
+                          }
+                        }
+                      },
+                      owned: { type: "boolean", title: "Admin: Is this your personal recipe or a site-wide recipe?" },
+                    }
+                  }}
+                  uiSchema={{
+                    bag_names: {
+                      "ui:options": {
+
+                      }
+                    }
                   }}
                   value={valueRecipe}
                   onChange={onChangeRecipe}
                   onSubmit={async (data, event) => {
                     console.log(data);
+                    if (!data.formData) throw "No data";
                     return await handleRecipeSubmit(data.formData);
                   }}
                 />
@@ -216,7 +285,7 @@ const Dashboard = () => {
               onChangeRecipe({
                 recipe_name: "",
                 description: "",
-                bag_names: "",
+                bag_names: [],
                 with_acl: false,
                 owned: false
               });
@@ -236,8 +305,7 @@ const Dashboard = () => {
                   </ListItemAvatar>
                   <ListItemText
                     primary={bag.bag_name}
-                    secondary={bag.description}
-                  />
+                    secondary={bag.description} />
                   <IconButton
                     edge="end"
                     aria-label="delete"
@@ -260,7 +328,7 @@ const Dashboard = () => {
             <Dialog open={showBagDialog} onClose={() => { setShowBagDialog(false); }}>
               <DialogTitle>{bagTitle}</DialogTitle>
               <DialogContent>
-                <JsonForm
+                <JsonFormSimple
                   required={["bag_name", "description"]}
                   properties={{
                     bag_name: { type: "string", title: "Bag name" },
@@ -307,6 +375,10 @@ const Dashboard = () => {
   );
 };
 
+function renderBagItem(bag: { _count: { acl: number; }; } & { bag_id: number & { __prisma_table: "Bags"; __prisma_field: "bag_id"; }; bag_name: string & { __prisma_table: "Bags"; __prisma_field: "bag_name"; }; description: string & { __prisma_table: "Bags"; __prisma_field: "description"; }; owner_id: PrismaField<"Bags", "owner_id">; }, setShowBagDialog: React.Dispatch<React.SetStateAction<boolean>>, setBagTitle: React.Dispatch<React.SetStateAction<string>>, onChangeBag: React.Dispatch<React.SetStateAction<{ bag_name?: any; description?: any; owned?: any; }>>) {
+  return;
+}
+
 function MwsFormChild({ title, submitText, children, }: PropsWithChildren<{ title: string, submitText: string }>) {
   const status = useFormStatus();
   return <>
@@ -332,3 +404,55 @@ function FormField({ name, children }: PropsWithChildren<{ name: string }>) {
 }
 
 export default Dashboard;
+
+
+export function NestedList() {
+  const [open, setOpen] = React.useState(true);
+
+  const handleClick = () => {
+    setOpen(!open);
+  };
+
+  return (
+    <List
+      sx={{ width: '100%', maxWidth: 360, bgcolor: 'background.paper' }}
+      component="nav"
+      aria-labelledby="nested-list-subheader"
+      subheader={
+        <ListSubheader component="div" id="nested-list-subheader">
+          Nested List Items
+        </ListSubheader>
+      }
+    >
+      <ListItemButton>
+        <ListItemIcon>
+          <SendIcon />
+        </ListItemIcon>
+        <ListItemText primary="Sent mail" />
+      </ListItemButton>
+      <ListItemButton>
+        <ListItemIcon>
+          <DraftsIcon />
+        </ListItemIcon>
+        <ListItemText primary="Drafts" />
+      </ListItemButton>
+      <ListItemButton onClick={handleClick}>
+        <ListItemIcon>
+          <InboxIcon />
+        </ListItemIcon>
+        <ListItemText primary="Inbox" />
+        {open ? <ExpandLess /> : <ExpandMore />}
+      </ListItemButton>
+      <Collapse in={open} timeout="auto" unmountOnExit>
+        <List component="div" disablePadding>
+          <ListItemButton sx={{ pl: 4 }}>
+            <ListItemIcon>
+              <StarBorder />
+            </ListItemIcon>
+            <ListItemText primary="Starred" />
+          </ListItemButton>
+        </List>
+      </Collapse>
+    </List>
+  );
+}

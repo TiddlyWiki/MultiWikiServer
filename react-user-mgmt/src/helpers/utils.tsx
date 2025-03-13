@@ -149,6 +149,7 @@ export async function getIndexJson() {
   }
 
   const getBagName = (bagId: number) => bagMap.get(bagId as any)?.bag_name;
+  const getBagDesc = (bagId: number) => bagMap.get(bagId as any)?.description;
 
   return {
     ...res,
@@ -156,6 +157,7 @@ export async function getIndexJson() {
     recipeMap,
     hasBagAclAccess,
     getBagName,
+    getBagDesc,
     hasRecipeAclAccess,
   }
 }

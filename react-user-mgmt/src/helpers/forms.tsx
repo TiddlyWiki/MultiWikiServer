@@ -20,12 +20,12 @@ function filterProps(props: Record<string, JSONProps>, uischema: boolean) {
   return result;
 }
 
-export function JsonForm<T extends Record<string, JSONProps>>(props: {
-  value: { [K in string & keyof T]?: any },
-  onChange: (value: { [K in string & keyof T]?: any }) => void,
-  properties: T,
-  required: (string & keyof T)[],
-  onSubmit: (data: IChangeEvent<any, RJSFSchema, any>, event: React.FormEvent<any>) => Promise<string>,
+export function JsonForm<T, S extends StrictRJSFSchema>(props: {
+  schema: S,
+  uiSchema: UiSchema,
+  value: T,
+  onChange: (value: T) => void,
+  onSubmit: (data: IChangeEvent<T, S, any>, event: React.FormEvent<any>) => Promise<string>,
   submitOptions?: UiSchema["ui:submitButtonOptions"],
 }) {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -33,19 +33,15 @@ export function JsonForm<T extends Record<string, JSONProps>>(props: {
 
   return <>
     <Form
-      schema={{
-        type: "object",
-        required: props.required,
-        properties: filterProps(props.properties, false),
-      }}
+      schema={props.schema}
       uiSchema={{
-        ...filterProps(props.properties, true),
+        ...props.uiSchema,
         "ui:submitButtonOptions": props.submitOptions
       }}
       validator={validator}
       onSubmit={async (data, event) => {
         setErrorMessage(null);
-        const [good, error, result] = await props.onSubmit(data, event)
+        const [good, error, result] = await props.onSubmit(data as IChangeEvent<T, S, any>, event)
           .then((result) => [true, undefined, result], (error) => [false, error, undefined]);
 
         if (good) {
@@ -68,4 +64,31 @@ export function JsonForm<T extends Record<string, JSONProps>>(props: {
       {successMessage && <Alert severity="success">{successMessage}</Alert>}
     </Stack>
   </>
+}
+
+export function JsonFormSimple<T extends Record<string, JSONProps>>({ required, properties, submitOptions, ...props }: {
+  value: { [K in string & keyof T]?: any },
+  onChange: (value: { [K in string & keyof T]?: any }) => void,
+  properties: T,
+  required: (string & keyof T)[],
+  onSubmit: (data: IChangeEvent<any, RJSFSchema, any>, event: React.FormEvent<any>) => Promise<string>,
+  submitOptions?: UiSchema["ui:submitButtonOptions"],
+}) {
+  return <JsonForm
+    schema={{
+      type: "object",
+      required,
+      properties: filterProps(properties, false),
+    }}
+    uiSchema={{
+      ...filterProps(properties, true),
+      "ui:submitButtonOptions": submitOptions
+    }}
+    value={props.value}
+    onChange={props.onChange}
+    onSubmit={props.onSubmit as any}
+    submitOptions={submitOptions}
+
+  />
+
 }

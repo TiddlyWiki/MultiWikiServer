@@ -73,7 +73,7 @@ export class UserManager extends BaseManager {
     });
 
     return null;
-  }, z => z.object({}));
+  }, z => z.null());
 
 
   user_delete = this.ZodRequest(z => z.object({

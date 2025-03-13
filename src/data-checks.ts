@@ -86,6 +86,7 @@ export class DataChecks {
       // all system bags are allowed to be read by any user
       permission === "READ" && { bag_name: { startsWith: "$:/" } },
       ...OR,
+      // admin permission doesn't get inherited 
       permission === "ADMIN" ? undefined : {
         recipe_bags: {
           some: {

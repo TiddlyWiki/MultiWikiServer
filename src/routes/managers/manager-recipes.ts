@@ -59,7 +59,7 @@ export class RecipeManager extends BaseManager {
     });
 
     const recipeList = await this.prisma.recipes.findMany({
-      include: { recipe_bags: { select: { bag_id: true, position: true, } } },
+      include: { recipe_bags: { select: { bag_id: true, position: true, with_acl: true, } } },
       where: { recipe_bags: { every: { bag: { OR } } } }
     });
 
@@ -79,59 +79,81 @@ export class RecipeManager extends BaseManager {
   recipe_create = this.ZodRequest(z => z.object({
     recipe_name: z.string(),
     description: z.string(),
-    bag_names: z.array(z.string()),
+    bag_names: z.array(z.object({ bag_name: z.string(), with_acl: z.boolean() })),
     owned: z.boolean(),
-    with_acl: z.boolean(),
   }), async (input) => {
 
     if (!this.user) throw "User not authenticated";
 
     const { isAdmin, user_id } = this.user;
 
-    const { recipe_name, description, bag_names, owned, with_acl } = input;
+    const { recipe_name, description, bag_names, owned } = input;
 
     if (!isAdmin && !owned) throw "User is not an admin and cannot create a recipe that is not owned";
 
-    const OR = this.checks.getBagWhereACL({ permission: "ADMIN", user_id, });
+    const OR = this.checks.getWhereACL({ permission: "ADMIN", user_id, });
 
     const bags = new Map(
       await this.prisma.bags.findMany({
-        where: { bag_name: { in: bag_names } },
+        where: { bag_name: { in: bag_names.map(e => e.bag_name) } },
       }).then(bags => bags.map(bag => [bag.bag_name as string, bag]))
     );
 
-    const missing = bag_names.filter(e => !bags.has(e));
+    const missing = bag_names.filter(e => !bags.has(e.bag_name));
     if (missing.length) throw "Some bags not found: " + JSON.stringify(missing);
 
-    const bagsAcl = with_acl && new Map(
+    const bagsAcl = new Map(
       await this.prisma.bags.findMany({
-        where: { bag_name: { in: bag_names }, OR },
+        where: { bag_name: { in: bag_names.map(e => e.bag_name) }, OR },
       }).then(bags => bags.map(bag => [bag.bag_name as string, bag]))
     );
 
     const createBags = bag_names.map((bag, position) => ({
-      bag_id: bags.get(bag)!.bag_id,
-      with_acl: bagsAcl && bagsAcl.has(bag),
+      bag_id: bags.get(bag.bag_name)!.bag_id,
+      with_acl: bagsAcl && bagsAcl.has(bag.bag_name) && bag.with_acl,
       position,
     }));
 
-    const recipe = await this.prisma.recipes.create({
-      data: {
-        recipe_name,
-        description,
-        recipe_bags: {
-          create: createBags
-        },
-        owner_id: owned ? user_id : null
-      },
-      include: {
-        recipe_bags: {
-          include: { bag: true }
-        }
-      }
-    });
+    const existing = await this.prisma.recipes.findUnique({ where: { recipe_name } });
 
-    return recipe;
+    if (existing) {
+      await this.prisma.recipes.update({
+        where: { recipe_name },
+        data: {
+          description,
+          recipe_bags: {
+            deleteMany: {},
+          }
+        }
+      });
+      await this.prisma.recipes.update({
+        where: { recipe_name },
+        data: {
+          recipe_bags: {
+            create: createBags
+          }
+        }
+      });
+      return existing;
+    } else {
+
+      return await this.prisma.recipes.create({
+        data: {
+          recipe_name,
+          description,
+          recipe_bags: {
+            create: createBags
+          },
+          owner_id: owned ? user_id : null
+        },
+        include: {
+          recipe_bags: {
+            include: { bag: true }
+          }
+        }
+      });
+    }
+
   });
 
   bag_create = this.ZodRequest(z => z.object({
