@@ -31,7 +31,7 @@ export const route = (
 		return [tiddler.title, tiddler];
 	})))).map(e => e[1]);
 
-	console.log("GET /wiki/:recipe_name", recipe_name, !!recipeTiddlers);
+	// console.log("GET /wiki/:recipe_name", recipe_name, !!recipeTiddlers);
 	// Check request is valid
 	if(!recipe_name || !recipeTiddlers) {
 		return state.sendEmpty(404);

@@ -29,7 +29,7 @@ export const route = (
 	}));
 
 	const { recipe_name: recipeName, bag_name: bagName, format } = state.pathParams;
-	console.log(recipeName, bagName, format);
+	
 	var recipes = await state.store.sql.listRecipes()
 	var bags = await state.store.sql.listBags()
 

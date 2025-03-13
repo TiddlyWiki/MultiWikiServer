@@ -156,9 +156,6 @@ export class StateObject<
     return this.router.engine.$transaction(arg(this.router.engine), options);
   }
 
-
-
-
   makeTiddlerEtag(options: { bag_name: string; tiddler_id: string | number; }) {
     // why do we need tiddler_id AND bag_name? tiddler_id is unique across all tiddlers
     if (options.bag_name || options.tiddler_id) {
@@ -254,23 +251,7 @@ export class StateObject<
     console.error("checkACL is not implemented");
     throw this.sendEmpty(500);
   }
-  redirectToLogin(returnUrl: string) {
-
-    var validReturnUrlRegex = /^\/(?!.*\.(ico|png|jpg|jpeg|gif|svg|css|js|woff|woff2|ttf|eot|json)$).*$/;
-    var sanitizedReturnUrl = '/';  // Default to home page
-
-    if (validReturnUrlRegex.test(returnUrl)) {
-      sanitizedReturnUrl = returnUrl;
-      this.setHeader('Set-Cookie', `returnUrl=${encodeURIComponent(sanitizedReturnUrl)}; HttpOnly; Secure; SameSite=Strict; Path=/`);
-    } else {
-      console.log(`Invalid return URL detected: ${returnUrl}. Redirecting to home page.`);
-    }
-    const loginUrl = '/login';
-    return this.redirect(loginUrl);
-
-  };
-
-
+  
   async assertRecipeACL(
     recipe_name: PrismaField<"Recipes", "recipe_name">,
     needWrite: boolean
