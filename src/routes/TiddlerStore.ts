@@ -34,7 +34,7 @@ export class TiddlerStore {
   attachService: AttachmentService;
   storePath: string;
   constructor(
-    config: RouterConfig,
+    protected config: RouterConfig,
     protected prisma: PrismaTxnClient
   ) {
     this.attachService = new AttachmentService(config, prisma);
@@ -83,6 +83,62 @@ export class TiddlerStore {
       return errors.join("\n");
     }
   }
+
+  async upsertRecipe(
+    recipe_name: PrismaField<"Recipes", "recipe_name">,
+    description: PrismaField<"Recipes", "description">,
+    bags: { bag_name: PrismaField<"Bags", "bag_name">, with_acl: PrismaField<"Recipe_bags", "with_acl"> }[],
+    { allowPrivilegedCharacters = false }: { allowPrivilegedCharacters?: boolean; } = {}
+  ) {
+
+    const validationRecipeName = this.validateItemName(recipe_name, allowPrivilegedCharacters);
+    if (validationRecipeName) throw validationRecipeName;
+    if (bags.length === 0) throw "Recipes must contain at least one bag";
+
+    const recipe = await this.prisma.recipes.upsert({
+      where: { recipe_name },
+      update: { description },
+      create: { recipe_name, description },
+      select: { recipe_id: true }
+    });
+
+    await this.prisma.recipe_bags.deleteMany({
+      where: { recipe_id: recipe.recipe_id }
+    });
+
+    await this.prisma.recipes.update({
+      where: { recipe_name },
+      data: {
+        recipe_bags: {
+          create: bags.map(({ bag_name, with_acl }, position) => ({
+            bag: { connect: { bag_name } },
+            position,
+            with_acl
+          }))
+        }
+      }
+    });
+
+    return recipe;
+
+  }
+  async upsertBag(
+    bag_name: PrismaField<"Bags", "bag_name">,
+    description: PrismaField<"Bags", "description">,
+    { allowPrivilegedCharacters = false }: { allowPrivilegedCharacters?: boolean; } = {}
+  ) {
+
+    const validationBagName = this.validateItemName(bag_name, allowPrivilegedCharacters);
+    if (validationBagName) throw validationBagName;
+
+    return await this.prisma.bags.upsert({
+      where: { bag_name },
+      update: { description },
+      create: { bag_name, description },
+      select: { bag_id: true }
+    });
+
+  }
   /**
    * You probably want to call this inside a transaction.
    *
@@ -93,7 +149,7 @@ export class TiddlerStore {
   ```
    */
   async saveTiddlersFromPath(
-    tiddlersFromPath: any,
+    tiddlersFromPath: { tiddlers: TiddlerFields[] }[],
     bag_name: PrismaField<"Bags", "bag_name">
   ) {
 
@@ -290,7 +346,7 @@ export class TiddlerStore {
     } else {
       const { Readable } = require('stream');
       const stream = new Readable();
-      stream._read = function () {
+      stream._read = () => {
         // Push data
         const type = tiddlerInfo.tiddler.type || "text/plain";
         stream.push(tiddlerInfo.tiddler.text || "", (this.config.contentTypeInfo[type] || { encoding: "utf8" }).encoding);

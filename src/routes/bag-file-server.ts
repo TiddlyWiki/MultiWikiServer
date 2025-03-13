@@ -29,7 +29,7 @@ export class TiddlerServer extends TiddlerStore {
 
       const { recipe_name, title } = state.pathParams;
 
-      await state.assertRecipeACL(recipe_name, state.user?.user_id, false);
+      await state.assertRecipeACL(recipe_name, false);
 
       return await state.$transaction(async prisma => {
         const server = new TiddlerServer(state, prisma);
@@ -56,7 +56,7 @@ export class TiddlerServer extends TiddlerStore {
       const include_deleted = state.queryParams.include_deleted?.[0] === "true";
       const last_known_tiddler_id = +(state.queryParams.last_known_tiddler_id?.[0] ?? 0) || undefined;
 
-      await state.assertRecipeACL(recipe_name, state.user?.user_id, false);
+      await state.assertRecipeACL(recipe_name, false);
 
       const result = await state.$transaction(async prisma => {
         const server = new TiddlerServer(state, prisma);
@@ -88,7 +88,7 @@ export class TiddlerServer extends TiddlerStore {
 
       const { recipe_name, title } = state.pathParams;
 
-      await state.assertRecipeACL(recipe_name, state.user?.user_id, true);
+      await state.assertRecipeACL(recipe_name, true);
 
       await state.$transaction(async prisma => {
         const server = new TiddlerServer(state, prisma);
@@ -115,14 +115,13 @@ export class TiddlerServer extends TiddlerStore {
       const { bag_name, title } = state.pathParams;
       if (!bag_name || !title) return state.sendEmpty(404, { "x-reason": "bag_name or title not found" });
 
-      await state.assertBagACL(bag_name, state.user?.user_id, true);
+      await state.assertBagACL(bag_name, true);
 
       const result = await state.$transaction(async prisma => {
         const server = new TiddlerServer(state, prisma);
         return await server.deleteTiddler(title, bag_name);
       });
 
-      console.log("delete result", result);
 
       return state.sendEmpty(204, {
         "X-Revision-Number": result.tiddler_id.toString(),
@@ -143,7 +142,7 @@ export class TiddlerServer extends TiddlerStore {
         title: z.prismaField("Tiddlers", "title", "string"),
       }));
 
-      await state.assertBagACL(state.pathParams.bag_name, state.user?.user_id, false);
+      await state.assertBagACL(state.pathParams.bag_name, false);
 
       return await state.$transaction(async prisma => {
         const server = new TiddlerServer(state, prisma);
@@ -166,7 +165,7 @@ export class TiddlerServer extends TiddlerStore {
         bag_name: z.prismaField("Bags", "bag_name", "string"),
       }));
 
-      await state.assertBagACL(state.pathParams.bag_name, state.user?.user_id, true);
+      await state.assertBagACL(state.pathParams.bag_name, true);
 
       // Get the parameters
       const bag_name = state.pathParams.bag_name;
@@ -194,7 +193,7 @@ export class TiddlerServer extends TiddlerStore {
 
       const { bag_name, title } = state.pathParams;
 
-      await state.assertBagACL(bag_name, state.user?.user_id, false);
+      await state.assertBagACL(bag_name, false);
 
       const result = await state.$transaction(async prisma => {
         const server = new TiddlerServer(state, prisma);
@@ -255,7 +254,7 @@ export class TiddlerServer extends TiddlerStore {
         recipe_name: z.prismaField("Recipes", "recipe_name", "string"),
       }));
 
-      await state.assertRecipeACL(state.pathParams.recipe_name, state.user?.user_id, false);
+      await state.assertRecipeACL(state.pathParams.recipe_name, false);
 
       return await state.$transaction(async prisma => {
         const server = new TiddlerServer(state, prisma);
@@ -412,9 +411,9 @@ export class TiddlerServer extends TiddlerStore {
   async getRecipeTiddlers(recipe_name: PrismaField<"Recipes", "recipe_name">, options: { include_deleted?: boolean, last_known_tiddler_id?: number } = {}) {
     // Get the recipe name from the parameters
     const bagTiddlers = recipe_name && await this.getRecipeTiddlersByBag(recipe_name);
-    bagTiddlers.forEach(tiddler => { console.log(tiddler.tiddlers); });
 
-    bagTiddlers.sort((a, b) => a.position - b.position).reverse();
+
+    bagTiddlers.sort((a, b) => a.position - b.position);
 
     return Array.from(new Map(bagTiddlers.flatMap(bag =>
       bag.tiddlers.map(tiddler => [tiddler.title, {
@@ -446,10 +445,6 @@ export class TiddlerServer extends TiddlerStore {
     const state = this.state;
 
     const recipeTiddlers = await this.getRecipeTiddlers(recipe_name);
-
-    recipeTiddlers.forEach(tiddler => {
-      console.log(tiddler.title, tiddler.is_deleted);
-    });
 
     // Check request is valid
     if (!recipe_name || !recipeTiddlers) {

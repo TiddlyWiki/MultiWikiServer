@@ -1,5 +1,13 @@
 import { IModules, Wiki } from "tiddlywiki"
+import { Router } from "./router"
+import commands from "./commands-new";
 
+export interface CommandInfo {
+	name: string;
+	synchronous?: boolean;
+	namedParameterMode?: boolean;
+	mandatoryParameters?: string[];
+}
 /**
 Parse a sequence of commands
 	commandTokens: an array of command string tokens
@@ -15,9 +23,10 @@ export abstract class Commander {
 	streams
 	abstract outputPath: string;
 	verbose
+	commands: Record<string, { info: CommandInfo, Command: any }> = commands();
 
-	// abstract get commands(): any;
 	abstract get $tw(): any;
+	abstract router: Router;
 
 	constructor(
 		commandTokens: string[],
@@ -35,22 +44,25 @@ export abstract class Commander {
 		this.wiki = wiki;
 		this.streams = streams;
 		this.verbose = false;
+
+
 	}
 
-	static initCommands(moduleType: string, modules: IModules) {
-		console.log("initCommands");
-		process.exit();
-		// moduleType = moduleType || "command";
-		// Commander.commands = {};
-		// modules.forEachModuleOfType(moduleType, function (title, module: any) {
-		// 	var c: any = $tw.commands[module.info.name] = {};
-		// 	// Add the methods defined by the module
-		// 	for (var f in module) {
-		// 		if ($tw.utils.hop(module, f)) {
-		// 			c[f] = module[f];
-		// 		}
-		// 	}
-		// });
+	// Commander.initCommands = function(moduleType) {
+	// 	moduleType = moduleType || "command";
+	// 	$tw.commands = {};
+	// 	$tw.modules.forEachModuleOfType(moduleType,function(title,module) {
+	// 		var c = $tw.commands[module.info.name] = {};
+	// 		// Add the methods defined by the module
+	// 		for(var f in module) {
+	// 			if($tw.utils.hop(module,f)) {
+	// 				c[f] = module[f];
+	// 			}
+	// 		}
+	// 	});
+	// };
+	static initCommands(moduleType?: string) {
+		if (moduleType) throw new Error("moduleType is not implemented");
 	}
 	/*
 	Log a string if verbose flag is set
@@ -103,7 +115,7 @@ export abstract class Commander {
 					params.push(this.commandTokens[this.nextToken++] as string);
 				}
 				// Get the command info
-				var command = this.$tw.commands[commandName], c, err;
+				var command = this.commands[commandName], c, err;
 				if (!command) {
 					this.callback("Unknown command: " + commandName);
 				} else {
@@ -119,11 +131,12 @@ export abstract class Commander {
 					}
 					console.log(command.info, params);
 					new Promise<void>(async (resolve) => {
-						c = new command.Command(params, this,
-							command.info.synchronous ? undefined : resolve
+						const { Command, info } = command!;
+						c = new Command(params, this,
+							info.synchronous ? undefined : resolve
 						);
 						err = await c.execute();
-						if (err || command.info.synchronous) resolve(err);
+						if (err || info.synchronous) resolve(err);
 					}).then((err: any) => {
 						if (err) {
 							console.log(err);
@@ -134,45 +147,6 @@ export abstract class Commander {
 					});
 
 
-					// if (command.info.synchronous) {
-					// 	// Synchronous command
-					// 	c = new command.Command(params, this);
-					// 	err = c.execute();
-					// 	if (!err) {
-					// 		if (command.info.synchronous)
-					// 			this.executeNextCommand();
-					// 	} else if (err instanceof Promise || err.toString() === "[object Promise]") {
-					// 		err.then(() => {
-					// 			if (command.info.synchronous)
-					// 				this.executeNextCommand();
-					// 		}, (err: any) => {
-					// 			console.log(err);
-					// 			this.callback(err);
-					// 		});
-					// 	} else {
-					// 		this.callback(err);
-					// 	}
-					// } else {
-					// 	// Asynchronous command
-					// 	c = new command.Command(params, this, function (err: any) {
-					// 		if (err) {
-					// 			self.callback(err);
-					// 		} else {
-					// 			self.executeNextCommand();
-					// 		}
-					// 	});
-					// 	err = c.execute();
-					// 	if (err instanceof Promise || err.toString() === "[object Promise]") {
-					// 		err.then(() => {
-					// 			this.executeNextCommand();
-					// 		}, (err: any) => {
-					// 			console.log(err);
-					// 			this.callback(err);
-					// 		});
-					// 	} else if (err) {
-					// 		this.callback(err);
-					// 	}
-					// }
 				}
 			}
 		}
@@ -180,7 +154,7 @@ export abstract class Commander {
 	/*
 	Given an array of parameter strings `params` in name:value format, and an array of mandatory parameter names in `mandatoryParameters`, returns a hashmap of values or a string if error
 	*/
-	extractNamedParameters(params: string[], mandatoryParameters: string[]) {
+	extractNamedParameters(params: string[], mandatoryParameters?: string[]) {
 		mandatoryParameters = mandatoryParameters || [];
 		var errors: any[] = [], paramsByName = Object.create(null);
 		// Extract the parameters

@@ -43,7 +43,7 @@ export class RecipeManager extends BaseManager {
 
   index_json = this.ZodRequest(z => z.undefined(), async () => {
 
-    const { isAdmin, user_id, username } = this.user;
+    const { isAdmin, user_id, username } = this.user ?? {};
 
     const OR = this.checks.getBagWhereACL({ permission: "READ", user_id, });
 
@@ -51,16 +51,26 @@ export class RecipeManager extends BaseManager {
       include: {
         _count: {
           select: {
-            acl: { where: { permission: "ADMIN", role: { users: { some: { user_id } } } } }
+            acl: {
+              where: {
+                permission: "ADMIN",
+                role: { users: { some: { user_id } } }
+              }
+            }
           }
         }
       },
-      where: { OR }
+      where: isAdmin ? {} : { OR }
     });
 
     const recipeList = await this.prisma.recipes.findMany({
-      include: { recipe_bags: { select: { bag_id: true, position: true, with_acl: true, } } },
-      where: { recipe_bags: { every: { bag: { OR } } } }
+      include: {
+        recipe_bags: {
+          select: { bag_id: true, position: true, with_acl: true, },
+          orderBy: { position: "asc" }
+        }
+      },
+      where: isAdmin ? {} : { recipe_bags: { every: { bag: { OR } } } }
     });
 
     return {
@@ -69,10 +79,10 @@ export class RecipeManager extends BaseManager {
       isAdmin,
       user_id,
       username,
-      firstGuestUser: !!this.state.firstGuestUser,
-      isLoggedIn: !!this.state.authenticatedUser,
-      allowAnonReads: false,
-      allowAnonWrites: false,
+      firstGuestUser: !!this.firstGuestUser,
+      isLoggedIn: !!this.user,
+      allowAnonReads: this.config.allowAnonReads,
+      allowAnonWrites: this.config.allowAnonWrites,
     }
   });
 

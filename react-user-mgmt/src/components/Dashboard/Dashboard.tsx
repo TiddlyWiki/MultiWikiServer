@@ -86,8 +86,7 @@ const Dashboard = () => {
       recipe_name,
       bag_names,
       description,
-      owned = false,
-      with_acl = false
+      owned = false
     } = formData;
 
     await serverRequest.recipe_create({
@@ -95,7 +94,6 @@ const Dashboard = () => {
       description,
       bag_names,
       owned,
-      with_acl
     });
     return "Recipe created successfully.";
   };
@@ -149,25 +147,6 @@ const Dashboard = () => {
                     secondary={recipe.description}
                   />
 
-                  <ListItemText>
-                    {recipe.recipe_bags.map((recipeBag) => ({
-                      bag_id: recipeBag.bag_id,
-                      position: recipeBag.position,
-                      bag_name: getBagName(recipeBag.bag_id),
-                      with_acl: recipeBag.with_acl,
-                    })).sort((a, b) => a.position - b.position).map((recipeBag, index) => (
-                      <Chip
-                        icon={recipeBag.with_acl ? <WithACL /> : <WithoutACL />}
-                        key={recipeBag.bag_id}
-                        label={recipeBag.bag_name}
-                      />
-                      // <BagPill
-                      //   key={recipeBag.bag_id}
-                      //   bagName={getBagName(recipeBag.bag_id)}
-                      //   isTopmost={index === 0}
-                      // />
-                    ))}
-                  </ListItemText>
                   <IconButton
                     edge="end"
                     aria-label="edit recipe"
@@ -212,7 +191,7 @@ const Dashboard = () => {
                     {recipe.recipe_bags.map(bag => (
                       <ListItem key={getBagName(bag.bag_id)}>
                         <ListItemAvatar>
-                          <Avatar src={`/recipes/${getBagName(bag.bag_id)}/tiddlers/%24%3A%2Ffavicon.ico?fallback=/.system/missing-favicon.png`} />
+                          <Avatar src={`/bags/${getBagName(bag.bag_id)}/tiddlers/%24%3A%2Ffavicon.ico?fallback=/.system/missing-favicon.png`} />
                         </ListItemAvatar>
                         <ListItemIcon>
                           {bag.with_acl ? <WithACL /> : <WithoutACL />}
@@ -301,7 +280,7 @@ const Dashboard = () => {
               {filteredBags.map(bag => (
                 <ListItem key={bag.bag_name}>
                   <ListItemAvatar>
-                    <Avatar src={`/recipes/${encodeURIComponent(bag.bag_name)}/tiddlers/%24%3A%2Ffavicon.ico?fallback=/.system/missing-favicon.png`} />
+                    <Avatar src={`/bags/${encodeURIComponent(bag.bag_name)}/tiddlers/%24%3A%2Ffavicon.ico?fallback=/.system/missing-favicon.png`} />
                   </ListItemAvatar>
                   <ListItemText
                     primary={bag.bag_name}

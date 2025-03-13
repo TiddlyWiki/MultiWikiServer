@@ -3,7 +3,7 @@ import { StateObject } from "./StateObject";
 import RootRoute from "./routes";
 import * as z from "zod";
 import { createStrictAwaitProxy } from "./utils";
-import { existsSync, mkdirSync } from "fs";
+import { existsSync, mkdirSync, readFileSync } from "fs";
 // import { AttachmentStore } from "./routes/attachments";
 import { resolve } from "path";
 import { Prisma, PrismaClient } from "@prisma/client";
@@ -19,6 +19,8 @@ import { createPasswordService, PasswordService } from "./Authenticator";
 import { MWSConfig, MWSConfigConfig } from "./server";
 import * as sessions from "./routes/services/sessions";
 import * as attacher from "./routes/services/attachments";
+import { PrismaLibSQL } from "@prisma/adapter-libsql";
+import { createClient } from "@libsql/client";
 
 export { RouteMatch, Route, rootRoute };
 
@@ -91,13 +93,13 @@ export class Router {
 
     mkdirSync(storePath, { recursive: true });
 
-    const $tw = (global as any).$tw = await bootTiddlyWiki(createTables, createTables, wikiPath);
+
 
     const routerConfig: RouterConfig = {
       ...config,
       attachmentsEnabled: !!config.saveLargeTextToFileSystem,
       attachmentSizeLimit: config.saveLargeTextToFileSystem ?? 0,
-      contentTypeInfo: $tw.config.contentTypeInfo,
+      contentTypeInfo: {},
       saveLargeTextToFileSystem: undefined as never,
       storePath: storePath,
     };
@@ -112,6 +114,12 @@ export class Router {
       SessionManager,
       AttachmentService,
     );
+
+    if (createTables) await router.libsql.executeMultiple(readFileSync("./prisma/schema.prisma.sql", "utf8"));
+
+    (global as any).$tw = await bootTiddlyWiki(createTables, wikiPath, router);
+
+
 
     await this.initDatabase(router);
 
@@ -188,6 +196,7 @@ export class Router {
     return this.variables.get(name) || "";
   }
 
+  libsql;
   engine: PrismaClient<Prisma.PrismaClientOptions, never, {
     result: {
       // this types every output field with PrismaField
@@ -215,9 +224,18 @@ export class Router {
   ) {
     this.storePath = resolve(config.wikiPath, "store");
     this.databasePath = resolve(this.storePath, "database.sqlite");
+
+    // for some reason prisma was freezing when loading the system bag favicons.
+    // the libsql adapter has an additional advantage of letting us specify pragma 
+    // and also gives us more control over connections. 
+
+    this.libsql = createClient({ url: "file:" + this.databasePath });
+    this.libsql.execute("pragma synchronous=off");
+    const adapter = new PrismaLibSQL(this.libsql);
     this.engine = new PrismaClient({
       log: ["error", "info", "warn"],
-      datasourceUrl: "file:" + this.databasePath,
+      // datasourceUrl: "file:" + this.databasePath,
+      adapter,
     });
   }
 
@@ -232,7 +250,8 @@ export class Router {
 
     // Optionally output debug info
     console.log("Request path:", JSON.stringify(streamer.url));
-    console.log("Matched route:", routePath[routePath.length - 1]?.route.path.source)
+    const matchedRoute = routePath[routePath.length - 1];
+    console.log("Matched route:", matchedRoute?.route.method, matchedRoute?.route.path.source)
 
     // if no bodyFormat is specified, we default to "buffer" since we do still need to recieve the body
     const bodyFormat = routePath.find(e => e.route.bodyFormat)?.route.bodyFormat || "buffer";

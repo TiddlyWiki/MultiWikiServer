@@ -1,7 +1,7 @@
 
 import { RecipeKeyMap, RecipeManager } from "../managers/manager-recipes";
 import { UserKeyMap, UserManager } from "../managers/manager-users";
-import { ZodAction } from "../BaseManager";
+import { BaseManager, ZodAction } from "../BaseManager";
 
 export { UserManager, UserManagerMap } from "./manager-users";
 export { RecipeManager, RecipeManagerMap } from "./manager-recipes";
@@ -27,7 +27,7 @@ export const ManagerRoutes = (root: rootRoute) => root.defineRoute({
   }
 
   // we do it out here so we don't start a transaction if the key is invalid.
-  const Handler: any = (() => {
+  const Handler: { new(...args: ConstructorParameters<typeof BaseManager>): any } = (() => {
     if (!state.pathParams.action) throw "No action";
     if (isKeyOf(RecipeKeyMap, state.pathParams.action)) {
       return RecipeManager;
@@ -43,8 +43,10 @@ export const ManagerRoutes = (root: rootRoute) => root.defineRoute({
     // this just sorts the requests into the correct classes.
     // the transaction will rollback if this throws an error.
     // the key maps are defined in the manager classes based on the zodRequest handlers.
-    const action = new Handler(state, prisma)[state.pathParams.action as string] as ZodAction<any, any>;
-    return await action();
+    const action = new Handler(
+      state.config, prisma, state.user, state.firstGuestUser, state.PasswordService
+    )[state.pathParams.action as string] as ZodAction<any, any>;
+    return await action(state);
   })
 
 });

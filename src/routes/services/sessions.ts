@@ -3,6 +3,7 @@ import { Streamer } from "../../streamer";
 import { BaseKeyMap, BaseManager, BaseManagerMap } from "../BaseManager";
 import { randomBytes } from "node:crypto";
 import { Router } from "../../router";
+import { StateObject } from "../../StateObject";
 
 export interface AuthUser {
   user_id: PrismaField<"Users", "user_id">;
@@ -33,9 +34,9 @@ export class SessionManager extends BaseManager {
       return await state.$transaction(async prisma => {
         const session = new SessionManager(state, prisma);
         switch (state.pathParams.login) {
-          case "login/1": return await session.login1();
-          case "login/2": return await session.login2();
-          case "logout": return await session.logout();
+          case "login/1": return await session.login1(state);
+          case "login/2": return await session.login2(state);
+          case "logout": return await session.logout(state);
           default: throw "No such login";
         }
       });
@@ -66,6 +67,10 @@ export class SessionManager extends BaseManager {
     };
   }
 
+  constructor(protected state: StateObject, prisma: PrismaTxnClient){
+    super(state.config, prisma, state.authenticatedUser, state.firstGuestUser, state.PasswordService);
+  }
+
   login1 = this.ZodRequest(z => z.object({
     // userID: z.prismaField("Users", "user_id", "number", false),
     // registrationRecord: z.string(),
@@ -83,7 +88,7 @@ export class SessionManager extends BaseManager {
 
     const { user_id, password } = user;
 
-    const stater = this.state.PasswordService.LoginGenerator({
+    const stater = this.PasswordService.LoginGenerator({
       user_id,
       startLoginRequest,
       registrationRecord: password,
@@ -93,7 +98,7 @@ export class SessionManager extends BaseManager {
 
     if (loginResponse.done) throw "Login failed.";
 
-    const loginSession = await this.state.PasswordService.startLoginSession(stater);
+    const loginSession = await this.PasswordService.startLoginSession(stater);
 
     this.state.setCookie("loginsession", loginSession, { httpOnly: true, path: "/" });
 

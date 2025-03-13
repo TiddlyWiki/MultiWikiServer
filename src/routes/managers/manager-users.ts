@@ -13,10 +13,10 @@ export type UserManagerMap = BaseManagerMap<UserManager>;
 export class UserManager extends BaseManager {
 
   user_list = this.ZodRequest(z => z.undefined(), async () => {
-    const state = this.state;
-    if (!state.user) throw "User not authenticated";
 
-    if (!state.user.isAdmin) throw "User is not an admin";
+    if (!this.user) throw "User not authenticated";
+
+    if (!this.user.isAdmin) throw "User is not an admin";
 
     const res = await this.prisma.users.findMany({
       select: {
@@ -42,9 +42,9 @@ export class UserManager extends BaseManager {
     role_id: z.prismaField("Roles", "role_id", "number", false),
   }), async ({ username, email, role_id }) => {
 
-    if (!this.state.authenticatedUser) throw "User not authenticated";
+    if (!this.user) throw "User not authenticated";
 
-    if (!this.state.authenticatedUser.isAdmin) throw "User is not an admin";
+    if (!this.user.isAdmin) throw "User is not an admin";
 
     const user = await this.prisma.users.create({
       data: { username, email, password: "", roles: { connect: { role_id } } },
@@ -61,11 +61,11 @@ export class UserManager extends BaseManager {
     role_id: z.prismaField("Roles", "role_id", "number").optional(),
   }), async ({ user_id, username, email, role_id }) => {
 
-    if (!this.state.authenticatedUser) throw "User not authenticated";
+    if (!this.user) throw "User not authenticated";
 
-    if (!this.state.authenticatedUser.isAdmin) throw "User is not an admin";
+    if (!this.user.isAdmin) throw "User is not an admin";
 
-    if (this.state.authenticatedUser.user_id === user_id) throw "Admin cannot update themselves";
+    if (this.user.user_id === user_id) throw "Admin cannot update themselves";
 
     await this.prisma.users.update({
       where: { user_id },
@@ -80,11 +80,11 @@ export class UserManager extends BaseManager {
     user_id: z.number(),
   }), async ({ user_id }) => {
 
-    if (!this.state.authenticatedUser) throw "User not authenticated";
+    if (!this.user) throw "User not authenticated";
 
-    if (!this.state.authenticatedUser.isAdmin) throw "User is not an admin";
+    if (!this.user.isAdmin) throw "User is not an admin";
 
-    if (this.state.authenticatedUser.user_id === user_id) throw "Admin cannot delete themselves";
+    if (this.user.user_id === user_id) throw "Admin cannot delete themselves";
 
     const bags = await this.prisma.bags.count({ where: { owner_id: user_id } });
 
@@ -102,17 +102,17 @@ export class UserManager extends BaseManager {
     registrationRecord: z.string().optional(),
   }), async ({ user_id, registrationRecord, registrationRequest }) => {
 
-    if (!this.state.authenticatedUser)
+    if (!this.user)
       throw "You are not authenticated";
 
-    if (this.state.authenticatedUser.user_id !== user_id && !this.state.authenticatedUser.isAdmin)
+    if (this.user.user_id !== user_id && !this.user.isAdmin)
       throw "You must be an admin to update another user's password";
 
     const userExists = await this.prisma.users.count({ where: { user_id } });
-    if (!userExists) throw this.state.sendSimple(404, "User not found");
+    if (!userExists) throw "User does not exist";
 
     if (registrationRequest) {
-      return this.state.PasswordService.createRegistrationResponse({
+      return this.PasswordService.createRegistrationResponse({
         userID: user_id,
         registrationRequest
       });

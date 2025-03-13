@@ -101,6 +101,7 @@ export default async function startServer(config: MWSConfig) {
       ? readFileSync(config.passwordMasterKey, "utf8").trim()
       : opaque.server.createSetup(),
     config.SessionManager || sessions.SessionManager,
+    config.AttachmentService || attacher.AttachmentService
   ).catch(e => {
     console.log(e.stack);
     throw "Router failed to load";

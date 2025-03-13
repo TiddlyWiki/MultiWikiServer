@@ -3,6 +3,9 @@ import { StateObject } from "../StateObject";
 import { Z2 } from "../zodAssert";
 import { DataChecks } from "../data-checks";
 import { STREAM_ENDED } from "../streamer";
+import { RouterConfig } from "../router";
+import { AuthUser } from "../server";
+import { PasswordService } from "../Authenticator";
 
 /*
 You must have admin permission on a bag to add it to a recipe because it is an implicit ACL operation.
@@ -27,9 +30,10 @@ export declare type JsonObject = { [Key in string]?: JsonValue; };
 export declare type JsonValue = string | number | boolean | JsonObject | JsonArray | null | Date;
 
 export interface ZodAction<T extends ZodTypeAny, R extends JsonValue> {
-  (): Promise<typeof STREAM_ENDED>;
+  (state: StateObject): Promise<typeof STREAM_ENDED>;
   zodRequest: (z: Z2<"JSON">) => T;
   zodResponse: (z: Z2<"JSON">) => ZodType<R>;
+  inner: (route: z.output<T>) => Promise<R>,
 }
 
 export type BaseManagerMap<T> = {
@@ -44,27 +48,25 @@ export type BaseKeyMap<T, V> = {
 }
 
 export class BaseManager {
-
-  static defineManager(
-    root: rootRoute,
-    path: RegExp,
-    Manager: { new(state: StateObject, prisma: PrismaTxnClient): BaseManager }
-  ) {
-
-  }
-
-  user;
   checks;
-  constructor(protected state: StateObject, protected prisma: PrismaTxnClient) {
-    const isLoggedIn = !!this.state.authenticatedUser;
+  constructor(
+    protected config: RouterConfig,
+    protected prisma: PrismaTxnClient,
+    protected user: AuthUser | null,
+    protected firstGuestUser: boolean,
+    protected PasswordService: PasswordService,
+  ) {
+    // const isLoggedIn = !!this.state.authenticatedUser;
 
-    const { isAdmin, user_id, username } = this.state.authenticatedUser ?? {
-      isAdmin: false, user_id: 0, username: "(anon)"
-      // isAdmin: true, user_id: 1, username: "admin"
-    };
+    // const { isAdmin, user_id, username } = this.state.authenticatedUser ?? {
+    //   isAdmin: false, user_id: 0, username: "(anon)"
+    //   // isAdmin: true, user_id: 1, username: "admin"
+    // };
 
-    this.user = { isAdmin, user_id, username, isLoggedIn };
-    this.checks = new DataChecks({ allowAnonReads: false, allowAnonWrites: false });
+    this.checks = new DataChecks({
+      allowAnonReads: config.allowAnonReads,
+      allowAnonWrites: config.allowAnonWrites,
+    });
   }
 
   /**
@@ -92,12 +94,12 @@ export class BaseManager {
     zodResponse: (z: Z2<"JSON">) => ZodType<R> = z => z.any()
   ): ZodAction<T, R> {
     // return and throw indicate whether the transaction should commit or rollback
-    const action = async (): Promise<typeof STREAM_ENDED> => {
+    const action = async (state: StateObject): Promise<typeof STREAM_ENDED> => {
 
-      const inputCheck = zodRequest(Z2).safeParse(this.state.data);
+      const inputCheck = zodRequest(Z2).safeParse(state.data);
       if (!inputCheck.success) {
         console.log(inputCheck.error);
-        throw this.state.sendEmpty(400, { "x-reason": "zod-request" });
+        throw state.sendEmpty(400, { "x-reason": "zod-request" });
       }
 
       const [good, error, res] = await handler(inputCheck.data)
@@ -105,7 +107,7 @@ export class BaseManager {
 
       if (!good) {
         if (typeof error === "string") {
-          throw this.state.sendString(400, { "x-reason": "zod-handler" }, error, "utf8");
+          throw state.sendString(400, { "x-reason": "zod-handler" }, error, "utf8");
         } else {
           throw error;
         }
@@ -114,13 +116,13 @@ export class BaseManager {
       const outputCheck = zodResponse(Z2).safeParse(res);
       if (!outputCheck.success) {
         console.log(outputCheck.error);
-        throw this.state.sendEmpty(500, { "x-reason": "zod-response" });
+        throw state.sendEmpty(500, { "x-reason": "zod-response" });
       }
 
-      return this.state.sendJSON(200, outputCheck.data);
+      return state.sendJSON(200, outputCheck.data);
 
     };
-
+    action.inner = handler;
     action.zodRequest = zodRequest;
     action.zodResponse = zodResponse;
 

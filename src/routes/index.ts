@@ -11,7 +11,7 @@ import { ManagerRoutes } from "./managers";
 export default async function RootRoute(root: rootRoute) {
   TiddlerServer.defineRoutes(root);
   ManagerRoutes(root);
-
+  console.log;
   root.defineRoute({
     method: ["POST"],
     path: /^\/prisma$/,

@@ -284,9 +284,10 @@ export class StateObject<
 
   async assertRecipeACL(
     recipe_name: PrismaField<"Recipes", "recipe_name">,
-    user_id: number | undefined,
     needWrite: boolean
   ) {
+    const user_id = this.user?.user_id;
+    const isAdmin = this.user?.isAdmin;
     const prisma = this.router.engine;
     const read = new DataChecks(this.config).getBagWhereACL({ permission: "READ", user_id });
     const write = new DataChecks(this.config).getBagWhereACL({ permission: "WRITE", user_id });
@@ -296,11 +297,11 @@ export class StateObject<
         select: { recipe_id: true },
         where: { recipe_name }
       }),
-      prisma.recipes.findUnique({
+      isAdmin ? prisma.$queryRaw`SELECT 1` : prisma.recipes.findUnique({
         select: { recipe_id: true },
         where: { recipe_name, recipe_bags: { every: { bag: { OR: read } } } }
       }),
-      needWrite ? prisma.recipes.findUnique({
+      isAdmin ? prisma.$queryRaw`SELECT 1` : needWrite ? prisma.recipes.findUnique({
         select: { recipe_id: true },
         where: { recipe_name, recipe_bags: { some: { position: 0, bag: { OR: write } } } }
       }) : prisma.$queryRaw`SELECT 1`,
@@ -310,7 +311,7 @@ export class StateObject<
       throw this.sendEmpty(404, { "x-reason": "recipe not found" });
     if (!canRead)
       throw this.sendEmpty(403, { "x-reason": "no read permission" });
-    if (needWrite && !canWrite)
+    if (!canWrite)
       throw this.sendEmpty(403, { "x-reason": "no write permission" });
 
   }
@@ -318,23 +319,25 @@ export class StateObject<
 
   async assertBagACL(
     bag_name: PrismaField<"Bags", "bag_name">,
-    user_id: number | undefined,
     needWrite: boolean
   ) {
-
+    const user_id = this.user?.user_id;
+    const isAdmin = this.user?.isAdmin;
     const prisma = this.router.engine;
+    const read = new DataChecks(this.config).getBagWhereACL({ permission: "READ", user_id });
+    const write = new DataChecks(this.config).getBagWhereACL({ permission: "WRITE", user_id });
     const [recipe, canRead, canWrite] = await prisma.$transaction([
       prisma.bags.findUnique({
         select: { bag_id: true },
         where: { bag_name }
       }),
-      prisma.bags.findUnique({
+      isAdmin ? prisma.$queryRaw`SELECT 1` : prisma.bags.findUnique({
         select: { bag_id: true },
-        where: { bag_name, OR: new DataChecks(this.config).getBagWhereACL({ permission: "READ", user_id }) }
+        where: { bag_name, OR: read }
       }),
-      needWrite ? prisma.bags.findUnique({
+      isAdmin ? prisma.$queryRaw`SELECT 1` : needWrite ? prisma.bags.findUnique({
         select: { bag_id: true },
-        where: { bag_name, OR: new DataChecks(this.config).getBagWhereACL({ permission: "WRITE", user_id }) }
+        where: { bag_name, OR: write }
       }) : prisma.$queryRaw`SELECT 1`,
     ]);
 
@@ -342,7 +345,7 @@ export class StateObject<
       throw this.sendEmpty(404, { "x-reason": "recipe not found" });
     if (!canRead)
       throw this.sendEmpty(403, { "x-reason": "no read permission" });
-    if (needWrite && !canWrite)
+    if (!canWrite)
       throw this.sendEmpty(403, { "x-reason": "no write permission" });
 
   }

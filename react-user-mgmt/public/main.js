@@ -83881,15 +83881,13 @@ To suppress this warning, you need to explicitly provide the \`palette.${key}Cha
         recipe_name,
         bag_names,
         description,
-        owned = false,
-        with_acl = false
+        owned = false
       } = formData;
       await serverRequest2.recipe_create({
         recipe_name,
         description,
         bag_names,
-        owned,
-        with_acl
+        owned
       });
       return "Recipe created successfully.";
     };
@@ -83922,19 +83920,6 @@ To suppress this warning, you need to explicitly provide the \`palette.${key}Cha
                   secondary: recipe.description
                 }
               ),
-              /* @__PURE__ */ (0, import_jsx_runtime183.jsx)(ListItemText_default, { children: recipe.recipe_bags.map((recipeBag) => ({
-                bag_id: recipeBag.bag_id,
-                position: recipeBag.position,
-                bag_name: getBagName(recipeBag.bag_id),
-                with_acl: recipeBag.with_acl
-              })).sort((a2, b2) => a2.position - b2.position).map((recipeBag, index) => /* @__PURE__ */ (0, import_jsx_runtime183.jsx)(
-                Chip_default,
-                {
-                  icon: recipeBag.with_acl ? /* @__PURE__ */ (0, import_jsx_runtime183.jsx)(GppGood_default, {}) : /* @__PURE__ */ (0, import_jsx_runtime183.jsx)(GppBadOutlined_default, {}),
-                  label: recipeBag.bag_name
-                },
-                recipeBag.bag_id
-              )) }),
               /* @__PURE__ */ (0, import_jsx_runtime183.jsx)(
                 IconButton_default,
                 {
@@ -83980,7 +83965,7 @@ To suppress this warning, you need to explicitly provide the \`palette.${key}Cha
               )
             ] }, recipe.recipe_name),
             /* @__PURE__ */ (0, import_jsx_runtime183.jsx)(Collapse_default, { in: openRecipeItems === recipe.recipe_name, timeout: "auto", unmountOnExit: true, children: /* @__PURE__ */ (0, import_jsx_runtime183.jsx)(List_default, { sx: { pl: "4.25rem" }, component: "div", disablePadding: true, children: recipe.recipe_bags.map((bag) => /* @__PURE__ */ (0, import_jsx_runtime183.jsxs)(ListItem_default, { children: [
-              /* @__PURE__ */ (0, import_jsx_runtime183.jsx)(ListItemAvatar_default, { children: /* @__PURE__ */ (0, import_jsx_runtime183.jsx)(Avatar_default, { src: `/recipes/${getBagName(bag.bag_id)}/tiddlers/%24%3A%2Ffavicon.ico?fallback=/.system/missing-favicon.png` }) }),
+              /* @__PURE__ */ (0, import_jsx_runtime183.jsx)(ListItemAvatar_default, { children: /* @__PURE__ */ (0, import_jsx_runtime183.jsx)(Avatar_default, { src: `/bags/${getBagName(bag.bag_id)}/tiddlers/%24%3A%2Ffavicon.ico?fallback=/.system/missing-favicon.png` }) }),
               /* @__PURE__ */ (0, import_jsx_runtime183.jsx)(ListItemIcon_default, { children: bag.with_acl ? /* @__PURE__ */ (0, import_jsx_runtime183.jsx)(GppGood_default, {}) : /* @__PURE__ */ (0, import_jsx_runtime183.jsx)(GppBadOutlined_default, {}) }),
               /* @__PURE__ */ (0, import_jsx_runtime183.jsx)(
                 ListItemText_default,
@@ -84060,7 +84045,7 @@ To suppress this warning, you need to explicitly provide the \`palette.${key}Cha
         /* @__PURE__ */ (0, import_jsx_runtime183.jsxs)(CardContent_default, { children: [
           /* @__PURE__ */ (0, import_jsx_runtime183.jsx)("h1", { children: "Bags" }),
           /* @__PURE__ */ (0, import_jsx_runtime183.jsx)(List_default, { children: filteredBags.map((bag) => /* @__PURE__ */ (0, import_jsx_runtime183.jsxs)(ListItem_default, { children: [
-            /* @__PURE__ */ (0, import_jsx_runtime183.jsx)(ListItemAvatar_default, { children: /* @__PURE__ */ (0, import_jsx_runtime183.jsx)(Avatar_default, { src: `/recipes/${encodeURIComponent(bag.bag_name)}/tiddlers/%24%3A%2Ffavicon.ico?fallback=/.system/missing-favicon.png` }) }),
+            /* @__PURE__ */ (0, import_jsx_runtime183.jsx)(ListItemAvatar_default, { children: /* @__PURE__ */ (0, import_jsx_runtime183.jsx)(Avatar_default, { src: `/bags/${encodeURIComponent(bag.bag_name)}/tiddlers/%24%3A%2Ffavicon.ico?fallback=/.system/missing-favicon.png` }) }),
             /* @__PURE__ */ (0, import_jsx_runtime183.jsx)(
               ListItemText_default,
               {

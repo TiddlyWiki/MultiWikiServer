@@ -7,16 +7,17 @@ import { createClient } from "@libsql/client";
 import { PrismaLibSQL } from "@prisma/adapter-libsql";
 import { PrismaClient } from "@prisma/client";
 import { createStrictAwaitProxy } from "./utils";
+import { Router } from "./router";
 
 
 
-export async function bootTiddlyWiki(createTables: boolean, commands: boolean, wikiPath: string) {
+export async function bootTiddlyWiki(commands: boolean, wikiPath: string, router: Router) {
 
   const $tw = TiddlyWiki() as any;
 
   $tw.utils.eachAsync = eachAsync;
 
-  $tw.boot.boot = async function () {
+  $tw.boot.boot = async () => {
     // Initialise crypto object
     $tw.crypto = new $tw.utils.Crypto();
     // Initialise password prompter
@@ -26,11 +27,45 @@ export async function bootTiddlyWiki(createTables: boolean, commands: boolean, w
     // Preload any encrypted tiddlers
     await new Promise(resolve => $tw.boot.decryptEncryptedTiddlers(resolve));
 
-    // this part executes syncly
-    await new Promise(resolve => $tw.boot.startup({ callback: resolve }));
+    // $tw.boot.startup();
+    await new Promise(callback => {
+      const options = { callback };
+      $tw.boot.initStartup(options);
+      // the contentTypeInfo object is created during initStartup
+      router.config.contentTypeInfo = $tw.config.contentTypeInfo;
+      $tw.boot.loadStartup(options);
+      $tw.boot.execStartup(options);
+    });
+
   };
 
+  // creating a new tiddler with the same title as a shadow tiddler
+  // prevents the shadow tiddler from defining modules
 
+  $tw.preloadTiddler({ title: "$:/core/modules/commander.js" })
+  $tw.modules.define("$:/core/modules/commander.js", "global", {
+    Commander: class Commander2 extends Commander {
+      router: Router;
+      get $tw() { return $tw; }
+      get outputPath() { return resolve($tw.boot.wikiPath, $tw.config.wikiOutputSubDir); }
+      constructor(...args: ConstructorParameters<typeof Commander>) {
+        super(...args);
+        this.router = router;
+      }
+    }
+  });
+
+  $tw.preloadTiddler({ title: "$:/plugins/tiddlywiki/multiwikiserver/startup.js" })
+  $tw.modules.define("$:/plugins/tiddlywiki/multiwikiserver/startup.js", "startup", {
+    name: "multiwikiserver",
+    platforms: ["node"],
+    after: ["load-modules"],
+    before: ["story", "commands"],
+    synchronous: false,
+    startup: (callback: () => void) => Promise.resolve().then(async () => {
+
+    }).then(callback)
+  });
 
   // tiddlywiki [+<pluginname> | ++<pluginpath>] [<wikipath>] ...[--command ...args]
   $tw.boot.argv = [
@@ -40,57 +75,19 @@ export async function bootTiddlyWiki(createTables: boolean, commands: boolean, w
     wikiPath,
     "--mws-render-tiddler",
     ...commands ? [
-      // "--mws-load-plugin-bags",
+      "--mws-load-plugin-bags",
+      "--mws-load-wiki-folder","./node_modules/tiddlywiki/editions/multiwikidocs","mws-docs", "MWS Documentation from https://mws.tiddlywiki.com","mws-docs","MWS Documentation from https://mws.tiddlywiki.com",
+      "--mws-load-wiki-folder","./node_modules/tiddlywiki/editions/tw5.com","docs", "TiddlyWiki Documentation from https://tiddlywiki.com","docs","TiddlyWiki Documentation from https://tiddlywiki.com",
+      "--mws-load-wiki-folder","./node_modules/tiddlywiki/editions/dev","dev","TiddlyWiki Developer Documentation from https://tiddlywiki.com/dev","dev-docs", "TiddlyWiki Developer Documentation from https://tiddlywiki.com/dev",
+      "--mws-load-wiki-folder","./node_modules/tiddlywiki/editions/tour","tour","TiddlyWiki Interactive Tour from https://tiddlywiki.com","tour", "TiddlyWiki Interactive Tour from https://tiddlywiki.com",
       // "--build", "load-mws-demo-data",
     ] : []
   ];
 
-  const storePath = resolve(wikiPath, "store");
-  $tw.mws = {};
-
-
-
-  $tw.modules.define("$:/plugins/tiddlywiki/multiwikiserver/startup.js", "startup", {
-    name: "multiwikiserver",
-    platforms: ["node"],
-    after: ["load-modules"],
-    before: ["story", "commands"],
-    synchronous: false,
-    startup: (callback: () => void) => Promise.resolve().then(async () => {
-
-      $tw.Commander = class Commander2 extends Commander {
-        get $tw() { return $tw; }
-        get outputPath() { return resolve(this.$tw.boot.wikiPath, this.$tw.config.wikiOutputSubDir); }
-        constructor(...args: ConstructorParameters<typeof Commander>) {
-          super(...args);
-        }
-      };
-
-      // $tw.mws.attachmentStore = new AttachmentService(storePath, $tw.sjcl, $tw.config);
-
-      if (commands) {
-        const libsql = createClient({ url: "file:" + resolve(wikiPath, "store/database.sqlite") });
-        if (createTables) await libsql.executeMultiple(readFileSync("./prisma/schema.prisma.sql", "utf8"));
-        // if (createTables) await libsql.executeMultiple(readFileSync("./prisma/old-db.sql", "utf8"));
-        libsql.execute("pragma synchronous=off");
-        const adapter = new PrismaLibSQL(libsql)
-        const engine = new PrismaClient({ adapter, log: ["error", "warn", "info"] });
-
-      }
-
-    }).then(callback)
-  });
-
   await $tw.boot.boot();
 
-  if (commands) {
-    $tw.mws.store.sql.engine.$disconnect();
-    delete $tw.mws.store.sql.engine;
-    delete $tw.mws.store.sql;
-    delete $tw.mws.store;
-  }
   console.log("booted");
-  // throw "cancel";
+
   return $tw;
 
 }
