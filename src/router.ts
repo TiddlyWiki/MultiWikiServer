@@ -153,11 +153,11 @@ export class Router {
           { role_id: 2, role_name: "USER", description: "Basic User" },
         ]
       });
+
       const user = await router.engine.users.create({
         data: { username: "admin", email: "", password: "", roles: { connect: { role_id: 1 } } },
         select: { user_id: true }
       });
-
 
       const password = await router.PasswordService.PasswordCreation(user.user_id.toString(), "1234");
 
@@ -166,22 +166,6 @@ export class Router {
         data: { password: password }
       });
 
-      router.devuser = user.user_id;
-    } else {
-      const user = await router.engine.users.findFirst({
-        where: { username: "admin" },
-        select: { user_id: true }
-      });
-      if (user) {
-        const password = await router.PasswordService.PasswordCreation(user.user_id.toString(), "1234");
-        await router.engine.users.update({
-          where: { user_id: user.user_id },
-          data: { password: password }
-        });
-        router.devuser = user.user_id
-      } else {
-        router.devuser = 0;
-      }
     }
 
   }
@@ -210,7 +194,7 @@ export class Router {
     model: {},
     query: {},
   }>;
-  devuser: number = 0;
+  // devuser: number = 0;
   storePath: string;
   databasePath: string;
   constructor(
