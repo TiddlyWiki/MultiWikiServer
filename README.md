@@ -38,4 +38,4 @@ The tiddler store functions which handle a lot of the heavy lifting have been re
 
 #### What's next
 
-What's next is probably going to be several different attempts at improving or replacing the current syncer setup. 
+What's next is probably going to be several different attempts at improving or replacing the current syncer setup. The tiddler store in the browser is actually part of a synchronous rendering engine. The async components which keep that store updated with outside changes could be completely replaced. All that's required is that a consistent view of the store is available at any given moment for the rendering engine (the widget tree) to use. 
