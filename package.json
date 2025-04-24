@@ -14,7 +14,8 @@
     "react-user-mgmt",
     "tiddlywiki-types",
     "editions/mws-docs",
-    "plugins/client"
+    "plugins/client",
+    "libsql-0.5.8.tgz"
   ],
   "engines": {
     "node": ">14"
@@ -32,19 +33,31 @@
     "certs": "(cd runtime-config && bash localhost_certs.sh)",
     "start": "npm run build && node mws.dev.mjs",
     "build": "npm run tsc && tsup",
-    "install": "prisma generate",
+    "install": "PRISMA_CLIENT_FORCE_WASM=true prisma generate",
     "env": "env",
     "test:pack": "(git clean -dfx tests && npm pack --pack-destination tests && cd tests && npm install && npm install ./tiddlywiki-mws-$npm_package_version.tgz --no-save && npm test)",
     "test": "(git clean -dfx tests && cd tests && npm install .. --no-save && npm test)",
     "fulltest": "mv node_modules node_modules_old; npm run test:pack; mv node_modules_old node_modules"
   },
+  "overrides": {
+    "@libsql/client": {
+      "libsql": "file:libsql-0.5.8.tgz"
+    }
+  },
   "dependencies": {
+    "@libsql/client": "0.15.4",
+    "@prisma/adapter-libsql": "6.6.0",
     "@prisma/client": "6.6.0",
+    "@prisma/driver-adapter-utils": "6.6.0",
     "@serenity-kit/opaque": "^0.8.4",
+    "@types/better-sqlite3": "7.6.12",
     "@types/mime-types": "^2.1.4",
     "@types/node": "^22.13.1",
     "@types/send": "^0.17.4",
     "@types/sjcl": "^1.0.34",
+    "async-mutex": "^0.5.0",
+    "better-sqlite3": "11.9.1",
+    "libsql": "file:libsql-0.5.8.tgz",
     "node-sqlite3-wasm": "^0.8.39",
     "prisma": "6.6.0",
     "source-map-support": "^0.5.21",

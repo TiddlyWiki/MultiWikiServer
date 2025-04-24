@@ -4,6 +4,7 @@ import * as path from "node:path";
 
 import { MWSConfig } from "./server";
 import { Prisma, PrismaClient } from "@prisma/client";
+
 import * as sessions from "./services/sessions";
 import * as attacher from "./services/attachments";
 import { PasswordService } from "./services/PasswordService";
@@ -13,14 +14,11 @@ import { TiddlerFields, TW } from "tiddlywiki";
 import { dist_resolve } from "./utils";
 import { readdir, readFile } from "node:fs/promises";
 import { createHash, randomUUID } from "node:crypto";
+import type { SqlDriverAdapter } from '@prisma/driver-adapter-utils';
 
-
+import { PrismaLibSQL } from "@libsql/client";
 import { commands, mws_listen, divider } from "./commands";
 import { ok } from "node:assert";
-import pkg from 'node-sqlite3-wasm';
-const { Database } = pkg;
-
-
 export interface $TW {
   utils: any;
   wiki: any;
@@ -103,7 +101,9 @@ class StartupCommander {
     // freezing when loading the system bag favicons.
     // the libsql adapter has an additional advantage of letting us specify pragma 
     // and also gives us more control over connections. 
-    this.engine = new PrismaClient({ log: ["info", "warn"], datasourceUrl: "file:" + this.databasePath });
+
+    this.libsql = new PrismaLibSQL({ url: "file:" + this.databasePath });
+    this.engine = new PrismaClient({ log: ["info", "warn"], adapter: this.libsql, });
 
     this.siteConfig = {
       wikiPath: this.wikiPath,
@@ -127,33 +127,35 @@ class StartupCommander {
 
   async init() {
     this.setupRequired = false;
-    const db = new Database(this.databasePath);
-    // const libsql = await this.libsql.connect();
+    const libsql = await this.libsql.connect();
 
     if (process.env.RUN_OLD_MWS_DB_SETUP_FOR_TESTING) {
-      await db.exec(readFileSync(dist_resolve(
+      await libsql.executeScript(readFileSync(dist_resolve(
         "../prisma/migrations/20250406213424_init/migration.sql"
       ), "utf8"));
     }
 
-    const tables = db.all(`SELECT tbl_name FROM sqlite_master WHERE type='table'`) as { tbl_name: string }[];
-
+    const tables = await libsql.queryRaw({
+      sql: `SELECT tbl_name FROM sqlite_master WHERE type='table'`,
+      args: [],
+      argTypes: [],
+    }).then(e => e?.rows as [string][] | undefined);
 
     const hasExisting = !!tables?.length;
 
 
-    const hasMigrationsTable = !!tables?.length && !!tables?.some((e) => e.tbl_name === "_prisma_migrations");
-    if (!hasMigrationsTable) await this.createMigrationsTable(db);
-    await this.checkMigrationsTable(db, hasExisting && !hasMigrationsTable);
+    const hasMigrationsTable = !!tables?.length && !!tables?.some((e) => e[0] === "_prisma_migrations");
+    if (!hasMigrationsTable) await this.createMigrationsTable(libsql);
+    await this.checkMigrationsTable(libsql, hasExisting && !hasMigrationsTable);
 
 
     const users = await this.engine.users.count();
     if (!users) { this.setupRequired = true; }
 
-    db.close();
+    await libsql.dispose();
   }
-  async createMigrationsTable(db: pkg.Database) {
-    await db.exec(
+  async createMigrationsTable(libsql: SqlDriverAdapter) {
+    await libsql.executeScript(
       'CREATE TABLE "_prisma_migrations" (\n' +
       '    "id"                    TEXT PRIMARY KEY NOT NULL,\n' +
       '    "checksum"              TEXT NOT NULL,\n' +
@@ -166,10 +168,14 @@ class StartupCommander {
       ')',
     )
   }
-  async checkMigrationsTable(db: pkg.Database, migrateExisting: boolean) {
+  async checkMigrationsTable(libsql: SqlDriverAdapter, migrateExisting: boolean) {
 
     const applied_migrations = new Set(
-      db.all(`Select migration_name from _prisma_migrations`).map(e => e.migration_name)
+      await libsql.queryRaw({
+        sql: `Select migration_name from _prisma_migrations`,
+        args: [],
+        argTypes: [],
+      }).then(e => e.rows.map(e => e[0]))
     );
 
     const migrations = await readdir(dist_resolve("../prisma/migrations"));
@@ -194,21 +200,16 @@ class StartupCommander {
         console.log("Existing migration", migration, "is already applied");
       } else {
         console.log("Applying migration", migration);
-        await db.exec(fileContent);
+        await libsql.executeScript(fileContent);
       }
 
-      await db.run('INSERT INTO _prisma_migrations (' +
-        'id, migration_name, checksum, finished_at, logs, rolled_back_at, started_at, applied_steps_count' +
-        ') VALUES (?, ?, ?, ?, ?, ?, ?, ?)', [
-        randomUUID(),
-        migration,
-        generateChecksum(fileContent),
-        Date.now(),
-        null,
-        null,
-        Date.now(),
-        1
-      ]);
+      await libsql.executeRaw({
+        sql: 'INSERT INTO _prisma_migrations (' +
+          'id, migration_name, checksum, finished_at, logs, rolled_back_at, started_at, applied_steps_count' +
+          ') VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+        args: [randomUUID(), migration, generateChecksum(fileContent), Date.now(), null, null, Date.now(), 1],
+        argTypes: [], // this doesn't appear to be used at the moment
+      });
 
     }
     console.log("Migrations applied", new_migrations);
@@ -219,6 +220,7 @@ class StartupCommander {
   databasePath: string;
   cachePath: string;
 
+  libsql;
   engine: PrismaClient<Prisma.PrismaClientOptions, never, {
     result: {
       // this types every output field with PrismaField
