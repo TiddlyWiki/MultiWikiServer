@@ -16,7 +16,7 @@ import { readdir, readFile } from "node:fs/promises";
 import { createHash, randomUUID } from "node:crypto";
 import type { SqlDriverAdapter } from '@prisma/driver-adapter-utils';
 
-import { PrismaLibSQL } from "@libsql/client";
+import { PrismaLibSQL } from "@prisma/adapter-libsql";
 import { commands, mws_listen, divider } from "./commands";
 import { ok } from "node:assert";
 export interface $TW {
