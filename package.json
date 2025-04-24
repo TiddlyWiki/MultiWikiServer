@@ -39,14 +39,13 @@
     "fulltest": "mv node_modules node_modules_old; npm run test:pack; mv node_modules_old node_modules"
   },
   "dependencies": {
-    "@libsql/client": "^0.8.1",
-    "@prisma/adapter-libsql": "6.6.0",
     "@prisma/client": "6.6.0",
     "@serenity-kit/opaque": "^0.8.4",
     "@types/mime-types": "^2.1.4",
     "@types/node": "^22.13.1",
     "@types/send": "^0.17.4",
     "@types/sjcl": "^1.0.34",
+    "node-sqlite3-wasm": "^0.8.39",
     "prisma": "6.6.0",
     "source-map-support": "^0.5.21",
     "zod": "^3.24.2"
