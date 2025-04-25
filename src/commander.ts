@@ -16,7 +16,7 @@ import { readdir, readFile } from "node:fs/promises";
 import { createHash, randomUUID } from "node:crypto";
 import type { SqlDriverAdapter } from '@prisma/driver-adapter-utils';
 
-import { PrismaLibSQL } from "@prisma/adapter-libsql";
+import { PrismaAdapterFactory } from "./db-node-sqlite3-wasm";
 import { commands, mws_listen, divider } from "./commands";
 import { ok } from "node:assert";
 export interface $TW {
@@ -102,7 +102,7 @@ class StartupCommander {
     // the libsql adapter has an additional advantage of letting us specify pragma 
     // and also gives us more control over connections. 
 
-    this.libsql = new PrismaLibSQL({ url: "file:" + this.databasePath });
+    this.libsql = new PrismaAdapterFactory({ url: "file:" + this.databasePath });
     this.engine = new PrismaClient({ log: ["info", "warn"], adapter: this.libsql, });
 
     this.siteConfig = {

@@ -34,5 +34,7 @@
     "./mws.*.ts",
   ],
   "exclude": [
+    "src/db-better-sqlite3",
+    "src/db-libsql",
   ]
 }
