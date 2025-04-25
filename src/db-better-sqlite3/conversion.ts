@@ -95,9 +95,9 @@ export function getColumnTypes(declaredTypes: Array<string | null>, rows: Row[])
   columnLoop: for (const columnIndex of emptyIndices) {
     // No declared column type in db schema, infer using first non-null value
     for (let rowIndex = 0; rowIndex < rows.length; rowIndex++) {
-      const candidateValue = rows[rowIndex][columnIndex]
+      const candidateValue = rows[rowIndex]![columnIndex]
       if (candidateValue !== null) {
-        columnTypes[columnIndex] = inferColumnType(candidateValue)
+        columnTypes[columnIndex] = inferColumnType(candidateValue!)
         continue columnLoop
       }
     }

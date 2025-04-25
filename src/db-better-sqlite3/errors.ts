@@ -1,6 +1,6 @@
 import { Error as DriverAdapterErrorObject } from '@prisma/driver-adapter-utils'
 
-export function convertDriverError(error: any): DriverAdapterErrorObject {
+export function convertDriverError(error: any): any {
   if (typeof error.code !== 'string' || typeof error.message !== 'string') {
     throw error
   }
@@ -19,7 +19,7 @@ export function convertDriverError(error: any): DriverAdapterErrorObject {
             .split('constraint failed: ')
             .at(1)
             ?.split(', ')
-            .map((field) => field.split('.').pop()!) ?? [],
+            .map((field: string) => field.split('.').pop()!) ?? [],
       }
     case 'SQLITE_CONSTRAINT_NOTNULL':
       return {
@@ -29,7 +29,7 @@ export function convertDriverError(error: any): DriverAdapterErrorObject {
             .split('constraint failed: ')
             .at(1)
             ?.split(', ')
-            .map((field) => field.split('.').pop()!) ?? [],
+            .map((field: string) => field.split('.').pop()!) ?? [],
       }
     case 'SQLITE_CONSTRAINT_FOREIGNKEY':
     case 'SQLITE_CONSTRAINT_TRIGGER':

@@ -14,9 +14,9 @@ import { TiddlerFields, TW } from "tiddlywiki";
 import { dist_resolve } from "./utils";
 import { readdir, readFile } from "node:fs/promises";
 import { createHash, randomUUID } from "node:crypto";
-import type { SqlDriverAdapter } from '@prisma/driver-adapter-utils';
+import type { SqlDriverAdapter, SqlMigrationAwareDriverAdapterFactory } from '@prisma/driver-adapter-utils';
 
-import { PrismaAdapterFactory } from "./db-node-sqlite3-wasm";
+
 import { commands, mws_listen, divider } from "./commands";
 import { ok } from "node:assert";
 export interface $TW {
@@ -102,8 +102,7 @@ class StartupCommander {
     // the libsql adapter has an additional advantage of letting us specify pragma 
     // and also gives us more control over connections. 
 
-    this.libsql = new PrismaAdapterFactory({ url: "file:" + this.databasePath });
-    this.engine = new PrismaClient({ log: ["info", "warn"], adapter: this.libsql, });
+
 
     this.siteConfig = {
       wikiPath: this.wikiPath,
@@ -126,8 +125,19 @@ class StartupCommander {
   }
 
   async init() {
+    try {
+      const { PrismaBetterSQLite3 } = await import("./db-better-sqlite3");
+      this.adapter = new PrismaBetterSQLite3({ url: "file:" + this.databasePath });
+    } catch (e) {
+      console.log("Failed to load better-sqlite3, falling back to node-sqlite3-wasm");
+      const { PrismaWasm } = await import("./db-node-sqlite3-wasm");
+      this.adapter = new PrismaWasm({ url: "file:" + this.databasePath });
+    }
+
+    this.engine = new PrismaClient({ log: ["info", "warn"], adapter: this.adapter, });
+
     this.setupRequired = false;
-    const libsql = await this.libsql.connect();
+    const libsql = await this.adapter.connect();
 
     if (process.env.RUN_OLD_MWS_DB_SETUP_FOR_TESTING) {
       await libsql.executeScript(readFileSync(dist_resolve(
@@ -220,8 +230,8 @@ class StartupCommander {
   databasePath: string;
   cachePath: string;
 
-  libsql;
-  engine: PrismaClient<Prisma.PrismaClientOptions, never, {
+  adapter!: SqlMigrationAwareDriverAdapterFactory;
+  engine!: PrismaClient<Prisma.PrismaClientOptions, never, {
     result: {
       // this types every output field with PrismaField
       [T in Uncapitalize<Prisma.ModelName>]: {

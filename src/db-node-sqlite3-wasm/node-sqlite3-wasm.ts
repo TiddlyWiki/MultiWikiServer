@@ -141,6 +141,12 @@ export class PrismaAdapter extends PrismaQueryable<StdClient> implements SqlDriv
       release()
     }
   }
+  
+  // https://www.sqlite.org/lang_transaction.html
+  // No reads or writes occur except within a transaction. Any command that accesses 
+  // the database (basically, any SQL command, except a few PRAGMA statements) will 
+  // automatically start a transaction if one is not already in effect. Automatically 
+  // started transactions are committed when the last SQL statement finishes.
 
   async startTransaction(isolationLevel?: IsolationLevel): Promise<Transaction> {
     if (isolationLevel && isolationLevel !== 'SERIALIZABLE') {

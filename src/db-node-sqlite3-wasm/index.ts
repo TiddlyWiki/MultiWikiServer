@@ -1,1 +1,1 @@
-export { PrismaAdapterFactory } from './node-sqlite3-wasm'
+export { PrismaAdapterFactory as PrismaWasm } from './node-sqlite3-wasm'

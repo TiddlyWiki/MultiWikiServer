@@ -21,3 +21,4 @@ test5213tw
 /.vscode/settings.json
 editions/mws-docs/tiddlers/$__StoryList.tid
 !libsql-0.5.8.tgz
+/tests-audit
