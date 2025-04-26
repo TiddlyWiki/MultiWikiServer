@@ -1,0 +1,15 @@
+{
+  "name": "@libsql/android-arm64",
+  "description": "Prebuilt binary package for `libsql` on `android-arm64`.",
+  "os": [
+    "android"
+  ],
+  "cpu": [
+    "arm64"
+  ],
+  "main": "index.node",
+  "files": [
+    "index.node"
+  ],
+  "license": "MIT"
+}
