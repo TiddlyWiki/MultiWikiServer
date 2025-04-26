@@ -74,8 +74,7 @@
     "tiddlywiki": "^5.1.22"
   },
   "optionalDependencies": {
-    "@libsql/client": "^0.15.4",
-    "better-sqlite3": "^11.9.1",
-    "libsql": "^0.5.8"
+    "@prisma/adapter-libsql": "6.6.0",
+    "better-sqlite3": "^11.9.1"
   }
 }

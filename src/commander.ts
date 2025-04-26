@@ -128,7 +128,8 @@ class StartupCommander {
     try {
       if (process.env.LIBSQL) {
         console.log("Starting LibSQL adapter")
-        const { PrismaLibSQL } = await import("./adapter-libsql");
+        //@ts-ignore
+        const { PrismaLibSQL } = await import("@prisma/adapter-libsql");
         this.adapter = new PrismaLibSQL({ url: "file:" + this.databasePath });
       } else {
         console.log("Starting Better-SQLite3 adapter")
