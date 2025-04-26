@@ -12,9 +12,6 @@ export default defineConfig({
     "@prisma/adapter-better-sqlite3",
     "@serenity-kit/opaque",
     "env-cmd",
-    // "@libsql/client",
-    // "better-sqlite3",
-    // "node-sqlite3-wasm",
   ],
   tsconfig: "tsconfig.json",
   keepNames: true,
@@ -22,7 +19,7 @@ export default defineConfig({
   sourcemap: true,     // Generate source maps for debugging
   clean: true,         // Clean the output directory before each build
   minify: false,       // Set to true if you want minification
-  splitting: true,     // Code splitting is unnecessary
+  splitting: false,     // Code splitting only if we need to lazy import
   cjsInterop: true,
   shims: true,        // Add shims for Node.js built-in modules
   banner: (ctx) => ctx.format === "esm" ? {
