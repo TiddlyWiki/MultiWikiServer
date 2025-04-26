@@ -11,6 +11,7 @@ export default defineConfig({
     "@prisma/adapter-libsql",
     "@prisma/adapter-better-sqlite3",
     "@serenity-kit/opaque",
+    "env-cmd",
     // "@libsql/client",
     // "better-sqlite3",
     // "node-sqlite3-wasm",

@@ -21,7 +21,7 @@ GYP_DEFINES="android_ndk_path=''" npm install
 - Add the following to project package.json
 ```js
 {
-  "dependancies":{
+  "dependencies":{
     "@libsql/android-arm64": "file:libsql-android-arm64",
     "libsql": "file:libsql"
   },
