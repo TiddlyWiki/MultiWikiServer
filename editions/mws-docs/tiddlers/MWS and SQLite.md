@@ -21,3 +21,14 @@ One particular misconception to avoid is the idea that SQLite replaces the folde
 
 SQLite is perfect for MWS because it doesn't require any extra setup. But MWS is not restricted to SQLite. It uses Prisma for the database access layer, which supports several other database engines, including MariaDB (the MySQL fork) and Postgres. 
 
+# Better-SQLite3
+
+Currently WAL mode is not enabled. It has plenty of advantages, and a few minor disadvantages, but mostly it just takes extra thought to use correctly. It has more advantages for high-traffic servers that need serious concurrency. Better-SQLite3 defaults to synchronous=NORMAL for WAL mode. Eventually we will probably add a setting to enable it. 
+
+Better-SQLite3 supports multi-threading via Node workers. Either way we have to implement proper support for transactions, which mostly just means reserving a worker for the duration of the transaction. 
+
+Better-SQLite3 has foriegn keys enabled by default. 
+
+Better-SQLite3 uses native addons. If your platform isn't supported, or you need a wasm-only solution, feel free to [open an issue on Github](https://github.com/TiddlyWiki/MultiWikiServer) sharing your use-case. 
+
+MWS uses [Prisma](https://www.prisma.io) to communicate with SQLite, and in theory, MWS should work with [anything Prisma supports](https://www.prisma.io/docs/orm/overview/databases). 
