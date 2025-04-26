@@ -126,19 +126,11 @@ class StartupCommander {
 
   async init() {
     try {
-      console.log("Starting libsql adapter")
       //@ts-ignore - so we can still build if the adapter isn't installed
-      const { PrismaLibSQL } = await import("@prisma/adapter-libsql");
-      this.adapter = new PrismaLibSQL({ url: "file:" + this.databasePath });
+      const { PrismaBetterSQLite3 } = await import("@prisma/adapter-better-sqlite3");
+      this.adapter = new PrismaBetterSQLite3({ url: "file:" + this.databasePath });
     } catch (e) {
-      try {
-        console.log("Failed to start libsql, starting better-sqlite3 adapter")
-        //@ts-ignore - so we can still build if the adapter isn't installed
-        const { PrismaBetterSQLite3 } = await import("@prisma/adapter-better-sqlite3");
-        this.adapter = new PrismaBetterSQLite3({ url: "file:" + this.databasePath });
-      } catch (e){
-        throw new Error("Failed to start a database adapter. Either libsql or better-sqlite3 is required.")
-      }
+      throw new Error("Failed to load better-sqlite3.");
     }
 
     this.engine = new PrismaClient({ log: ["info", "warn"], adapter: this.adapter, });
