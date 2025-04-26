@@ -130,7 +130,8 @@ class StartupCommander {
       const { PrismaBetterSQLite3 } = await import("@prisma/adapter-better-sqlite3");
       this.adapter = new PrismaBetterSQLite3({ url: "file:" + this.databasePath });
     } catch (e) {
-      throw new Error("Failed to load better-sqlite3.");
+      console.log("Failed to load better-sqlite3. Are you sure it's installed?");
+      throw e;
     }
 
     this.engine = new PrismaClient({ log: ["info", "warn"], adapter: this.adapter, });
