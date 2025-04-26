@@ -1,0 +1,14 @@
+{
+  "name": "@types/libsql",
+  "version": "0.5.8",
+  "description": "A better-sqlite3 compatible API for libSQL that supports Bun, Deno, and Node",
+  "types": "types/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./types/index.d.ts"
+    },
+    "./promise": {
+      "types": "./types/promise.d.ts"
+    }
+  }
+}

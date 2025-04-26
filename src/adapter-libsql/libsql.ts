@@ -17,11 +17,12 @@ import type {
 } from '@prisma/driver-adapter-utils'
 import { Debug, DriverAdapterError } from '@prisma/driver-adapter-utils'
 import { Mutex } from 'async-mutex'
+import { createClient } from '@libsql/client'
 import { getColumnTypes, mapRow } from './conversion'
 import { convertDriverError } from './errors'
 
+const packageName = "prisma:driver-adapter:libsql";
 const debug = Debug('prisma:driver-adapter:libsql')
-const packageName = 'mws-prisma-adapter-libsql'
 
 type StdClient = LibSqlClientRaw
 type TransactionClient = LibSqlTransactionRaw
@@ -34,7 +35,7 @@ class LibSqlQueryable<ClientT extends StdClient | TransactionClient> implements 
 
   [LOCK_TAG] = new Mutex()
 
-  constructor(protected readonly client: ClientT) {}
+  constructor(protected readonly client: ClientT) { }
 
   /**
    * Execute a query given as SQL, interpolating the given parameters.
@@ -167,11 +168,11 @@ export class PrismaLibSQLAdapter extends LibSqlQueryable<StdClient> implements S
   }
 }
 
-export abstract class PrismaLibSQLAdapterFactoryBase implements SqlMigrationAwareDriverAdapterFactory {
+export class PrismaLibSQLAdapterFactory implements SqlMigrationAwareDriverAdapterFactory {
   readonly provider = 'sqlite'
   readonly adapterName = packageName
 
-  constructor(private readonly config: LibSqlConfig) {}
+  constructor(private readonly config: LibSqlConfig) { }
 
   connect(): Promise<SqlDriverAdapter> {
     return Promise.resolve(new PrismaLibSQLAdapter(this.createClient(this.config)))
@@ -182,5 +183,7 @@ export abstract class PrismaLibSQLAdapterFactoryBase implements SqlMigrationAwar
     return Promise.resolve(new PrismaLibSQLAdapter(this.createClient({ ...this.config, url: ':memory:' })))
   }
 
-  abstract createClient(config: LibSqlConfig): StdClient
+  createClient(config: LibSqlConfig): LibSqlClientRaw {
+    return createClient(config)
+  }
 }

@@ -7,9 +7,13 @@ On Android
 - Build the native binary with `cargo build --release`
 - `cp target/release/liblibsql_js.do libsql-android-arm64/index.node`
 - `cp package-android-arm64.json libsql-android-arm64/package.json`
-- Add the following overrides to project package.json
+- Add the following to project package.json
 ```js
 {
+  "dependancies":{
+    "@libsql/android-arm64": "file:libsql-android-arm64",
+    "libsql": "file:libsql"
+  },
   "overrides": {
     "@libsql/client": {
       "libsql": "file:libsql"
@@ -17,7 +21,7 @@ On Android
     "libsql": {
       "@libsql/android-arm64": "file:libsql-android-arm64"
     }
-  }
+  },
 }
 ```
 - We might need to install the actual directories themselves as I don't think the overrides activate for deeper dependancies. I'm not sure.

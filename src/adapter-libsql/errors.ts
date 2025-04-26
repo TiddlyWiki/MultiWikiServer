@@ -1,10 +1,8 @@
-import { type LibsqlError } from '@libsql/client'
-import { Error as DriverAdapterErrorObject } from '@prisma/driver-adapter-utils'
 
 const SQLITE_BUSY = 5
 const PRIMARY_ERROR_CODE_MASK = 0xff
 
-export function convertDriverError(error: { cause: any }): any {
+export function convertDriverError(error: any): any {
   if (!isDbError(error)) {
     throw error
   }
@@ -20,7 +18,7 @@ export function convertDriverError(error: { cause: any }): any {
             .split('constraint failed: ')
             .at(1)
             ?.split(', ')
-            .map((field) => field.split('.').pop()!) ?? [],
+            .map((field: string) => field.split('.').pop()!) ?? [],
       }
     case 1299:
       return {
@@ -30,7 +28,7 @@ export function convertDriverError(error: { cause: any }): any {
             .split('constraint failed: ')
             .at(1)
             ?.split(', ')
-            .map((field) => field.split('.').pop()!) ?? [],
+            .map((field: string) => field.split('.').pop()!) ?? [],
       }
     case 787:
     case 1811:
@@ -68,7 +66,7 @@ export function convertDriverError(error: { cause: any }): any {
   }
 }
 
-function isDbError(error: any): error is LibsqlError {
+function isDbError(error: any): any {
   return (
     typeof error.code === 'string' &&
     typeof error.message === 'string' &&

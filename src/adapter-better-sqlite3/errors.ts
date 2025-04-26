@@ -1,16 +1,17 @@
 
-const SQLITE_BUSY = 5
-const PRIMARY_ERROR_CODE_MASK = 0xff
 
-export function convertDriverError(error: { message: string, rawCode?: number, cause: { rawCode: number } }): any {
-  if (!isDbError(error)) {
+export function convertDriverError(error: any): any {
+  if (typeof error.code !== 'string' || typeof error.message !== 'string') {
     throw error
   }
 
-  const rawCode: number = error.rawCode ?? error.cause?.['rawCode']
-  switch (rawCode) {
-    case 2067:
-    case 1555:
+  switch (error.code) {
+    case 'SQLITE_BUSY':
+      return {
+        kind: 'SocketTimeout',
+      }
+    case 'SQLITE_CONSTRAINT_UNIQUE':
+    case 'SQLITE_CONSTRAINT_PRIMARYKEY':
       return {
         kind: 'UniqueConstraintViolation',
         fields:
@@ -18,9 +19,9 @@ export function convertDriverError(error: { message: string, rawCode?: number, c
             .split('constraint failed: ')
             .at(1)
             ?.split(', ')
-            .map((field) => field.split('.').pop()!) ?? [],
+            .map((field: string) => field.split('.').pop()!) ?? [],
       }
-    case 1299:
+    case 'SQLITE_CONSTRAINT_NOTNULL':
       return {
         kind: 'NullConstraintViolation',
         fields:
@@ -28,20 +29,16 @@ export function convertDriverError(error: { message: string, rawCode?: number, c
             .split('constraint failed: ')
             .at(1)
             ?.split(', ')
-            .map((field) => field.split('.').pop()!) ?? [],
+            .map((field: string) => field.split('.').pop()!) ?? [],
       }
-    case 787:
-    case 1811:
+    case 'SQLITE_CONSTRAINT_FOREIGNKEY':
+    case 'SQLITE_CONSTRAINT_TRIGGER':
       return {
         kind: 'ForeignKeyConstraintViolation',
         constraint: { foreignKey: {} },
       }
     default:
-      if (rawCode && (rawCode & PRIMARY_ERROR_CODE_MASK) === SQLITE_BUSY) {
-        return {
-          kind: 'SocketTimeout',
-        }
-      } else if (error.message.startsWith('no such table')) {
+      if (error.message.startsWith('no such table')) {
         return {
           kind: 'TableDoesNotExist',
           table: error.message.split(': ').pop(),
@@ -58,18 +55,6 @@ export function convertDriverError(error: { message: string, rawCode?: number, c
         }
       }
 
-      return {
-        kind: 'sqlite',
-        extendedCode: rawCode,
-        message: error.message,
-      }
+      throw error
   }
-}
-
-function isDbError(error: any) {
-  return (
-    typeof error.code === 'string' &&
-    typeof error.message === 'string' &&
-    (typeof error.rawCode === 'number' || error.rawCode === undefined)
-  )
 }

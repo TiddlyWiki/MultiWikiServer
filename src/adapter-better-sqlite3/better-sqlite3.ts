@@ -16,8 +16,7 @@ import Database from 'better-sqlite3'
 import { getColumnTypes, mapQueryArgs, mapRow, Row } from './conversion'
 import { convertDriverError } from './errors'
 
-const packageName = 'mws-prisma-adapter-better-sqlite3'
-
+const packageName = 'prisma:driver-adapter:better-sqlite3';
 const debug = Debug('prisma:driver-adapter:better-sqlite3')
 
 type StdClient = BetterSQLite3
