@@ -34,7 +34,7 @@
     "certs": "(cd runtime-config && bash localhost_certs.sh)",
     "start": "npm run build && node mws.dev.mjs",
     "build": "npm run tsc && tsup",
-    "install": "PRISMA_CLIENT_FORCE_WASM=true prisma generate",
+    "install": "prisma generate",
     "env": "env",
     "test:pack": "(git clean -dfx tests && npm pack --pack-destination tests && cd tests && npm install && npm install ./tiddlywiki-mws-$npm_package_version.tgz --no-save && npm test)",
     "test": "(git clean -dfx tests && cd tests && npm install .. --no-save && npm test)",
@@ -43,7 +43,7 @@
     "prisma:adapter:libsql": "cp -rfv ../prisma/packages/adapter-libsql/src/* src/adapter-libsql"
   },
   "dependencies": {
-    "@libsql/client": "^0.15.4",
+
     "@prisma/client": "6.6.0",
     "@prisma/driver-adapter-utils": "6.6.0",
     "@serenity-kit/opaque": "^0.8.4",
@@ -74,7 +74,7 @@
     "tiddlywiki": "^5.1.22"
   },
   "optionalDependencies": {
-    "@libsql/android-arm64": "file:libsql-android-arm64",
+    "@libsql/client": "^0.15.4",
     "better-sqlite3": "^11.9.1",
     "libsql": "^0.5.8"
   }
