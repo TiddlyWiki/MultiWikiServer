@@ -1,4 +1,15 @@
-On Android
+# On Android, 
+
+
+### Better-SQLite3
+
+the only thing required is to define this environment variable when installing the package
+
+```console
+GYP_DEFINES="android_ndk_path=''" npm install
+```
+
+### Libsql
 
 - Clone the libsql-js repo.
 - Edit `package.json` to add `android` to the `os` array. 
