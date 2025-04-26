@@ -1,5 +1,6 @@
 {
   "name": "@tiddlywiki/mws",
+  "private": true,
   "version": "0.0.12",
   "type": "module",
   "exports": {
@@ -9,13 +10,13 @@
   },
   "files": [
     "dist",
-    "src",
     "prisma",
     "react-user-mgmt",
     "tiddlywiki-types",
     "editions/mws-docs",
     "plugins/client",
-    "libsql-0.5.8.tgz"
+    "libsql",
+    "libsql-android-arm64"
   ],
   "engines": {
     "node": ">14"
@@ -39,7 +40,16 @@
     "test": "(git clean -dfx tests && cd tests && npm install .. --no-save && npm test)",
     "fulltest": "mv node_modules node_modules_old; npm run test:pack; mv node_modules_old node_modules"
   },
+  "overrides": {
+    "@libsql/client": {
+      "libsql": "file:libsql"
+    },
+    "libsql": {
+      "@libsql/android-arm64": "file:libsql-android-arm64"
+    }
+  },
   "dependencies": {
+    "@libsql/client": "^0.15.4",
     "@prisma/client": "6.6.0",
     "@prisma/driver-adapter-utils": "6.6.0",
     "@serenity-kit/opaque": "^0.8.4",
@@ -48,14 +58,15 @@
     "@types/node": "^22.13.1",
     "@types/send": "^0.17.4",
     "@types/sjcl": "^1.0.34",
+    "@types/tiddlywiki": "file:tiddlywiki-types",
     "async-mutex": "^0.5.0",
+    "libsql": "file:libsql",
     "prisma": "6.6.0",
     "source-map-support": "^0.5.21",
     "zod": "^3.24.2"
   },
   "devDependencies": {
     "esbuild": "0.25.2",
-    "libsql": "file:libsql-0.5.8.tgz",
     "mime-types": "^2.1.35",
     "node-sqlite3-wasm": "^0.8.39",
     "send": "^1.1.0",
@@ -69,6 +80,7 @@
     "tiddlywiki": "^5.1.22"
   },
   "optionalDependencies": {
+    "@libsql/android-arm64": "file:libsql-android-arm64",
     "better-sqlite3": "^11.9.1"
   }
 }

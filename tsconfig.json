@@ -34,7 +34,6 @@
     "./mws.*.ts",
   ],
   "exclude": [
-    "src/db-libsql",
     "src/db-node-sqlite3-wasm/api.js",
   ]
 }

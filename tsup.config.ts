@@ -2,7 +2,7 @@ import { defineConfig } from 'tsup';
 import "@serenity-kit/opaque"
 export default defineConfig({
   entry: ['src/server.ts'],
-  format: ['esm', 'cjs'],
+  format: ['esm'],
   outDir: "dist",
   external: [
     "tiddlywiki",
@@ -17,7 +17,7 @@ export default defineConfig({
   ],
   tsconfig: "tsconfig.json",
   keepNames: true,
-  dts: false,          // Generate type declaration files
+  dts: true,          // Generate type declaration files
   sourcemap: true,     // Generate source maps for debugging
   clean: true,         // Clean the output directory before each build
   minify: false,       // Set to true if you want minification

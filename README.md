@@ -2,6 +2,20 @@
 
 MultiWikiServer for TiddlyWiki.
 
+### Android-Support Branch
+
+To test the libsql adapter, use
+
+```
+LIBSQL=1 npm start
+```
+
+To test the better-sqlite3 adapter, just use
+
+```
+npm start
+```
+
 ### How to run
 
 The init command creates a new folder and installs what you need to get started. 
