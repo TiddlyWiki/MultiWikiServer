@@ -1,5 +1,4 @@
 import { PrismaBetterSQLite3 } from "@prisma/adapter-better-sqlite3";
-import { PrismaClient } from "@prisma/client";
 import { SqlDriverAdapter, SqlMigrationAwareDriverAdapterFactory } from "@prisma/driver-adapter-utils";
 import { readdir, readFile } from "fs/promises";
 import { dist_resolve } from "../utils";

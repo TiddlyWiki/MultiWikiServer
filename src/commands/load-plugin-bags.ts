@@ -4,7 +4,8 @@ import { Commander, CommandInfo } from "../commander";
 import { TiddlerStore } from "../routes/TiddlerStore";
 import { TiddlerFields } from "../services/attachments";
 import { truthy, tryParseJSON } from "../utils";
-import { Prisma, PrismaClient, PrismaPromise } from "@prisma/client";
+import { Prisma, PrismaClient } from "../prisma-client";
+import { PrismaPromise } from "@prisma/client/runtime/library";
 
 export const info: CommandInfo = {
 	name: "load-plugin-bags",

@@ -3,7 +3,7 @@ import { SiteConfig } from "./routes/router";
 import * as path from "node:path";
 
 import { MWSConfig } from "./server";
-import { Prisma, PrismaClient } from "@prisma/client";
+import { Prisma, PrismaClient } from "./prisma-client";
 
 import * as sessions from "./services/sessions";
 import * as attacher from "./services/attachments";
@@ -125,10 +125,26 @@ class StartupCommander {
     this.AttachmentService = config.AttachmentService || attacher.AttachmentService;
 
     this.adapter = new SqliteAdapter(this.databasePath);
-    this.engine = new PrismaClient({ log: ["info", "warn"], adapter: this.adapter.adapter, });
+    const self = this;
+    this.engine = new PrismaClient({ log: ["info", "warn"], adapter: this.adapter.adapter, }).$extends({
+      query: {
+        $allOperations({ model, operation, args, query }) {
 
+          /* your custom logic for modifying all Prisma Client operations here */
+          return query(args).catch(e => {
+            console.log(self.success, model, operation, args);
+            console.log(e);
+            throw e;
+          }).then(e => {
+            self.success++;
+            console.log("success", self.success, model, operation);
+            return e;
+          })
+        },
+      },
+    }) as any;
   }
-
+  success = 0;
   async init() {
     await this.adapter.init();
     this.setupRequired = false;
@@ -154,6 +170,7 @@ class StartupCommander {
     client: {},
     model: {},
     query: {},
+
   }>;
 
   $transaction<R>(

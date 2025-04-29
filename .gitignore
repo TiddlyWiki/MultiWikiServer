@@ -21,3 +21,4 @@ test5213tw
 /.vscode/settings.json
 editions/mws-docs/tiddlers/$__StoryList.tid
 index.node
+prisma-query-client

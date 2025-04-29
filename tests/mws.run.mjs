@@ -4,7 +4,7 @@ import startServer from "@tiddlywiki/mws";
 startServer({
   passwordMasterKeyFile: "./localpass.key",
   wikiPath: "./wiki",
-  config: { pathPrefix: "dev", },
+  config: { pathPrefix: "/dev", },
   listeners: [{
     // key: "./localhost.key",
     // cert: "./localhost.crt",

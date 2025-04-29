@@ -6,19 +6,16 @@
   "type": "module",
   "exports": {
     "types": "./src/server.ts",
-    "require": "./dist/server.cjs",
     "import": "./dist/server.js"
   },
   "files": [
+    ".env-cmdrc",
     "dist",
-    "prisma",
-    "react-user-mgmt",
-    "tiddlywiki-types",
     "editions/mws-docs",
     "plugins/client",
-    "libsql",
-    "libsql-android-arm64",
-    ".env-cmdrc"
+    "prisma",
+    "react-user-mgmt",
+    "tiddlywiki-types"
   ],
   "engines": {
     "node": ">14"
@@ -34,12 +31,12 @@
     "prisma": "npm run gen:client && npm run gen:sql",
     "prisma:studio": "DATABASE_URL=file:../editions/mws/store/database.sqlite prisma studio",
     "certs": "(cd runtime-config && bash localhost_certs.sh)",
-    "start": "SKIPDTS=1 npm run build && node mws.dev.mjs init-store && node mws.dev.mjs listen",
+    "start": "SKIPDTS=1 npm run build && node editions/rmdb.cjs && node mws.dev.mjs",
     "build": "npm run tsc && tsup",
     "install-android": "GYP_DEFINES=\"android_ndk_path=''\" npm install",
-    "postinstall": "env-cmd -e prisma-env prisma generate",
+    "postinstalloff": "env-cmd -e prisma-env prisma generate",
     "env": "env",
-    "test:pack": "(git clean -dfx tests && npm pack --pack-destination tests && cd tests && npm install && npm install ./tiddlywiki-mws-$npm_package_version.tgz --no-save && npm test)",
+    "test:pack": "(git clean -dfx tests && npm pack --pack-destination tests && cd tests && npm install && npm install ./tiddlywiki-mws-$npm_package_version.tgz --no-save && npm start)",
     "test": "(git clean -dfx tests && cd tests && npm install .. --no-save && npm test)",
     "fulltest": "mv node_modules node_modules_old; npm run test:pack; mv node_modules_old node_modules",
     "prisma:adapter:better": "cp -rfv ../prisma/packages/adapter-better-sqlite3/src/* src/adapter-better-sqlite3",
@@ -47,23 +44,26 @@
     "prepublishOnly": "npm run build && node mws.dev.mjs --client-build"
   },
   "dependencies": {
-    "@prisma/adapter-better-sqlite3": "6.7.0-dev.48",
-    "@prisma/client": "6.6.0",
+    "@prisma/adapter-better-sqlite3": "6.7.0",
     "@serenity-kit/opaque": "^0.8.4",
     "@types/mime-types": "^2.1.4",
     "@types/node": "^22.13.1",
     "@types/send": "^0.17.4",
     "@types/sjcl": "^1.0.34",
     "@types/tiddlywiki": "file:tiddlywiki-types",
+    "prisma-query-client": "file:prisma-query-client",
     "env-cmd": "^10.1.0",
-    "prisma": "6.6.0",
     "source-map-support": "^0.5.21",
     "zod": "^3.24.2"
   },
   "devDependencies": {
+    "@prisma/client": "^6.7.0",
     "commander": "^13.1.0",
     "esbuild": "0.25.2",
+    "esbuild-plugin-copy": "^2.1.1",
+    "esbuild-plugin-wasm": "^1.1.0",
     "mime-types": "^2.1.35",
+    "prisma": "6.7.0",
     "send": "^1.1.0",
     "sjcl": "^1.0.8",
     "tiddlywiki": "^5.1.22",

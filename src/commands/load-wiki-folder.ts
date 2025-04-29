@@ -14,7 +14,6 @@ import { resolve } from "path";
 import { Commander, CommandInfo } from "../commander";
 import { TiddlerStore } from "../routes/TiddlerStore";
 import { TiddlerFields } from "../services/attachments";
-import { Prisma, PrismaClient } from "@prisma/client";
 
 export const info: CommandInfo = {
 	name: "load-wiki-folder",

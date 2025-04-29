@@ -2,7 +2,7 @@
 import { Commander, CommandInfo } from "../commander";
 import { TiddlerStore } from "../routes/TiddlerStore";
 import { join, resolve } from "path";
-import { Prisma } from "@prisma/client";
+import { Prisma } from "../prisma-client";
 import { Command as SaveArchiveCommand } from "./save-archive";
 import * as _fsp from "fs/promises";
 import { createStrictAwaitProxy } from "../utils";

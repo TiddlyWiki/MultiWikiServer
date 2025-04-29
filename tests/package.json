@@ -3,7 +3,8 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "test": "node tests.mjs"
+    "test": "node tests.mjs",
+    "start": "node mws.run.mjs"
   },
   "dependencies": {
     "tiddlywiki": "latest"

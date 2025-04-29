@@ -1,7 +1,7 @@
 import type { rootRoute as _rootRoute, Router } from "./routes/router";
 import * as path from "path";
 import * as fs from "fs";
-import type { Prisma } from "@prisma/client";
+import type { Prisma } from "./prisma-client";
 import type { ZodAssert } from "./utils";
 import { Tiddler, Wiki } from "tiddlywiki";
 import { Commander } from "./commander";

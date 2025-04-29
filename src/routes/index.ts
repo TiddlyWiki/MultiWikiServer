@@ -1,7 +1,7 @@
 import { readdirSync, statSync } from "fs";
 import { rootRoute, SiteConfig } from "./router";
 import { ZodAssert } from "../utils";
-import { Prisma, PrismaClient } from "@prisma/client";
+import { Prisma, PrismaClient } from "../prisma-client";
 import { ManagerRoutes } from "./managers";
 import { TiddlerRouter } from "./managers/router-tiddlers";
 
