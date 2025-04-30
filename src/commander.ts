@@ -123,8 +123,10 @@ class StartupCommander {
 
     this.SessionManager = config.SessionManager || sessions.SessionManager;
     this.AttachmentService = config.AttachmentService || attacher.AttachmentService;
-
+    //@ts-ignore
+    global.PRISMA_WASM_PANIC_REGISTRY = { set_message: console.log };
     this.adapter = new SqliteAdapter(this.databasePath);
+    const reported = new Set();
     const self = this;
     this.engine = new PrismaClient({ log: ["info", "warn"], adapter: this.adapter.adapter, }).$extends({
       query: {
@@ -132,8 +134,10 @@ class StartupCommander {
 
           /* your custom logic for modifying all Prisma Client operations here */
           return query(args).catch(e => {
+            if(reported.has(e)) throw e;
             console.log(self.success, model, operation, args);
-            console.log(e);
+            console.log("prisma error thrown to application", e);
+            reported.add(e);
             throw e;
           }).then(e => {
             self.success++;
