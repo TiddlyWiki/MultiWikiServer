@@ -13,3 +13,7 @@ We'll probably end up importing and exporting bags via tiddlywiki.
 20250406213424_init - LF
 20250407002306_disconnect_user_tables - LF
 
+## Updates
+
+- make a copy of the prisma folder and a copy of the db setup code.
+

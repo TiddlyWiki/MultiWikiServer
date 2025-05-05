@@ -12,13 +12,15 @@ export class SqliteAdapter {
   }
 
   adapter!: SqlMigrationAwareDriverAdapterFactory;
+
   async init() {
     const libsql = await this.adapter.connect();
     // await libsql.executeRaw({ sql: "PRAGMA journal_mode=WAL;", args: [], argTypes: [] });
 
-    if (process.env.RUN_OLD_MWS_DB_SETUP_FOR_TESTING) {
+    // this is used to test the upgrade path
+    if (process.env.RUN_FIRST_MWS_DB_SETUP_FOR_TESTING_ZERO) {
       await libsql.executeScript(await readFile(dist_resolve(
-        "../prisma/migrations/20250406213424_init/migration.sql"
+        "../prisma-20250406/migrations/20250406213424_init/migration.sql"
       ), "utf8"));
     }
 
@@ -30,13 +32,25 @@ export class SqliteAdapter {
 
     const hasExisting = !!tables?.length;
 
-
     const hasMigrationsTable = !!tables?.length && !!tables?.some((e) => e[0] === "_prisma_migrations");
     if (!hasMigrationsTable) await this.createMigrationsTable(libsql);
-    await this.checkMigrationsTable(libsql, hasExisting && !hasMigrationsTable);
+
+    const applied_migrations = new Set(
+      await libsql.queryRaw({
+        sql: `Select migration_name from _prisma_migrations`,
+        args: [],
+        argTypes: [],
+      }).then(e => e.rows.map(e => e[0] as string))
+    );
+
+    if (applied_migrations.has("20250406213424_init")) {
+      console.log("this is a version 0.0.x database, which is not compatible with version 0.1.x");
+      await this.checkMigrationsTable_Zero(libsql, hasExisting && !hasMigrationsTable, applied_migrations);
+    }
 
     await libsql.dispose();
   }
+
   async createMigrationsTable(libsql: SqlDriverAdapter) {
     await libsql.executeScript(
       'CREATE TABLE "_prisma_migrations" (\n' +
@@ -51,17 +65,18 @@ export class SqliteAdapter {
       ')',
     )
   }
-  async checkMigrationsTable(libsql: SqlDriverAdapter, migrateExisting: boolean) {
 
-    const applied_migrations = new Set(
-      await libsql.queryRaw({
-        sql: `Select migration_name from _prisma_migrations`,
-        args: [],
-        argTypes: [],
-      }).then(e => e.rows.map(e => e[0]))
-    );
 
-    const migrations = await readdir(dist_resolve("../prisma/migrations"));
+
+  async checkMigrationsTable_Zero(
+    libsql: SqlDriverAdapter, 
+    migrateExisting: boolean, 
+    applied_migrations: Set<string>
+  ) {
+
+
+
+    const migrations = await readdir(dist_resolve("../prisma-20250406/migrations"));
     migrations.sort();
 
     const new_migrations = migrations.filter(m => !applied_migrations.has(m) && m !== "migration_lock.toml");
@@ -74,7 +89,7 @@ export class SqliteAdapter {
     console.log("New migrations found", new_migrations);
 
     for (const migration of new_migrations) {
-      const migration_path = dist_resolve(`../prisma/migrations/${migration}/migration.sql`);
+      const migration_path = dist_resolve(`../prisma-20250406/migrations/${migration}/migration.sql`);
       if (!existsSync(migration_path)) continue;
 
       const fileContent = await readFile(migration_path, 'utf-8');
@@ -97,4 +112,5 @@ export class SqliteAdapter {
     }
     console.log("Migrations applied", new_migrations);
   }
+
 }
