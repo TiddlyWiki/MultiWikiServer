@@ -1,10 +1,6 @@
-import { TiddlyWiki, TWBoot, TWBootBrowser, TWBootNode } from "tiddlywiki";
-import { } from "tiddlywiki/boot/bootprefix";
-import { $TW } from "./commander";
-import { resolve } from "node:path";
-import { dist_resolve, is } from "./utils";
+import { TiddlyWiki } from "tiddlywiki";
+import { dist_resolve } from "./utils";
 import { ok } from "node:assert";
-
 declare module "tiddlywiki" {
   interface TWUtils {
     eachAsync: (array: any[], callback: (item: any, index: number) => Promise<void>) => Promise<void>;
@@ -16,7 +12,7 @@ declare module "tiddlywiki" {
 
 export async function bootTiddlyWiki(wikiPath: string) {
 
-  const $tw = TiddlyWiki()
+  const $tw = TiddlyWiki();
 
   $tw.utils.eachAsync = eachAsync;
 
@@ -82,3 +78,4 @@ export async function bootTiddlyWiki(wikiPath: string) {
   return $tw;
 
 }
+

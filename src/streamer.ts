@@ -43,7 +43,7 @@ export class Streamer {
   constructor(
     private req: IncomingMessage | http2.Http2ServerRequest,
     private res: ServerResponse | http2.Http2ServerResponse,
-    private router: Router
+    public pathPrefix: string,
   ) {
 
     this.headers = req.headers;
@@ -51,14 +51,14 @@ export class Streamer {
     this.url = req.url as string;
     if (!this.url.startsWith("/")) throw new Error("This should never happen");
 
-    if (router.pathPrefix) {
-      if (this.url === router.pathPrefix) {
+    if (pathPrefix) {
+      if (this.url === pathPrefix) {
         res.writeHead(302, { "location": req.url + "/" }).end();
         throw STREAM_ENDED;
-      } else if (this.url.startsWith(router.pathPrefix)) {
-        this.url = this.url.slice(router.pathPrefix.length);
+      } else if (this.url.startsWith(pathPrefix)) {
+        this.url = this.url.slice(pathPrefix.length);
       } else {
-        res.writeHead(500, {}).end("The server is setup with a path prefix " + router.pathPrefix + ", but this request is outside of that prefix.", "utf8");
+        res.writeHead(500, {}).end("The server is setup with a path prefix " + pathPrefix + ", but this request is outside of that prefix.", "utf8");
         throw STREAM_ENDED;
       }
     }
@@ -81,7 +81,7 @@ export class Streamer {
 
     this.cookies = this.parseCookieString(req.headers.cookie || "");
 
-    if(this.cookies.getAll("session").length > 1) {
+    if (this.cookies.getAll("session").length > 1) {
       console.warn("Multiple session cookies found. This is very likely to cause problems. This may happen after changing the path prefix.");
     }
   }
@@ -373,6 +373,11 @@ export class Streamer {
   headersSentBy: Error | undefined;
 }
 
+/** 
+ * This can be used as the basis of state objects and exposes the 
+ * relevant streamer interface without allowing private members to be exposed. 
+ * 
+ */
 export class StreamerState {
 
   readBody
@@ -442,6 +447,17 @@ export class StreamerState {
   /** Currently this is based on whether the socket is secure, so a proxy will cause problems. */
   get isSecure() { return this.streamer.isSecure; }
   get cookies() { return this.streamer.cookies; }
+
+  /** 
+   * The path prefix is a essentially folder mount point. 
+   * 
+   * It starts with a slash, and ends without a slash (`"/dev"`). 
+   * 
+   * If there is not a prefix, it is an empty string (`""`). 
+   */
+  get pathPrefix(): string {
+    return this.streamer.pathPrefix;
+  }
 
 }
 

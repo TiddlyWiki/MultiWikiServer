@@ -156,7 +156,7 @@ export class SessionManager {
       // the client can ask to skip the cookie for things like password change
       state.setCookie("session", session_id, {
         httpOnly: true,
-        path: state.config.pathPrefix + "/",
+        path: state.pathPrefix + "/",
         secure: state.isSecure,
         sameSite: "Strict"
       });
@@ -194,7 +194,7 @@ export class SessionManager {
       var cookie = cookies[i]?.trim().split("=")[0];
       if (!cookie) continue;
       // state.setHeader("Set-Cookie", cookie + "=; HttpOnly; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Strict");
-      state.setCookie(cookie, "", { httpOnly: true, path: state.config.pathPrefix + "/", expires: new Date(0), secure: state.isSecure, sameSite: "Strict" });
+      state.setCookie(cookie, "", { httpOnly: true, path: state.pathPrefix + "/", expires: new Date(0), secure: state.isSecure, sameSite: "Strict" });
     }
 
     return null;

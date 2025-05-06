@@ -12,6 +12,7 @@ import { fromError } from 'zod-validation-error';
 import * as http from "http";
 import * as http2 from "http2";
 import { SessionManager } from "../services/sessions";
+import { Listener } from "../listeners";
 
 // this should have been in server
 export { SiteConfig } from "../server";
@@ -55,7 +56,7 @@ export class Router {
     enableDevServer: boolean
   ) {
 
-    const sendDevServer = await setupDevServer(enableDevServer, commander.siteConfig.pathPrefix);
+    const sendDevServer = await setupDevServer(enableDevServer);
 
     const rootRoute = defineRoute(ROOT_ROUTE, {
       method: AllowedMethods,
@@ -81,9 +82,6 @@ export class Router {
   csrfDisable: boolean = false;
 
   siteConfig: SiteConfig;
-  get pathPrefix() {
-    return this.siteConfig.pathPrefix;
-  }
 
   public engine: Commander["engine"];
   public PasswordService: Commander["PasswordService"];
@@ -103,12 +101,13 @@ export class Router {
 
   handleIncomingRequest(
     req: http.IncomingMessage | http2.Http2ServerRequest,
-    res: http.ServerResponse | http2.Http2ServerResponse
+    res: http.ServerResponse | http2.Http2ServerResponse,
+    options: Listener
   ) {
 
     const [ok, err, streamer] = function (this: Router) {
       try {
-        return [true, undefined, new Streamer(req, res, this)] as const;
+        return [true, undefined, new Streamer(req, res, options.prefix)] as const;
       } catch (e) {
         return [false, e, undefined] as const;
       }

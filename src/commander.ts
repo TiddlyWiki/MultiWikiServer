@@ -1,7 +1,5 @@
 
-import { SiteConfig } from "./routes/router";
 import * as path from "node:path";
-import { MWSConfigConfig } from "./server";
 import { Prisma, PrismaClient } from "@prisma/client";
 import { PasswordService } from "./services/PasswordService";
 import { existsSync, mkdirSync, readFileSync } from "node:fs";
@@ -66,6 +64,25 @@ export interface CommandInfo {
   // mandatoryParameters?: string[];
 }
 
+export interface SiteConfig {
+  /** If true, allow users that aren't logged in to read. */
+  readonly allowAnonReads?: boolean
+  /** If true, allow users that aren't logged in to write. */
+  readonly allowAnonWrites?: boolean
+  /** If true, recipes will allow access to a user who does not have read access to all its bags. */
+  readonly allowUnreadableBags?: boolean
+
+  readonly enableGzip?: boolean
+  readonly enableBrowserCache?: boolean
+
+  wikiPath: string;
+  attachmentSizeLimit: number;
+  attachmentsEnabled: boolean;
+  contentTypeInfo: Record<string, any>;
+  storePath: string;
+
+}
+
 // move the startup logic into a separate class
 class StartupCommander {
   fieldModules;
@@ -74,16 +91,9 @@ class StartupCommander {
     public $tw: TW,
     public PasswordService: PasswordService,
   ) {
-    const config = { config: undefined as any as MWSConfigConfig };
+
     this.fieldModules = $tw.Tiddler.fieldModules;
 
-    if (config.config?.pathPrefix) {
-      ok(config.config.pathPrefix.startsWith("/"), "pathPrefix must start with a slash");
-      ok(!config.config.pathPrefix.endsWith("/"), "pathPrefix must not end with a slash");
-    }
-
-    // console.log(config.wikiPath);
-    // this is already resolved to the cwd.
     this.storePath = path.resolve(this.wikiPath, "store");
     this.cachePath = path.resolve(this.wikiPath, "cache");
     this.databasePath = path.resolve(this.storePath, "database.sqlite");
@@ -98,21 +108,14 @@ class StartupCommander {
     // the libsql adapter has an additional advantage of letting us specify pragma 
     // and also gives us more control over connections. 
 
-
-
     this.siteConfig = {
       wikiPath: this.wikiPath,
-      allowAnonReads: !!config.config?.allowAnonReads,
-      allowAnonWrites: !!config.config?.allowAnonWrites,
-      allowUnreadableBags: !!config.config?.allowUnreadableBags,
-      attachmentsEnabled: !!config.config?.saveLargeTextToFileSystem,
-      attachmentSizeLimit: config.config?.saveLargeTextToFileSystem ?? 0,
-      enableBrowserCache: !!config.config?.enableBrowserCache,
-      enableGzip: !!config.config?.enableGzip,
-      contentTypeInfo: $tw.config.contentTypeInfo,
       storePath: this.storePath,
-      pathPrefix: config.config?.pathPrefix ?? "",
-      saveLargeTextToFileSystem: undefined as never
+      contentTypeInfo: $tw.config.contentTypeInfo,
+      enableBrowserCache: true,
+      enableGzip: true,
+      attachmentsEnabled: false,
+      attachmentSizeLimit: 100 * 1024, // 100 KB
     };
 
     this.adapter = new SqliteAdapter(this.databasePath);
@@ -160,13 +163,7 @@ class StartupCommander {
     return this.engine.$transaction(fn as (prisma: any) => Promise<any>, options);
   }
 
-
   siteConfig: SiteConfig;
-
-
-  // SessionManager: typeof sessions.SessionManager;
-  // AttachmentService: typeof attacher.AttachmentService;
-
   /** Signals that database setup is required. May be set to false by any qualified setup command. */
   setupRequired: boolean = true;
 }

@@ -1,58 +1,71 @@
+import EventEmitter from "events";
 import { rootRoute, SiteConfig } from "./router";
-import { ZodAssert as zodAssert } from "../utils";
 import { TiddlyWiki, TW } from "tiddlywiki";
-import { STREAM_ENDED } from "../streamer";
+import { StateObject } from "../StateObject";
+import { basename } from "path/posix";
 
-export function DocsRoute(parent: rootRoute, config: SiteConfig) {
-  const wikiRouter = new TWRouter(config);
+
+export function DocsRoute(parent: rootRoute, mountPath: string, singleFile: boolean) {
+  const $tw = TiddlyWiki();
+  const last = basename(mountPath);
+
+  $tw.preloadTiddler({
+    title: "$:/config/tiddlyweb/host",
+    // if the page url doesn't end with a slash, we have to include the basename here
+    text: singleFile ? last + "/" : "",
+  });
+  // tiddlywiki [+<pluginname> | ++<pluginpath>] [<wikipath>] ...[--command ...args]
+  $tw.boot.argv = [
+    "+plugins/tiddlywiki/tiddlyweb",
+    "+plugins/tiddlywiki/filesystem",
+    // relative to editions/mws, which is the dev datafolder
+    "../mws-docs",
+  ];
+
+  const hooks = new EventEmitter();
+
+  // Boot the TW5 app
+  $tw.boot.boot(() => {
+    const Server = $tw.modules.execute("$:/core/modules/server/server.js", "tw-test.ts").Server;
+    const twserver = new Server({
+      wiki: $tw.wiki,
+      variables: {
+        // path prefix gets set per-request
+        "path-prefix": "",
+        "root-tiddler": "$:/core/save/all",
+      },
+      routes: [],
+    });
+    $tw.hooks.invokeHook("th-server-command-post-start", twserver, null, "mws");
+    hooks.on("req", (req, res, pathPrefix) => {
+      twserver.requestHandler(req, res, { pathPrefix } as any);
+    })
+  });
+
   parent.defineRoute({
     method: ["OPTIONS", "GET", "HEAD", "POST", "PUT", "DELETE"],
     bodyFormat: "stream",
-    path: /^\/mws(\/|$)/,
+    path: new RegExp("^" + mountPath + "(/|$)"),
     pathParams: []
   }, async (state) => {
-    if (state.urlInfo.pathname === "/mws") throw state.redirect("/mws/");
+
+    // eventually this will be optional because either method could be desired
+    // especially when importing from an existing single-file folder structure
+    if (singleFile && state.urlInfo.pathname === mountPath + "/")
+      throw state.redirect(mountPath);
+    if (!singleFile && state.urlInfo.pathname === mountPath)
+      throw state.redirect(mountPath + "/");
+
+    // the streamer does NOT remove state.pathPrefix from streamer.req.url, only from streamer.url
     // @ts-expect-error because streamer is private
     const { req, res } = state.streamer;
-    // regardless, this has to end with a slash
-    if (req.url === "/mws") req.url = "/mws/";
-    // options not required
-    wikiRouter.twserver.requestHandler(req, res, {} as any);
-    return new Promise((r, c) => res.on("finish", r).on("error", c));
+    // regardless of singleFile, this has to end with a slash
+    if (req.url === state.pathPrefix + mountPath)
+      req.url = state.pathPrefix + mountPath + "/";
+
+    const prom = new Promise((r, c) => res.on("finish", r).on("error", c));
+    hooks.emit("req", req, res, state.pathPrefix + mountPath);
+    return prom;
   });
-}
-
-class TWRouter {
-  $tw: TW;
-  twserver!: any;
-
-  constructor(private config: SiteConfig) {
-    this.$tw = TiddlyWiki();
-    // tiddlywiki [+<pluginname> | ++<pluginpath>] [<wikipath>] ...[--command ...args]
-    this.$tw.boot.argv = [
-      "+plugins/tiddlywiki/tiddlyweb",
-      "+plugins/tiddlywiki/filesystem",
-      "./editions/mws-docs",
-    ];
-
-    this.$tw.preloadTiddler({
-      text: "$protocol$//$host$" + this.config.pathPrefix + "/mws/",
-      title: "$:/config/tiddlyweb/host",
-    });
-    // Boot the TW5 app
-    this.$tw.boot.boot(() => {
-      const Server = this.$tw.modules.execute("$:/core/modules/server/server.js", "tw-test.ts").Server;
-      this.twserver = new Server({
-        wiki: this.$tw.wiki,
-        variables: {
-          // do not use a trailing slash
-          "path-prefix": this.config.pathPrefix + "/mws",
-          "root-tiddler": "$:/core/save/all",
-        },
-        routes: [],
-      });
-      this.$tw.hooks.invokeHook("th-server-command-post-start", this.twserver, null, "mws");
-    });
-  }
 }
 

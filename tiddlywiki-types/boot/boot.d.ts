@@ -11,6 +11,7 @@ declare module "tiddlywiki" {
     utils: TWUtils;
     wiki: Wiki;
     crypto: TWCrypto;
+    Wiki: WikiConstructor;
     Tiddler: TiddlerConstructor;
     hooks: TWHooks;
     safeMode?: boolean;
@@ -330,6 +331,7 @@ declare module "tiddlywiki" {
   interface WikiConstructor {
     new(options?: WikiOptions): Wiki;
     tiddlerDeserializerModules: Record<string, (text: string, fields: TiddlerFields, type?: string) => TiddlerFields[]>;
+    parsers: any;
   }
 
   interface WikiOptions {

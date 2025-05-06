@@ -339,9 +339,11 @@ export class TiddlerServer extends TiddlerStore {
       text: (lastTiddlerId._max.tiddler_id ?? 0).toString()
     });
 
+    // the text field could be an empty string also, 
+    // but this helps with integrity
     writeTiddler({
       title: "$:/config/multiwikiclient/host",
-      text: "$protocol$//$host$" + this.state.config.pathPrefix + "/",
+      text: "$protocol$//$host$" + this.state.pathPrefix + "/",
     });
 
     state.write(template.substring(markerPos + marker.length))

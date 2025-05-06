@@ -10,11 +10,11 @@ import { writeFileSync } from "fs";
 
 export async function setupDevServer<T extends StateObject>(
   enableDevServer: boolean,
-  pathPrefix: string
+
 ) {
 
 
-  const index_file = Buffer.from(`
+  const make_index_file = (pathPrefix: string) => Buffer.from(`
 <!DOCTYPE html>
 
 <head>
@@ -45,7 +45,7 @@ export async function setupDevServer<T extends StateObject>(
 </html>
 `.trim(), "utf8");
 
-  const index_hash = createHash("sha1").update(index_file).digest().toString("base64");
+
 
 
   const rootdir = dist_resolve('../react-user-mgmt');
@@ -53,6 +53,8 @@ export async function setupDevServer<T extends StateObject>(
 
   if (!enableDevServer) {
     return async function sendProdServer(state: T) {
+      const index_file = make_index_file(state.pathPrefix);
+      const index_hash = createHash("sha1").update(index_file).digest().toString("base64");
       const sendIndex = (): typeof STREAM_ENDED => state.sendBuffer(200, {
         "content-type": "text/html",
         "content-length": index_file.length,
@@ -75,7 +77,8 @@ export async function setupDevServer<T extends StateObject>(
     const { ctx, port } = await esbuildStartup();
 
     return async function sendDevServer(state: T) {
-
+      const index_file = make_index_file(state.pathPrefix);
+      const index_hash = createHash("sha1").update(index_file).digest().toString("base64");
       const sendIndex = (): typeof STREAM_ENDED => state.sendBuffer(200, {
         "content-type": "text/html",
         "content-length": index_file.length,

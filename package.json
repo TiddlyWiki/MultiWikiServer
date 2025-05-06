@@ -24,7 +24,7 @@
     "node": ">14"
   },
   "scripts": {
-    "start": "SKIPDTS=1 npm run build && ENABLE_DEV_SERVER=1 node mws.dev.mjs",
+    "start": "SKIPDTS=1 tsup && ENABLE_DEV_SERVER=1 node mws.dev.mjs",
     "docs": "ENABLE_DOCS_ROUTE=1 npm start",
     "certs": "(cd runtime-config && bash localhost_certs.sh)",
     "tsc": "tsc -p tsconfig.json --skipLibCheck",

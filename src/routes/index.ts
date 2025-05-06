@@ -14,7 +14,7 @@ declare global {
 export default async function RootRoute(root: rootRoute, config: SiteConfig) {
   // we can directly hand requests off to loaded tiddlywiki datafolders, 
   // but this takes significantly more memory than normal MWS.
-  if (process.env.ENABLE_DOCS_ROUTE) DocsRoute(root, config);
+  if (process.env.ENABLE_DOCS_ROUTE) DocsRoute(root, "/mws", true);
   TiddlerRouter.defineRoutes(root);
   ManagerRoutes(root, config);
   if (process.env.ENABLE_UNSAFE_PRISMA_ROUTE)

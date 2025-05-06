@@ -1,6 +1,6 @@
 //@ts-check
 import startServer from "@tiddlywiki/mws";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -22,6 +22,7 @@ if(process.argv.length === 2) {
   // log the args for debugging
   console.log(args);
 }
+mkdirSync("editions/mws", { recursive: true })
 // change to the editions/mws directory for development
 process.chdir("editions/mws");
 // start server

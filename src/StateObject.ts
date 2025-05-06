@@ -106,7 +106,7 @@ export class StateObject<
 
 
   }
-  
+
   okUser() {
     if (!this.user.isLoggedIn) throw "User not authenticated";
   }
@@ -147,6 +147,7 @@ export class StateObject<
    *
    * Sends a **302** status code and **Location** header to the client.
    * 
+   * This will add the path prefix to the redirect path
    * 
    * - **301 Moved Permanently:** The resource has been permanently moved to a new URL.
    * - **302 Found:** The resource is temporarily located at a different URL.
@@ -154,8 +155,8 @@ export class StateObject<
    * - **307 Temporary Redirect:** The resource is temporarily located at a different URL; the same HTTP method should be used.
    * - **308 Permanent Redirect:** The resource has permanently moved; the client should use the new URL in future requests.
    */
-  redirect(location: string, pushLocation?: boolean): typeof STREAM_ENDED {
-    return this.sendEmpty(302, { 'Location': this.config.pathPrefix + location });
+  redirect(location: string): typeof STREAM_ENDED {
+    return this.sendEmpty(302, { 'Location': this.pathPrefix + location });
   }
 
   sendSSE(retryMilliseconds?: number) {
