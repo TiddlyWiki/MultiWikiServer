@@ -7,7 +7,7 @@ import { dist_require_resolve, dist_resolve } from "../utils";
 
 export const info: CommandInfo = {
 	name: "init-store",
-	description: "Initialize the MWS Store",
+	description: "Initialize the MWS data folder",
 	arguments: [],
 	synchronous: true,
 };

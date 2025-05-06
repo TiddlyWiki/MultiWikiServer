@@ -38,7 +38,7 @@ export class TiddlerStore {
   static fromCommander(commander: Commander, prisma: PrismaTxnClient) {
     return new TiddlerStore(
       commander.$tw.Tiddler.fieldModules,
-      new commander.AttachmentService(commander.siteConfig, prisma),
+      new AttachmentService(commander.siteConfig, prisma),
       commander.siteConfig,
       prisma
     );

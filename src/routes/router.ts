@@ -4,7 +4,7 @@ import RootRoute from ".";
 import * as z from "zod";
 import { createStrictAwaitProxy, JsonValue, truthy, Z2 } from "../utils";
 import { Route, rootRoute, RouteOptAny, RouteMatch, } from "../utils";
-import { MWSConfigConfig, SiteConfig } from "../server";
+import { MWSConfigConfig, SessionManager, SiteConfig } from "../server";
 import { setupDevServer } from "../setupDevServer";
 import { Commander } from "../commander";
 import { CacheState, startupCache } from "./cache";
@@ -63,7 +63,7 @@ export class Router {
       state.sendDevServer = sendDevServer.bind(undefined, state);
     });
 
-    await commander.SessionManager.defineRoutes(rootRoute);
+    await SessionManager.defineRoutes(rootRoute);
 
     await RootRoute(rootRoute, commander.siteConfig);
 
@@ -84,11 +84,9 @@ export class Router {
   }
 
   public engine: Commander["engine"];
-  private SessionManager: Commander["SessionManager"];
   public PasswordService: Commander["PasswordService"];
 
   fieldModules: Commander["$tw"]["Tiddler"]["fieldModules"];
-  AttachmentService: Commander["AttachmentService"];
 
   constructor(
     private rootRoute: rootRoute,
@@ -96,11 +94,9 @@ export class Router {
     private tiddlerCache: CacheState,
   ) {
     this.engine = commander.engine;
-    this.SessionManager = commander.SessionManager;
     this.siteConfig = commander.siteConfig;
     this.PasswordService = commander.PasswordService;
     this.fieldModules = commander.$tw.Tiddler.fieldModules;
-    this.AttachmentService = commander.AttachmentService;
   }
 
   handleIncomingRequest(
@@ -135,7 +131,7 @@ export class Router {
       throw streamer.sendString(400, { "x-reason": "x-requested-with missing" },
         `'X-Requested-With' header required`, "utf8");
 
-    const authUser = await this.SessionManager.parseIncomingRequest(streamer, this);
+    const authUser = await SessionManager.parseIncomingRequest(streamer, this);
 
     /** This should always have a length of at least 1 because of the root route. */
     const routePath = this.findRoute(streamer);

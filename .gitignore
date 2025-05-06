@@ -11,6 +11,8 @@ editions/mws/**
 /mws.run.ts
 /mws.run.mjs
 /mws.dev.json
+/mws.dev
+/mws.dev.cmd
 # ignore for backward compatibility for now
 localhost.*
 *.key

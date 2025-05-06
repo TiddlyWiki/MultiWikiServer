@@ -4,7 +4,7 @@ import { resolve } from "path";
 import { createWriteStream, readFileSync } from "fs";
 import sjcl from "sjcl";
 import { createHash } from "crypto";
-import { TiddlerFields } from "../services/attachments";
+import { AttachmentService, TiddlerFields } from "../services/attachments";
 import { UserError } from "../utils";
 
 
@@ -17,7 +17,7 @@ export class TiddlerServer extends TiddlerStore {
     const router = state.router;
     super(
       router.fieldModules,
-      new router.AttachmentService(router.siteConfig, prisma),
+      new AttachmentService(router.siteConfig, prisma),
       router.siteConfig,
       prisma
     );

@@ -1,19 +1,15 @@
 
 import { SiteConfig } from "./routes/router";
 import * as path from "node:path";
-
-import { MWSConfig } from "./server";
+import { MWSConfigConfig } from "./server";
 import { Prisma, PrismaClient } from "@prisma/client";
-
-import * as sessions from "./services/sessions";
-import * as attacher from "./services/attachments";
 import { PasswordService } from "./services/PasswordService";
 import { existsSync, mkdirSync, readFileSync } from "node:fs";
 import { ITXClientDenyList } from "@prisma/client/runtime/library";
-import { TiddlerFieldModule, TW } from "tiddlywiki";
+import { TW } from "tiddlywiki";
 import { dist_resolve } from "./utils";
 import * as commander from "commander";
-import { commands, listen as listen_command, divider } from "./commands";
+import { commands, divider } from "./commands";
 import { ok } from "node:assert";
 import { SqliteAdapter } from "./db/sqlite-adapter";
 export interface $TW {
@@ -74,11 +70,11 @@ export interface CommandInfo {
 class StartupCommander {
   fieldModules;
   constructor(
-    public config: MWSConfig,
+    public wikiPath: string,
     public $tw: TW,
     public PasswordService: PasswordService,
   ) {
-
+    const config = { config: undefined as any as MWSConfigConfig };
     this.fieldModules = $tw.Tiddler.fieldModules;
 
     if (config.config?.pathPrefix) {
@@ -88,11 +84,9 @@ class StartupCommander {
 
     // console.log(config.wikiPath);
     // this is already resolved to the cwd.
-    this.wikiPath = config.wikiPath;
     this.storePath = path.resolve(this.wikiPath, "store");
-    this.databasePath = path.resolve(this.storePath, "database.sqlite");
-    this.outputPath = path.resolve($tw.boot.wikiPath, $tw.config.wikiOutputSubDir);
     this.cachePath = path.resolve(this.wikiPath, "cache");
+    this.databasePath = path.resolve(this.storePath, "database.sqlite");
 
     if (!existsSync(this.storePath)) {
       mkdirSync(this.storePath, { recursive: true });
@@ -121,9 +115,6 @@ class StartupCommander {
       saveLargeTextToFileSystem: undefined as never
     };
 
-    this.SessionManager = config.SessionManager || sessions.SessionManager;
-    this.AttachmentService = config.AttachmentService || attacher.AttachmentService;
-
     this.adapter = new SqliteAdapter(this.databasePath);
     this.engine = new PrismaClient({ log: ["info", "warn"], adapter: this.adapter.adapter, });
 
@@ -134,9 +125,9 @@ class StartupCommander {
     this.setupRequired = false;
     const users = await this.engine.users.count();
     if (!users) { this.setupRequired = true; }
+    
   }
 
-  wikiPath: string;
   storePath: string;
   databasePath: string;
   cachePath: string;
@@ -173,12 +164,11 @@ class StartupCommander {
   siteConfig: SiteConfig;
 
 
-  SessionManager: typeof sessions.SessionManager;
-  AttachmentService: typeof attacher.AttachmentService;
+  // SessionManager: typeof sessions.SessionManager;
+  // AttachmentService: typeof attacher.AttachmentService;
 
   /** Signals that database setup is required. May be set to false by any qualified setup command. */
   setupRequired: boolean = true;
-  outputPath: string;
 }
 /**
 Parse a sequence of commands
@@ -190,65 +180,15 @@ Parse a sequence of commands
 export class Commander extends StartupCommander {
 
   constructor(
-    config: MWSConfig,
+    wikiPath: string,
     $tw: TW,
     PasswordService: PasswordService,
   ) {
-    super(config, $tw, PasswordService);
+    super(wikiPath, $tw, PasswordService);
     this.nextToken = 0;
     this.verbose = false;
-
-    const { listeners, onListenersCreated } = config;
-    config.listeners = [];
-    config.onListenersCreated = undefined;
-    // there's nothing that can't be hacked in a Node process,
-    // but this just makes it a little bit harder for the listeners to be read.
-    // this can be replaced, but it only recieves the listeners via closure.
-    this.create_mws_listen = (params: string[]) => {
-      return new listen_command.Command(params, this, listeners, onListenersCreated);
-    };
-  }
-  program!: commander.Command;
-
-  async init() {
-    await super.init();
-
-    this.program = new commander.Command();
-    const pkg = JSON.parse(readFileSync(dist_resolve("../package.json"), "utf-8"));
-
-    this.program
-      .name("mws")
-      .description(pkg.description)
-      .version(pkg.version)
-      .enablePositionalOptions()
-      .passThroughOptions()
-      .showHelpAfterError()
-
-    Object.keys(commands).forEach((key) => {
-      const c = commands[key]!;
-      if (c.info.internal) return;
-      if (c.info.name === "help") return;
-      const command = this.program.command(c.info.name);
-      command.description(c.info.description);
-      c.info.arguments.forEach(([name, description]) => {
-        command.argument(name, description);
-      });
-      c.info.options?.forEach(([name, description]) => {
-        command.option(name, description);
-      });
-
-      command.action((...args) => {
-        const command2 = args.pop();
-        const options = args.pop();
-        // TODO: options should become named parameters
-        this.addCommandTokens(["--" + command2.name(), ...args]);
-      });
-    });
-
-
   }
 
-  create_mws_listen;
   /** 
    * The promise of the current execution. 
    * It is created and returned by execute, 
@@ -279,22 +219,6 @@ export class Commander extends StartupCommander {
   Execute the sequence of commands and invoke a callback on completion
   */
   execute(commandTokens: string[]) {
-    console.log("Commander", commandTokens);
-    this.setPromise();
-    this.commandTokens = [];
-    switch (commandTokens[0]) {
-      // internal dev commands
-      case "--client-build":
-        this.commandTokens.push(...commandTokens); break;
-      default:
-        this.program.parse(commandTokens, { from: 'user' }); break;
-    }
-
-    this.executeNextCommand();
-    return this.promise;
-  }
-  executeInternal(commandTokens: string[]) {
-    console.log("Commander", commandTokens);
     this.setPromise();
     this.commandTokens = commandTokens;
     this.executeNextCommand();
@@ -307,7 +231,6 @@ export class Commander extends StartupCommander {
         err ? reject(err) : resolve();
       };
     });
-
   }
   /*
   Execute the next command in the sequence
@@ -342,8 +265,8 @@ export class Commander extends StartupCommander {
     const params = this.commandTokens.slice(this.nextToken, nextCommand === -1 ? undefined : nextCommand);
     this.nextToken = nextCommand === -1 ? this.commandTokens.length : nextCommand;
 
-    if (commandName !== divider.info.name)
-      console.log("Commander executing", commandName, params);
+    // if (commandName !== divider.info.name)
+    //   console.log("Commander executing", commandName, params);
 
 
     // Parse named parameters if required
@@ -353,9 +276,7 @@ export class Commander extends StartupCommander {
     new Promise<any>(async (resolve) => {
       const { Command, info } = command!;
       try {
-        c = info.name === listen_command.info.name
-          ? this.create_mws_listen(params)
-          : new Command(params, this, info.synchronous ? undefined : resolve);
+        c = new Command(params, this, info.synchronous ? undefined : resolve);
         err = await c.execute();
         if (err || info.synchronous) resolve(err);
       } catch (e) {
@@ -397,6 +318,94 @@ export class Commander extends StartupCommander {
     } else {
       return paramsByName;
     }
+  }
+
+  getHelpInfo() {
+
+    const program = new commander.Command();
+    const pkg = JSON.parse(readFileSync(dist_resolve("../package.json"), "utf-8"));
+
+    const mainHelp = "Usage: mws [options] [commands]\n\n" + program
+      .name("mws")
+      .description(pkg.description)
+      .option("--password-key-file <string>", "path to the password master key, changing this invalidates all passwords")
+      .option("--wiki-path <string>", "path to the data folder")
+      .option("--listen [options...]", "listener options, cannot be specified alongside commands (multiple --listen allowed)")
+      .configureHelp({
+        helpWidth: 100
+      })
+      .helpOption(false)
+      .enablePositionalOptions()
+      .passThroughOptions()
+      .helpInformation()
+      .split("\n").slice(2).join("\n");
+
+    const listenHelp = program.command("--listen")
+      .option("--host=<string>", "the host string, passed directly to NodeJS")
+      .option("--port=<number>", "the port number, defaults to env.PORT, or 8080. \nUse 0 to let Node find a random port.")
+      .option("--prefix=<string>", "the URL pathname this listener is mounted at, must begin with a slash")
+      .option("--key=<string>", "HTTPS private key, relative to current directory")
+      .option("--cert=<string>", "HTTPS public certificate, relative to current directory")
+      .action((options, command) => { console.log(options, command.parent.opts()); })
+      .helpOption(false)
+      .configureHelp({
+        styleOptionTerm(str: string) {
+          if (str.startsWith("--")) return str.slice(2);
+          return str;
+        },
+        helpWidth: 90
+      })
+      .helpInformation()
+      .split('\n').slice(3).map(e => "    " + e).join('\n')
+
+    const lines = [];
+    lines.push(mainHelp);
+    lines.push(listenHelp);
+    lines.push("Commands:")
+
+
+    lines.push(
+      Object.keys(commands)
+        .map(key => this.getCommandHelp(program, commands[key]!))
+        .filter(e => e)
+        .map(e => "─".repeat(100) + "\n" + e)
+        .join("\n")
+    );
+
+    return lines.join("\n");
+  }
+
+  getCommandHelp(program: commander.Command, c: {
+    info: CommandInfo;
+    Command: any;
+  }) {
+
+    if (c.info.internal) return;
+    if (c.info.name === "help") return;
+    const command = program.command(c.info.name);
+    command.description(c.info.description);
+    c.info.arguments.forEach(([name, description]) => {
+      command.argument(name, description);
+    });
+    c.info.options?.forEach(([name, description]) => {
+      command.option("--" + name + "=<string>", description);
+    });
+
+    command.action((...args) => { });
+    command.helpOption(false);
+    command.configureHelp({
+      styleOptionTerm(str: string) {
+        if (str.startsWith("--")) return str.slice(2);
+        return str;
+      },
+      helpWidth: 90
+    });
+    const lines: string[] = [];
+    lines.push(c.info.description);
+    lines.push("");
+    lines.push(`Usage:  --${c.info.name} ${c.info.arguments.map(e => `<${e[0]}>`).join(" ")} ${c.info.options?.length ? "[options]" : ""}`);
+    lines.push(command.helpInformation().split('\n').slice(3).join('\n'));
+    return lines.join("\n");
   }
 }
 

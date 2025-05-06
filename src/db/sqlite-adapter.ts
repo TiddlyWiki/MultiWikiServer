@@ -43,10 +43,10 @@ export class SqliteAdapter {
       }).then(e => e.rows.map(e => e[0] as string))
     );
 
-    if (applied_migrations.has("20250406213424_init")) {
-      console.log("this is a version 0.0.x database, which is not compatible with version 0.1.x");
-      await this.checkMigrationsTable_Zero(libsql, hasExisting && !hasMigrationsTable, applied_migrations);
-    }
+    // if (applied_migrations.has("20250406213424_init")) {
+    console.log("this is a version 0.0.x database, which is not compatible with version 0.1.x");
+    await this.checkMigrationsTable_Zero(libsql, hasExisting && !hasMigrationsTable, applied_migrations);
+    // }
 
     await libsql.dispose();
   }
@@ -69,8 +69,8 @@ export class SqliteAdapter {
 
 
   async checkMigrationsTable_Zero(
-    libsql: SqlDriverAdapter, 
-    migrateExisting: boolean, 
+    libsql: SqlDriverAdapter,
+    migrateExisting: boolean,
     applied_migrations: Set<string>
   ) {
 

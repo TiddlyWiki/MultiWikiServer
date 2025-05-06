@@ -24,17 +24,10 @@
     "node": ">14"
   },
   "scripts": {
-    "docs": "ENABLE_DOCS_ROUTE=1 npm start",
-    "lint:fix": "exit 1 && eslint . --fix",
-    "lint": "exit 1 && eslint .",
-    "jsc": "tsc -p jsconfig.json --noEmit",
-    "tsc": "tsc -p tsconfig.json --skipLibCheck",
-    "gen:sql": "prisma migrate diff --from-empty --to-schema-datamodel prisma/schema.prisma --script > prisma/schema.prisma.sql",
-    "gen:client": "prisma generate",
-    "prisma": "npm run gen:client && npm run gen:sql",
-    "prisma:studio": "DATABASE_URL=file:../editions/mws/store/database.sqlite prisma studio",
-    "certs": "(cd runtime-config && bash localhost_certs.sh)",
     "start": "SKIPDTS=1 npm run build && node mws.dev.mjs",
+    "docs": "ENABLE_DOCS_ROUTE=1 npm start",
+    "certs": "(cd runtime-config && bash localhost_certs.sh)",
+    "tsc": "tsc -p tsconfig.json --skipLibCheck",
     "build": "npm run tsc && tsup",
     "install-android": "GYP_DEFINES=\"android_ndk_path=''\" npm install",
     "postinstall": "env-cmd -e prisma-env prisma generate",
@@ -42,8 +35,6 @@
     "test:pack": "(git clean -dfx tests && npm pack --pack-destination tests && cd tests && npm install && npm install ./tiddlywiki-mws-$npm_package_version.tgz --no-save && npm test)",
     "test": "(git clean -dfx tests && cd tests && npm install .. --no-save && npm test)",
     "fulltest": "mv node_modules node_modules_old; npm run test:pack; mv node_modules_old node_modules",
-    "prisma:adapter:better": "cp -rfv ../prisma/packages/adapter-better-sqlite3/src/* src/adapter-better-sqlite3",
-    "prisma:adapter:libsql": "cp -rfv ../prisma/packages/adapter-libsql/src/* src/adapter-libsql",
     "prepublishOnly": "npm run build && node mws.dev.mjs --client-build"
   },
   "dependencies": {

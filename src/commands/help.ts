@@ -21,7 +21,7 @@ export class Command {
     // if (this.params.length) throw `${info.name}: No parameters allowed.`;
   }
   async execute() {
-
+    console.log(this.commander.getHelpInfo())
   }
 }
 
