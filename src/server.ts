@@ -10,7 +10,7 @@ import { createPasswordService } from "./services/PasswordService";
 import { join } from "node:path";
 import { startListeners } from "./listeners";
 // import * as http2 from "http2";
-export * from "./services/sessions";
+// export * from "./services/sessions";
 
 
 export interface MWSConfigConfig {

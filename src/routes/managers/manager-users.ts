@@ -1,4 +1,5 @@
-import { assertSignature } from "../../server";
+
+import { assertSignature } from "../../services/sessions";
 import { registerZodRoutes, SiteConfig, zodManage, RouterKeyMap, RouterRouteMap } from "../router";
 
 export const UserKeyMap: RouterKeyMap<UserManager, true> = {

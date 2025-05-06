@@ -5,6 +5,7 @@ export default defineConfig({
   format: ['esm'],
   outDir: "dist",
   external: [
+    "typescript",
     "tiddlywiki",
     "esbuild",
     "@prisma/client",
@@ -22,6 +23,7 @@ export default defineConfig({
   splitting: false,     // Code splitting only if we need to lazy import
   cjsInterop: true,
   shims: true,        // Add shims for Node.js built-in modules
+  metafile: true,
   banner: (ctx) => ctx.format === "esm" ? {
     js: `import {createRequire as __createRequire} from 'module'; const require=__createRequire(import.meta.url);import 'source-map-support/register.js';`,
   } : {

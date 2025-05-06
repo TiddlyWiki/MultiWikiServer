@@ -4,12 +4,14 @@ import RootRoute from ".";
 import * as z from "zod";
 import { createStrictAwaitProxy, JsonValue, truthy, Z2 } from "../utils";
 import { Route, rootRoute, RouteOptAny, RouteMatch, } from "../utils";
-import { MWSConfigConfig, SessionManager, SiteConfig } from "../server";
+import { SiteConfig } from "../server";
 import { setupDevServer } from "../setupDevServer";
 import { Commander } from "../commander";
 import { CacheState, startupCache } from "./cache";
+import { fromError } from 'zod-validation-error';
 import * as http from "http";
 import * as http2 from "http2";
+import { SessionManager } from "../services/sessions";
 
 // this should have been in server
 export { SiteConfig } from "../server";
@@ -176,7 +178,7 @@ export class Router {
       if (state.bodyFormat === "json") {
         // make sure this parses as valid data
         const { success, data } = z.string().transform(zodTransformJSON).safeParse(state.data);
-        if (!success) return state.sendEmpty(400, {});
+        if (!success) return state.sendEmpty(400, { "x-reason": "json" });
         state.data = data;
       }
     } else if (state.bodyFormat === "www-form-urlencoded-urlsearchparams"
@@ -410,13 +412,15 @@ export const registerZodRoutes = (root: rootRoute, router: any, keys: string[]) 
       const pathCheck = Z2.object(zodPathParams(Z2)).safeParse(state.pathParams);
       if (!pathCheck.success) {
         console.log(pathCheck.error);
-        throw state.sendEmpty(400, { "x-reason": "zod-path" });
+        throw state.sendString(400, { "x-reason": "zod-path" },
+          fromError(pathCheck.error).toString(), "utf8");
       }
 
       const inputCheck = zodRequest(Z2).safeParse(state.data);
       if (!inputCheck.success) {
         console.log(inputCheck.error);
-        throw state.sendEmpty(400, { "x-reason": "zod-request" });
+        throw state.sendString(400, { "x-reason": "zod-request" },
+          fromError(inputCheck.error).toString(), "utf8");
       }
 
       const [good, error, res] = await inner(state)

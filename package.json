@@ -24,13 +24,13 @@
     "node": ">14"
   },
   "scripts": {
-    "start": "SKIPDTS=1 npm run build && node mws.dev.mjs",
+    "start": "SKIPDTS=1 npm run build && ENABLE_DEV_SERVER=1 node mws.dev.mjs",
     "docs": "ENABLE_DOCS_ROUTE=1 npm start",
     "certs": "(cd runtime-config && bash localhost_certs.sh)",
     "tsc": "tsc -p tsconfig.json --skipLibCheck",
     "build": "npm run tsc && tsup",
     "install-android": "GYP_DEFINES=\"android_ndk_path=''\" npm install",
-    "postinstall": "env-cmd -e prisma-env prisma generate",
+    "postinstalloff": "env-cmd -e prisma-env prisma generate",
     "env": "env",
     "test:pack": "(git clean -dfx tests && npm pack --pack-destination tests && cd tests && npm install && npm install ./tiddlywiki-mws-$npm_package_version.tgz --no-save && npm test)",
     "test": "(git clean -dfx tests && cd tests && npm install .. --no-save && npm test)",
@@ -41,17 +41,18 @@
     "@prisma/adapter-better-sqlite3": "6.7.0-dev.48",
     "@prisma/client": "6.6.0",
     "@serenity-kit/opaque": "^0.8.4",
-    "@types/mime-types": "^2.1.4",
-    "@types/node": "^22.13.1",
-    "@types/send": "^0.17.4",
-    "@types/sjcl": "^1.0.34",
     "@types/tiddlywiki": "file:tiddlywiki-types",
     "env-cmd": "^10.1.0",
     "prisma": "6.6.0",
     "source-map-support": "^0.5.21",
+    "typescript": "^5.7.3",
     "zod": "^3.24.2"
   },
   "devDependencies": {
+    "@types/mime-types": "^2.1.4",
+    "@types/node": "^22.13.1",
+    "@types/send": "^0.17.4",
+    "@types/sjcl": "^1.0.34",
     "commander": "^13.1.0",
     "esbuild": "0.25.2",
     "mime-types": "^2.1.35",
@@ -59,8 +60,9 @@
     "sjcl": "^1.0.8",
     "tiddlywiki": "^5.1.22",
     "tsup": "^8.4.0",
-    "typescript": "^5.7.3",
-    "uuid": "^11.1.0"
+    "uuid": "^11.1.0",
+    "zod-to-ts": "^1.2.0",
+    "zod-validation-error": "^3.4.0"
   },
   "peerDependencies": {
     "tiddlywiki": "^5.1.22"

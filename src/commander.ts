@@ -125,7 +125,7 @@ class StartupCommander {
     this.setupRequired = false;
     const users = await this.engine.users.count();
     if (!users) { this.setupRequired = true; }
-    
+
   }
 
   storePath: string;
@@ -366,46 +366,44 @@ export class Commander extends StartupCommander {
 
     lines.push(
       Object.keys(commands)
-        .map(key => this.getCommandHelp(program, commands[key]!))
+        .map(key => {
+          const c = commands[key]!;
+          if (c.info.internal) return;
+          if (c.info.name === "help") return;
+          const command = program.command(c.info.name);
+          command.description(c.info.description);
+          c.info.arguments.forEach(([name, description]) => {
+            command.argument(name, description);
+          });
+          c.info.options?.forEach(([name, description]) => {
+            command.option("--" + name + "=<string>", description);
+          });
+
+          command.action((...args) => { });
+          command.helpOption(false);
+          command.configureHelp({
+            styleOptionTerm(str: string) {
+              if (str.startsWith("--")) return str.slice(2);
+              return str;
+            },
+            helpWidth: 90
+          });
+          const lines: string[] = [];
+          lines.push(c.info.description);
+          lines.push("");
+          lines.push(`Usage:  --${c.info.name} ${c.info.arguments.map(e => `<${e[0]}>`).join(" ")} ${c.info.options?.length ? "[options]" : ""}`);
+          lines.push(command.helpInformation().split('\n').slice(3).join('\n'));
+          return lines.join("\n");
+        })
         .filter(e => e)
         .map(e => "─".repeat(100) + "\n" + e)
         .join("\n")
     );
 
+
+
     return lines.join("\n");
   }
 
-  getCommandHelp(program: commander.Command, c: {
-    info: CommandInfo;
-    Command: any;
-  }) {
-
-    if (c.info.internal) return;
-    if (c.info.name === "help") return;
-    const command = program.command(c.info.name);
-    command.description(c.info.description);
-    c.info.arguments.forEach(([name, description]) => {
-      command.argument(name, description);
-    });
-    c.info.options?.forEach(([name, description]) => {
-      command.option("--" + name + "=<string>", description);
-    });
-
-    command.action((...args) => { });
-    command.helpOption(false);
-    command.configureHelp({
-      styleOptionTerm(str: string) {
-        if (str.startsWith("--")) return str.slice(2);
-        return str;
-      },
-      helpWidth: 90
-    });
-    const lines: string[] = [];
-    lines.push(c.info.description);
-    lines.push("");
-    lines.push(`Usage:  --${c.info.name} ${c.info.arguments.map(e => `<${e[0]}>`).join(" ")} ${c.info.options?.length ? "[options]" : ""}`);
-    lines.push(command.helpInformation().split('\n').slice(3).join('\n'));
-    return lines.join("\n");
-  }
 }
 

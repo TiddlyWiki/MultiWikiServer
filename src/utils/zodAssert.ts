@@ -250,7 +250,7 @@ function prismaField(table: any, field: any, fieldtype: ExtraFieldType, nullable
         throw new Error("Invalid field type");
     }
   })();
-  return nullable ? check.nullable() : check;
+  return (nullable ? check.nullable() : check).describe(`${table}.${field}`);
 
 }
 
