@@ -58,5 +58,7 @@ If you want to work on the project,
 - `npm run certs` - if you want https (unix only)
 - `npm start` - this runs the build and test every time, but it's pretty fast
 
+The development wiki will be active at http://localhost:8080/dev
+
 You can change the listeners as explained in the mws.dev.mjs file.
 
