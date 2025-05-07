@@ -4,7 +4,7 @@ import { STREAM_ENDED, Streamer, StreamerState } from './streamer';
 import { PassThrough } from 'node:stream';
 import { AllowedMethod, BodyFormat, RouteMatch, Router, SiteConfig } from './routes/router';
 import * as z from 'zod';
-import { AuthUser } from './services/sessions';
+import { AuthUser } from './services/SessionManager';
 import { Prisma, PrismaClient } from '@prisma/client';
 import { Types } from '@prisma/client/runtime/library';
 import { DataChecks } from './utils';

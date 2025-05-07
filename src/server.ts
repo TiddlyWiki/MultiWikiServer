@@ -15,12 +15,6 @@ import { startListeners } from "./listeners";
 export { SiteConfig } from "./commander";
 
 
-interface NewConfig {
-  listeners: { host: string; port: string; prefix: string; key: string; cert: string; }[];
-  passwordKeyFile: string;
-  wikiPath: string;
-}
-
 export default async function startServer() {
 
   await opaque.ready;
@@ -38,16 +32,18 @@ export default async function startServer() {
 
   await commander.init();
 
-  if (commander.setupRequired && cli[0] !== "--init-store" && cli[0] !== "--load-archive") {
-    console.log("MWS setup required. Please run either init-store or load-archive");
-    process.exit(1);
-  }
 
   if (cli[0] === "--listen")
     await startListeners(cli, commander);
-  else
-    await commander.execute(cli);
+  else {
 
+    if (commander.setupRequired && cli[0] !== "--init-store" && cli[0] !== "--load-archive") {
+      console.log("MWS setup required. Please run either --init-store or --load-archive first");
+      process.exit(1);
+    }
+
+    await commander.execute(cli);
+  }
 }
 function readPasswordMasterKey(wikiPath: string) {
   const passwordKeyFile = join(wikiPath, "passwords.key");

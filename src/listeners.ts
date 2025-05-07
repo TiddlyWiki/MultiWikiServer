@@ -46,7 +46,7 @@ async function parseListeners(cli: string[]) {
 export async function startListeners(cli: string[], commander: Commander) {
   const listeners = await parseListeners(cli);
 
-  await commander.execute(["--render-tiddlywiki5"]);
+  await commander.execute(["--init-store", "--render-tiddlywiki5"]);
 
   const router = await Router.makeRouter(
     commander,

@@ -11,7 +11,7 @@ import { CacheState, startupCache } from "./cache";
 import { fromError } from 'zod-validation-error';
 import * as http from "http";
 import * as http2 from "http2";
-import { SessionManager } from "../services/sessions";
+import { SessionManager } from "../services/SessionManager";
 import { Listener } from "../listeners";
 
 // this should have been in server
