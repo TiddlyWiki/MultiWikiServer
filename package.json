@@ -4,11 +4,7 @@
   "private": false,
   "version": "0.0.16",
   "type": "module",
-  "exports": {
-    "types": "./src/server.ts",
-    "require": "./dist/server.cjs",
-    "import": "./dist/server.js"
-  },
+  "bin": "./dist/server.js",
   "files": [
     "dist",
     "prisma",
@@ -18,24 +14,26 @@
     "plugins/client",
     "libsql",
     "libsql-android-arm64",
-    ".env-cmdrc"
+    ".env-cmdrc",
+    "scripts.mjs",
+    "mws.bin.mjs"
   ],
   "engines": {
     "node": ">14"
   },
   "scripts": {
-    "start": "SKIPDTS=1 tsup && ENABLE_DEV_SERVER=1 node mws.dev.mjs",
-    "docs": "ENABLE_DOCS_ROUTE=1 npm start",
+    "start": "node scripts.mjs start",
+    "docs": "node scripts.mjs docs",
     "certs": "(cd runtime-config && bash localhost_certs.sh)",
     "tsc": "tsc -p tsconfig.json --skipLibCheck",
-    "build": "npm run tsc && tsup",
+    "build": "npm run tsc && tsup && node mws.dev.mjs --client-build",
     "install-android": "GYP_DEFINES=\"android_ndk_path=''\" npm install",
-    "postinstalloff": "env-cmd -e prisma-env prisma generate",
+    "postinstall": "node scripts.mjs prisma:generate",
     "env": "env",
     "test:pack": "(git clean -dfx tests && npm pack --pack-destination tests && cd tests && npm install && npm install ./tiddlywiki-mws-$npm_package_version.tgz --no-save && npm test)",
     "test": "(git clean -dfx tests && cd tests && npm install .. --no-save && npm test)",
     "fulltest": "mv node_modules node_modules_old; npm run test:pack; mv node_modules_old node_modules",
-    "prepublishOnly": "npm run build && node mws.dev.mjs --client-build"
+    "prepublishOnly": "npm run build"
   },
   "dependencies": {
     "@prisma/adapter-better-sqlite3": "6.7.0-dev.48",

@@ -58,3 +58,4 @@ function readPasswordMasterKey(wikiPath: string) {
   return passwordMasterKey;
 }
 
+startServer().catch(console.log);
