@@ -119,7 +119,7 @@ class StartupCommander {
     };
 
     this.adapter = new SqliteAdapter(this.databasePath);
-    this.engine = new PrismaClient({ log: ["info", "warn"], adapter: this.adapter.adapter, });
+    this.engine = new PrismaClient({ log: ["info", "warn", "query"], datasourceUrl: "file:" + this.databasePath });
 
   }
 

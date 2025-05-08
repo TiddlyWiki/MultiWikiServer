@@ -80,7 +80,7 @@ export class DataChecks {
     role_ids: PrismaField<"Roles", "role_id">[],
   }) {
 
-    console.log("getBagWhereACL", recipe_id, user_id, role_ids);
+    // console.log("getBagWhereACL", recipe_id, user_id, role_ids);
 
     const OR = this.getWhereACL({ permission, user_id, role_ids });
 
@@ -102,7 +102,9 @@ export class DataChecks {
             recipe_id,
           }
         }
-      }
+      },
+      // this should never happen, so it prevents anything from being returned if there are no other OR 
+      { bag_name: "", bag_id: "" }
     ] satisfies (Prisma.BagsWhereInput | undefined | null | false)[]).filter(truthy)
 
   }
