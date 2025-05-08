@@ -12,7 +12,7 @@ export const sortBagNames = (a: string, b: string) =>
 
 
 
-export function OwnerSelection({ isCreate, control }: { isCreate: boolean; control: forms.FormControl<number | null>; }): React.ReactNode {
+export function OwnerSelection({ isCreate, control }: { isCreate: boolean; control: forms.FormControl<string | null>; }): React.ReactNode {
   const [indexJson] = useIndexJson();
   useObservable(control.valueChanges);
 

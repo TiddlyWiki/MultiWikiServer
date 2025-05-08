@@ -23,7 +23,7 @@ export const UserManagement = DataLoader(async () => {
   return await serverRequest.user_list(undefined);
 }, (userList, refreshUsers, props) => {
 
-  const [createUserMarkup, createUserUpdate] = useCreateUserForm();
+  const [createUserMarkup, createUserUpdate] = useCreateUserForm(refreshUsers);
 
   return (
     <Container maxWidth="lg">

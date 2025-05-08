@@ -23,7 +23,7 @@ export class UserManager {
   }
 
   user_edit_data = zodManage(z => z.object({
-    user_id: z.prismaField("Users", "user_id", "number")
+    user_id: z.prismaField("Users", "user_id", "string")
   }), async (state, prisma) => {
     state.okUser();
 
@@ -82,7 +82,7 @@ export class UserManager {
   user_create = zodManage(z => z.object({
     username: z.string(),
     email: z.string(),
-    role_ids: z.prismaField("Roles", "role_id", "number", false).array(),
+    role_ids: z.prismaField("Roles", "role_id", "string", false).array(),
   }), async (state, prisma) => {
     const { username, email, role_ids } = state.data;
 
@@ -97,10 +97,10 @@ export class UserManager {
   });
 
   user_update = zodManage(z => z.object({
-    user_id: z.number(),
+    user_id: z.prismaField("Users", "user_id", "string", false),
     username: z.string(),
     email: z.string(),
-    role_ids: z.prismaField("Roles", "role_id", "number").array(),
+    role_ids: z.prismaField("Roles", "role_id", "string").array(),
   }), async (state, prisma) => {
     const { user_id, username, email, role_ids } = state.data;
 
@@ -118,7 +118,7 @@ export class UserManager {
 
 
   user_delete = zodManage(z => z.object({
-    user_id: z.number(),
+    user_id: z.prismaField("Users", "user_id", "string")
   }), async (state, prisma) => {
     const { user_id } = state.data;
 
@@ -137,7 +137,7 @@ export class UserManager {
 
 
   user_update_password = zodManage(z => z.object({
-    user_id: z.prismaField("Users", "user_id", "number"),
+    user_id: z.prismaField("Users", "user_id", "string"),
     registrationRequest: z.string().optional(),
     registrationRecord: z.string().optional(),
     session_id: z.string().optional(),
@@ -203,7 +203,7 @@ export class UserManager {
   });
 
   role_update = zodManage(z => z.object({
-    role_id: z.prismaField("Roles", "role_id", "number"),
+    role_id: z.prismaField("Roles", "role_id", "string"),
     role_name: z.prismaField("Roles", "role_name", "string"),
     description: z.prismaField("Roles", "description", "string"),
   }), async (state, prisma) => {
@@ -211,9 +211,16 @@ export class UserManager {
 
     state.okUser();
 
-    if (role_id < 1) throw "Invalid role id";
-    if (role_id === 1) throw "Cannot update the admin role";
-    if (role_id === 2) throw "Cannot update the user role";
+    const roles = await prisma.roles.findMany({
+      where: { role_name: { in: ["ADMIN", "USER"] } }
+    });
+
+    const forbidRoleIDs = new Set(roles.map(e => e.role_id));
+    const forbidRoleNames = new Set(roles.map(e => e.role_name));
+
+    if (!role_id) throw "Invalid role id";
+    if (forbidRoleIDs.has(role_id)) throw "Cannot make changes to this role";
+    if (forbidRoleNames.has(role_name)) throw "This role name is reserved";
 
     return await prisma.roles.update({
       where: { role_id },

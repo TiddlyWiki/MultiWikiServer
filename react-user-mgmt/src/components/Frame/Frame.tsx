@@ -23,7 +23,7 @@ export const Frame = (props: {}) => {
   const pages: [RegExp, (args: string[]) => ReactNode, string][] = [
     [/^\/$/, () => <Dashboard />, "Wikis Available Here"],
     [/^\/admin\/users\/?$/, () => <UserManagement />, "User Management"],
-    [/^\/admin\/users\/(\d+)$/, ([, user_id]) => <ManageUser userID={user_id} />, "Manage User"],
+    [/^\/admin\/users\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/, ([, user_id]) => <ManageUser userID={user_id} />, "Manage User"],
     [/^\/admin\/roles$/, () => <UsersScreen />, "Roles"],
   ];
   const route = location.pathname.slice(pathPrefix.length);

@@ -10,7 +10,7 @@ interface HeaderProps {
   username?: string;
   userIsAdmin: boolean | null;
   userIsLoggedIn: boolean;
-  userId?: number;
+  userId?: string;
 }
 
 const Header: React.FC<HeaderProps> = ({

@@ -1,6 +1,6 @@
 import * as forms from "angular-forms-only";
 import { FormTextField, createDialogForm, useFormDialogForm } from "../../forms";
-import { ButtonAwait, changeExistingPassword, serverRequest, useObservable } from "../../helpers";
+import { ButtonAwait, changeExistingPassword, changeExistingPasswordAdmin, serverRequest, useObservable } from "../../helpers";
 import { useCallback, useEffect, useState } from "react";
 import { Alert, Button, Stack } from "@mui/material";
 
@@ -17,6 +17,7 @@ export const usePasswordForm = createDialogForm({
       username: new forms.FormControl<string>(user?.username ?? "", {
         nonNullable: true,
         validators: [forms.Validators.required, forms.Validators.minLength(3), control => {
+          if (control.disabled) return null;
           if (user && control.value !== user.username) return { mismatch: true };
           return null;
         }],
@@ -46,7 +47,16 @@ export const usePasswordForm = createDialogForm({
     const mismatch = form.controls.confirmPassword.dirty
       && form.controls.newPassword.value !== form.controls.confirmPassword.value;
 
+
+
     const [complete, setComplete] = useState(false);
+
+    useEffect(() => {
+      if (indexJson.isAdmin) {
+        form.controls.username.disable();
+        form.controls.password.disable();
+      }
+    }, [form]);
 
     return <>
       {(complete || value === null) ? null : indexJson.user_id === value.user_id ? <>
@@ -115,15 +125,19 @@ export const usePasswordForm = createDialogForm({
         />
       </> : null}
 
-      <PasswordChangeSubmitButton {...{ complete, setComplete }} />
+      <PasswordChangeSubmitButton {...{ complete, setComplete, user_id: user?.user_id }} />
     </>;
   }
 });
 
 
 
-export function PasswordChangeSubmitButton({ complete, setComplete }: { complete: boolean, setComplete: (complete: boolean) => void }) {
-  const { form, onClose, onReset } = useFormDialogForm();
+export function PasswordChangeSubmitButton({ complete, setComplete, user_id }: {
+  complete: boolean,
+  setComplete: (complete: boolean) => void,
+  user_id?: string;
+}) {
+  const { form, onClose, onReset, indexJson: [indexJson] } = useFormDialogForm();
   useObservable(form.events);
   const [submitResult, setSubmitResult] = useState<{ ok: boolean, message: string } | null>(null);
 
@@ -137,16 +151,24 @@ export function PasswordChangeSubmitButton({ complete, setComplete }: { complete
         onClick={async () => {
           setSubmitResult(null);
           const { username, password, newPassword, confirmPassword } = form.value;
-
-          if (!username || !password || !confirmPassword || !newPassword) throw "All fields are required.";
-
+          if (!indexJson.isAdmin) {
+            if (!username || !password || !confirmPassword || !newPassword) throw "All fields are required.";
+          } else {
+            if (!confirmPassword || !newPassword) throw "All fields are required.";
+          }
           if (newPassword !== confirmPassword) throw "Passwords do not match.";
+          console.log(user_id, form.value);
+          if (!user_id) throw "Internal Error: USER_ID";
 
-
-          const submitResult = await changeExistingPassword({ username, password, newPassword }).then(() => {
+          const submitResult = await (
+            indexJson.isAdmin
+              ? changeExistingPasswordAdmin({ user_id, newPassword })
+              : changeExistingPassword({ username, password, newPassword })
+          ).then(() => {
             setComplete(true);
             return "Password successfully changed.";
           }).catch(e => {
+            console.log(e);
             throw `${e}`;
           }).then(
             message => ({ ok: true, message }),

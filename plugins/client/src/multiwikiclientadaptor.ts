@@ -58,7 +58,7 @@ class MultiWikiClientAdaptor {
 	host;
 	recipe;
 	useServerSentEvents;
-	last_known_tiddler_id;
+	last_known_revision_id;
 	outstandingRequests;
 	lastRecordedUpdate;
 	logger;
@@ -75,9 +75,9 @@ class MultiWikiClientAdaptor {
 		this.host = this.getHost();
 		this.recipe = this.wiki.getTiddlerText("$:/config/multiwikiclient/recipe");
 		this.useServerSentEvents = this.wiki.getTiddlerText(ENABLE_SSE_TIDDLER) === "yes";
-		this.last_known_tiddler_id = $tw.utils.parseNumber(this.wiki.getTiddlerText("$:/state/multiwikiclient/recipe/last_tiddler_id", "0"));
+		this.last_known_revision_id = $tw.utils.parseNumber(this.wiki.getTiddlerText("$:/state/multiwikiclient/recipe/last_revision_id", "0"));
 		this.outstandingRequests = Object.create(null); // Hashmap by title of outstanding request object: {type: "PUT"|"GET"|"DELETE"}
-		this.lastRecordedUpdate = Object.create(null); // Hashmap by title of last recorded update via SSE: {type: "update"|"detetion", tiddler_id:}
+		this.lastRecordedUpdate = Object.create(null); // Hashmap by title of last recorded update via SSE: {type: "update"|"detetion", revision_id:}
 		this.logger = new $tw.utils.Logger("MultiWikiClientAdaptor");
 		this.isLoggedIn = false;
 		this.isReadOnly = false;
@@ -300,7 +300,7 @@ class MultiWikiClientAdaptor {
 		onerror: (event: Event) => void;
 	}) {
 		var self = this;
-		const eventSource = new EventSource("/recipes/" + this.recipe + "/events?last_known_tiddler_id=" + this.last_known_tiddler_id);
+		const eventSource = new EventSource("/recipes/" + this.recipe + "/events?last_known_revision_id=" + this.last_known_revision_id);
 		eventSource.onerror = function (event) {
 			if (options.onerror) {
 				options.onerror(event);
@@ -315,7 +315,7 @@ class MultiWikiClientAdaptor {
 
 			const data: {
 				title: string;
-				tiddler_id: number;
+				revision_id: number;
 				is_deleted: boolean;
 				bag_name: string;
 				tiddler: any;
@@ -323,14 +323,14 @@ class MultiWikiClientAdaptor {
 			if (!data) return;
 
 			console.log("SSE data", data);
-			// Update last seen tiddler_id
-			if (data.tiddler_id > self.last_known_tiddler_id) {
-				self.last_known_tiddler_id = data.tiddler_id;
+			// Update last seen revision_id
+			if (data.revision_id > self.last_known_revision_id) {
+				self.last_known_revision_id = data.revision_id;
 			}
 			// Record the last update to this tiddler
 			self.lastRecordedUpdate[data.title] = {
 				type: data.is_deleted ? "deletion" : "update",
-				tiddler_id: data.tiddler_id
+				revision_id: data.revision_id
 			};
 			console.log(`Oustanding requests is ${JSON.stringify(self.outstandingRequests[data.title])}`);
 			// Process the update if the tiddler is not the subject of an outstanding request
@@ -344,7 +344,7 @@ class MultiWikiClientAdaptor {
 			} else {
 				var result = self.incomingUpdatesFilterFn.call(self.wiki, self.wiki.makeTiddlerIterator([data.title]));
 				if (result.length > 0) {
-					self.setTiddlerInfo(data.title, data.tiddler_id.toString(), data.bag_name);
+					self.setTiddlerInfo(data.title, data.revision_id.toString(), data.bag_name);
 					options.syncer.storeTiddler(data.tiddler);
 				}
 			}
@@ -364,7 +364,7 @@ class MultiWikiClientAdaptor {
 		const [ok, err, result] = await this.httpRequest({
 			url: this.host + "recipes/" + this.recipe + "/tiddlers.json",
 			data: {
-				last_known_tiddler_id: this.last_known_tiddler_id,
+				last_known_revision_id: this.last_known_revision_id,
 				include_deleted: "true"
 			},
 			responseType: "json",
@@ -377,11 +377,11 @@ class MultiWikiClientAdaptor {
 
 		$tw.utils.each(tiddlerInfoArray,
 			/**
-			 * @param {{ title: string; tiddler_id: number; is_deleted: boolean; bag_name: string; }} tiddlerInfo 
+			 * @param {{ title: string; revision_id: number; is_deleted: boolean; bag_name: string; }} tiddlerInfo 
 			 */
 			function (tiddlerInfo) {
-				if (tiddlerInfo.tiddler_id > self.last_known_tiddler_id) {
-					self.last_known_tiddler_id = tiddlerInfo.tiddler_id;
+				if (tiddlerInfo.revision_id > self.last_known_revision_id) {
+					self.last_known_revision_id = tiddlerInfo.revision_id;
 				}
 				if (tiddlerInfo.is_deleted) {
 					deletions.push(tiddlerInfo.title);
@@ -416,7 +416,7 @@ class MultiWikiClientAdaptor {
 				return;
 			}
 			console.log(`Checking for updates to ${title} since ${JSON.stringify(revision)} comparing to ${numRevision}`);
-			if (lru.tiddler_id > numRevision) {
+			if (lru.revision_id > numRevision) {
 				this.syncer && this.syncer.enqueueLoadTiddler(title);
 			}
 		}
@@ -465,7 +465,7 @@ class MultiWikiClientAdaptor {
 		}
 
 		// Save the details of the new revision of the tiddler
-		const revision = data.tiddler_id, bag_name = data.bag_name;
+		const revision = data.revision_id, bag_name = data.bag_name;
 		console.log(`Saved ${title} with revision ${revision} and bag ${bag_name}`);
 		// If there has been a more recent update from the server then enqueue a load of this tiddler
 		self.checkLastRecordedUpdate(title, revision);
@@ -519,7 +519,7 @@ class MultiWikiClientAdaptor {
 		delete self.outstandingRequests[title];
 		if (!ok) { return callback(err); }
 		const { data } = result;
-		const revision = data.tiddler_id, bag_name = data.bag_name;
+		const revision = data.revision_id, bag_name = data.bag_name;
 		// If there has been a more recent update from the server then enqueue a load of this tiddler
 		self.checkLastRecordedUpdate(title, revision);
 		self.removeTiddlerInfo(title);

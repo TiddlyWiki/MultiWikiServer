@@ -48,13 +48,13 @@ export class AttachmentService {
     return `/bags/${encodeURIComponentExtended(bag_name)}/tiddlers/${encodeURIComponentExtended(title)}/blob`;
   }
   /*
-  Given tiddler fields, tiddler_id and a bag_name, return the tiddler fields after the following process:
-  - Apply the tiddler_id as the revision field
+  Given tiddler fields, revision_id and a bag_name, return the tiddler fields after the following process:
+  - Apply the revision_id as the revision field
   - Apply the bag_name as the bag field
   */
-  processOutgoingTiddler({ tiddler, tiddler_id, bag_name, attachment_hash }: {
+  processOutgoingTiddler({ tiddler, revision_id, bag_name, attachment_hash }: {
     tiddler: TiddlerFields;
-    tiddler_id: any;
+    revision_id: any;
     bag_name: PrismaField<"Bags", "bag_name">;
     attachment_hash: PrismaField<"Tiddlers", "attachment_hash">;
   }) {
@@ -65,7 +65,7 @@ export class AttachmentService {
         {
           text: undefined,
           _canonical_uri: this.makeCanonicalUri(bag_name, tiddler.title),
-          revision: tiddler_id,
+          revision: revision_id,
           bag: bag_name
         }
       );

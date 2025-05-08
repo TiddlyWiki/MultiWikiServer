@@ -136,7 +136,7 @@ const argproxy: {
     return target[table] = target[table] || new Proxy<any>({}, {
       get(target: any, action: any) {
         return target[action] = target[action] || ((arg: any) => {
-          return new ProxyPromise({ action, table: capitalize(table) as any, arg });
+          return new ProxyPromise({ action, table: capitalize(table), arg });
         })
       },
     })

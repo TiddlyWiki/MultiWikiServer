@@ -139,22 +139,22 @@ export class TiddlerRouter {
     async (state) => {
       zodAssert.queryParams(state, z => ({
         include_deleted: z.string().array().optional(),
-        last_known_tiddler_id: z.string().array().optional(),
+        last_known_revision_id: z.string().array().optional(),
       }));
 
       const { recipe_name } = state.pathParams;
       const include_deleted = state.queryParams.include_deleted?.[0] === "true";
-      const last_known_tiddler_id = +(state.queryParams.last_known_tiddler_id?.[0] ?? 0) || undefined;
+      const last_known_revision_id = state.queryParams.last_known_revision_id?.[0];
 
       await state.assertRecipeACL(recipe_name, false);
 
       const result = await state.$transaction(async prisma => {
         const server = new TiddlerServer(state, prisma);
-        const options = { include_deleted, last_known_tiddler_id };
+        const options = { include_deleted, last_known_revision_id };
         let result = await server.getRecipeTiddlers(recipe_name);
         return result
           .filter(tiddler => options.include_deleted || !tiddler.is_deleted)
-          .filter(tiddler => !options.last_known_tiddler_id || tiddler.tiddler_id > options.last_known_tiddler_id);
+          .filter(tiddler => !options.last_known_revision_id || 0 < tiddler.revision_id.localeCompare(options.last_known_revision_id));
       });
       return result;
     }
@@ -206,12 +206,12 @@ export class TiddlerRouter {
 
       if (fields === undefined) throw state.sendEmpty(400, { "x-reason": "PUT tiddler expects a valid json or x-mws-tiddler body" })
 
-      const { bag_name, tiddler_id } = await state.$transaction(async prisma => {
+      const { bag_name, revision_id } = await state.$transaction(async prisma => {
         const server = new TiddlerServer(state, prisma);
         return await server.saveRecipeTiddler(fields, state.pathParams.recipe_name);
       });
 
-      return { bag_name, tiddler_id };
+      return { bag_name, revision_id };
 
     });
 
@@ -232,12 +232,12 @@ export class TiddlerRouter {
 
       await state.assertRecipeACL(recipe_name, true);
 
-      const { bag_name, tiddler_id } = await state.$transaction(async prisma => {
+      const { bag_name, revision_id } = await state.$transaction(async prisma => {
         const server = new TiddlerServer(state, prisma);
         return await server.deleteRecipeTiddler(recipe_name, title);
       });
 
-      return { bag_name, tiddler_id };
+      return { bag_name, revision_id };
 
     });
 

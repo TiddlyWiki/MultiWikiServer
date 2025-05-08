@@ -18,9 +18,13 @@ export class SqliteAdapter {
     // await libsql.executeRaw({ sql: "PRAGMA journal_mode=WAL;", args: [], argTypes: [] });
 
     // this is used to test the upgrade path
-    if (process.env.RUN_FIRST_MWS_DB_SETUP_FOR_TESTING_ZERO) {
+    if (process.env.RUN_FIRST_MWS_DB_SETUP_FOR_TESTING_0_0) {
       await libsql.executeScript(await readFile(dist_resolve(
         "../prisma-20250406/migrations/20250406213424_init/migration.sql"
+      ), "utf8"));
+    } else if (process.env.RUN_FIRST_MWS_DB_SETUP_FOR_TESTING_0_1) {
+      await libsql.executeScript(await readFile(dist_resolve(
+        "../prisma/migrations/20250508171144_init/migration.sql"
       ), "utf8"));
     }
 
@@ -43,10 +47,12 @@ export class SqliteAdapter {
       }).then(e => e.rows.map(e => e[0] as string))
     );
 
-    // if (applied_migrations.has("20250406213424_init")) {
-    console.log("this is a version 0.0.x database, which is not compatible with version 0.1.x");
-    await this.checkMigrationsTable_Zero(libsql, hasExisting && !hasMigrationsTable, applied_migrations);
-    // }
+    if (applied_migrations.has("20250406213424_init")) {
+      console.log("this is a version 0.0.x database, which is not compatible with version 0.1.x");
+      await this.checkMigrationsTable_0_0(libsql, hasExisting && !hasMigrationsTable, applied_migrations);
+    } else {
+      await this.checkMigrationsTable_0_1(libsql, hasExisting && !hasMigrationsTable, applied_migrations);
+    }
 
     await libsql.dispose();
   }
@@ -66,9 +72,51 @@ export class SqliteAdapter {
     )
   }
 
+  // prisma/migrations/20250508171144_init/migration.sql
+  async checkMigrationsTable_0_1(
+    libsql: SqlDriverAdapter,
+    migrateExisting: boolean,
+    applied_migrations: Set<string>
+  ) {
 
+    const migrations = await readdir(dist_resolve("../prisma/migrations"));
+    migrations.sort();
 
-  async checkMigrationsTable_Zero(
+    const new_migrations = migrations.filter(m => !applied_migrations.has(m) && m !== "migration_lock.toml");
+    if (!new_migrations.length) return;
+
+    function generateChecksum(fileContent: string) {
+      return createHash('sha256').update(fileContent).digest('hex');
+    }
+
+    console.log("New migrations found", new_migrations);
+
+    for (const migration of new_migrations) {
+      const migration_path = dist_resolve(`../prisma/migrations/${migration}/migration.sql`);
+      if (!existsSync(migration_path)) continue;
+
+      const fileContent = await readFile(migration_path, 'utf-8');
+      // this is the hard-coded name of the first migration.
+      if (migrateExisting && migration === "20250508171144_init") {
+        console.log("Existing migration", migration, "is already applied");
+      } else {
+        console.log("Applying migration", migration);
+        await libsql.executeScript(fileContent);
+      }
+
+      await libsql.executeRaw({
+        sql: 'INSERT INTO _prisma_migrations (' +
+          'id, migration_name, checksum, finished_at, logs, rolled_back_at, started_at, applied_steps_count' +
+          ') VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+        args: [randomUUID(), migration, generateChecksum(fileContent), Date.now(), null, null, Date.now(), 1],
+        argTypes: [], // this doesn't appear to be used at the moment
+      });
+
+    }
+    console.log("Migrations applied", new_migrations);
+  }
+
+  async checkMigrationsTable_0_0(
     libsql: SqlDriverAdapter,
     migrateExisting: boolean,
     applied_migrations: Set<string>

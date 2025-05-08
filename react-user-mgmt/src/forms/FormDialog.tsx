@@ -60,7 +60,7 @@ export function createDialogForm<
     const onClose = useCallback(() => { update(undefined); }, []);
 
     return [(
-      <FormDialog<T, F, A> {...options} {...{ value, onClose, args, update }} />
+      <FormDialog<T, F, A> {...options} {...{ value, onClose, args, update,  }} />
     ), update] as const;
   };
 }

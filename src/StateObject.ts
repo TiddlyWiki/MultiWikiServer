@@ -123,12 +123,12 @@ export class StateObject<
     return this.engine.$transaction(arg(this.engine), options);
   }
 
-  makeTiddlerEtag(options: { bag_name: string; tiddler_id: string | number; }) {
-    // why do we need tiddler_id AND bag_name? tiddler_id is unique across all tiddlers
-    if (options.bag_name && options.tiddler_id) {
-      return `"tiddler:${options.bag_name}/${options.tiddler_id}"`;
+  makeTiddlerEtag(options: { bag_name: string; revision_id: string | number; }) {
+    // why do we need revision_id AND bag_name? revision_id is unique across all tiddlers
+    if (options.bag_name && options.revision_id) {
+      return `"tiddler:${options.bag_name}/${options.revision_id}"`;
     } else {
-      throw "Missing bag_name or tiddler_id";
+      throw "Missing bag_name or revision_id";
     }
   }
 

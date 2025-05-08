@@ -13,18 +13,18 @@ import { createDialogForm, FormDialogSubmitButton } from '../../forms';
 
 export type EntityACL = {
   type: "recipe" | "bag";
-  id: number;
+  id: string;
   name: string;
   description: string;
-  owner_id: number | null;
+  owner_id: string | null;
   acl: ACL[];
 }
 
 
-type ACL = { role_id: number | null, permission: "READ" | "WRITE" | "ADMIN" };
+type ACL = { role_id: string | null, permission: "READ" | "WRITE" | "ADMIN" };
 
 const ACLRow = (value: ACL | null) => new forms.FormGroup({
-  role_id: new forms.FormControl<number | null>(value?.role_id ?? null, { nonNullable: true, validators: [forms.Validators.required] }),
+  role_id: new forms.FormControl<string | null>(value?.role_id ?? null, { nonNullable: true, validators: [forms.Validators.required] }),
   permission: new forms.FormControl<"READ" | "WRITE" | "ADMIN">(value?.permission ?? "READ", { nonNullable: true, validators: [forms.Validators.required] }),
 });
 export const useACLEditForm = createDialogForm({
@@ -38,7 +38,7 @@ export const useACLEditForm = createDialogForm({
       value: e.role_id
     })), [indexJson.roleList]);
 
-    const getOwner = useCallback((owner_id: number | null): string => {
+    const getOwner = useCallback((owner_id: string | null): string => {
       if (owner_id === null) return "System";
       return (indexJson.userListAdmin || indexJson.userListUser || [])
         .find(e => e.user_id === owner_id)?.username ?? "Unknown";

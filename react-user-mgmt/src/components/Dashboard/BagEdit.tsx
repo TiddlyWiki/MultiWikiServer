@@ -21,7 +21,7 @@ export const useBagEditForm = createDialogForm({
         nonNullable: true, validators: [forms.Validators.required]
       }),
       is_plugin: new forms.FormControl<boolean>(value?.is_plugin ?? false),
-      owner_id: new forms.FormControl<number | null>(value?.owner_id ?? null),
+      owner_id: new forms.FormControl<string | null>(value?.owner_id ?? null),
     });
     if (value) form.controls.bag_name.disable();
     return form;
@@ -60,7 +60,7 @@ export const useBagEditForm = createDialogForm({
           const isAdmin = indexJson.isAdmin;
 
           if (!isAdmin) formData.owner_id = undefined;
-          else if (formData.owner_id === 0) formData.owner_id = null;
+          else if (!formData.owner_id) formData.owner_id = null;
           if (bagForm.invalid) { console.log(bagForm.errors); throw bagForm.errors; }
 
 

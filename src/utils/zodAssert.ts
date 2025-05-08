@@ -133,6 +133,12 @@ export interface Z2<T extends FieldTypeGroups> extends _zod {
    * 
    * The third argument is a string literal that specifies the field type based on the selected field.
    * 
+   * The value will not be an empty length string, and not nullable unless nullable is true.
+   * 
+   * Number must be an int since floats, so far, have no purpose in our application.
+   * 
+   * Zero and False are both allowed.
+   * 
    * "string" and "parse-number" 
    * - will use decodeURIComponent on the value. 
    * - Require a string length at least one

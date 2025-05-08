@@ -47,7 +47,7 @@ export const useCreateUserForm = createDialogForm({
       nonNullable: true,
       validators: [forms.Validators.required, forms.Validators.email],
     }),
-    role_ids: new forms.FormControl<number[]>([], {
+    role_ids: new forms.FormControl<string[]>([], {
       nonNullable: true,
     }),
     password: new forms.FormControl<string>("", {
@@ -59,7 +59,7 @@ export const useCreateUserForm = createDialogForm({
       validators: [forms.Validators.required, forms.Validators.minLength(4)],
     }),
   }),
-  render: ({ form, indexJson: [indexJson], onReset: onRefresh }) => {
+  render: ({ form, indexJson: [indexJson, refreshIndex], onReset }, refreshUsers: () => void) => {
     return <>
       <FormTextField
         key="username"
@@ -117,7 +117,9 @@ export const useCreateUserForm = createDialogForm({
 
           await createNewPassword({ user_id, password });
 
-          onRefresh();
+          onReset();
+          refreshUsers();
+          refreshIndex();
 
           return "User added successfully";
         }}

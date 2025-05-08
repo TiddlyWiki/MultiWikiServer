@@ -77,6 +77,9 @@ export class SessionManager {
   }
 
   static async parseIncomingRequest(streamer: Streamer, router: Router): Promise<AuthUser> {
+    // SECURITY: TODO: have a better way to specify the admin role here
+    const adminRole = await router.engine.roles.findUnique({ where: { role_name: "ADMIN" } });
+    if (!adminRole) console.log("cannot find admin role");
 
     const sessionId = streamer.cookies.get("session") as PrismaField<"Sessions", "session_id"> | undefined;
     const session = sessionId && await router.engine.sessions.findUnique({
@@ -87,13 +90,13 @@ export class SessionManager {
     if (sessionId && session) return {
       user_id: session.user.user_id,
       username: session.user.username,
-      isAdmin: session.user.roles.some(e => e.role_id === 1),
+      isAdmin: session.user.roles.some(e => adminRole && e.role_id === adminRole.role_id),
       role_ids: session.user.roles.map(e => e.role_id),
       sessionId,
       isLoggedIn: true,
     };
     else return {
-      user_id: 0 as PrismaField<"Users", "user_id">,
+      user_id: "" as PrismaField<"Users", "user_id">,
       username: "(anon)" as PrismaField<"Users", "username">,
       isAdmin: false,
       role_ids: [] as PrismaField<"Roles", "role_id">[],

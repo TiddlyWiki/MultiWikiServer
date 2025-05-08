@@ -22,7 +22,7 @@ import { createDialogForm, FormDialogSubmitButton, useFormDialogForm } from '../
 export interface Recipe {
   recipe_name: string;
   description: string;
-  owner_id?: number | null;
+  owner_id?: string | null;
   bag_names: { bag_name: string, with_acl: boolean }[];
 }
 
@@ -31,7 +31,7 @@ export const useRecipeEditForm = createDialogForm({
     const form = new forms.FormGroup({
       recipe_name: new forms.FormControl(value?.recipe_name ?? "", { nonNullable: true, validators: [forms.Validators.required] }),
       description: new forms.FormControl(value?.description ?? "", { nonNullable: true, validators: [forms.Validators.required] }),
-      owner_id: new forms.FormControl<number | null>(value?.owner_id ?? null, { nonNullable: true }),
+      owner_id: new forms.FormControl<string | null>(value?.owner_id ?? null, { nonNullable: true }),
       bag_names: new forms.FormArray<ReturnType<typeof RecipeBagRow>>(!value ? [] : value.bag_names.map(e => RecipeBagRow(e)), { validators: [forms.Validators.required] }),
     });
     if (value) form.controls.recipe_name.disable();
@@ -93,7 +93,7 @@ export const useRecipeEditForm = createDialogForm({
           console.log(formData, isCreate);
 
           if (!isAdmin) formData.owner_id = undefined;
-          else if (formData.owner_id === 0) formData.owner_id = null;
+          else if (!formData.owner_id) formData.owner_id = null;
 
           if (formData.bag_names?.length === 0) throw "Recipe must have at least one bag.";
           if (recipeForm.invalid) { console.log(recipeForm.errors); throw recipeForm.errors; }
@@ -140,7 +140,7 @@ const RecipeForm = (
   const form = new forms.FormGroup({
     recipe_name: new forms.FormControl(value?.recipe_name ?? "", { nonNullable: true, validators: [forms.Validators.required] }),
     description: new forms.FormControl(value?.description ?? "", { nonNullable: true, validators: [forms.Validators.required] }),
-    owner_id: new forms.FormControl<number | null>(value?.owner_id ?? null, { nonNullable: true }),
+    owner_id: new forms.FormControl<string | null>(value?.owner_id ?? null, { nonNullable: true }),
     bag_names: new forms.FormArray<ReturnType<typeof RecipeBagRow>>(!value ? [] : value.recipe_bags.map(rb => {
       const bag = indexJson.getBag(rb.bag_id);
       return RecipeBagRow({ bag_name: bag?.bag_name ?? "", with_acl: rb.with_acl });

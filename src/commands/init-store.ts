@@ -1,9 +1,8 @@
 import { resolve } from "node:path";
 
 import { Commander, CommandInfo } from "../commander";
-import { TiddlerStore } from "../routes/TiddlerStore";
-import { readFileSync } from "node:fs";
 import { dist_require_resolve, dist_resolve } from "../utils";
+import { v7 as uuidv7 } from 'uuid';
 
 export const info: CommandInfo = {
 	name: "init-store",
@@ -31,16 +30,16 @@ export class Command {
 			const userCount = await prisma.users.count();
 
 			if (!userCount) {
-
+				const admin_role_id = uuidv7();
 				await prisma.roles.createMany({
 					data: [
-						{ role_id: 1, role_name: "ADMIN", description: "System Administrator" },
-						{ role_id: 2, role_name: "USER", description: "Basic User" },
+						{ role_id: admin_role_id, role_name: "ADMIN", description: "System Administrator" },
+						{ role_id: uuidv7(), role_name: "USER", description: "Basic User" },
 					]
 				});
 
 				const user = await prisma.users.create({
-					data: { username: "admin", email: "", password: "", roles: { connect: { role_id: 1 } } },
+					data: { username: "admin", email: "", password: "", roles: { connect: { role_id: admin_role_id } } },
 					select: { user_id: true }
 				});
 

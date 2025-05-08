@@ -1,4 +1,5 @@
-import type { SessionManagerMap } from "../../../src/server";
+
+import { SessionManagerMap } from "../../../src/services/SessionManager";
 import { serverRequest } from "./utils";
 const LOGIN_FAILED = 'Login failed. Please check your credentials.';
 
@@ -51,7 +52,7 @@ async function generateSessionSignature(sessionKey: string, session_id: string &
   return signature;
 }
 
-export async function createNewPassword({ user_id, password }: { user_id: number, password: string }) {
+export async function createNewPassword({ user_id, password }: { user_id: string, password: string }) {
 
   const opaque = await import("@serenity-kit/opaque");
 
@@ -77,6 +78,26 @@ export async function createNewPassword({ user_id, password }: { user_id: number
 
 }
 
+export async function changeExistingPasswordAdmin({ user_id, newPassword }: { user_id: string, newPassword: string }) {
+  const opaque = await import("@serenity-kit/opaque");
+
+  await opaque.ready;
+
+  const { clientRegistrationState, registrationRequest } = opaque.client.startRegistration({ password: newPassword });
+
+  const registrationResponse = await serverRequest.user_update_password({
+    user_id, registrationRequest
+  });
+
+  if (!registrationResponse) throw 'Failed to update password'; // wierd, but shouldn't happen
+
+  const { registrationRecord } = opaque.client.finishRegistration({
+    clientRegistrationState, registrationResponse, password: newPassword,
+  });
+
+  await serverRequest.user_update_password({ user_id, registrationRecord });
+
+}
 
 export async function changeExistingPassword({ username, password, newPassword }: {
   username: string;

@@ -25,7 +25,7 @@ export const Dashboard = () => {
 
   const [showSystem, setShowSystem] = useState(false);
 
-  const getOwner = useCallback((owner_id: number | null): string => {
+  const getOwner = useCallback((owner_id: string | null): string => {
     if (owner_id === null) return "System";
     return (indexJson.userListAdmin || indexJson.userListUser || [])
       .find(e => e.user_id === owner_id)?.username ?? "Unknown";
@@ -182,7 +182,7 @@ function renderBags({ title, filteredBags, hasBagAclAccess, getOwner, aclSet, ba
   bagSet: (value: IndexJson["bagList"][number] | null) => void;
   aclSet: (value: EntityACL) => void;
   title: string;
-  getOwner: (owner_id: number | null) => string;
+  getOwner: (owner_id: string | null) => string;
   favicon: boolean;
 }) {
   return <Card variant='outlined'>

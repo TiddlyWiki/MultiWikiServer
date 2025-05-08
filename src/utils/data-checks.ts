@@ -76,10 +76,10 @@ export class DataChecks {
   /** If the user isn't logged in, user_id is 0. */
   getBagWhereACL({ recipe_id, permission, user_id, role_ids }: {
     /** Recipe ID can be provided as an extra restriction */
-    recipe_id?: number,
+    recipe_id?: string,
     permission: ACLPermissionName,
-    user_id: number,
-    role_ids: number[],
+    user_id: PrismaField<"Users", "user_id">,
+    role_ids: PrismaField<"Roles", "role_id">[],
   }) {
 
     const OR = this.getWhereACL({ permission, user_id, role_ids });
@@ -108,8 +108,8 @@ export class DataChecks {
   }
   getWhereACL({ permission, user_id, role_ids }: {
     permission: ACLPermissionName,
-    user_id?: number,
-    role_ids?: number[],
+    user_id?: PrismaField<"Users", "user_id">,
+    role_ids?: PrismaField<"Roles", "role_id">[],
   }) {
     const { allowAnonReads, allowAnonWrites } = this;
     const anonRead = allowAnonReads && permission === "READ";
@@ -143,7 +143,7 @@ export class DataChecks {
         }
       },
 
-    ] satisfies (Prisma.RecipesWhereInput | Prisma.BagsWhereInput | undefined | null | false | 0)[]
+    ] satisfies (Prisma.RecipesWhereInput | Prisma.BagsWhereInput | undefined | null | false | 0 | "")[]
     ).filter(truthy)
   }
 

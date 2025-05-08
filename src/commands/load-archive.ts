@@ -7,6 +7,8 @@ import * as _fsp from "fs/promises";
 import { createStrictAwaitProxy } from "../utils";
 import { PrismaClientKnownRequestError } from "@prisma/client/runtime/library";
 import { existsSync } from "fs";
+import { v7 as uuidv7 } from 'uuid';
+
 const fsp = createStrictAwaitProxy(_fsp);
 
 export const info: CommandInfo = {
@@ -156,6 +158,27 @@ export interface Archiver2Saves {
 class Archiver2 {
 	constructor(public commander: Commander) { }
 
+	/** This generates UUIDv7 keys since version 2 used integers */
+	getNewUUIDv7(map: Map<any, string>, oldkey: any): string {
+		const curKey = map.get(oldkey);
+		if (curKey) return curKey;
+		const newKey = uuidv7();
+		map.set(oldkey, newKey);
+		return newKey;
+	}
+
+	recipe_id_map = new Map<any, string>();
+	recipe_key = (key: any) => this.getNewUUIDv7(this.recipe_id_map, key);
+	bag_id_map = new Map<any, string>();
+	bag_key = (key: any) => this.getNewUUIDv7(this.bag_id_map, key);
+	tiddler_id_map = new Map<any, string>();
+	tiddler_key = (key: any) => this.getNewUUIDv7(this.tiddler_id_map, key);
+	role_id_map = new Map<any, string>();
+	role_key = (key: any) => this.getNewUUIDv7(this.role_id_map, key);
+	user_id_map = new Map<any, string>();
+	user_key = (key: any) => this.getNewUUIDv7(this.user_id_map, key);
+
+
 	async loadArchive(archivePath: string) {
 		await this.commander.$transaction(async (prisma) => {
 			const roles = JSON.parse(await fsp.readFile(resolve(archivePath, "roles.json"), "utf8"));
@@ -203,15 +226,23 @@ class Archiver2 {
 		const recipeInfo: RecipeInfo = JSON.parse(await fsp.readFile(file, "utf8"));
 		await prisma.recipes.create({
 			data: {
-				recipe_id: recipeInfo.recipe_id,
+				recipe_id: this.recipe_key(recipeInfo.recipe_id),
 				recipe_name: recipeInfo.recipe_name,
 				description: recipeInfo.description,
-				owner_id: recipeInfo.owner_id,
-				acl: { createMany: { data: recipeInfo.acl } },
+				owner_id: this.user_key(recipeInfo.owner_id),
+				acl: {
+					createMany: {
+						data: recipeInfo.acl.map(e => ({
+							permission: e.permission,
+							role_id: this.role_key(e.role_id),
+							acl_id: e.acl_id,
+						}))
+					}
+				},
 				recipe_bags: {
 					createMany: {
 						data: recipeInfo.recipe_bags.map(e => ({
-							bag_id: e.bag_id,
+							bag_id: this.bag_key(e.bag_id),
 							position: e.position,
 							with_acl: e.with_acl,
 						}))
@@ -225,12 +256,20 @@ class Archiver2 {
 		const bagInfo: BagInfo = JSON.parse(await fsp.readFile(join(folder, "meta.json"), "utf8"));
 		await prisma.bags.create({
 			data: {
-				bag_id: bagInfo.bag_id,
+				bag_id: this.bag_key(bagInfo.bag_id),
 				bag_name: bagInfo.bag_name,
 				description: bagInfo.description,
-				owner_id: bagInfo.owner_id,
+				owner_id: this.user_key(bagInfo.owner_id),
 				is_plugin: bagInfo.is_plugin,
-				acl: { createMany: { data: bagInfo.acl } },
+				acl: {
+					createMany: {
+						data: bagInfo.acl.map(e => ({
+							permission: e.permission,
+							role_id: this.role_key(e.role_id),
+							acl_id: e.acl_id,
+						}))
+					}
+				},
 			}
 		});
 		type TiddlerData = Awaited<ReturnType<Archiver2Saves["getBags"]>>[number]["tiddlers"][number];
@@ -241,19 +280,21 @@ class Archiver2 {
 			return JSON.parse(value);
 		}));
 		await prisma.tiddlers.createMany({
-			data: tiddlers.flatMap((tiddler): Prisma.TiddlersUncheckedCreateInput=> ({
-				bag_id: bagInfo.bag_id,
+			data: tiddlers.flatMap((tiddler): Prisma.TiddlersUncheckedCreateInput => ({
+				bag_id: this.bag_key(bagInfo.bag_id),
 				title: tiddler.title,
 				is_deleted: tiddler.is_deleted,
 				attachment_hash: tiddler.attachment_hash,
-				tiddler_id: tiddler.tiddler_id,
+				revision_id: this.tiddler_key(tiddler.tiddler_id),
 			}))
 		});
 		await prisma.fields.createMany({
 			data: tiddlers.flatMap(({ tiddler_id, fields }) => Object.entries(fields)
-				.map(([field_name, field_value]): Prisma.FieldsCreateManyInput =>
-					({ tiddler_id, field_name, field_value, })
-				)
+				.map(([field_name, field_value]): Prisma.FieldsCreateManyInput => ({
+					revision_id: this.tiddler_key(tiddler_id),
+					field_name,
+					field_value,
+				}))
 			)
 		});
 	}

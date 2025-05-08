@@ -155,9 +155,9 @@ export async function getIndexJson() {
     if (bag._count.acl) return true;
     return true;
   }
-  const getBag = (bagId: number) => bagMap.get(bagId as any);
-  const getBagName = (bagId: number) => bagMap.get(bagId as any)?.bag_name;
-  const getBagDesc = (bagId: number) => bagMap.get(bagId as any)?.description;
+  const getBag = (bagId: string) => bagMap.get(bagId as any);
+  const getBagName = (bagId: string) => bagMap.get(bagId as any)?.bag_name;
+  const getBagDesc = (bagId: string) => bagMap.get(bagId as any)?.description;
 
   return {
     ...res,

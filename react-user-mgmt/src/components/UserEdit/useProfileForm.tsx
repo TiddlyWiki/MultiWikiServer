@@ -10,7 +10,7 @@ type User = EditUser["user"];
 export const useProfileForm = createDialogForm({
   blockMode: true,
   create: (value: Partial<User> | null) => new forms.FormGroup({
-    userId: new forms.FormControl<number | null>(value?.user_id ?? 0 as number),
+    userId: new forms.FormControl<string | null>(value?.user_id ?? null),
     username: new forms.FormControl<string>(value?.username ?? "" as string, {
       nonNullable: true,
       validators: [forms.Validators.required, forms.Validators.minLength(3)],
@@ -19,7 +19,7 @@ export const useProfileForm = createDialogForm({
       nonNullable: true,
       validators: [forms.Validators.required, forms.Validators.email],
     }),
-    role_ids: new forms.FormControl<number[]>(value?.roles?.map(e => e.role_id) ?? [], {
+    role_ids: new forms.FormControl<string[]>(value?.roles?.map(e => e.role_id) ?? [], {
       nonNullable: true,
     }),
   }),
@@ -58,7 +58,7 @@ export const useProfileForm = createDialogForm({
           if (!role_ids?.length) throw "Role is required.";
 
           return await serverRequest.user_update({
-            user_id: +userId,
+            user_id: userId,
             username,
             email,
             role_ids,

@@ -111,7 +111,7 @@ export class RecipeManager {
     recipe_name: z.string(),
     description: z.string(),
     bag_names: z.array(z.object({ bag_name: z.string(), with_acl: z.boolean() })),
-    owner_id: z.prismaField("Recipes", "owner_id", "number", true).optional(),
+    owner_id: z.prismaField("Recipes", "owner_id", "string", true).optional(),
     isCreate: z.literal(true).default(true),
   }), async (state, prisma) => {
     return await this.recipeCreateOrUpdate(state.data, prisma, state.user);
@@ -120,7 +120,7 @@ export class RecipeManager {
     recipe_name: z.string(),
     description: z.string(),
     bag_names: z.array(z.object({ bag_name: z.string(), with_acl: z.boolean() })),
-    owner_id: z.prismaField("Recipes", "owner_id", "number", true).optional(),
+    owner_id: z.prismaField("Recipes", "owner_id", "string", true).optional(),
     isCreate: z.literal(false).default(false),
   }), async (state, prisma) => {
     return await this.recipeCreateOrUpdate(state.data, prisma, state.user);
@@ -130,7 +130,7 @@ export class RecipeManager {
     recipe_name: z.string(),
     description: z.string(),
     bag_names: z.array(z.object({ bag_name: z.string(), with_acl: z.boolean() })),
-    owner_id: z.prismaField("Recipes", "owner_id", "number", true).optional(),
+    owner_id: z.prismaField("Recipes", "owner_id", "string", true).optional(),
     isCreate: z.boolean(),
   }), async (state, prisma) => {
     return await this.recipeCreateOrUpdate(state.data, prisma, state.user);
@@ -140,7 +140,7 @@ export class RecipeManager {
     bag_name: z.string(),
     description: z.string(),
     is_plugin: z.boolean(),
-    owner_id: z.prismaField("Bags", "owner_id", "number", true).optional(),
+    owner_id: z.prismaField("Bags", "owner_id", "string", true).optional(),
     isCreate: z.literal(true).default(true),
   }), async (state, prisma) => {
     return await this.bagCreateOrUpdate(state.data, prisma, state.user);
@@ -150,7 +150,7 @@ export class RecipeManager {
     bag_name: z.string(),
     description: z.string(),
     is_plugin: z.boolean(),
-    owner_id: z.prismaField("Bags", "owner_id", "number", true).optional(),
+    owner_id: z.prismaField("Bags", "owner_id", "string", true).optional(),
     isCreate: z.literal(false).default(false),
   }), async (state, prisma) => {
     return await this.bagCreateOrUpdate(state.data, prisma, state.user);
@@ -160,7 +160,7 @@ export class RecipeManager {
     bag_name: z.string(),
     description: z.string(),
     is_plugin: z.boolean(),
-    owner_id: z.prismaField("Bags", "owner_id", "number", true).optional(),
+    owner_id: z.prismaField("Bags", "owner_id", "string", true).optional(),
     isCreate: z.boolean(),
   }), async (state, prisma) => {
     return await this.bagCreateOrUpdate(state.data, prisma, state.user);
@@ -170,7 +170,7 @@ export class RecipeManager {
     recipe_name: string,
     description: string,
     bag_names: { bag_name: string, with_acl: boolean }[],
-    owner_id?: number | null,
+    owner_id?: string | null,
     isCreate: boolean,
   }, prisma: PrismaTxnClient, user: AuthUser) {
     const existing = await prisma.recipes.findUnique({ where: { recipe_name }, });
@@ -239,7 +239,7 @@ export class RecipeManager {
     bag_name: string,
     description: string,
     is_plugin: boolean,
-    owner_id?: number | null,
+    owner_id?: string | null,
     isCreate: boolean,
   }, prisma: PrismaTxnClient, user: AuthUser) {
     const existing = await prisma.bags.findUnique({
@@ -274,7 +274,7 @@ export class RecipeManager {
   }: {
     user: AuthUser,
     isCreate: boolean,
-    owner_id?: number | null,
+    owner_id?: string | null,
     existing: { owner_id: PrismaField<"Users", "user_id"> | null } | null
     type: "recipe" | "bag"
   }) {
@@ -350,14 +350,10 @@ export class RecipeManager {
     return null;
   });
 
-  //   Partial<{
-  //     role_id: number | null;
-  //     permission: "READ" | "WRITE" | "ADMIN";
-  // }>[]
   recipe_acl_update = zodManage(z => z.object({
     recipe_name: z.prismaField("Recipes", "recipe_name", "string"),
     acl: z.array(z.object({
-      role_id: z.number().nullable(),
+      role_id: z.prismaField("Roles", "role_id", "string"),
       permission: z.enum(["READ", "WRITE", "ADMIN"]),
     })),
   }), async (state, prisma) => {
@@ -397,7 +393,7 @@ export class RecipeManager {
   bag_acl_update = zodManage(z => z.object({
     bag_name: z.prismaField("Bags", "bag_name", "string"),
     acl: z.array(z.object({
-      role_id: z.number().nullable(),
+      role_id: z.prismaField("Roles", "role_id", "string"),
       permission: z.enum(["READ", "WRITE", "ADMIN"]),
     })),
   }), async (state, prisma) => {

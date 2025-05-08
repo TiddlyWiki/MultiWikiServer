@@ -3,13 +3,13 @@ CREATE TABLE "recipes" (
     "recipe_id" TEXT NOT NULL PRIMARY KEY,
     "recipe_name" TEXT NOT NULL,
     "description" TEXT NOT NULL,
-    "owner_id" INTEGER
+    "owner_id" TEXT
 );
 
 -- CreateTable
 CREATE TABLE "recipe_acl" (
-    "acl_id" TEXT NOT NULL PRIMARY KEY,
-    "role_id" INTEGER NOT NULL,
+    "acl_id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+    "role_id" TEXT NOT NULL,
     "permission" TEXT NOT NULL,
     "recipe_id" TEXT NOT NULL,
     CONSTRAINT "recipe_acl_recipe_id_fkey" FOREIGN KEY ("recipe_id") REFERENCES "recipes" ("recipe_id") ON DELETE CASCADE ON UPDATE CASCADE
@@ -31,21 +31,21 @@ CREATE TABLE "bags" (
     "bag_name" TEXT NOT NULL,
     "description" TEXT NOT NULL,
     "is_plugin" BOOLEAN NOT NULL,
-    "owner_id" INTEGER
+    "owner_id" TEXT
 );
 
 -- CreateTable
 CREATE TABLE "bag_acl" (
     "acl_id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
     "bag_id" TEXT NOT NULL,
-    "role_id" INTEGER NOT NULL,
+    "role_id" TEXT NOT NULL,
     "permission" TEXT NOT NULL,
     CONSTRAINT "bag_acl_bag_id_fkey" FOREIGN KEY ("bag_id") REFERENCES "bags" ("bag_id") ON DELETE CASCADE ON UPDATE CASCADE
 );
 
 -- CreateTable
 CREATE TABLE "tiddlers" (
-    "tiddler_id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+    "revision_id" TEXT NOT NULL PRIMARY KEY,
     "bag_id" TEXT NOT NULL,
     "title" TEXT NOT NULL,
     "is_deleted" BOOLEAN NOT NULL,
@@ -55,12 +55,12 @@ CREATE TABLE "tiddlers" (
 
 -- CreateTable
 CREATE TABLE "fields" (
-    "tiddler_id" INTEGER NOT NULL,
+    "revision_id" TEXT NOT NULL,
     "field_name" TEXT NOT NULL,
     "field_value" TEXT NOT NULL,
 
-    PRIMARY KEY ("tiddler_id", "field_name"),
-    CONSTRAINT "fields_tiddler_id_fkey" FOREIGN KEY ("tiddler_id") REFERENCES "tiddlers" ("tiddler_id") ON DELETE CASCADE ON UPDATE CASCADE
+    PRIMARY KEY ("revision_id", "field_name"),
+    CONSTRAINT "fields_revision_id_fkey" FOREIGN KEY ("revision_id") REFERENCES "tiddlers" ("revision_id") ON DELETE CASCADE ON UPDATE CASCADE
 );
 
 -- CreateTable
@@ -72,14 +72,14 @@ CREATE TABLE "groups" (
 
 -- CreateTable
 CREATE TABLE "roles" (
-    "role_id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+    "role_id" TEXT NOT NULL PRIMARY KEY,
     "role_name" TEXT NOT NULL,
     "description" TEXT
 );
 
 -- CreateTable
 CREATE TABLE "users" (
-    "user_id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+    "user_id" TEXT NOT NULL PRIMARY KEY,
     "username" TEXT NOT NULL,
     "email" TEXT NOT NULL,
     "password" TEXT NOT NULL,
@@ -93,14 +93,14 @@ CREATE TABLE "sessions" (
     "created_at" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "last_accessed" DATETIME NOT NULL,
     "session_key" TEXT,
-    "user_id" INTEGER NOT NULL,
+    "user_id" TEXT NOT NULL,
     CONSTRAINT "sessions_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "users" ("user_id") ON DELETE NO ACTION ON UPDATE NO ACTION
 );
 
 -- CreateTable
 CREATE TABLE "_GroupsToRoles" (
     "A" INTEGER NOT NULL,
-    "B" INTEGER NOT NULL,
+    "B" TEXT NOT NULL,
     CONSTRAINT "_GroupsToRoles_A_fkey" FOREIGN KEY ("A") REFERENCES "groups" ("group_id") ON DELETE CASCADE ON UPDATE CASCADE,
     CONSTRAINT "_GroupsToRoles_B_fkey" FOREIGN KEY ("B") REFERENCES "roles" ("role_id") ON DELETE CASCADE ON UPDATE CASCADE
 );
@@ -108,15 +108,15 @@ CREATE TABLE "_GroupsToRoles" (
 -- CreateTable
 CREATE TABLE "_GroupsToUsers" (
     "A" INTEGER NOT NULL,
-    "B" INTEGER NOT NULL,
+    "B" TEXT NOT NULL,
     CONSTRAINT "_GroupsToUsers_A_fkey" FOREIGN KEY ("A") REFERENCES "groups" ("group_id") ON DELETE CASCADE ON UPDATE CASCADE,
     CONSTRAINT "_GroupsToUsers_B_fkey" FOREIGN KEY ("B") REFERENCES "users" ("user_id") ON DELETE CASCADE ON UPDATE CASCADE
 );
 
 -- CreateTable
 CREATE TABLE "_RolesToUsers" (
-    "A" INTEGER NOT NULL,
-    "B" INTEGER NOT NULL,
+    "A" TEXT NOT NULL,
+    "B" TEXT NOT NULL,
     CONSTRAINT "_RolesToUsers_A_fkey" FOREIGN KEY ("A") REFERENCES "roles" ("role_id") ON DELETE CASCADE ON UPDATE CASCADE,
     CONSTRAINT "_RolesToUsers_B_fkey" FOREIGN KEY ("B") REFERENCES "users" ("user_id") ON DELETE CASCADE ON UPDATE CASCADE
 );
@@ -140,7 +140,7 @@ CREATE INDEX "tiddlers_bag_id_idx" ON "tiddlers"("bag_id");
 CREATE UNIQUE INDEX "tiddlers_bag_id_title_key" ON "tiddlers"("bag_id", "title");
 
 -- CreateIndex
-CREATE INDEX "fields_tiddler_id_idx" ON "fields"("tiddler_id");
+CREATE INDEX "fields_revision_id_idx" ON "fields"("revision_id");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "groups_group_name_key" ON "groups"("group_name");

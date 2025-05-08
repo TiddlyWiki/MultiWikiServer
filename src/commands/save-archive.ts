@@ -89,7 +89,7 @@ export class Command {
 			const bagFile = `bags/${bagInfo.bag_id}/meta.json`;
 			await fsp.writeFile(resolve(this.archivePath, bagFile), JSON.stringify({ ...bagInfo, tiddlers: undefined, }, null, "\t"));
 			for (const tiddler of bagInfo.tiddlers) {
-				const tiddlerFile = `bags/${bagInfo.bag_id}/tiddlers/${tiddler.tiddler_id}.json`;
+				const tiddlerFile = `bags/${bagInfo.bag_id}/tiddlers/${tiddler.revision_id}.json`;
 				await fsp.writeFile(resolve(this.archivePath, tiddlerFile), JSON.stringify(tiddler, null, "\t"));
 			}
 		}));

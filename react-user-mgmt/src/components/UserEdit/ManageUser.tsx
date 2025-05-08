@@ -67,7 +67,7 @@ interface UserJson {
 
 }
 
-const handleDeleteAccount = async (user_id: number) => {
+const handleDeleteAccount = async (user_id: string) => {
   if (window.confirm('Are you sure you want to delete this user account? This action cannot be undone.'))
     return await serverRequest.user_delete({ user_id }).then(() => {
       return "User deleted successfully.";
@@ -80,7 +80,7 @@ const handleDeleteAccount = async (user_id: number) => {
 
 
 const ManageUser = DataLoader(async (props: { userID: string }) => {
-  return await serverRequest.user_edit_data({ user_id: +props.userID });
+  return await serverRequest.user_edit_data({ user_id: props.userID });
 }, ({ user, allRoles }, refreshUser, props) => {
 
   const [profileFormMarkup] = useProfileForm(allRoles, user, refreshUser);
