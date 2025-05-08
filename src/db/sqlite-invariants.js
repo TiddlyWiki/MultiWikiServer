@@ -72,8 +72,8 @@ await prisma.$transaction(async prisma => {
   })
   console.log(user.user_id, await prisma.recipes.findUnique({
     select: { recipe_id: true, recipe_name: true, owner_id: true },
-    where: { recipe_name: "test2", recipe_bags: { some: { OR: [{ bag: { owner_id: user.user_id } }] } } }
-  }))
+    where: { recipe_name: "test2", recipe_bags: { every: { bag: { OR: [{ owner_id: user.user_id }] } } } }
+  }));
 });
 await prisma.$disconnect(); // this will cleanup the wal and shm files
 try { rmSync("./test.sqlite"); } catch(e) {}
