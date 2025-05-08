@@ -59,7 +59,7 @@ await prisma.$transaction(async prisma => {
     data: { recipe_name: "test2", description: "", }
   });
   const bag1 = await prisma.bags.create({
-    data: { bag_name: "test1", description: "", is_plugin: false }
+    data: { bag_name: "test1", description: "", is_plugin: false, owner_id: user.user_id }
   });
   const bag2 = await prisma.bags.create({
     data: { bag_name: "test2", description: "", is_plugin: false }
@@ -70,14 +70,16 @@ await prisma.$transaction(async prisma => {
   await prisma.recipe_bags.create({
     data: { position: 0, with_acl: false, bag_id: bag2.bag_id, recipe_id: recipe2.recipe_id }
   })
-  console.log(user.user_id, "expect recipe, got:", await prisma.recipes.findUnique({
-    select: { recipe_id: true, recipe_name: true, owner_id: true },
+  const test1 = await prisma.recipes.findUnique({
+    select: { recipe_name: true, recipe_bags: { select: { bag: { select: { bag_name: true, owner_id: true } } } } },
     where: { recipe_name: "test1", recipe_bags: { every: { bag: { OR: [{ owner_id: user.user_id }] } } } }
-  }));
-  console.log(user.user_id, "expect null, got:", await prisma.recipes.findUnique({
-    select: { recipe_id: true, recipe_name: true, owner_id: true },
+  });
+  console.log(user.user_id, "expect { bag } got:", test1?.recipe_bags[0]);
+  const test2 = await prisma.recipes.findUnique({
+    select: { recipe_name: true, recipe_bags: { select: { bag: { select: { bag_name: true, owner_id: true } } } } },
     where: { recipe_name: "test2", recipe_bags: { every: { bag: { OR: [{ owner_id: user.user_id }] } } } }
-  }));
+  });
+  console.log(user.user_id, "expect undefined, got:", test2?.recipe_bags[0]);
 });
 await prisma.$disconnect(); // this will cleanup the wal and shm files
 try { rmSync("./test.sqlite"); } catch (e) { }
