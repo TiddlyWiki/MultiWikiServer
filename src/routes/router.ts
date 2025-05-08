@@ -4,9 +4,8 @@ import RootRoute from ".";
 import * as z from "zod";
 import { createStrictAwaitProxy, JsonValue, truthy, Z2 } from "../utils";
 import { Route, rootRoute, RouteOptAny, RouteMatch, } from "../utils";
-import { SiteConfig } from "../server";
 import { setupDevServer } from "../setupDevServer";
-import { Commander } from "../commander";
+import { Commander, SiteConfig } from "../commander";
 import { CacheState, startupCache } from "./cache";
 import { fromError } from 'zod-validation-error';
 import * as http from "http";
@@ -15,7 +14,6 @@ import { SessionManager } from "../services/SessionManager";
 import { Listener } from "../listeners";
 
 // this should have been in server
-export { SiteConfig } from "../server";
 
 export { RouteMatch, Route, rootRoute };
 

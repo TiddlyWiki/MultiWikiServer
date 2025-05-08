@@ -1,7 +1,7 @@
 
 import { RecipeManager } from "../managers/manager-recipes";
 import { UserManager } from "../managers/manager-users";
-import { SiteConfig } from "../router";
+import { SiteConfig } from "../../commander";
 
 export { UserManager, UserManagerMap } from "./manager-users";
 export { RecipeManager, RecipeManagerMap } from "./manager-recipes";

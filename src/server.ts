@@ -9,13 +9,8 @@ import { Commander } from "./commander";
 import { createPasswordService } from "./services/PasswordService";
 import { join } from "node:path";
 import { startListeners } from "./listeners";
-// import * as http2 from "http2";
-// export * from "./services/sessions";
 
-export { SiteConfig } from "./commander";
-
-
-export default async function startServer() {
+async function startServer() {
 
   await opaque.ready;
 

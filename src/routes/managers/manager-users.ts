@@ -1,6 +1,7 @@
 
+import { SiteConfig } from "../../commander";
 import { assertSignature } from "../../services/SessionManager";
-import { registerZodRoutes, SiteConfig, zodManage, RouterKeyMap, RouterRouteMap } from "../router";
+import { registerZodRoutes, zodManage, RouterKeyMap, RouterRouteMap } from "../router";
 
 export const UserKeyMap: RouterKeyMap<UserManager, true> = {
   user_edit_data: true,

@@ -134,8 +134,6 @@ export async function esbuildStartup() {
   const rootdir = dist_resolve('../react-user-mgmt');
   const esbuild = await import("esbuild");
 
-  // const rootdir = resolve(enableDevServer, 'react-user-mgmt');
-
   let ctx = await esbuild.context({
     entryPoints: [resolve(rootdir, 'src/main.tsx')],
     bundle: true,

@@ -1,10 +1,11 @@
 import { readdirSync, statSync } from "fs";
-import { rootRoute, SiteConfig } from "./router";
+import { rootRoute } from "./router";
 import { ZodAssert } from "../utils";
 import { Prisma, PrismaClient } from "@prisma/client";
 import { ManagerRoutes } from "./managers";
 import { TiddlerRouter } from "./managers/router-tiddlers";
 import { DocsRoute } from "./tw-test";
+import { SiteConfig } from "../commander";
 
 declare global {
   const ENABLE_UNSAFE_PRISMA_ROUTE: any;

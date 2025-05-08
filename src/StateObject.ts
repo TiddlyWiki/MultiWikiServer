@@ -2,14 +2,14 @@ import { Readable } from 'stream';
 import { filterAsync, mapAsync, readMultipartData, sendResponse } from './utils';
 import { STREAM_ENDED, Streamer, StreamerState } from './streamer';
 import { PassThrough } from 'node:stream';
-import { AllowedMethod, BodyFormat, RouteMatch, Router, SiteConfig } from './routes/router';
+import { AllowedMethod, BodyFormat, RouteMatch, Router } from './routes/router';
 import * as z from 'zod';
 import { AuthUser } from './services/SessionManager';
 import { Prisma, PrismaClient } from '@prisma/client';
 import { Types } from '@prisma/client/runtime/library';
 import { DataChecks } from './utils';
 import { setupDevServer } from "./setupDevServer";
-import { Commander } from './commander';
+import { Commander, SiteConfig } from './commander';
 import { PasswordService } from './services/PasswordService';
 
 export interface AuthStateRouteACL {
@@ -115,11 +115,6 @@ export class StateObject<
     if (!this.user.isAdmin) throw "User is not an admin";
   }
 
-  // createStore(engine: PrismaTxnClient) {
-  //   const sql = createStrictAwaitProxy(new SqlTiddlerDatabase(engine));
-  //   return createStrictAwaitProxy(new SqlTiddlerStore(sql, this.attachmentStore));
-  // }
-
   $transaction = async <T>(fn: (prisma: PrismaTxnClient) => Promise<T>): Promise<T> => {
     return await this.engine.$transaction(prisma => fn(prisma as PrismaTxnClient));
   }
@@ -209,17 +204,6 @@ export class StateObject<
       onClose: (callback: () => void) => stream.on("close", callback),
     };
 
-  }
-  // several changes were made to this function
-  // - it shouldn't assume it knows where the entityName is
-  // - it throws STREAM_ENDED if it ends the request
-  // - it does not check whether headers have been sent before throwing. 
-  // - headers should not be sent before it is called. 
-  // - it should not send a response more than once since it should throw every time it does.
-  // and now it is replaced by the getACL prisma query.
-  async checkACL(entityType: EntityType, entityName: string, permissionName: ACLPermissionName): Promise<void> {
-    console.error("checkACL is not implemented");
-    throw this.sendEmpty(500);
   }
 
 

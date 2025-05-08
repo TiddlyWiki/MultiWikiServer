@@ -1,5 +1,6 @@
 // start: `SKIPDTS=1 tsup && ENABLE_DEV_SERVER=1 node mws.dev.mjs`
 // docs: `ENABLE_DOCS_ROUTE=1 npm start`
+// postinstall: `PRISMA_CLIENT_FORCE_WASM=true prisma generate`
 
 import { spawn } from "child_process";
 const env = process.env;

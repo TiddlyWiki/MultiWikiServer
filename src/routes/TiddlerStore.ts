@@ -1,9 +1,6 @@
-import * as fs from "fs";
-import * as path from "path";
-import { Router, SiteConfig } from "./router";
 import { AttachmentService, TiddlerFields } from "../services/attachments";
 import { ok } from "assert";
-import { Commander } from "../commander";
+import { Commander, SiteConfig } from "../commander";
 import { FileInfoTiddlers, TiddlerFieldModule } from "tiddlywiki";
 import { UserError } from "../utils";
 

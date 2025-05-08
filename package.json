@@ -7,19 +7,16 @@
   "bin": "./dist/server.js",
   "files": [
     "dist",
+    "editions/mws-docs",
+    "mws.bin.mjs",
+    "plugins/client",
     "prisma",
     "react-user-mgmt",
-    "tiddlywiki-types",
-    "editions/mws-docs",
-    "plugins/client",
-    "libsql",
-    "libsql-android-arm64",
-    ".env-cmdrc",
     "scripts.mjs",
-    "mws.bin.mjs"
+    "tiddlywiki-types"
   ],
   "engines": {
-    "node": ">14"
+    "node": ">=18"
   },
   "scripts": {
     "start": "node scripts.mjs start",

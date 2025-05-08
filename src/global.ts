@@ -20,6 +20,7 @@ declare global {
    * this will result in a type error on the as keyword, allowing you to catch incorrect types quickly.
   */
   type PrismaField<T extends Prisma.ModelName, K extends keyof PrismaPayloadScalars<T>> =
+    // PrismaPayloadScalars<T>[K];
     // manually map foriegn keys to their corresponding primary key so comparisons work
     // this should remove the need for any global helper functions to convert between types
     (
