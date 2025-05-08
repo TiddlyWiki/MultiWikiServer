@@ -1,8 +1,8 @@
 import { PrismaBetterSQLite3 } from "@prisma/adapter-better-sqlite3";
 import { PrismaClient } from "@prisma/client";
 import { readFileSync, rmSync } from "fs";
-
-try { rmSync("./test.sqlite"); } catch(e) {}
+//@ts-check
+try { rmSync("./test.sqlite"); } catch (e) { }
 
 const adapter = new PrismaBetterSQLite3({ url: "file:test.sqlite" });
 
@@ -24,9 +24,9 @@ await libsql.dispose(); // cleanup the connection
 
 const prisma = new PrismaClient({ adapter, log: ["query"] });
 
-if(false) await prisma.$transaction(async prisma => {
+if (false) await prisma.$transaction(async prisma => {
   console.log("Can recipes be sorted in creation order? This checks UUIDv7 behavior.")
-  for(let i = 0; i < 1000; i++) {
+  for (let i = 0; i < 1000; i++) {
     await prisma.recipes.create({
       data: {
         recipe_name: "test" + i,
@@ -53,7 +53,7 @@ await prisma.$transaction(async prisma => {
     }
   });
   const recipe1 = await prisma.recipes.create({
-    data: { recipe_name: "test1", description: "", owner_id: user.owner_id },
+    data: { recipe_name: "test1", description: "", owner_id: user.user_id },
   });
   const recipe2 = await prisma.recipes.create({
     data: { recipe_name: "test2", description: "", }
@@ -70,10 +70,15 @@ await prisma.$transaction(async prisma => {
   await prisma.recipe_bags.create({
     data: { position: 0, with_acl: false, bag_id: bag2.bag_id, recipe_id: recipe2.recipe_id }
   })
-  console.log(user.user_id, await prisma.recipes.findUnique({
+  console.log(user.user_id, "expect recipe, got:", await prisma.recipes.findUnique({
+    select: { recipe_id: true, recipe_name: true, owner_id: true },
+    where: { recipe_name: "test1", recipe_bags: { every: { bag: { OR: [{ owner_id: user.user_id }] } } } }
+  }));
+  console.log(user.user_id, "expect null, got:", await prisma.recipes.findUnique({
     select: { recipe_id: true, recipe_name: true, owner_id: true },
     where: { recipe_name: "test2", recipe_bags: { every: { bag: { OR: [{ owner_id: user.user_id }] } } } }
   }));
 });
 await prisma.$disconnect(); // this will cleanup the wal and shm files
-try { rmSync("./test.sqlite"); } catch(e) {}
+try { rmSync("./test.sqlite"); } catch (e) { }
+
