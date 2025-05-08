@@ -126,25 +126,16 @@ export class DataChecks {
       // allow unowned for any user
       user_id && { acl: { none: {} }, owner_id: null },
       // allow owner for user 
-      user_id && { owner_id: user_id },
+      user_id && { owner_id: { equals: user_id, not: null } },
       // allow acl for user 
       user_id && role_ids?.length && {
         acl: {
           some: {
-            permission: { in: checkPerms },
+            permission: { in: checkPerms, },
             role_id: { in: role_ids },
           }
         }
       },
-      user_id && role_ids?.length && {
-        acl: {
-          some: {
-            permission: { in: checkPerms },
-            role_id: { in: role_ids },
-          }
-        }
-      },
-
     ] satisfies (Prisma.RecipesWhereInput | Prisma.BagsWhereInput | undefined | null | false | 0 | "")[]
     ).filter(truthy)
   }

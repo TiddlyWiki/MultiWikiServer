@@ -216,18 +216,11 @@ export class StateObject<
     const prisma = this.engine;
     const read = new DataChecks().getBagWhereACL({ permission: "READ", user_id, role_ids });
     const write = new DataChecks().getBagWhereACL({ permission: "WRITE", user_id, role_ids });
-    console.log(read[2]);
-    
-    console.log(await prisma.recipes.findUnique({
-      select: { recipe_id: true, recipe_name: true, owner_id: true },
-      where: { recipe_name, recipe_bags: { every: { bag: { owner_id: user_id } } } }
-    }));
+
     // console.log(await Promise.all(read.map(e => prisma.recipes.findUnique({
     //   select: { recipe_id: true, recipe_name: true, owner_id: true },
     //   where: { recipe_name, recipe_bags: { every: { bag: { OR: [e] } } } }
     // }).then(f => f === null ? null : [e,f]))));
-
-    throw "done";
 
     const [recipe, canRead, canWrite] = await prisma.$transaction([
       prisma.recipes.findUnique({
@@ -243,9 +236,6 @@ export class StateObject<
         where: { recipe_name, recipe_bags: { some: { position: 0, bag: { OR: write } } } }
       }) : prisma.$queryRaw`SELECT 2`,
     ]);
-
-    console.log("recipe", !!recipe, canRead, canWrite);
-    // console.log("recipe", JSON.stringify(read, null, 2), JSON.stringify(write, null, 2));
 
     return { recipe, canRead, canWrite };
 
@@ -285,7 +275,6 @@ export class StateObject<
         where: { bag_name, OR: write }
       }) : prisma.$queryRaw`SELECT 2`,
     ]);
-    // console.log("bag", !!bag, canRead, canWrite);
     return { bag, canRead, canWrite };
   }
 
