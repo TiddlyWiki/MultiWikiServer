@@ -4,11 +4,9 @@ import { ok } from "node:assert";
 
 
 export class DataChecks {
-  allowAnonReads;
-  allowAnonWrites;
-  constructor(options: { allowAnonReads?: boolean, allowAnonWrites?: boolean }) {
-    this.allowAnonReads = options.allowAnonReads;
-    this.allowAnonWrites = options.allowAnonWrites;
+
+  constructor() {
+
   }
 
   okTiddlerFields(tiddlerFields: Record<string, any>) {
@@ -73,7 +71,7 @@ export class DataChecks {
 
   entityTypes: { [K in EntityType]: K } = { recipe: "recipe", bag: "bag" };
 
-  /** If the user isn't logged in, user_id is 0. */
+  /** If the user isn't logged in, user_id is "". */
   getBagWhereACL({ recipe_id, permission, user_id, role_ids }: {
     /** Recipe ID can be provided as an extra restriction */
     recipe_id?: string,
@@ -81,6 +79,8 @@ export class DataChecks {
     user_id: PrismaField<"Users", "user_id">,
     role_ids: PrismaField<"Roles", "role_id">[],
   }) {
+
+    console.log("getBagWhereACL", recipe_id, user_id, role_ids);
 
     const OR = this.getWhereACL({ permission, user_id, role_ids });
 
@@ -111,18 +111,18 @@ export class DataChecks {
     user_id?: PrismaField<"Users", "user_id">,
     role_ids?: PrismaField<"Roles", "role_id">[],
   }) {
-    const { allowAnonReads, allowAnonWrites } = this;
-    const anonRead = allowAnonReads && permission === "READ";
-    const anonWrite = allowAnonWrites && permission === "WRITE";
-    const allowAnon = anonRead || anonWrite;
+    // const { allowAnonReads, allowAnonWrites } = this;
+    // const anonRead = allowAnonReads && permission === "READ";
+    // const anonWrite = allowAnonWrites && permission === "WRITE";
+    // const allowAnon = anonRead || anonWrite;
     const allperms = ["READ", "WRITE", "ADMIN"] as const;
     const index = allperms.indexOf(permission);
     if (index === -1) throw new Error("Invalid permission");
     const checkPerms = allperms.slice(index);
 
     return ([
-      // allow unowned for any user (conditional for anon reads)
-      (user_id || allowAnon) && { acl: { none: {} }, owner_id: null },
+      // allow unowned for any user
+      user_id && { acl: { none: {} }, owner_id: null },
       // allow owner for user 
       user_id && { owner_id: user_id },
       // allow acl for user 

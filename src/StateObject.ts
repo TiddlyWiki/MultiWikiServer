@@ -214,8 +214,8 @@ export class StateObject<
     const { user_id, isAdmin, role_ids } = this.user;
 
     const prisma = this.engine;
-    const read = new DataChecks(this.config).getBagWhereACL({ permission: "READ", user_id, role_ids });
-    const write = new DataChecks(this.config).getBagWhereACL({ permission: "WRITE", user_id, role_ids });
+    const read = new DataChecks().getBagWhereACL({ permission: "READ", user_id, role_ids });
+    const write = new DataChecks().getBagWhereACL({ permission: "WRITE", user_id, role_ids });
 
     const [recipe, canRead, canWrite] = await prisma.$transaction([
       prisma.recipes.findUnique({
@@ -229,8 +229,10 @@ export class StateObject<
       isAdmin ? prisma.$queryRaw`SELECT 1` : needWrite ? prisma.recipes.findUnique({
         select: { recipe_id: true },
         where: { recipe_name, recipe_bags: { some: { position: 0, bag: { OR: write } } } }
-      }) : prisma.$queryRaw`SELECT 1`,
+      }) : prisma.$queryRaw`SELECT 2`,
     ]);
+
+    // console.log("recipe", !!recipe, canRead, canWrite);
 
     return { recipe, canRead, canWrite };
 
@@ -254,8 +256,8 @@ export class StateObject<
   ) {
     const { user_id, isAdmin, role_ids } = this.user;
     const prisma = this.engine;
-    const read = new DataChecks(this.config).getBagWhereACL({ permission: "READ", user_id, role_ids });
-    const write = new DataChecks(this.config).getBagWhereACL({ permission: "WRITE", user_id, role_ids });
+    const read = new DataChecks().getBagWhereACL({ permission: "READ", user_id, role_ids });
+    const write = new DataChecks().getBagWhereACL({ permission: "WRITE", user_id, role_ids });
     const [bag, canRead, canWrite] = await prisma.$transaction([
       prisma.bags.findUnique({
         select: { bag_id: true, is_plugin: true, owner_id: true },
@@ -268,8 +270,9 @@ export class StateObject<
       isAdmin ? prisma.$queryRaw`SELECT 1` : needWrite ? prisma.bags.findUnique({
         select: { bag_id: true },
         where: { bag_name, OR: write }
-      }) : prisma.$queryRaw`SELECT 1`,
+      }) : prisma.$queryRaw`SELECT 2`,
     ]);
+    // console.log("bag", !!bag, canRead, canWrite);
     return { bag, canRead, canWrite };
   }
 
