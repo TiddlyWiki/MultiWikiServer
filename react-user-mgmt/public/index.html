@@ -1,1 +1,55 @@
-<!-- The index.html file is actually in setupDevServer.ts -->
+<!DOCTYPE html>
+<!-- react-user-mgmt client home page -->
+<head>
+  <style>
+    @media (prefers-color-scheme: dark) {
+      html:not(.loaded) {
+        background-color: #121212;
+      }
+    }
+
+    @media (prefers-color-scheme: light) {
+      html:not(.loaded) {
+        background-color: #ffffff;
+      }
+    }
+    html, body {
+      margin: 0;
+      padding: 0;
+      border: 0; 
+      box-sizing: border-box;
+      
+    }
+  </style>
+  <base href="$$js:pathPrefix$$/">
+  <meta http-equiv="Content-Type" content="text/html;charset=utf-8" />
+  <link rel="stylesheet" href="$$js:pathPrefix$$/main.css" />
+</head>
+
+<body class="tc-body">
+  <div id="root"></div>
+  <script>window.pathPrefix = `$$js:pathPrefix:stringify$$`;</script>
+  <script type="module" src="$$js:pathPrefix$$/main.js"></script>
+</body>
+
+<!-- 
+<head>
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+  <script type="importmap">
+    {
+      "imports": {
+        "@material/web/": "https://esm.run/@material/web/"
+      }
+    }
+  </script>
+  <script type="module">
+    import '@material/web/all.js';
+    import {styles as typescaleStyles} from '@material/web/typography/md-typescale-styles.js';
+
+    document.adoptedStyleSheets.push(typescaleStyles.styleSheet);
+  </script>
+</head>
+<body>
+
+
+</body> -->

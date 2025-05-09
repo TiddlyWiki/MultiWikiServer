@@ -8,52 +8,36 @@ import { STREAM_ENDED } from "./streamer";
 import { readFile } from "fs/promises";
 import { writeFileSync } from "fs";
 
+class ExtString {
+  constructor(private str: string) {
+
+  }
+  replaceAll(search: string, replace: string) {
+    while (true) {
+      let cur = this.str;
+      this.str = cur.replace(search, replace);
+      if (cur === this.str) return new ExtString(cur);
+    }
+  }
+  [Symbol.toPrimitive](hint: "string") { return this.str; }
+}
+
 export async function setupDevServer<T extends StateObject>(
   enableDevServer: boolean,
 
 ) {
-
-
-  const make_index_file = (pathPrefix: string) => Buffer.from(`
-<!DOCTYPE html>
-
-<head>
-  <style>
-    @media (prefers-color-scheme: dark) {
-      html:not(.loaded) {
-        background-color: #121212;
-      }
-    }
-
-    @media (prefers-color-scheme: light) {
-      html:not(.loaded) {
-        background-color: #ffffff;
-      }
-    }
-  </style>
-  <base href="${pathPrefix}/">
-  <meta http-equiv="Content-Type" content="text/html;charset=utf-8" />
-  <link rel="stylesheet" href="${pathPrefix}/main.css" />
-</head>
-
-<body class="tc-body">
-  <div id="root"></div>
-  <script>window.pathPrefix = ${JSON.stringify(pathPrefix)};</script>
-  <script type="module" src="${pathPrefix}/main.js"></script>
-</body>
-
-</html>
-`.trim(), "utf8");
-
-
-
-
   const rootdir = dist_resolve('../react-user-mgmt');
-  const index_placeholder = await readFile(join(rootdir, "public/index.html"), "utf8")
+
+
+  const make_index_file = async (pathPrefix: string) =>
+    Buffer.from(new ExtString(await readFile(join(rootdir, "public/index.html"), "utf8"))
+      .replaceAll("`$$js:pathPrefix:stringify$$`", JSON.stringify(pathPrefix))
+      .replaceAll("$$js:pathPrefix$$", pathPrefix)
+      , "utf8");
 
   if (!enableDevServer) {
     return async function sendProdServer(state: T) {
-      const index_file = make_index_file(state.pathPrefix);
+      const index_file = await make_index_file(state.pathPrefix);
       const index_hash = createHash("sha1").update(index_file).digest().toString("base64");
       const sendIndex = (): typeof STREAM_ENDED => state.sendBuffer(200, {
         "content-type": "text/html",
@@ -77,7 +61,7 @@ export async function setupDevServer<T extends StateObject>(
     const { ctx, port } = await esbuildStartup();
 
     return async function sendDevServer(state: T) {
-      const index_file = make_index_file(state.pathPrefix);
+      const index_file = await make_index_file(state.pathPrefix);
       const index_hash = createHash("sha1").update(index_file).digest().toString("base64");
       const sendIndex = (): typeof STREAM_ENDED => state.sendBuffer(200, {
         "content-type": "text/html",
@@ -105,14 +89,15 @@ export async function setupDevServer<T extends StateObject>(
       const { statusCode, headers } = proxyRes;
       if (statusCode === 200
         && headers["content-type"] === "text/html; charset=utf-8"
-        && headers["content-length"] === "61"
       ) {
         const indexCheck = await new Promise<Buffer>(resolve => {
           const chunks: Buffer[] = [];
           proxyRes.on("data", chunk => { chunks.push(chunk); });
           proxyRes.on("end", () => { resolve(Buffer.concat(chunks)) })
         });
-        if (indexCheck.toString() === index_placeholder) return sendIndex();
+
+        if (indexCheck.toString("utf8").includes("<!-- react-user-mgmt client home page -->"))
+          return sendIndex();
       }
       if (statusCode === 404 || !statusCode) {
         proxyRes.resume();
