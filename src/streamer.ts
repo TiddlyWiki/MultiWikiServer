@@ -80,10 +80,6 @@ export class Streamer {
     this.urlInfo = new URL(`https://${this.headers.host}${this.url}`);
 
     this.cookies = this.parseCookieString(req.headers.cookie || "");
-
-    if (this.cookies.getAll("session").length > 1) {
-      console.warn("Multiple session cookies found. This is very likely to cause problems. This may happen after changing the path prefix.");
-    }
   }
 
 

@@ -81,10 +81,10 @@ export class SessionManager {
     const adminRole = await router.engine.roles.findUnique({ where: { role_name: "ADMIN" } });
     if (!adminRole) console.log("cannot find admin role");
 
-    const sessionId = streamer.cookies.get("session") as PrismaField<"Sessions", "session_id"> | undefined;
-    const session = sessionId && await router.engine.sessions.findUnique({
-      where: { session_id: sessionId },
-      select: { user: { select: { user_id: true, username: true, roles: { select: { role_id: true } } } } }
+    const sessionId = streamer.cookies.getAll("session") as PrismaField<"Sessions", "session_id">[];
+    const session = sessionId && await router.engine.sessions.findFirst({
+      where: { session_id: { in: sessionId } },
+      select: { session_id: true, user: { select: { user_id: true, username: true, roles: { select: { role_id: true } } } } }
     });
 
     if (sessionId && session) return {
@@ -92,7 +92,7 @@ export class SessionManager {
       username: session.user.username,
       isAdmin: session.user.roles.some(e => adminRole && e.role_id === adminRole.role_id),
       role_ids: session.user.roles.map(e => e.role_id),
-      sessionId,
+      sessionId: session.session_id,
       isLoggedIn: true,
     };
     else return {
