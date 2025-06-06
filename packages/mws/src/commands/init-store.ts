@@ -32,7 +32,7 @@ export class Command extends BaseCommand {
 					select: { user_id: true }
 				});
 
-				const password = await this.config.PasswordService.PasswordCreation(user.user_id.toString(), "1234");
+				const password = await this.PasswordService.PasswordCreation(user.user_id.toString(), "1234");
 
 				await prisma.users.update({
 					where: { user_id: user.user_id },

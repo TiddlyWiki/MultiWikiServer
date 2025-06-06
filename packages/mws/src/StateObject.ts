@@ -1,11 +1,11 @@
 import { AllowedMethod, BodyFormat } from "./utils";
-import { AuthUser } from './services/sessions';
 import { Prisma } from '@prisma/client';
 import { Types } from '@prisma/client/runtime/library';
 import { DataChecks } from './utils';
 import { ServerState } from "./ServerState";
 import { serverEvents, ServerRequest } from "@tiddlywiki/server";
 import { setupDevServer } from "./services/setupDevServer";
+import { AuthUser, SessionManager } from "@tiddlywiki/auth";
 
 declare module "@tiddlywiki/server" {
   interface ServerRequest<
@@ -14,23 +14,22 @@ declare module "@tiddlywiki/server" {
     D = unknown
   > extends StateObject {
     config: ServerState;
-    user: AuthUser;
-    engine: ServerState["engine"];
     asserted: boolean;
-    PasswordService: ServerState["PasswordService"];
+    engine: PrismaEngineClient;
     pluginCache: ServerState["pluginCache"];
     sendAdmin: () => ReturnType<Awaited<ReturnType<typeof setupDevServer>>>;
+    // this is set in auth.ts
+    user: AuthUser;
   }
 }
 
 serverEvents.on("request.state", async (router, state, streamer) => {
   state.config = router.config;
-  state.user = streamer.user;
   state.engine = router.config.engine;
   state.sendAdmin = () => router.sendAdmin(state);
   state.asserted = false;
-  state.PasswordService = router.config.PasswordService;
   state.pluginCache = router.config.pluginCache;
+
   Object.setPrototypeOf(state, StateObject.prototype);
 
 });
@@ -38,7 +37,7 @@ serverEvents.on("request.state", async (router, state, streamer) => {
 // this method is annoying, but it does work
 // the class doesn't get instantiated directly,
 // its prototype just gets set on the request state object
-const test: any = ServerRequest;
+const test: { new(): {} } = ServerRequest as any;
 
 class StateObject extends test {
 
@@ -62,7 +61,10 @@ class StateObject extends test {
     return await this.engine.$transaction(prisma => fn(prisma as PrismaTxnClient));
   }
 
-  $transactionTuple<P extends Prisma.PrismaPromise<any>[]>(arg: (prisma: ServerState["engine"]) => [...P], options?: { isolationLevel?: Prisma.TransactionIsolationLevel }): Promise<Types.Utils.UnwrapTuple<P>> {
+  $transactionTuple<P extends Prisma.PrismaPromise<any>[]>(
+    arg: (prisma: ServerState["engine"]) => [...P],
+    options?: { isolationLevel?: Prisma.TransactionIsolationLevel }
+  ): Promise<Types.Utils.UnwrapTuple<P>> {
     if (!this.asserted)
       throw new Error("You must check access before opening a transaction.");
     return this.engine.$transaction(arg(this.engine), options);

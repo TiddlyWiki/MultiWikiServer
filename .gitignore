@@ -3,8 +3,8 @@ node_modules_old
 scratch
 localhost.*
 *.key
-/dist
+dist
 TiddlyWiki5
 *.tgz
-/.vscode/settings.json
-editions/mws-docs/tiddlers/$__StoryList.tid
+.vscode/settings.json
+$__StoryList.tid

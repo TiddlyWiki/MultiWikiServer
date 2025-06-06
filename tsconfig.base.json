@@ -12,9 +12,6 @@
     "moduleResolution": "bundler",
     "noEmit": true,
     "resolveJsonModule": true,
-    // "emitDeclarationOnly": true,
-    // "declaration": true,
-    "outDir": "react-user-mgmt/server",
     "esModuleInterop": true,
     "strict": true,
     "strictNullChecks": true,
@@ -28,13 +25,5 @@
     "paths": {
       "tiddlywiki": ["./tiddlywiki-types"]
     }
-  },
-  "include": [
-    "src/**/*.ts",
-    "src/**/*.d.ts",
-    "./mws.*.ts",
-  ],
-  "exclude": [
-    "src/db-node-sqlite3-wasm/api.js",
-  ]
+  }
 }

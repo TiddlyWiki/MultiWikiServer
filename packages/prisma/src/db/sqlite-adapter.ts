@@ -4,27 +4,34 @@ import { readdir, readFile } from "fs/promises";
 import { createHash, randomUUID } from "crypto";
 import { existsSync } from "fs";
 import { dist_resolve } from "@tiddlywiki/server";
+import { resolve } from "path";
 
 const INIT_0_0 = "20250406213424_init";
 const INIT_0_1 = "20250513012507_init";
 
 export class SqliteAdapter {
-  constructor(private databasePath: string, private isDevMode: boolean) {
+  readonly databasePath: string;
+  readonly adapter: SqlMigrationAwareDriverAdapterFactory;
+  constructor(
+    public readonly storePath: string,
+    public readonly isDevMode: boolean
+  ) {
+    this.databasePath = resolve(this.storePath, "database.sqlite");
     this.adapter = new PrismaBetterSQLite3({ url: "file:" + this.databasePath });
   }
 
-  adapter!: SqlMigrationAwareDriverAdapterFactory;
   async init() {
     const libsql = await this.adapter.connect();
 
     // this is used to test the upgrade path
     if (process.env.RUN_FIRST_MWS_DB_SETUP_FOR_TESTING_0_0) {
-      await libsql.executeScript(await readFile(dist_resolve(
-        "../../../prisma-20250406/migrations/" + INIT_0_0 + "/migration.sql"
-      ), "utf8"));
+      throw new Error("The 0.0.x branch is no longer supported. Please use the latest version of MWS.");
+      // await libsql.executeScript(await readFile(dist_resolve(
+      //   "../../../prisma-20250406/migrations/" + INIT_0_0 + "/migration.sql"
+      // ), "utf8"));
     } else if (process.env.RUN_FIRST_MWS_DB_SETUP_FOR_TESTING_0_1) {
       await libsql.executeScript(await readFile(dist_resolve(
-        "../../../prisma/migrations/" + INIT_0_1 + "/migration.sql"
+        "../migrations/" + INIT_0_1 + "/migration.sql"
       ), "utf8"));
     }
 
@@ -64,18 +71,15 @@ export class SqliteAdapter {
         "wikis you want to keep by opening them and downloading them as single-file",
         "wikis by clicking on the cloud status icon and then 'save snapshot for offline use'.",
         "",
+        "The database you are using is from the 0.0.x branch of MWS, which is no longer supported.",
         "To return to a usable version of this wiki, you may run ",
         "",
         "npm install @tiddlywiki/mws@0.0",
         "=======================================================================================",
       ].join("\n"))
-      await this.checkMigrationsTable(libsql, hasExisting && !hasMigrationsTable, applied_migrations, "prisma-20250406", INIT_0_0);
-      console.log("Your database is updated to the final version for 0.0.x");
-      console.log("This database is for a previous version of MWS. We will now exit to prevent data loss.");
-      console.log("=======================================================================================");
       process.exit(1);
     } else if (!applied_migrations.size || applied_migrations.has(INIT_0_1)) {
-      await this.checkMigrationsTable(libsql, hasExisting && !hasMigrationsTable, applied_migrations, "prisma", INIT_0_1);
+      await this.checkMigrationsTable(libsql, hasExisting && !hasMigrationsTable, applied_migrations, INIT_0_1);
     } else if (this.isDevMode) {
       console.log([
         "The database does not match the configured migrations. ",
@@ -128,11 +132,11 @@ export class SqliteAdapter {
     libsql: SqlDriverAdapter,
     migrateExisting: boolean,
     applied_migrations: Set<string>,
-    prismaFolder: string,
     initMigration: string
   ) {
+    const folder = dist_resolve("../../prisma/migrations");
 
-    const migrations = await readdir(dist_resolve("../../../" + prismaFolder + "/migrations"));
+    const migrations = await readdir(folder);
     migrations.sort();
 
     const new_migrations = migrations.filter(m => !applied_migrations.has(m) && m !== "migration_lock.toml");
@@ -145,7 +149,7 @@ export class SqliteAdapter {
     console.log("New migrations found", new_migrations);
 
     for (const migration of new_migrations) {
-      const migration_path = dist_resolve(`../${prismaFolder}/migrations/${migration}/migration.sql`);
+      const migration_path = dist_resolve(`${folder}/${migration}/migration.sql`);
       if (!existsSync(migration_path)) continue;
 
       const fileContent = await readFile(migration_path, 'utf-8');

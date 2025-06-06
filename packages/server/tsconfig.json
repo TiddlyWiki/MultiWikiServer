@@ -1,40 +1,6 @@
 {
-  "compilerOptions": {
-    /* Visit https://aka.ms/tsconfig to read more about this file */
-    "types": [
-      "node",
-    ],
-    "lib": [
-      "es2020"
-    ],
-    "target": "es2020",
-    "module": "preserve",
-    "moduleResolution": "bundler",
-    "noEmit": true,
-    "resolveJsonModule": true,
-    // "emitDeclarationOnly": true,
-    // "declaration": true,
-    "outDir": "./react-user-mgmt/server",
-    "esModuleInterop": true,
-    "strict": true,
-    "strictNullChecks": true,
-    "noImplicitThis": true,
-    "noImplicitReturns": true,
-    "noFallthroughCasesInSwitch": true,
-    "noUncheckedIndexedAccess": true,
-    "forceConsistentCasingInFileNames": true,
-    "checkJs": true,
-    "allowJs": true,
-    "paths": {
-      "tiddlywiki": ["./tiddlywiki-types"]
-    }
-  },
+  "extends": "../../tsconfig.base.json",
   "include": [
     "src/**/*.ts",
-    "src/**/*.d.ts",
-    "./mws.*.ts",
   ],
-  "exclude": [
-    "src/db-node-sqlite3-wasm/api.js",
-  ]
 }

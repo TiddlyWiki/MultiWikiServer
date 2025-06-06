@@ -2,7 +2,7 @@
 import { registerZodRoutes, RouterKeyMap, RouterRouteMap, serverEvents } from "@tiddlywiki/server";
 import { admin } from "./admin-utils";
 import { ServerState } from "../ServerState";
-import { assertSignature } from "../services/sessions";
+import { assertSignature } from "@tiddlywiki/auth";
 
 
 export const UserKeyMap: RouterKeyMap<UserManager, true> = {

@@ -33,7 +33,7 @@
     "tsc:client": "cd plugins/client && npm run tsc || true",
     "build": "npm run tsc && tsup && node mws.dev.mjs --client-build",
     "install-android": "GYP_DEFINES=\"android_ndk_path=''\" npm install",
-    "postinstall": "node scripts.mjs prisma:generate",
+    "postinstalloff": "node scripts.mjs prisma:generate",
     "env": "env",
     "test:pack": "(git clean -dfx tests && npm pack --pack-destination tests && cd tests && npm install && npm install ./tiddlywiki-mws-$npm_package_version.tgz --no-save && npm test)",
     "test": "(git clean -dfx tests && cd tests && npm install .. --no-save && npm test)",
@@ -49,6 +49,8 @@
     "prisma-json-types-generator": "~3.3.1"
   },
   "devDependencies": {
+    "@tiddlywiki/auth": "file:../auth",
+    "@tiddlywiki/mws-prisma": "file:../prisma",
     "@tiddlywiki/server": "file:../server",
     "@types/debug": "^4.1.12",
     "@types/node": "^22.13.1",

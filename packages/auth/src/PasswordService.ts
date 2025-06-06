@@ -1,12 +1,25 @@
 
 import * as opaque from "@serenity-kit/opaque";
+import * as fs from "node:fs";
+import * as path from "path";
 import { randomBytes } from "node:crypto";
 import { ok } from "node:assert";
 import { TypedGenerator } from "@tiddlywiki/server";
 
 export type PasswordService = Awaited<ReturnType<typeof createPasswordService>>;
 
-export async function createPasswordService(serverSetup: string) {
+export async function createPasswordService(wikiPath: string) {
+  const passwordKeyFile = path.join(wikiPath, "passwords.key");
+  if (typeof passwordKeyFile === "string"
+    && passwordKeyFile
+    && !fs.existsSync(passwordKeyFile)
+  ) {
+    fs.writeFileSync(passwordKeyFile, opaque.server.createSetup());
+    console.log("Password master key created at", passwordKeyFile);
+  }
+
+  const masterKey = fs.readFileSync(passwordKeyFile, "utf8").trim();
+  if (!masterKey) throw "Master key is required for the auth module";
   await opaque.ready;
 
   const serverState = new Map<string, TypedGenerator<LoginGeneratorStates>>();
@@ -24,7 +37,7 @@ export async function createPasswordService(serverSetup: string) {
     const { asV, asY } = TypedGenerator.checker<LoginGeneratorStates>();
 
     const { serverLoginState, loginResponse } = opaque.server.startLogin({
-      serverSetup,
+      serverSetup: masterKey,
       userIdentifier: user_id.toString(),
       registrationRecord,
       startLoginRequest,
@@ -62,7 +75,7 @@ export async function createPasswordService(serverSetup: string) {
     const userIdentifier = userID; // userId/email/username
 
     const { registrationResponse } = opaque.server.createRegistrationResponse({
-      serverSetup,
+      serverSetup: masterKey,
       userIdentifier,
       registrationRequest,
     });
@@ -86,7 +99,7 @@ export async function createPasswordService(serverSetup: string) {
   }) {
 
     const { registrationResponse } = opaque.server.createRegistrationResponse({
-      serverSetup,
+      serverSetup: masterKey,
       userIdentifier: userID.toString(),
       registrationRequest,
     });

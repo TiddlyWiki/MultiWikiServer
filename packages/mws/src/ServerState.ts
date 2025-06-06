@@ -1,13 +1,13 @@
-import { PrismaClient, Prisma } from "@prisma/client";
+import { Prisma } from "@prisma/client";
 import { ITXClientDenyList } from "@prisma/client/runtime/library";
-import Debug from "debug";
-import * as path from "path";
-import { existsSync, mkdirSync } from "fs";
 import { TW } from "tiddlywiki";
 import pkg from "../package.json";
-import { SqliteAdapter } from "./db/sqlite-adapter";
-import { createPasswordService } from "./services/PasswordService";
 import { startupCache } from "./services/cache";
+import { createPrismaClient } from "@tiddlywiki/mws-prisma";
+import { serverEvents } from "@tiddlywiki/server";
+import { existsSync, mkdirSync } from "fs";
+import * as path from "path";
+import { bootTiddlyWiki } from "./services/tiddlywiki";
 
 /** This is an alias for ServerState in case we want to separate the two purposes. */
 export type SiteConfig = ServerState;
@@ -15,19 +15,29 @@ export type SiteConfig = ServerState;
 /** Pre command server setup */
 
 const DEFAULT_CONTENT_TYPE = "application/octet-stream";
+declare const purpose: unique symbol;
 
 export class ServerState {
+  wikiPath;
+  storePath;
+  cachePath;
 
   constructor(
-    public wikiPath: string,
+    paths: {
+      wikiPath: string;
+      storePath: string;
+      cachePath: string;
+    },
     /** The $tw instance needs to be disposable once commands are complete. */
     $tw: TW,
-    public PasswordService: PasswordService,
-    public pluginCache: TiddlerCache
+    public engine: PrismaEngineClient,
+    public pluginCache: TiddlerCache,
+
   ) {
-    this.storePath = path.resolve(this.wikiPath, "store");
-    this.cachePath = path.resolve(this.wikiPath, "cache");
-    this.databasePath = path.resolve(this.storePath, "database.sqlite");
+    const { wikiPath, storePath, cachePath } = paths;
+    this.wikiPath = wikiPath;
+    this.storePath = storePath;
+    this.cachePath = cachePath;
 
     this.fieldModules = $tw.Tiddler.fieldModules;
     this.contentTypeInfo = $tw.config.contentTypeInfo;
@@ -39,8 +49,6 @@ export class ServerState {
         + " cannot be found in TW5"
       );
 
-    if (!existsSync(this.databasePath)) this.setupRequired = true;
-
     this.enableBrowserCache = true;
     this.enableGzip = true;
     this.attachmentsEnabled = false;
@@ -51,30 +59,13 @@ export class ServerState {
     this.enableDevServer = !!process.env.ENABLE_DEV_SERVER;
     this.enableDocsRoute = !!process.env.ENABLE_DOCS_ROUTE;
 
-
-    this.adapter = new SqliteAdapter(this.databasePath, this.enableDevServer);
-    this.engine = new PrismaClient({
-      log: [
-        ...Debug.enabled("prisma:query") ? ["query" as const] : [],
-        "info", "warn"
-      ],
-      adapter: this.adapter.adapter
-    });
-
     this.versions = { tw5: $tw.packageInfo.version, mws: pkg.version };
 
   }
 
   async init() {
-    mkdirSync(this.storePath, { recursive: true });
-    mkdirSync(this.cachePath, { recursive: true });
-
-    await this.adapter.init();
-    this.setupRequired = false;
     const users = await this.engine.users.count();
     if (!users) { this.setupRequired = true; }
-
-
   }
 
   $transaction<R>(
@@ -90,10 +81,6 @@ export class ServerState {
     return this.engine.$transaction(fn as (prisma: any) => Promise<any>, options);
   }
 
-
-  storePath;
-  cachePath;
-  databasePath;
 
   versions;
 
@@ -115,27 +102,10 @@ export class ServerState {
     return type && this.contentTypeInfo[type] || this.contentTypeInfo[DEFAULT_CONTENT_TYPE]!;
   }
 
-  adapter!: SqliteAdapter;
-  engine!: PrismaClient<Prisma.PrismaClientOptions, never, {
-    result: {
-      [T in Uncapitalize<Prisma.ModelName>]: {
-        [K in keyof PrismaPayloadScalars<Capitalize<T>>]: () => {
-          compute: () => PrismaField<Capitalize<T>, K>;
-        };
-      };
-    };
-    client: {};
-    model: {};
-    query: {};
-  }>;
-
-
-
 }
 
 declare global {
-  type PrismaTxnClient = Omit<ServerState["engine"], ITXClientDenyList>;
-  type PrismaEngineClient = ServerState["engine"];
+
 }
 
 export interface ContentTypeInfo {
@@ -145,5 +115,32 @@ export interface ContentTypeInfo {
   deserializerType?: string;
 };
 
-export type PasswordService = ART<typeof createPasswordService>;
 export type TiddlerCache = ART<typeof startupCache>;
+
+export async function createServerState(wikiPath: string) {
+  // note that this check is important even for cwd
+  if (!existsSync(wikiPath)) throw "The wiki path does not exist";
+
+  const $tw = await bootTiddlyWiki(wikiPath);
+
+  const cachePath = path.resolve(wikiPath, "cache");
+  mkdirSync(cachePath, { recursive: true });
+  const cache = await startupCache($tw, path.resolve(wikiPath, "cache"));
+
+  const storePath = path.resolve(wikiPath, "store");
+  const devmode = !!process.env.ENABLE_DEV_SERVER;
+  mkdirSync(storePath, { recursive: true });
+
+  const engine = await createPrismaClient(storePath, devmode);
+
+  const config = new ServerState(
+    { wikiPath, storePath, cachePath },
+    $tw,
+    engine,
+    cache
+  );
+  serverEvents.emitAsync("mws.init.before", config, $tw);
+  await config.init();
+  serverEvents.emitAsync("mws.init.after", config, $tw);
+  return { config, $tw };
+}
