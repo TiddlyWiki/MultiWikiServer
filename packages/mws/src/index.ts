@@ -1,6 +1,6 @@
 import "../../../prisma/global";
 import { serverEvents } from "@tiddlywiki/events";
-
+Error.stackTraceLimit = 100;; // increase stack trace limit for better debugging
 // these all use serverEvents
 import "@tiddlywiki/commander";
 import "@tiddlywiki/server";

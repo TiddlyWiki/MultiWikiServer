@@ -87,9 +87,19 @@ export class SessionManager {
   static async parseIncomingRequest(streamer: Streamer, config: ServerState): Promise<AuthUser> {
 
     const sessionId = streamer.cookies.getAll("session") as PrismaField<"Sessions", "session_id">[];
+    console.log(sessionId);
     const session = sessionId && await config.engine.sessions.findFirst({
       where: { session_id: { in: sessionId } },
-      select: { session_id: true, user: { select: { user_id: true, username: true, roles: { select: { role_id: true, role_name: true } } } } }
+      select: {
+        session_id: true,
+        user: {
+          select: {
+            user_id: true, 
+            username: true,
+            roles: { select: { role_id: true, role_name: true } }
+          }
+        }
+      }
     });
 
     if (sessionId && session) return {

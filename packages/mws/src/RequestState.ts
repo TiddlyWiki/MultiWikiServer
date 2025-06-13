@@ -39,14 +39,12 @@ export class StateObject<
   }
 
   async $transaction<T>(fn: (prisma: PrismaTxnClient) => Promise<T>): Promise<T> {
-    if (!this.asserted)
-      throw new Error("You must check access before opening a transaction.")
+    if (!this.asserted) throw new Error("You must check access before opening a transaction.")
     return await this.engine.$transaction(prisma => fn(prisma as PrismaTxnClient));
   }
 
   $transactionTuple<P extends Prisma.PrismaPromise<any>[]>(arg: (prisma: ServerState["engine"]) => [...P], options?: { isolationLevel?: Prisma.TransactionIsolationLevel }): Promise<Types.Utils.UnwrapTuple<P>> {
-    if (!this.asserted)
-      throw new Error("You must check access before opening a transaction.");
+    if (!this.asserted) throw new Error("You must check access before opening a transaction.");
     return this.engine.$transaction(arg(this.engine), options);
   }
 
