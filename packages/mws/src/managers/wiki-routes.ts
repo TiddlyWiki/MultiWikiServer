@@ -7,7 +7,7 @@ import { createHash, Hash } from "crypto";
 import { readFile } from "fs/promises";
 import { Writable } from "stream";
 import { IncomingHttpHeaders } from "http";
-import { WikiStateStore } from "./WikiStateStore";
+import { getTiddlerFields, WikiStateStore } from "./WikiStateStore";
 import { Debug } from "@prisma/client/runtime/library";
 import { BodyFormat, checkPath, JsonValue, registerZodRoutes, RouterKeyMap, RouterRouteMap, ServerRoute, tryParseJSON, UserError, Z2, zod, ZodRoute, zodRoute, ZodState } from "@tiddlywiki/server";
 import { serverEvents, ServerEventsMap } from "@tiddlywiki/events";
@@ -31,6 +31,8 @@ export const WikiRouterKeyMap: RouterKeyMap<WikiRoutes, true> = {
   handleFormMultipartRecipeTiddler: true,
   handleLoadBagTiddler: true,
   handleSaveBagTiddler: true,
+
+  rcpLoadBagTiddlers: true,
 }
 
 export type TiddlerManagerMap = RouterRouteMap<WikiRoutes>;
@@ -444,6 +446,7 @@ export class WikiRoutes {
   })
 
 
+
   handleSaveRecipeTiddler = zodRoute({
     method: ["PUT"],
     path: RECIPE_PREFIX + "/:recipe_name/tiddlers/:title",
@@ -530,6 +533,45 @@ export class WikiRoutes {
     }
   });
 
+
+  rcpLoadBagTiddlers = zodRoute({
+    method: ["PUT"],
+    path: RECIPE_PREFIX + "/:recipe_name/rpc/load-bag-tiddlers",
+    bodyFormat: "json",
+    zodPathParams: z => ({
+      recipe_name: z.prismaField("Recipes", "recipe_name", "string"),
+    }),
+    zodRequestBody: z => z.strictObject({
+      titles: z.prismaField("Tiddlers", "title", "string").array(),
+      // include_deleted: z.boolean().optional(),
+      // last_known_revision_id: z.prismaField("Tiddlers", "revision_id", "string").optional(),
+    }),
+    inner: async (state) => {
+      const { bag_name } = state.pathParams;
+      const { titles } = state.data;
+      await state.assertRecipeAccess(bag_name, false);
+      const result = await state.$transaction(async (prisma) => {
+        return await prisma.tiddlers.findMany({
+          where: { bag: { bag_name }, title: { in: titles } },
+          select: {
+            is_deleted: true,
+            attachment_hash: true,
+            revision_id: true,
+            title: true,
+            fields: true
+          }
+        });
+      });
+
+      return result.map(tiddler => ({
+        title: tiddler.title,
+        is_deleted: tiddler.is_deleted,
+        revision_id: tiddler.revision_id,
+        fields: getTiddlerFields(tiddler.title, tiddler.fields)
+      }));
+    }
+  });
+
   // this is not used by the sync adaptor.
   // it allows an HTML form to upload a tiddler directly with file upload
   handleFormMultipartRecipeTiddler = zodRoute({
@@ -586,6 +628,7 @@ export class WikiRoutes {
       });
     }
   });
+
 
 
   handleSaveBagTiddler = zodRoute({

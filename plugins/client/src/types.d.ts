@@ -1696,12 +1696,24 @@ declare module "packages/mws/src/managers/TiddlerStore" {
             last_known_revision_id?: PrismaField<"Tiddlers", "revision_id">;
             include_deleted?: boolean;
         }): Promise<{
-            bag_id: string;
-            bag_name: string;
+            bag_id: string & {
+                __prisma_table: "Bags";
+                __prisma_field: "bag_id";
+            };
+            bag_name: string & {
+                __prisma_table: "Bags";
+                __prisma_field: "bag_name";
+            };
             tiddlers: {
-                title: string;
-                revision_id: string;
-                is_deleted: boolean;
+                title: string & {
+                    __prisma_table: "Tiddlers";
+                    __prisma_field: "title";
+                };
+                revision_id: string & {
+                    __prisma_table: "Tiddlers";
+                    __prisma_field: "revision_id";
+                };
+                is_deleted: PrismaField<"Tiddlers", "is_deleted">;
             }[];
         }>;
         getBagTiddlers_PrismaQuery(bag_name: PrismaField<"Bags", "bag_name">, options?: {
@@ -2431,6 +2443,7 @@ declare module "packages/mws/src/managers/admin-settings" {
     }
 }
 declare module "packages/mws/src/managers/WikiStateStore" {
+    import { TiddlerFields } from "tiddlywiki";
     import { TiddlerStore_PrismaTransaction } from "packages/mws/src/managers/TiddlerStore";
     import { ServerRequest } from "packages/server/src/index";
     /** Basically a bunch of methods to help with wiki routes. */
@@ -2441,8 +2454,13 @@ declare module "packages/mws/src/managers/WikiStateStore" {
         private serveStoreTiddlers;
         serveBagTiddler(bag_id: PrismaField<"Bags", "bag_id">, bag_name: PrismaField<"Bags", "bag_name">, title: PrismaField<"Tiddlers", "title">): Promise<symbol>;
     }
+    export function getTiddlerFields(title: PrismaField<"Tiddlers", "title">, fields: {
+        field_name: string;
+        field_value: string;
+    }[]): TiddlerFields;
 }
 declare module "packages/mws/src/managers/wiki-routes" {
+    import { TiddlerFields } from "tiddlywiki";
     import { BodyFormat, JsonValue, RouterKeyMap, RouterRouteMap, ServerRoute, zod, ZodRoute } from "packages/server/src/index";
     export const WikiRouterKeyMap: RouterKeyMap<WikiRoutes, true>;
     export type TiddlerManagerMap = RouterRouteMap<WikiRoutes>;
@@ -2470,6 +2488,11 @@ declare module "packages/mws/src/managers/wiki-routes" {
             ];
         }
     }
+    module "packages/server/src/index" {
+        interface IncomingHttpHeaders {
+            'last-event-id'?: string;
+        }
+    }
     export class WikiRoutes {
         static defineRoutes: (root: ServerRoute) => void;
         handleGetRecipeStatus: ZodRoute<"GET" | "HEAD", "ignore", {
@@ -2493,15 +2516,6 @@ declare module "packages/mws/src/managers/wiki-routes" {
             isLoggedIn: boolean;
             isReadOnly: boolean;
         }>;
-        handleSSEtest: ZodRoute<"GET" | "HEAD", "ignore", {
-            recipe_name: zod.ZodType<string & {
-                __prisma_table: "Recipes";
-                __prisma_field: "recipe_name";
-            }, string, zod.z.core.$ZodTypeInternals<string & {
-                __prisma_table: "Recipes";
-                __prisma_field: "recipe_name";
-            }, string>>;
-        }, Record<string, zod.ZodType<any, string[] | undefined, zod.z.core.$ZodTypeInternals<any, string[] | undefined>>>, zod.ZodType<unknown, unknown, zod.z.core.$ZodTypeInternals<unknown, unknown>>, never>;
         handleGetRecipeEvents: ZodRoute<"GET" | "HEAD", "ignore", {
             recipe_name: zod.ZodType<string & {
                 __prisma_table: "Recipes";
@@ -2510,7 +2524,9 @@ declare module "packages/mws/src/managers/wiki-routes" {
                 __prisma_table: "Recipes";
                 __prisma_field: "recipe_name";
             }, string>>;
-        }, Record<string, zod.ZodType<any, string[] | undefined, zod.z.core.$ZodTypeInternals<any, string[] | undefined>>>, zod.ZodType<unknown, unknown, zod.z.core.$ZodTypeInternals<unknown, unknown>>, never>;
+        }, {
+            "first-event-id": zod.ZodOptional<zod.ZodArray<zod.ZodString>>;
+        }, zod.ZodType<unknown, unknown, zod.z.core.$ZodTypeInternals<unknown, unknown>>, never>;
         handleGetBags: ZodRoute<"GET" | "HEAD", "ignore", {
             recipe_name: zod.ZodType<string & {
                 __prisma_table: "Recipes";
@@ -2561,12 +2577,24 @@ declare module "packages/mws/src/managers/wiki-routes" {
                 no: "no";
             }>>>;
         }, zod.ZodType<unknown, unknown, zod.z.core.$ZodTypeInternals<unknown, unknown>>, {
-            bag_id: string;
-            bag_name: string;
+            bag_id: string & {
+                __prisma_table: "Bags";
+                __prisma_field: "bag_id";
+            };
+            bag_name: string & {
+                __prisma_table: "Bags";
+                __prisma_field: "bag_name";
+            };
             tiddlers: {
-                title: string;
-                revision_id: string;
-                is_deleted: boolean;
+                title: string & {
+                    __prisma_table: "Tiddlers";
+                    __prisma_field: "title";
+                };
+                revision_id: string & {
+                    __prisma_table: "Tiddlers";
+                    __prisma_field: "revision_id";
+                };
+                is_deleted: PrismaField<"Tiddlers", "is_deleted">;
             }[];
         }>;
         handleGetAllBagStates: ZodRoute<"GET" | "HEAD", "ignore", {
@@ -2709,6 +2737,34 @@ declare module "packages/mws/src/managers/wiki-routes" {
                 __prisma_field: "title";
             }, string>>;
         }, Record<string, zod.ZodType<any, string[] | undefined, zod.z.core.$ZodTypeInternals<any, string[] | undefined>>>, zod.ZodType<unknown, unknown, zod.z.core.$ZodTypeInternals<unknown, unknown>>, never>;
+        rcpLoadBagTiddlers: ZodRoute<"RPC", "json", {
+            bag_name: zod.ZodType<string & {
+                __prisma_table: "Bags";
+                __prisma_field: "bag_name";
+            }, string, zod.z.core.$ZodTypeInternals<string & {
+                __prisma_table: "Bags";
+                __prisma_field: "bag_name";
+            }, string>>;
+        }, Record<string, zod.ZodType<any, string[] | undefined, zod.z.core.$ZodTypeInternals<any, string[] | undefined>>>, zod.ZodObject<{
+            titles: zod.ZodArray<zod.ZodType<string & {
+                __prisma_table: "Tiddlers";
+                __prisma_field: "title";
+            }, string, zod.z.core.$ZodTypeInternals<string & {
+                __prisma_table: "Tiddlers";
+                __prisma_field: "title";
+            }, string>>>;
+        }, zod.z.core.$strict>, {
+            title: string & {
+                __prisma_table: "Tiddlers";
+                __prisma_field: "title";
+            };
+            is_deleted: PrismaField<"Tiddlers", "is_deleted">;
+            revision_id: string & {
+                __prisma_table: "Tiddlers";
+                __prisma_field: "revision_id";
+            };
+            fields: TiddlerFields;
+        }[]>;
         handleSaveBagTiddler: ZodRoute<"PUT", "string", {
             bag_name: zod.ZodType<string & {
                 __prisma_table: "Bags";
@@ -3411,7 +3467,7 @@ declare module "packages/mws/src/commands/build-types" {
                     ADMIN: "ADMIN";
                 }>;
             }, import("zod/v4/core").$strip>>;
-        }, import("zod/v4/core").$strip>, null>] | readonly ["handleGetRecipeStatus" | "handleSSEtest" | "handleGetRecipeEvents" | "handleGetBags" | "handleGetBagState" | "handleGetAllBagStates" | "handleLoadRecipeTiddler" | "handleSaveRecipeTiddler" | "handleDeleteRecipeTiddler" | "handleFormMultipartRecipeTiddler" | "handleLoadBagTiddler" | "handleSaveBagTiddler" | "handleDeleteBagTiddler" | "handleFormMultipartBagTiddler", import("@tiddlywiki/server").ZodRoute<"GET" | "HEAD", "ignore", {
+        }, import("zod/v4/core").$strip>, null>] | readonly ["handleGetRecipeStatus" | "handleGetRecipeEvents" | "handleGetBags" | "handleGetBagState" | "handleGetAllBagStates" | "handleLoadRecipeTiddler" | "handleSaveRecipeTiddler" | "handleDeleteRecipeTiddler" | "handleFormMultipartRecipeTiddler" | "handleLoadBagTiddler" | "rcpLoadBagTiddlers" | "handleSaveBagTiddler" | "handleDeleteBagTiddler" | "handleFormMultipartBagTiddler", import("@tiddlywiki/server").ZodRoute<"GET" | "HEAD", "ignore", {
             recipe_name: import("zod/v4").ZodType<string & {
                 __prisma_table: "Recipes";
                 __prisma_field: "recipe_name";
@@ -3439,15 +3495,9 @@ declare module "packages/mws/src/commands/build-types" {
                 __prisma_table: "Recipes";
                 __prisma_field: "recipe_name";
             }, string>>;
-        }, Record<string, import("zod/v4").ZodType<any, string[] | undefined, import("zod/v4/core").$ZodTypeInternals<any, string[] | undefined>>>, import("zod/v4").ZodType<unknown, unknown, import("zod/v4/core").$ZodTypeInternals<unknown, unknown>>, never> | import("@tiddlywiki/server").ZodRoute<"GET" | "HEAD", "ignore", {
-            recipe_name: import("zod/v4").ZodType<string & {
-                __prisma_table: "Recipes";
-                __prisma_field: "recipe_name";
-            }, string, import("zod/v4/core").$ZodTypeInternals<string & {
-                __prisma_table: "Recipes";
-                __prisma_field: "recipe_name";
-            }, string>>;
-        }, Record<string, import("zod/v4").ZodType<any, string[] | undefined, import("zod/v4/core").$ZodTypeInternals<any, string[] | undefined>>>, import("zod/v4").ZodType<unknown, unknown, import("zod/v4/core").$ZodTypeInternals<unknown, unknown>>, never> | import("@tiddlywiki/server").ZodRoute<"GET" | "HEAD", "ignore", {
+        }, {
+            "first-event-id": import("zod/v4").ZodOptional<import("zod/v4").ZodArray<import("zod/v4").ZodString>>;
+        }, import("zod/v4").ZodType<unknown, unknown, import("zod/v4/core").$ZodTypeInternals<unknown, unknown>>, never> | import("@tiddlywiki/server").ZodRoute<"GET" | "HEAD", "ignore", {
             recipe_name: import("zod/v4").ZodType<string & {
                 __prisma_table: "Recipes";
                 __prisma_field: "recipe_name";
@@ -3496,12 +3546,24 @@ declare module "packages/mws/src/commands/build-types" {
                 no: "no";
             }>>>;
         }, import("zod/v4").ZodType<unknown, unknown, import("zod/v4/core").$ZodTypeInternals<unknown, unknown>>, {
-            bag_id: string;
-            bag_name: string;
+            bag_id: string & {
+                __prisma_table: "Bags";
+                __prisma_field: "bag_id";
+            };
+            bag_name: string & {
+                __prisma_table: "Bags";
+                __prisma_field: "bag_name";
+            };
             tiddlers: {
-                title: string;
-                revision_id: string;
-                is_deleted: boolean;
+                title: string & {
+                    __prisma_table: "Tiddlers";
+                    __prisma_field: "title";
+                };
+                revision_id: string & {
+                    __prisma_table: "Tiddlers";
+                    __prisma_field: "revision_id";
+                };
+                is_deleted: PrismaField<"Tiddlers", "is_deleted">;
             }[];
         }> | import("@tiddlywiki/server").ZodRoute<"GET" | "HEAD", "ignore", {
             recipe_name: import("zod/v4").ZodType<string & {
@@ -3637,7 +3699,34 @@ declare module "packages/mws/src/commands/build-types" {
                 __prisma_table: "Tiddlers";
                 __prisma_field: "title";
             }, string>>;
-        }, Record<string, import("zod/v4").ZodType<any, string[] | undefined, import("zod/v4/core").$ZodTypeInternals<any, string[] | undefined>>>, import("zod/v4").ZodType<unknown, unknown, import("zod/v4/core").$ZodTypeInternals<unknown, unknown>>, never> | import("@tiddlywiki/server").ZodRoute<"PUT", "string", {
+        }, Record<string, import("zod/v4").ZodType<any, string[] | undefined, import("zod/v4/core").$ZodTypeInternals<any, string[] | undefined>>>, import("zod/v4").ZodType<unknown, unknown, import("zod/v4/core").$ZodTypeInternals<unknown, unknown>>, never> | import("@tiddlywiki/server").ZodRoute<"RPC", "json", {
+            bag_name: import("zod/v4").ZodType<string & {
+                __prisma_table: "Bags";
+                __prisma_field: "bag_name";
+            }, string, import("zod/v4/core").$ZodTypeInternals<string & {
+                __prisma_table: "Bags";
+                __prisma_field: "bag_name";
+            }, string>>;
+        }, Record<string, import("zod/v4").ZodType<any, string[] | undefined, import("zod/v4/core").$ZodTypeInternals<any, string[] | undefined>>>, import("zod/v4").ZodObject<{
+            titles: import("zod/v4").ZodArray<import("zod/v4").ZodType<string & {
+                __prisma_table: "Tiddlers";
+                __prisma_field: "title";
+            }, string, import("zod/v4/core").$ZodTypeInternals<string & {
+                __prisma_table: "Tiddlers";
+                __prisma_field: "title";
+            }, string>>>;
+        }, import("zod/v4/core").$strict>, {
+            title: string & {
+                __prisma_table: "Tiddlers";
+                __prisma_field: "title";
+            };
+            is_deleted: PrismaField<"Tiddlers", "is_deleted">;
+            revision_id: string & {
+                __prisma_table: "Tiddlers";
+                __prisma_field: "revision_id";
+            };
+            fields: import("tiddlywiki").TiddlerFields;
+        }[]> | import("@tiddlywiki/server").ZodRoute<"PUT", "string", {
             bag_name: import("zod/v4").ZodType<string & {
                 __prisma_table: "Bags";
                 __prisma_field: "bag_name";

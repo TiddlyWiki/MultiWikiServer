@@ -21,7 +21,7 @@ previous operation to complete before sending a new one.
 
 import type { WikiRoutes, ZodRoute, ServerEventsMap } from './mws';
 // import type { WikiRoutes, ZodRoute } from '@tiddlywiki/mws';
-import type { Syncer, Tiddler } from 'tiddlywiki';
+import type { Syncer, Tiddler, TiddlerFields } from 'tiddlywiki';
 declare global { const fflate: typeof import("./fflate"); }
 declare const self: never;
 
@@ -58,6 +58,8 @@ declare module 'tiddlywiki' {
 		storeTiddler(tiddler: Tiddler): void;
 		processTaskQueue(): void;
 		syncFromServer(): void;
+		chooseNextTask(): Task | null;
+		updateDirtyStatus(): void;
 	}
 	interface ITiddlyWiki {
 		browserStorage: any;
@@ -147,6 +149,7 @@ interface SyncerTiddlerInfo<AD> {
 	/** Timestamp set in the callback of the previous save */
 	timestampLastSaved: Date;
 }
+interface Task { type: string; syncer: Syncer; run: (callback: () => void) => void; }
 
 declare const $tw: any;
 
@@ -323,7 +326,24 @@ class MultiWikiClientAdaptor implements SyncAdaptor<MWSAdaptorInfo> {
 		if (!this.bags || this.serverUpdateConnectionStatus === SERVER_NOT_CONNECTED) await this.pollServer();
 		const { modifications, deletions, last_revision } = this.updateBags();
 		this.last_known_revision_id = last_revision;
+		// syncer.processTaskQueue = () => { };
 		callback(null, { modifications, deletions });
+		// // @ts-expect-error
+		// delete syncer.processTaskQueue;
+		// await this.fastQueue(syncer);
+	}
+
+	async fastQueue(syncer: Syncer) {
+
+		let task: Task | null = null;
+		let active = [] as Promise<void>[];
+		while (task = syncer.chooseNextTask()) {
+			if (task.type === "syncfromserver") break;
+			active.push(new Promise<void>((r) => task!.run(r)));
+		}
+		await Promise.all(active);
+		syncer.updateDirtyStatus();
+		syncer.processTaskQueue();
 	}
 	syncTimeout: NodeJS.Timeout | null = null;
 	debounceSyncFromServer() {
@@ -571,7 +591,24 @@ class MultiWikiClientAdaptor implements SyncAdaptor<MWSAdaptorInfo> {
 		self.checkLastRecordedUpdate(title, revision);
 		// Invoke the callback
 		self.setTiddlerInfo(title, revision, bag_name);
-		callback(null, { bag: bag_name }, revision);
+		if (false) {
+			// this.syncer.processTaskQueue = () => { };
+			// callback(null, { bag: bag_name }, revision);
+			// // @ts-expect-error
+			// delete this.syncer.processTaskQueue;
+			// await this.fastQueue(this.syncer);
+		} else {
+			callback(null, { bag: bag_name }, revision);
+		}
+
+	}
+	async saveTiddlers({ syncer, tiddlers, callback }: { syncer: Syncer, tiddlers: Tiddler[], callback: (err: any, adaptorInfo?: MWSAdaptorInfo, revision?: string) => void }) {
+		if (this.isReadOnly) {
+			return callback(null);
+		}
+		if (!tiddlers || tiddlers.length === 0) {
+			return callback(null);
+		}
 
 	}
 	/*
@@ -635,7 +672,30 @@ class MultiWikiClientAdaptor implements SyncAdaptor<MWSAdaptorInfo> {
 		callback(null, null);
 	}
 
-
+	private async rpcRequest<KEY extends (string & keyof TiddlerRouterResponse)>(
+		options: {
+			key: KEY,
+			body: TiddlerRouterResponse[KEY]["T"];
+		}
+	) {
+		return await httpRequest({
+			method: "PUT",
+			url: this.host + "recipe/" + encodeURIComponent(this.recipe) + "/rpc/" + options.key,
+			headers: { "content-type": "application/json" },
+			requestBodyString: JSON.stringify(options.body),
+			responseType: "text",
+		}).then(async e => [!!e.ok, !e.ok ? new Error(
+			`The server return a status code ${e.status} with the following reason: `
+			+ `${e.headers.get("x-reason") ?? "(no reason given)"}`
+		) : undefined, {
+			...e,
+			responseString: e.response,
+			/** this is undefined if status is not 200 */
+			responseJSON: e.status === 200
+				? tryParseJSON(e.response) as TiddlerRouterResponse[KEY]["R"]
+				: undefined,
+		}] as const);
+	}
 
 	/** 
 	 * This throws an error if the response status is not 2xx, but will still return the response alongside the error.
@@ -700,20 +760,20 @@ class MultiWikiClientAdaptor implements SyncAdaptor<MWSAdaptorInfo> {
 			}] as const;
 		}, e => [false, e, void 0] as const);
 
-		function tryParseJSON(data: string) {
-			try {
-				return JSON.parse(data);
-			} catch (e) {
-				console.error("Error parsing JSON, returning undefined", e);
-				// console.log(data);
-				return undefined;
-			}
-		}
 
 	}
 
 }
 
+function tryParseJSON(data: string) {
+	try {
+		return JSON.parse(data);
+	} catch (e) {
+		console.error("Error parsing JSON, returning undefined", e);
+		// console.log(data);
+		return undefined;
+	}
+}
 
 if ($tw.browser && document.location.protocol.startsWith("http")) {
 	exports.adaptorClass = MultiWikiClientAdaptor;

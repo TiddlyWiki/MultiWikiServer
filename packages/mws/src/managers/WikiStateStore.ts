@@ -376,7 +376,7 @@ $tw.preloadTiddler = function(fields) {
 
 }
 
-function getTiddlerFields(
+export function getTiddlerFields(
   title: PrismaField<"Tiddlers", "title">,
   fields: { field_name: string, field_value: string }[]
 ) {

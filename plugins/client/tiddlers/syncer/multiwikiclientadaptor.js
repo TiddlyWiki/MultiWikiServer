@@ -17,15 +17,6 @@ previous operation to complete before sending a new one.
 \*/
 // the blank line is important, and so is the following use strict
 "use strict";
-var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
-    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
-    return new (P || (P = Promise))(function (resolve, reject) {
-        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
-        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
-        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
-        step((generator = generator.apply(thisArg, _arguments || [])).next());
-    });
-};
 Object.defineProperty(exports, "__esModule", { value: true });
 var CONFIG_HOST_TIDDLER = "$:/config/multiwikiclient/host", DEFAULT_HOST_TIDDLER = "$protocol$//$host$/", MWC_STATE_TIDDLER_PREFIX = "$:/state/multiwikiclient/", BAG_STATE_TIDDLER = "$:/state/multiwikiclient/tiddlers/bag", REVISION_STATE_TIDDLER = "$:/state/multiwikiclient/tiddlers/revision", CONNECTION_STATE_TIDDLER = "$:/state/multiwikiclient/connection", INCOMING_UPDATES_FILTER_TIDDLER = "$:/config/multiwikiclient/incoming-updates-filter", ENABLE_SSE_TIDDLER = "$:/config/multiwikiclient/use-server-sent-events", IS_DEV_MODE_TIDDLER = `$:/state/multiwikiclient/dev-mode`, ENABLE_GZIP_STREAM_TIDDLER = `$:/state/multiwikiclient/gzip-stream`;
 var SERVER_NOT_CONNECTED = "NOT CONNECTED", SERVER_CONNECTING_SSE = "CONNECTING SSE", SERVER_CONNECTED_SSE = "CONNECTED SSE", SERVER_POLLING = "SERVER POLLING";
@@ -108,62 +99,74 @@ class MultiWikiClientAdaptor {
     /*
     Get the current status of the server connection
     */
-    getStatus(callback) {
-        return __awaiter(this, void 0, void 0, function* () {
-            var _a, _b, _c, _d;
-            const [ok, error, data] = yield this.recipeRequest({
-                key: "handleGetRecipeStatus",
-                method: "GET",
-                url: "/status",
-            });
-            this.connectRecipeEvents();
-            if (!ok && (data === null || data === void 0 ? void 0 : data.status) === 0) {
-                this.error = "The webpage is forbidden from contacting the server.";
-                this.isLoggedIn = false;
-                this.isReadOnly = true;
-                this.username = "(offline)";
-                this.offline = true;
-            }
-            else if (ok) {
-                this.error = null;
-                const status = data.responseJSON;
-                this.isReadOnly = (_a = status === null || status === void 0 ? void 0 : status.isReadOnly) !== null && _a !== void 0 ? _a : true;
-                this.isLoggedIn = (_b = status === null || status === void 0 ? void 0 : status.isLoggedIn) !== null && _b !== void 0 ? _b : false;
-                this.username = (_c = status === null || status === void 0 ? void 0 : status.username) !== null && _c !== void 0 ? _c : "(anon)";
-                this.offline = false;
-            }
-            else {
-                this.error = (_d = error.message) !== null && _d !== void 0 ? _d : `${error}`;
-            }
-            if (callback) {
-                callback(
-                // Error
-                this.error, 
-                // Is logged in
-                this.isLoggedIn, 
-                // Username
-                this.username, 
-                // Is read only
-                this.isReadOnly, 
-                // Is anonymous
-                // no idea what this means, always return false
-                false);
-            }
+    async getStatus(callback) {
+        var _a, _b, _c, _d;
+        const [ok, error, data] = await this.recipeRequest({
+            key: "handleGetRecipeStatus",
+            method: "GET",
+            url: "/status",
         });
+        this.connectRecipeEvents();
+        if (!ok && (data === null || data === void 0 ? void 0 : data.status) === 0) {
+            this.error = "The webpage is forbidden from contacting the server.";
+            this.isLoggedIn = false;
+            this.isReadOnly = true;
+            this.username = "(offline)";
+            this.offline = true;
+        }
+        else if (ok) {
+            this.error = null;
+            const status = data.responseJSON;
+            this.isReadOnly = (_a = status === null || status === void 0 ? void 0 : status.isReadOnly) !== null && _a !== void 0 ? _a : true;
+            this.isLoggedIn = (_b = status === null || status === void 0 ? void 0 : status.isLoggedIn) !== null && _b !== void 0 ? _b : false;
+            this.username = (_c = status === null || status === void 0 ? void 0 : status.username) !== null && _c !== void 0 ? _c : "(anon)";
+            this.offline = false;
+        }
+        else {
+            this.error = (_d = error.message) !== null && _d !== void 0 ? _d : `${error}`;
+        }
+        if (callback) {
+            callback(
+            // Error
+            this.error, 
+            // Is logged in
+            this.isLoggedIn, 
+            // Username
+            this.username, 
+            // Is read only
+            this.isReadOnly, 
+            // Is anonymous
+            // no idea what this means, always return false
+            false);
+        }
     }
     /*
     Get details of changed tiddlers from the server
     */
-    getUpdatedTiddlers(syncer, callback) {
-        return __awaiter(this, void 0, void 0, function* () {
-            if (this.offline)
-                return callback(null);
-            if (!this.bags || this.serverUpdateConnectionStatus === SERVER_NOT_CONNECTED)
-                yield this.pollServer();
-            const { modifications, deletions, last_revision } = this.updateBags();
-            this.last_known_revision_id = last_revision;
-            callback(null, { modifications, deletions });
-        });
+    async getUpdatedTiddlers(syncer, callback) {
+        if (this.offline)
+            return callback(null);
+        if (!this.bags || this.serverUpdateConnectionStatus === SERVER_NOT_CONNECTED)
+            await this.pollServer();
+        const { modifications, deletions, last_revision } = this.updateBags();
+        this.last_known_revision_id = last_revision;
+        // syncer.processTaskQueue = () => { };
+        callback(null, { modifications, deletions });
+        // // @ts-expect-error
+        // delete syncer.processTaskQueue;
+        // await this.fastQueue(syncer);
+    }
+    async fastQueue(syncer) {
+        let task = null;
+        let active = [];
+        while (task = syncer.chooseNextTask()) {
+            if (task.type === "syncfromserver")
+                break;
+            active.push(new Promise((r) => task.run(r)));
+        }
+        await Promise.all(active);
+        syncer.updateDirtyStatus();
+        syncer.processTaskQueue();
     }
     debounceSyncFromServer() {
         if (this.syncTimeout) {
@@ -250,31 +253,29 @@ class MultiWikiClientAdaptor {
             }
         });
     }
-    pollServer() {
-        return __awaiter(this, void 0, void 0, function* () {
-            const [ok, err, result] = yield this.recipeRequest({
-                key: "handleGetBags",
-                url: "/bags",
-                method: "GET",
-            });
+    async pollServer() {
+        const [ok, err, result] = await this.recipeRequest({
+            key: "handleGetBags",
+            url: "/bags",
+            method: "GET",
+        });
+        if (!ok)
+            throw err;
+        if (!result.responseJSON)
+            throw new Error("no result returned");
+        this.bags = await Promise.all(result.responseJSON.map(e => this.recipeRequest({
+            key: "handleGetBagState",
+            url: "/bags/" + encodeURIComponent(e.bag_name) + "/state",
+            method: "GET",
+            queryParams: { include_deleted: "yes" },
+        }).then(([ok, err, f]) => {
             if (!ok)
                 throw err;
-            if (!result.responseJSON)
+            if (!f.responseJSON)
                 throw new Error("no result returned");
-            this.bags = yield Promise.all(result.responseJSON.map(e => this.recipeRequest({
-                key: "handleGetBagState",
-                url: "/bags/" + encodeURIComponent(e.bag_name) + "/state",
-                method: "GET",
-                queryParams: { include_deleted: "yes" },
-            }).then(([ok, err, f]) => {
-                if (!ok)
-                    throw err;
-                if (!f.responseJSON)
-                    throw new Error("no result returned");
-                return Object.assign(Object.assign({}, f.responseJSON), { position: e.position });
-            })));
-            this.bags.sort((a, b) => b.position - a.position);
-        });
+            return Object.assign(Object.assign({}, f.responseJSON), { position: e.position });
+        })));
+        this.bags.sort((a, b) => b.position - a.position);
     }
     updateBags() {
         if (!this.bags)
@@ -324,184 +325,185 @@ class MultiWikiClientAdaptor {
     /*
     Save a tiddler and invoke the callback with (err,adaptorInfo,revision)
     */
-    saveTiddler(tiddler, callback, options) {
-        return __awaiter(this, void 0, void 0, function* () {
-            var self = this, title = tiddler.fields.title;
-            if (title === "$:/StoryList") {
-                return callback(null);
+    async saveTiddler(tiddler, callback, options) {
+        var self = this, title = tiddler.fields.title;
+        if (title === "$:/StoryList") {
+            return callback(null);
+        }
+        if (this.isReadOnly || title.substr(0, MWC_STATE_TIDDLER_PREFIX.length) === MWC_STATE_TIDDLER_PREFIX) {
+            return callback(null);
+        }
+        self.outstandingRequests[title] = { type: "PUT" };
+        // application/x-mws-tiddler
+        // The .tid file format does not support field names with colons. 
+        // Rather than trying to catch all the unsupported variations that may appear,
+        // we'll just use JSON to send it across the wire, since that is the official fallback format anyway.
+        // However, parsing a huge string value inside a JSON object is very slow,
+        // so we split off the text field and send it after the other fields. 
+        const fields = tiddler.getFieldStrings({});
+        const text = fields.text;
+        delete fields.text;
+        let body = JSON.stringify(fields);
+        if (tiddler.hasField("text")) {
+            if (typeof text !== "string" && text)
+                return callback(new Error("Error saving tiddler " + fields.title + ": the text field is truthy but not a string"));
+            body += `\n\n${text}`;
+        }
+        const [ok, err, result] = await this.recipeRequest({
+            key: "handleSaveRecipeTiddler",
+            url: "/tiddlers/" + encodeURIComponent(title),
+            method: "PUT",
+            requestBodyString: body,
+            headers: {
+                "content-type": "application/x-mws-tiddler"
             }
-            if (this.isReadOnly || title.substr(0, MWC_STATE_TIDDLER_PREFIX.length) === MWC_STATE_TIDDLER_PREFIX) {
-                return callback(null);
-            }
-            self.outstandingRequests[title] = { type: "PUT" };
-            // application/x-mws-tiddler
-            // The .tid file format does not support field names with colons. 
-            // Rather than trying to catch all the unsupported variations that may appear,
-            // we'll just use JSON to send it across the wire, since that is the official fallback format anyway.
-            // However, parsing a huge string value inside a JSON object is very slow,
-            // so we split off the text field and send it after the other fields. 
-            const fields = tiddler.getFieldStrings({});
-            const text = fields.text;
-            delete fields.text;
-            let body = JSON.stringify(fields);
-            if (tiddler.hasField("text")) {
-                if (typeof text !== "string" && text)
-                    return callback(new Error("Error saving tiddler " + fields.title + ": the text field is truthy but not a string"));
-                body += `\n\n${text}`;
-            }
-            const [ok, err, result] = yield this.recipeRequest({
-                key: "handleSaveRecipeTiddler",
-                url: "/tiddlers/" + encodeURIComponent(title),
-                method: "PUT",
-                requestBodyString: body,
-                headers: {
-                    "content-type": "application/x-mws-tiddler"
-                }
-            });
-            delete self.outstandingRequests[title];
-            if (!ok)
-                return callback(err);
-            const data = result.responseJSON;
-            if (!data)
-                return callback(null); // a 2xx response without a body is unlikely
-            //If Browser-Storage plugin is present, remove tiddler from local storage after successful sync to the server
-            if ($tw.browserStorage && $tw.browserStorage.isEnabled()) {
-                $tw.browserStorage.removeTiddlerFromLocalStorage(title);
-            }
-            // Save the details of the new revision of the tiddler
-            const revision = data.revision_id, bag_name = data.bag_name;
-            console.log(`Saved ${title} with revision ${revision} and bag ${bag_name}`);
-            // If there has been a more recent update from the server then enqueue a load of this tiddler
-            self.checkLastRecordedUpdate(title, revision);
-            // Invoke the callback
-            self.setTiddlerInfo(title, revision, bag_name);
-            callback(null, { bag: bag_name }, revision);
         });
+        delete self.outstandingRequests[title];
+        if (!ok)
+            return callback(err);
+        const data = result.responseJSON;
+        if (!data)
+            return callback(null); // a 2xx response without a body is unlikely
+        //If Browser-Storage plugin is present, remove tiddler from local storage after successful sync to the server
+        if ($tw.browserStorage && $tw.browserStorage.isEnabled()) {
+            $tw.browserStorage.removeTiddlerFromLocalStorage(title);
+        }
+        // Save the details of the new revision of the tiddler
+        const revision = data.revision_id, bag_name = data.bag_name;
+        console.log(`Saved ${title} with revision ${revision} and bag ${bag_name}`);
+        // If there has been a more recent update from the server then enqueue a load of this tiddler
+        self.checkLastRecordedUpdate(title, revision);
+        // Invoke the callback
+        self.setTiddlerInfo(title, revision, bag_name);
+        if (false) {
+            // this.syncer.processTaskQueue = () => { };
+            // callback(null, { bag: bag_name }, revision);
+            // // @ts-expect-error
+            // delete this.syncer.processTaskQueue;
+            // await this.fastQueue(this.syncer);
+        }
+        else {
+            callback(null, { bag: bag_name }, revision);
+        }
     }
     /*
     Load a tiddler and invoke the callback with (err,tiddlerFields)
 
     The syncer does not pass itself into options.
     */
-    loadTiddler(title, callback, options) {
-        return __awaiter(this, void 0, void 0, function* () {
-            var _a, _b;
-            const self = this;
-            if (!self.syncer)
-                return callback(new Error("No syncer available"));
-            self.outstandingRequests[title] = { type: "GET" };
-            const [ok, err, result] = yield this.recipeRequest({
-                key: "handleLoadRecipeTiddler",
-                url: "/tiddlers/" + encodeURIComponent(title),
-                method: "GET",
-            });
-            delete self.outstandingRequests[title];
-            if (!ok)
-                return callback(err);
-            const { responseJSON: data, headers } = result;
-            const revision = (_a = headers.get("x-revision-number")) !== null && _a !== void 0 ? _a : "", bag_name = (_b = headers.get("x-bag-name")) !== null && _b !== void 0 ? _b : "";
-            if (!revision || !bag_name || !data)
-                return callback(null, null);
-            // If there has been a more recent update from the server then enqueue a load of this tiddler
-            self.checkLastRecordedUpdate(title, revision);
-            // Invoke the callback
-            self.setTiddlerInfo(title, revision, bag_name);
-            callback(null, data);
+    async loadTiddler(title, callback, options) {
+        var _a, _b;
+        const self = this;
+        if (!self.syncer)
+            return callback(new Error("No syncer available"));
+        self.outstandingRequests[title] = { type: "GET" };
+        const [ok, err, result] = await this.recipeRequest({
+            key: "handleLoadRecipeTiddler",
+            url: "/tiddlers/" + encodeURIComponent(title),
+            method: "GET",
         });
+        delete self.outstandingRequests[title];
+        if (!ok)
+            return callback(err);
+        const { responseJSON: data, headers } = result;
+        const revision = (_a = headers.get("x-revision-number")) !== null && _a !== void 0 ? _a : "", bag_name = (_b = headers.get("x-bag-name")) !== null && _b !== void 0 ? _b : "";
+        if (!revision || !bag_name || !data)
+            return callback(null, null);
+        // If there has been a more recent update from the server then enqueue a load of this tiddler
+        self.checkLastRecordedUpdate(title, revision);
+        // Invoke the callback
+        self.setTiddlerInfo(title, revision, bag_name);
+        callback(null, data);
     }
     /*
     Delete a tiddler and invoke the callback with (err)
     options include:
     tiddlerInfo: the syncer's tiddlerInfo for this tiddler
     */
-    deleteTiddler(title, callback, options) {
-        return __awaiter(this, void 0, void 0, function* () {
-            var self = this;
-            if (this.isReadOnly) {
-                return callback(null);
-            }
-            // If we don't have a bag it means that the tiddler hasn't been seen by the server, so we don't need to delete it
-            // var bag = this.getTiddlerBag(title);
-            // if(!bag) { return callback(null, options.tiddlerInfo.adaptorInfo); }
-            self.outstandingRequests[title] = { type: "DELETE" };
-            // Issue HTTP request to delete the tiddler
-            const [ok, err, result] = yield this.recipeRequest({
-                key: "handleDeleteRecipeTiddler",
-                url: "/tiddlers/" + encodeURIComponent(title),
-                method: "DELETE",
-            });
-            delete self.outstandingRequests[title];
-            if (!ok)
-                return callback(err);
-            const { responseJSON: data } = result;
-            if (!data)
-                return callback(null);
-            const revision = data.revision_id, bag_name = data.bag_name;
-            // If there has been a more recent update from the server then enqueue a load of this tiddler
-            self.checkLastRecordedUpdate(title, revision);
-            self.removeTiddlerInfo(title);
-            // Invoke the callback & return null adaptorInfo
-            callback(null, null);
+    async deleteTiddler(title, callback, options) {
+        var self = this;
+        if (this.isReadOnly) {
+            return callback(null);
+        }
+        // If we don't have a bag it means that the tiddler hasn't been seen by the server, so we don't need to delete it
+        // var bag = this.getTiddlerBag(title);
+        // if(!bag) { return callback(null, options.tiddlerInfo.adaptorInfo); }
+        self.outstandingRequests[title] = { type: "DELETE" };
+        // Issue HTTP request to delete the tiddler
+        const [ok, err, result] = await this.recipeRequest({
+            key: "handleDeleteRecipeTiddler",
+            url: "/tiddlers/" + encodeURIComponent(title),
+            method: "DELETE",
         });
+        delete self.outstandingRequests[title];
+        if (!ok)
+            return callback(err);
+        const { responseJSON: data } = result;
+        if (!data)
+            return callback(null);
+        const revision = data.revision_id, bag_name = data.bag_name;
+        // If there has been a more recent update from the server then enqueue a load of this tiddler
+        self.checkLastRecordedUpdate(title, revision);
+        self.removeTiddlerInfo(title);
+        // Invoke the callback & return null adaptorInfo
+        callback(null, null);
     }
     /**
      * This throws an error if the response status is not 2xx, but will still return the response alongside the error.
      *
      * So if the first parameter is false, the third parameter may still contain the response.
      */
-    recipeRequest(options) {
-        return __awaiter(this, void 0, void 0, function* () {
-            if (!options.url.startsWith("/"))
-                throw new Error("The url does not start with a slash");
-            return yield httpRequest(Object.assign(Object.assign({}, options), { responseType: "blob", url: this.host + "recipe/" + encodeURIComponent(this.recipe) + options.url })).then((e) => __awaiter(this, void 0, void 0, function* () {
-                var _a;
-                if (!e.ok)
-                    return [
-                        false, new Error(`The server return a status code ${e.status} with the following reason: `
-                            + `${(_a = e.headers.get("x-reason")) !== null && _a !== void 0 ? _a : "(no reason given)"}`),
-                        Object.assign(Object.assign({}, e), { responseString: "", responseJSON: undefined })
-                    ];
-                let responseString = "";
-                if (e.headers.get("x-gzip-stream") === "yes") {
-                    // Browsers only decode the first stream, 
-                    // so we cant use content-encoding or DecompressionStream
-                    yield new Promise((resolve) => __awaiter(this, void 0, void 0, function* () {
-                        const gunzip = new fflate.AsyncGunzip((err, chunk, final) => {
-                            if (err)
-                                return console.log(err);
-                            responseString += fflate.strFromU8(chunk);
-                            if (final)
-                                resolve();
-                        });
-                        if (this.isDevMode)
-                            gunzip.onmember = e => console.log("gunzip member", e);
-                        gunzip.push(new Uint8Array(yield readBlobAsArrayBuffer(e.response)));
-                        // this has to be on a separate line
-                        gunzip.push(new Uint8Array(), true);
-                    }));
+    async recipeRequest(options) {
+        if (!options.url.startsWith("/"))
+            throw new Error("The url does not start with a slash");
+        return await httpRequest(Object.assign(Object.assign({}, options), { responseType: "blob", url: this.host + "recipe/" + encodeURIComponent(this.recipe) + options.url })).then(async (e) => {
+            var _a;
+            if (!e.ok)
+                return [
+                    false, new Error(`The server return a status code ${e.status} with the following reason: `
+                        + `${(_a = e.headers.get("x-reason")) !== null && _a !== void 0 ? _a : "(no reason given)"}`),
+                    Object.assign(Object.assign({}, e), { responseString: "", responseJSON: undefined })
+                ];
+            let responseString = "";
+            if (e.headers.get("x-gzip-stream") === "yes") {
+                // Browsers only decode the first stream, 
+                // so we cant use content-encoding or DecompressionStream
+                await new Promise(async (resolve) => {
+                    const gunzip = new fflate.AsyncGunzip((err, chunk, final) => {
+                        if (err)
+                            return console.log(err);
+                        responseString += fflate.strFromU8(chunk);
+                        if (final)
+                            resolve();
+                    });
                     if (this.isDevMode)
-                        console.log("gunzip result", responseString.length);
-                }
-                else {
-                    responseString = fflate.strFromU8(new Uint8Array(yield readBlobAsArrayBuffer(e.response)));
-                }
-                return [true, void 0, Object.assign(Object.assign({}, e), { responseString, 
-                        /** this is undefined if status is not 200 */
-                        responseJSON: e.status === 200
-                            ? tryParseJSON(responseString)
-                            : undefined })];
-            }), e => [false, e, void 0]);
-            function tryParseJSON(data) {
-                try {
-                    return JSON.parse(data);
-                }
-                catch (e) {
-                    console.error("Error parsing JSON, returning undefined", e);
-                    // console.log(data);
-                    return undefined;
-                }
+                        gunzip.onmember = e => console.log("gunzip member", e);
+                    gunzip.push(new Uint8Array(await readBlobAsArrayBuffer(e.response)));
+                    // this has to be on a separate line
+                    gunzip.push(new Uint8Array(), true);
+                });
+                if (this.isDevMode)
+                    console.log("gunzip result", responseString.length);
             }
-        });
+            else {
+                responseString = fflate.strFromU8(new Uint8Array(await readBlobAsArrayBuffer(e.response)));
+            }
+            return [true, void 0, Object.assign(Object.assign({}, e), { responseString, 
+                    /** this is undefined if status is not 200 */
+                    responseJSON: e.status === 200
+                        ? tryParseJSON(responseString)
+                        : undefined })];
+        }, e => [false, e, void 0]);
+        function tryParseJSON(data) {
+            try {
+                return JSON.parse(data);
+            }
+            catch (e) {
+                console.error("Error parsing JSON, returning undefined", e);
+                // console.log(data);
+                return undefined;
+            }
+        }
     }
 }
 if ($tw.browser && document.location.protocol.startsWith("http")) {

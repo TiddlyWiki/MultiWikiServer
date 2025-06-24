@@ -1,7 +1,7 @@
 import { TiddlerFields } from "tiddlywiki";
 import { Prisma } from "@prisma/client";
 import * as runtime from "@prisma/client/runtime/library";
-import { UserError, zod } from "@tiddlywiki/server";
+import { UserError, Z2, zod } from "@tiddlywiki/server";
 
 abstract class TiddlerStore_PrismaBase {
 
@@ -333,12 +333,12 @@ export class TiddlerStore_PrismaTransaction extends TiddlerStore_PrismaBase {
     if (!bag) throw new UserError("Bag not found");
 
     const { success, error, data } = zod.strictObject({
-      bag_id: zod.string(),
-      bag_name: zod.string(),
+      bag_id: Z2.prismaField("Bags", "bag_id", "string"),
+      bag_name: Z2.prismaField("Bags", "bag_name", "string"),
       tiddlers: zod.strictObject({
-        title: zod.string(),
-        revision_id: zod.string(),
-        is_deleted: zod.boolean()
+        title: Z2.prismaField("Tiddlers", "title", "string"),
+        revision_id: Z2.prismaField("Tiddlers", "revision_id", "string"),
+        is_deleted: Z2.prismaField("Tiddlers", "is_deleted", "boolean"),
       }).array()
     }).safeParse(bag);
 
@@ -350,6 +350,7 @@ export class TiddlerStore_PrismaTransaction extends TiddlerStore_PrismaBase {
     return data;
 
   }
+
 
   getBagTiddlers_PrismaQuery(
     bag_name: PrismaField<"Bags", "bag_name">,
