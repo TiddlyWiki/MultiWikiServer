@@ -63,7 +63,8 @@ export class Command extends BaseCommand<[string], {
 
 
 		const store = new TiddlerStore_PrismaBase(this.config.engine);
-		await this.config.engine.$transaction(loadWikiFolder({
+
+		const queries = loadWikiFolder({
 			wikiPath: this.params[0],
 			bagName,
 			bagDescription,
@@ -73,7 +74,16 @@ export class Command extends BaseCommand<[string], {
 			store,
 			$tw: this.$tw,
 			cache: this.config.pluginCache
-		})).catch((err) => {
+		});
+
+		queries.forEach((e) => {
+			if (e.toString() !== "[object PrismaPromise]")
+				throw new Error("Expected PrismaPromise, got " + e.toString());
+			console.log((e as any).spec);
+
+		});
+
+		await this.config.engine.$transaction(queries).catch((err) => {
 			console.error("Error loading wiki folder:", err.stack);
 			// console.log(new Error().stack);
 			throw new Error(`Failed to load wiki folder: ${err.message}`);

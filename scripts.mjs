@@ -4,7 +4,8 @@
 
 import { spawn } from "child_process";
 import EventEmitter from "events";
-import { writeFileSync } from "fs";
+import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from "fs";
+import * as path from "path";
 const events = new EventEmitter();
 const workspaces = [
   "packages/server",
@@ -47,30 +48,39 @@ const workspaces = [
       await start("npx tsc -p tsconfig.types.json", process.argv.slice(3));
       break;
     }
-    case "test:full": {
+    case "test": {
       // "test:pack": "(git clean -dfx tests && npm pack --pack-destination tests && cd tests && npm install && npm install ./tiddlywiki-mws-$npm_package_version.tgz --no-save && npm test)",
       // "test": "(git clean -dfx tests && cd tests && npm install .. --no-save && npm test)",
       // "fulltest": "mv node_modules node_modules_old; npm run test:pack; mv node_modules_old node_modules",
-      await start("mv node_modules node_modules_old");
-      await start("git clean -dfx tests");
-      const filesFolder = path.resolve("create-package/files");
-      // copy files into the folder
-      fs.readdirSync(filesFolder).forEach(file => {
-        const filePath = path.join(filesFolder, file);
-        if(!fs.statSync(filePath).isFile()) return;
-        const abspath = path.resolve("tests", file);
-        if(fs.existsSync(abspath)) {
-          console.log(`File ${file} already exists. Skipping...`);
-          return;
-        }
-        console.log(`├─ ${file}`);
-        fs.writeFileSync(abspath, fs.readFileSync(filePath));
+
+
+      await Promise.resolve().then(async () => {
+        await start("mv node_modules node_modules_old");
+      }).then(async () => {
+        await start("git clean -dfx tests");
+        const filesFolder = path.resolve("create-package/files");
+        const testsFolder = path.resolve("tests");
+        mkdirSync(testsFolder, { recursive: false });
+        // copy files into the folder
+        console.log(`Copying files`);
+        readdirSync(filesFolder).forEach(file => {
+          const oldPath = path.join(filesFolder, file);
+          if(!statSync(oldPath).isFile()) return;
+          const newPath = path.join(testsFolder, file);
+          if(existsSync(newPath)) {
+            console.log(`File ${file} already exists. Skipping...`);
+            return;
+          }
+          console.log(`├─ ${file}`);
+          writeFileSync(newPath, readFileSync(oldPath));
+        });
+        await start("npm pack --pack-destination tests");
+        await start("npm install ./tiddlywiki-mws-$npm_package_version.tgz tiddlywiki", [], {}, { cwd: "tests" });
+      }).then(async () => {
+        await start("npx mws init-store", [], {}, { cwd: "tests" });
+      }).finally(async () => {
+        await start("mv node_modules_old node_modules");
       });
-      await start("npm pack --pack-destination tests");
-      await start("npm install", [], {}, { cwd: "tests" });
-      await start("npm install ./tiddlywiki-mws-$npm_package_version.tgz --no-save", [], {}, { cwd: "tests" });
-      await start("npm test", [], {}, { cwd: "tests" });
-      await start("mv node_modules_old node_modules");
       break;
     }
     default:

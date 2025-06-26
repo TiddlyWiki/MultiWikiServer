@@ -8,3 +8,4 @@ TiddlyWiki5
 *.tgz
 /.vscode/settings.json
 editions/mws-docs/tiddlers/$__StoryList.tid
+/tests
