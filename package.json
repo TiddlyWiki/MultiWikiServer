@@ -47,17 +47,15 @@
     "build:admin": "node scripts.mjs client-build",
     "build:client": "PLUGINDTS=1 tsup && cd plugins/client && tsc",
     "install-android": "GYP_DEFINES=\"android_ndk_path=''\" npm install",
-    "postinstalloff": "node scripts.mjs prisma:generate",
+    "prisma:format": "prettier --write prisma/client/*.js prisma/client/*/*.js",
     "env": "env",
-    "test:pack": "(git clean -dfx tests && npm pack --pack-destination tests && cd tests && npm install && npm install ./tiddlywiki-mws-$npm_package_version.tgz --no-save && npm test)",
-    "test": "(git clean -dfx tests && cd tests && npm install .. --no-save && npm test)",
-    "fulltest": "mv node_modules node_modules_old; npm run test:pack; mv node_modules_old node_modules",
+    "test": "node scripts.mjs test",
     "prepublishOnly": "npm run build",
     "prisma:migrate": "DATABASE_URL=file:test.sqlite npx prisma migrate dev"
   },
   "dependencies": {
-    "@serenity-kit/opaque": "^0.8.4",
     "@prisma/adapter-better-sqlite3": "6.10.1",
+    "@serenity-kit/opaque": "^0.8.4",
     "prisma-client": "file:prisma/client",
     "source-map-support": "^0.5.21",
     "tiddlywiki": "^5.1.22"
@@ -65,6 +63,7 @@
   "devDependencies": {
     "@prisma/client": "6.10.1",
     "@types/node": "^24.0.0",
+    "prettier": "^3.6.1",
     "prisma": "6.10.1",
     "prisma-json-types-generator": "3.5.0",
     "tsup": "^8.5.0",

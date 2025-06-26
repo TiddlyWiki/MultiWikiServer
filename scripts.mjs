@@ -47,6 +47,32 @@ const workspaces = [
       await start("npx tsc -p tsconfig.types.json", process.argv.slice(3));
       break;
     }
+    case "test:full": {
+      // "test:pack": "(git clean -dfx tests && npm pack --pack-destination tests && cd tests && npm install && npm install ./tiddlywiki-mws-$npm_package_version.tgz --no-save && npm test)",
+      // "test": "(git clean -dfx tests && cd tests && npm install .. --no-save && npm test)",
+      // "fulltest": "mv node_modules node_modules_old; npm run test:pack; mv node_modules_old node_modules",
+      await start("mv node_modules node_modules_old");
+      await start("git clean -dfx tests");
+      const filesFolder = path.resolve("create-package/files");
+      // copy files into the folder
+      fs.readdirSync(filesFolder).forEach(file => {
+        const filePath = path.join(filesFolder, file);
+        if(!fs.statSync(filePath).isFile()) return;
+        const abspath = path.resolve("tests", file);
+        if(fs.existsSync(abspath)) {
+          console.log(`File ${file} already exists. Skipping...`);
+          return;
+        }
+        console.log(`├─ ${file}`);
+        fs.writeFileSync(abspath, fs.readFileSync(filePath));
+      });
+      await start("npm pack --pack-destination tests");
+      await start("npm install", [], {}, { cwd: "tests" });
+      await start("npm install ./tiddlywiki-mws-$npm_package_version.tgz --no-save", [], {}, { cwd: "tests" });
+      await start("npm test", [], {}, { cwd: "tests" });
+      await start("mv node_modules_old node_modules");
+      break;
+    }
     default:
       console.log("nothing ran");
   }
@@ -57,7 +83,7 @@ process.on("SIGTERM", exit);
 process.on("SIGINT", exit);
 process.on("SIGHUP", exit);
 
-function start(cmd, args, env2 = {}, { cwd = process.cwd(), pipeOut } = {}) {
+function start(cmd, args = [], env2 = {}, { cwd = process.cwd(), pipeOut } = {}) {
   const cp = spawn(cmd, args, {
     cwd,
     env: { ...process.env, ...env2, },

@@ -61,6 +61,7 @@ export class Command extends BaseCommand<[string], {
 			return;
 		}
 
+
 		const store = new TiddlerStore_PrismaBase(this.config.engine);
 		await this.config.engine.$transaction(loadWikiFolder({
 			wikiPath: this.params[0],
@@ -73,9 +74,9 @@ export class Command extends BaseCommand<[string], {
 			$tw: this.$tw,
 			cache: this.config.pluginCache
 		})).catch((err) => {
-			console.error("Error loading wiki folder:", err.message);
-			console.log(new Error().stack);
-			throw err;
+			console.error("Error loading wiki folder:", err.stack);
+			// console.log(new Error().stack);
+			throw new Error(`Failed to load wiki folder: ${err.message}`);
 		});
 		console.log(info.name, "complete:", this.params[0])
 		return null;
