@@ -1,5 +1,5 @@
 import { BaseCommand, CommandInfo } from "@tiddlywiki/commander";
-import { TiddlerStore_PrismaStatic } from "../managers/TiddlerStore";
+import { TiddlerStore_PrismaBase } from "../managers/TiddlerStore";
 import { CacheState } from "../services/cache";
 import { TiddlerFields, TW } from "tiddlywiki";
 import * as fs from "fs";
@@ -26,7 +26,7 @@ export class Command extends BaseCommand<[string], {
 	"bag-description"?: string[];
 	"recipe-name"?: string[];
 	"recipe-description"?: string[];
-	"overwrite"?: true;
+	"overwrite"?: boolean;
 }> {
 
 
@@ -47,19 +47,36 @@ export class Command extends BaseCommand<[string], {
 			throw new Error("missing required option recipe-description");
 
 		const overwrite = !!this.options["overwrite"];
-		const store = new TiddlerStore_PrismaStatic(this.config.engine);
 
-		await store.$transaction(loadWikiFolder({
+
+		const bagName = this.options["bag-name"][0] as PrismaField<"Bags", "bag_name">;
+		const bagDescription = this.options["bag-description"][0] as PrismaField<"Bags", "description">;
+		const recipeName = this.options["recipe-name"][0] as PrismaField<"Recipes", "recipe_name">;
+		const recipeDescription = this.options["recipe-description"][0] as PrismaField<"Recipes", "description">;
+
+		if (!overwrite && await this.config.engine.recipes.findUnique({
+			where: { recipe_name: recipeName }
+		})) {
+			console.log(`Recipe with name ${recipeName} already exists. Use --overwrite to overwrite it. Skipping.`);
+			return;
+		}
+
+		const store = new TiddlerStore_PrismaBase(this.config.engine);
+		await this.config.engine.$transaction(loadWikiFolder({
 			wikiPath: this.params[0],
-			bagName: this.options["bag-name"][0] as PrismaField<"Bags", "bag_name">,
-			bagDescription: this.options["bag-description"][0] as PrismaField<"Bags", "description">,
-			recipeName: this.options["recipe-name"][0] as PrismaField<"Recipes", "recipe_name">,
-			recipeDescription: this.options["recipe-description"][0] as PrismaField<"Recipes", "description">,
+			bagName,
+			bagDescription,
+			recipeName,
+			recipeDescription,
 			overwrite,
 			store,
 			$tw: this.$tw,
 			cache: this.config.pluginCache
-		}));
+		})).catch((err) => {
+			console.error("Error loading wiki folder:", err.message);
+			console.log(new Error().stack);
+			throw err;
+		});
 		console.log(info.name, "complete:", this.params[0])
 		return null;
 	}
@@ -76,7 +93,7 @@ function loadWikiFolder({ $tw, store, cache, ...options }: {
 	recipeName: PrismaField<"Recipes", "recipe_name">,
 	recipeDescription: PrismaField<"Recipes", "description">,
 	overwrite: boolean;
-	store: TiddlerStore_PrismaStatic,
+	store: TiddlerStore_PrismaBase,
 	$tw: TW,
 	cache: CacheState,
 }) {

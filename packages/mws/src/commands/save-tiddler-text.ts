@@ -1,5 +1,5 @@
 import { BaseCommand, CommandInfo } from "@tiddlywiki/commander";
-import { TiddlerStore_PrismaStatic } from "../managers/TiddlerStore";
+import { TiddlerStore_PrismaBase } from "../managers/TiddlerStore";
 
 
 export const info: CommandInfo = {
@@ -23,8 +23,8 @@ export class Command extends BaseCommand {
 			tiddlerTitle = this.params[1] as PrismaField<"Tiddlers", "title">,
 			tiddlerText = this.params[2] as string;
 
-		const store = new TiddlerStore_PrismaStatic(this.config.engine);
-		await store.$transaction(
+		const store = new TiddlerStore_PrismaBase(this.config.engine);
+		await this.config.engine.$transaction(
 			store.saveBagTiddlerFields_PrismaArray(
 				{ title: tiddlerTitle, text: tiddlerText },
 				bagName,

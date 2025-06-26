@@ -2,7 +2,6 @@ import * as opaque from "@serenity-kit/opaque";
 import { useAsyncEffect } from "./useAsyncEffect";
 import React, { ReactNode, useCallback, useId, useMemo, useState } from "react";
 import { FieldValues, useForm, UseFormRegisterReturn } from "react-hook-form";
-import { proxy } from "./prisma-proxy";
 import type { RecipeManagerMap } from "@tiddlywiki/mws/src/managers/admin-recipes.ts";
 import type { UserManagerMap } from "@tiddlywiki/mws/src/managers/admin-users.ts";
 import type { StatusManagerMap } from "@tiddlywiki/mws/src/managers/index.ts";
@@ -107,7 +106,7 @@ function postManager(key: string) {
 }
 
 interface ManagerMap extends RecipeManagerMap, UserManagerMap, StatusManagerMap, SettingsManagerMap {
-  prisma: typeof proxy;
+  // prisma: typeof proxy;
 }
 
 
@@ -136,7 +135,7 @@ export const serverRequest: ManagerMap = {
   settings_read: postManager("settings_read"),
   settings_update: postManager("settings_update"),
 
-  prisma: proxy,
+  // prisma: proxy,
 }
 
 

@@ -1,11 +1,25 @@
 import { TiddlerFields } from "tiddlywiki";
-import { Prisma } from "@prisma/client";
-import * as runtime from "@prisma/client/runtime/library";
 import { UserError, zod } from "@tiddlywiki/server";
 
-abstract class TiddlerStore_PrismaBase {
+/**
+ * 	
+  @example
 
-  abstract prisma: PrismaTxnClient;
+  const store = new TiddlerStore_PrismaBase(this.config.engine);
+  await this.config.engine.$transaction(
+    store.saveTiddlersFromPath_PrismaArray(...)
+  );
+
+  await this.config.engine.$transaction(async (prisma) => {
+    const store = new TiddlerStore_PrismaTransaction(prisma);
+    // use the store here
+  });
+ */
+export class TiddlerStore_PrismaBase {
+
+  constructor(public prisma: PrismaTxnClient) {
+
+  }
 
   /*
   Returns null if a bag/recipe name is valid, or a string error message if not
@@ -187,29 +201,11 @@ abstract class TiddlerStore_PrismaBase {
 
 
 }
-/** 
- * The functions in this class return one or more Prisma actions which can be performed in a batch. 
- *
- * Use the `$transaction` method to execute the batch and return the result as an array.  
- * 
- */
-export class TiddlerStore_PrismaStatic extends TiddlerStore_PrismaBase {
-  constructor(public prisma: PrismaEngineClient) {
-    super();
-  }
 
-  $transaction<P extends Prisma.PrismaPromise<any>[]>(arg: [...P], options?: {
-    isolationLevel?: Prisma.TransactionIsolationLevel
-  }): Promise<runtime.Types.Utils.UnwrapTuple<P>> {
-    return this.prisma.$transaction(arg, options);
-  }
-
-
-}
 
 export class TiddlerStore_PrismaTransaction extends TiddlerStore_PrismaBase {
   constructor(public prisma: PrismaTxnClient) {
-    super();
+    super(prisma);
   }
 
   async saveBagTiddlerFields(

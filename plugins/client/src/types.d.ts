@@ -1,5 +1,5 @@
 declare module "prisma/global" {
-    import type { Prisma } from "@prisma/client";
+    import type { Prisma } from "prisma-client";
     global {
         namespace PrismaJson {
             type Recipes_plugin_names = string[];
@@ -991,11 +991,12 @@ declare module "packages/mws/src/services/cache" {
     export type CacheState = ART<typeof startupCache>;
 }
 declare module "packages/mws/src/ServerState" {
-    import { PrismaClient, Prisma } from "@prisma/client";
-    import { ITXClientDenyList } from "@prisma/client/runtime/library";
+    import { PrismaClient, Prisma } from "prisma-client";
+    import { ITXClientDenyList } from "prisma-client/runtime/library";
     import { TW } from "tiddlywiki";
     import { createPasswordService } from "packages/mws/src/services/PasswordService";
     import { startupCache } from "packages/mws/src/services/cache";
+    import { Types } from "prisma-client/runtime/client";
     /** This is an alias for ServerState in case we want to separate the two purposes. */
     export type SiteConfig = ServerState;
     export class ServerState {
@@ -1022,6 +1023,9 @@ declare module "packages/mws/src/ServerState" {
             timeout?: number;
             isolationLevel?: Prisma.TransactionIsolationLevel;
         }): Promise<R>;
+        $transactionTupleDebug<P extends Prisma.PrismaPromise<any>[]>(fn: (prisma: PrismaTxnClient) => [...P], options?: {
+            isolationLevel?: Prisma.TransactionIsolationLevel;
+        }): Promise<Types.Utils.UnwrapTuple<P>>;
         wikiPath: string;
         storePath: string;
         cachePath: string;
@@ -1065,8 +1069,8 @@ declare module "packages/mws/src/ServerState" {
     export type TiddlerCache = ART<typeof startupCache>;
 }
 declare module "packages/mws/src/RequestState" {
-    import { Prisma } from '@prisma/client';
-    import { Types } from '@prisma/client/runtime/library';
+    import { Prisma } from 'prisma-client';
+    import { Types } from 'prisma-client/runtime/library';
     import { ServerState } from "packages/mws/src/ServerState";
     import { BodyFormat, RouteMatch, Router, ServerRequestClass, Streamer } from "packages/server/src/index";
     export class StateObject<B extends BodyFormat = BodyFormat, M extends string = string, D = unknown> extends ServerRequestClass<B, M, D> {
@@ -1452,10 +1456,23 @@ declare module "packages/mws/src/registerStartup" {
 }
 declare module "packages/mws/src/managers/TiddlerStore" {
     import { TiddlerFields } from "tiddlywiki";
-    import { Prisma } from "@prisma/client";
-    import * as runtime from "@prisma/client/runtime/library";
-    abstract class TiddlerStore_PrismaBase {
-        abstract prisma: PrismaTxnClient;
+    /**
+     *
+      @example
+    
+      const store = new TiddlerStore_PrismaBase(this.config.engine);
+      await this.config.engine.$transaction(
+        store.saveTiddlersFromPath_PrismaArray(...)
+      );
+    
+      await this.config.engine.$transaction(async (prisma) => {
+        const store = new TiddlerStore_PrismaTransaction(prisma);
+        // use the store here
+      });
+     */
+    export class TiddlerStore_PrismaBase {
+        prisma: PrismaTxnClient;
+        constructor(prisma: PrismaTxnClient);
         validateItemName(name: string, allowPrivilegedCharacters: boolean): "Not a valid string" | "Too long" | "Invalid character(s)" | null;
         validateItemNames(names: string[], allowPrivilegedCharacters: boolean): string | null;
         upsertRecipe_PrismaArray(recipe_name: PrismaField<"Recipes", "recipe_name">, description: PrismaField<"Recipes", "description">, bags: {
@@ -1463,19 +1480,19 @@ declare module "packages/mws/src/managers/TiddlerStore" {
             with_acl: PrismaField<"Recipe_bags", "with_acl">;
         }[], plugin_names: string[], { allowPrivilegedCharacters }?: {
             allowPrivilegedCharacters?: boolean;
-        }): [Prisma.Prisma__RecipesClient<{
+        }): [import("prisma/client").Prisma.Prisma__RecipesClient<{
             recipe_id: string & {
                 __prisma_table: "Recipes";
                 __prisma_field: "recipe_id";
             };
         }, never, {
-            result: { [T in Uncapitalize<Prisma.ModelName>]: { [K in keyof PrismaPayloadScalars<Capitalize<T>>]: () => {
+            result: { [T in Uncapitalize<import("prisma/client").Prisma.ModelName>]: { [K in keyof PrismaPayloadScalars<Capitalize<T>>]: () => {
                 compute: () => PrismaField<Capitalize<T>, K>;
             }; }; };
             client: {};
             model: {};
             query: {};
-        }, Prisma.PrismaClientOptions>, Prisma.Prisma__RecipesClient<{
+        }, import("prisma/client").Prisma.PrismaClientOptions>, import("prisma/client").Prisma.Prisma__RecipesClient<{
             description: string & {
                 __prisma_table: "Recipes";
                 __prisma_field: "description";
@@ -1496,83 +1513,70 @@ declare module "packages/mws/src/managers/TiddlerStore" {
             skip_required_plugins: PrismaField<"Recipes", "skip_required_plugins">;
             skip_core: PrismaField<"Recipes", "skip_core">;
         }, never, {
-            result: { [T in Uncapitalize<Prisma.ModelName>]: { [K in keyof PrismaPayloadScalars<Capitalize<T>>]: () => {
+            result: { [T in Uncapitalize<import("prisma/client").Prisma.ModelName>]: { [K in keyof PrismaPayloadScalars<Capitalize<T>>]: () => {
                 compute: () => PrismaField<Capitalize<T>, K>;
             }; }; };
             client: {};
             model: {};
             query: {};
-        }, Prisma.PrismaClientOptions>];
+        }, import("prisma/client").Prisma.PrismaClientOptions>];
         upsertBag_PrismaPromise(bag_name: PrismaField<"Bags", "bag_name">, description: PrismaField<"Bags", "description">, { allowPrivilegedCharacters }?: {
             allowPrivilegedCharacters?: boolean;
-        }): Prisma.Prisma__BagsClient<{
+        }): import("prisma/client").Prisma.Prisma__BagsClient<{
             bag_id: string & {
                 __prisma_table: "Bags";
                 __prisma_field: "bag_id";
             };
         }, never, {
-            result: { [T in Uncapitalize<Prisma.ModelName>]: { [K in keyof PrismaPayloadScalars<Capitalize<T>>]: () => {
+            result: { [T in Uncapitalize<import("prisma/client").Prisma.ModelName>]: { [K in keyof PrismaPayloadScalars<Capitalize<T>>]: () => {
                 compute: () => PrismaField<Capitalize<T>, K>;
             }; }; };
             client: {};
             model: {};
             query: {};
-        }, Prisma.PrismaClientOptions>;
-        saveTiddlersFromPath_PrismaArray(bag_name: PrismaField<"Bags", "bag_name">, tiddlers: TiddlerFields[]): [Prisma.PrismaPromise<Prisma.BatchPayload>, ...(Prisma.PrismaPromise<Prisma.BatchPayload> | Prisma.Prisma__TiddlersClient<{
+        }, import("prisma/client").Prisma.PrismaClientOptions>;
+        saveTiddlersFromPath_PrismaArray(bag_name: PrismaField<"Bags", "bag_name">, tiddlers: TiddlerFields[]): [import("prisma/client").Prisma.PrismaPromise<import("prisma/client").Prisma.BatchPayload>, ...(import("prisma/client").Prisma.PrismaPromise<import("prisma/client").Prisma.BatchPayload> | import("prisma/client").Prisma.Prisma__TiddlersClient<{
             revision_id: string & {
                 __prisma_table: "Tiddlers";
                 __prisma_field: "revision_id";
             };
         }, never, {
-            result: { [T in Uncapitalize<Prisma.ModelName>]: { [K in keyof PrismaPayloadScalars<Capitalize<T>>]: () => {
+            result: { [T in Uncapitalize<import("prisma/client").Prisma.ModelName>]: { [K in keyof PrismaPayloadScalars<Capitalize<T>>]: () => {
                 compute: () => PrismaField<Capitalize<T>, K>;
             }; }; };
             client: {};
             model: {};
             query: {};
-        }, Prisma.PrismaClientOptions>)[]];
-        saveBagTiddlerFields_PrismaArray(tiddlerFields: TiddlerFields, bag_name: PrismaField<"Bags", "bag_name">, attachment_hash: PrismaField<"Tiddlers", "attachment_hash">): [Prisma.PrismaPromise<Prisma.BatchPayload>, Prisma.Prisma__TiddlersClient<{
+        }, import("prisma/client").Prisma.PrismaClientOptions>)[]];
+        saveBagTiddlerFields_PrismaArray(tiddlerFields: TiddlerFields, bag_name: PrismaField<"Bags", "bag_name">, attachment_hash: PrismaField<"Tiddlers", "attachment_hash">): [import("prisma/client").Prisma.PrismaPromise<import("prisma/client").Prisma.BatchPayload>, import("prisma/client").Prisma.Prisma__TiddlersClient<{
             revision_id: string & {
                 __prisma_table: "Tiddlers";
                 __prisma_field: "revision_id";
             };
         }, never, {
-            result: { [T in Uncapitalize<Prisma.ModelName>]: { [K in keyof PrismaPayloadScalars<Capitalize<T>>]: () => {
+            result: { [T in Uncapitalize<import("prisma/client").Prisma.ModelName>]: { [K in keyof PrismaPayloadScalars<Capitalize<T>>]: () => {
                 compute: () => PrismaField<Capitalize<T>, K>;
             }; }; };
             client: {};
             model: {};
             query: {};
-        }, Prisma.PrismaClientOptions>];
+        }, import("prisma/client").Prisma.PrismaClientOptions>];
         /**
           Returns {revision_id:} of the delete marker
           */
-        deleteBagTiddler_PrismaArray(bag_name: PrismaField<"Bags", "bag_name">, title: PrismaField<"Tiddlers", "title">): [Prisma.PrismaPromise<Prisma.BatchPayload>, Prisma.Prisma__TiddlersClient<{
+        deleteBagTiddler_PrismaArray(bag_name: PrismaField<"Bags", "bag_name">, title: PrismaField<"Tiddlers", "title">): [import("prisma/client").Prisma.PrismaPromise<import("prisma/client").Prisma.BatchPayload>, import("prisma/client").Prisma.Prisma__TiddlersClient<{
             revision_id: string & {
                 __prisma_table: "Tiddlers";
                 __prisma_field: "revision_id";
             };
         }, never, {
-            result: { [T in Uncapitalize<Prisma.ModelName>]: { [K in keyof PrismaPayloadScalars<Capitalize<T>>]: () => {
+            result: { [T in Uncapitalize<import("prisma/client").Prisma.ModelName>]: { [K in keyof PrismaPayloadScalars<Capitalize<T>>]: () => {
                 compute: () => PrismaField<Capitalize<T>, K>;
             }; }; };
             client: {};
             model: {};
             query: {};
-        }, Prisma.PrismaClientOptions>];
-    }
-    /**
-     * The functions in this class return one or more Prisma actions which can be performed in a batch.
-     *
-     * Use the `$transaction` method to execute the batch and return the result as an array.
-     *
-     */
-    export class TiddlerStore_PrismaStatic extends TiddlerStore_PrismaBase {
-        prisma: PrismaEngineClient;
-        constructor(prisma: PrismaEngineClient);
-        $transaction<P extends Prisma.PrismaPromise<any>[]>(arg: [...P], options?: {
-            isolationLevel?: Prisma.TransactionIsolationLevel;
-        }): Promise<runtime.Types.Utils.UnwrapTuple<P>>;
+        }, import("prisma/client").Prisma.PrismaClientOptions>];
     }
     export class TiddlerStore_PrismaTransaction extends TiddlerStore_PrismaBase {
         prisma: PrismaTxnClient;
@@ -1707,7 +1711,7 @@ declare module "packages/mws/src/managers/TiddlerStore" {
         getBagTiddlers_PrismaQuery(bag_name: PrismaField<"Bags", "bag_name">, options?: {
             last_known_revision_id?: PrismaField<"Tiddlers", "revision_id">;
             include_deleted?: boolean;
-        }): Prisma.Prisma__BagsClient<{
+        }): import("prisma/client").Prisma.Prisma__BagsClient<{
             bag_id: string & {
                 __prisma_table: "Bags";
                 __prisma_field: "bag_id";
@@ -1728,13 +1732,13 @@ declare module "packages/mws/src/managers/TiddlerStore" {
                 is_deleted: PrismaField<"Tiddlers", "is_deleted">;
             }[];
         } | null, null, {
-            result: { [T in Uncapitalize<Prisma.ModelName>]: { [K in keyof PrismaPayloadScalars<Capitalize<T>>]: () => {
+            result: { [T in Uncapitalize<import("prisma/client").Prisma.ModelName>]: { [K in keyof PrismaPayloadScalars<Capitalize<T>>]: () => {
                 compute: () => PrismaField<Capitalize<T>, K>;
             }; }; };
             client: {};
             model: {};
             query: {};
-        }, Prisma.PrismaClientOptions>;
+        }, import("prisma/client").Prisma.PrismaClientOptions>;
     }
 }
 declare module "packages/mws/src/commands/load-wiki-folder" {
@@ -1745,9 +1749,9 @@ declare module "packages/mws/src/commands/load-wiki-folder" {
         "bag-description"?: string[];
         "recipe-name"?: string[];
         "recipe-description"?: string[];
-        "overwrite"?: true;
+        "overwrite"?: boolean;
     }> {
-        execute(): Promise<null>;
+        execute(): Promise<null | undefined>;
     }
 }
 declare module "packages/mws/src/commands/save-archive" {
@@ -2032,7 +2036,8 @@ declare module "packages/mws/src/commands/init-store" {
     import { BaseCommand, CommandInfo } from "packages/commander/src/index";
     export const info: CommandInfo;
     export class Command extends BaseCommand {
-        execute(): Promise<void>;
+        execute(): Promise<any>;
+        setupStore(): Promise<void>;
     }
 }
 declare module "packages/mws/src/commands/manager" {
@@ -2470,6 +2475,11 @@ declare module "packages/mws/src/managers/wiki-routes" {
             ];
         }
     }
+    module "packages/server/src/index" {
+        interface IncomingHttpHeaders {
+            'last-event-id'?: string;
+        }
+    }
     export class WikiRoutes {
         static defineRoutes: (root: ServerRoute) => void;
         handleGetRecipeStatus: ZodRoute<"GET" | "HEAD", "ignore", {
@@ -2493,15 +2503,6 @@ declare module "packages/mws/src/managers/wiki-routes" {
             isLoggedIn: boolean;
             isReadOnly: boolean;
         }>;
-        handleSSEtest: ZodRoute<"GET" | "HEAD", "ignore", {
-            recipe_name: zod.ZodType<string & {
-                __prisma_table: "Recipes";
-                __prisma_field: "recipe_name";
-            }, string, zod.z.core.$ZodTypeInternals<string & {
-                __prisma_table: "Recipes";
-                __prisma_field: "recipe_name";
-            }, string>>;
-        }, Record<string, zod.ZodType<any, string[] | undefined, zod.z.core.$ZodTypeInternals<any, string[] | undefined>>>, zod.ZodType<unknown, unknown, zod.z.core.$ZodTypeInternals<unknown, unknown>>, never>;
         handleGetRecipeEvents: ZodRoute<"GET" | "HEAD", "ignore", {
             recipe_name: zod.ZodType<string & {
                 __prisma_table: "Recipes";
@@ -2510,7 +2511,9 @@ declare module "packages/mws/src/managers/wiki-routes" {
                 __prisma_table: "Recipes";
                 __prisma_field: "recipe_name";
             }, string>>;
-        }, Record<string, zod.ZodType<any, string[] | undefined, zod.z.core.$ZodTypeInternals<any, string[] | undefined>>>, zod.ZodType<unknown, unknown, zod.z.core.$ZodTypeInternals<unknown, unknown>>, never>;
+        }, {
+            "first-event-id": zod.ZodOptional<zod.ZodArray<zod.ZodString>>;
+        }, zod.ZodType<unknown, unknown, zod.z.core.$ZodTypeInternals<unknown, unknown>>, never>;
         handleGetBags: ZodRoute<"GET" | "HEAD", "ignore", {
             recipe_name: zod.ZodType<string & {
                 __prisma_table: "Recipes";
@@ -3411,7 +3414,7 @@ declare module "packages/mws/src/commands/build-types" {
                     ADMIN: "ADMIN";
                 }>;
             }, import("zod/v4/core").$strip>>;
-        }, import("zod/v4/core").$strip>, null>] | readonly ["handleGetRecipeStatus" | "handleSSEtest" | "handleGetRecipeEvents" | "handleGetBags" | "handleGetBagState" | "handleGetAllBagStates" | "handleLoadRecipeTiddler" | "handleSaveRecipeTiddler" | "handleDeleteRecipeTiddler" | "handleFormMultipartRecipeTiddler" | "handleLoadBagTiddler" | "handleSaveBagTiddler" | "handleDeleteBagTiddler" | "handleFormMultipartBagTiddler", import("@tiddlywiki/server").ZodRoute<"GET" | "HEAD", "ignore", {
+        }, import("zod/v4/core").$strip>, null>] | readonly ["handleGetRecipeStatus" | "handleGetRecipeEvents" | "handleGetBags" | "handleGetBagState" | "handleGetAllBagStates" | "handleLoadRecipeTiddler" | "handleSaveRecipeTiddler" | "handleDeleteRecipeTiddler" | "handleFormMultipartRecipeTiddler" | "handleLoadBagTiddler" | "handleSaveBagTiddler" | "handleDeleteBagTiddler" | "handleFormMultipartBagTiddler", import("@tiddlywiki/server").ZodRoute<"GET" | "HEAD", "ignore", {
             recipe_name: import("zod/v4").ZodType<string & {
                 __prisma_table: "Recipes";
                 __prisma_field: "recipe_name";
@@ -3439,15 +3442,9 @@ declare module "packages/mws/src/commands/build-types" {
                 __prisma_table: "Recipes";
                 __prisma_field: "recipe_name";
             }, string>>;
-        }, Record<string, import("zod/v4").ZodType<any, string[] | undefined, import("zod/v4/core").$ZodTypeInternals<any, string[] | undefined>>>, import("zod/v4").ZodType<unknown, unknown, import("zod/v4/core").$ZodTypeInternals<unknown, unknown>>, never> | import("@tiddlywiki/server").ZodRoute<"GET" | "HEAD", "ignore", {
-            recipe_name: import("zod/v4").ZodType<string & {
-                __prisma_table: "Recipes";
-                __prisma_field: "recipe_name";
-            }, string, import("zod/v4/core").$ZodTypeInternals<string & {
-                __prisma_table: "Recipes";
-                __prisma_field: "recipe_name";
-            }, string>>;
-        }, Record<string, import("zod/v4").ZodType<any, string[] | undefined, import("zod/v4/core").$ZodTypeInternals<any, string[] | undefined>>>, import("zod/v4").ZodType<unknown, unknown, import("zod/v4/core").$ZodTypeInternals<unknown, unknown>>, never> | import("@tiddlywiki/server").ZodRoute<"GET" | "HEAD", "ignore", {
+        }, {
+            "first-event-id": import("zod/v4").ZodOptional<import("zod/v4").ZodArray<import("zod/v4").ZodString>>;
+        }, import("zod/v4").ZodType<unknown, unknown, import("zod/v4/core").$ZodTypeInternals<unknown, unknown>>, never> | import("@tiddlywiki/server").ZodRoute<"GET" | "HEAD", "ignore", {
             recipe_name: import("zod/v4").ZodType<string & {
                 __prisma_table: "Recipes";
                 __prisma_field: "recipe_name";
@@ -3739,7 +3736,7 @@ declare module "packages/mws/src/commands/index" {
     };
 }
 declare module "packages/mws/src/zodAssert" {
-    import { Prisma } from "@prisma/client";
+    import { Prisma } from "prisma-client";
     import { zod } from "packages/server/src/index";
     type _zod = typeof zod;
     type ExtraFieldType = "string" | "number" | "parse-number" | "boolean" | "parse-boolean";

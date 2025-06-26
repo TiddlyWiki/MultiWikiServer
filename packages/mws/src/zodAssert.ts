@@ -1,5 +1,5 @@
 
-import { Prisma } from "@prisma/client";
+import { Prisma } from "prisma-client";
 import { serverEvents } from "@tiddlywiki/events";
 import { Z2, zod } from "@tiddlywiki/server";
 

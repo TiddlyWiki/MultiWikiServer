@@ -8,7 +8,7 @@ import { readFile } from "fs/promises";
 import { Writable } from "stream";
 import { IncomingHttpHeaders } from "http";
 import { WikiStateStore } from "./WikiStateStore";
-import { Debug } from "@prisma/client/runtime/library";
+import Debug from "debug";
 import { BodyFormat, checkPath, JsonValue, registerZodRoutes, RouterKeyMap, RouterRouteMap, ServerRoute, tryParseJSON, UserError, Z2, zod, ZodRoute, zodRoute, ZodState } from "@tiddlywiki/server";
 import { serverEvents, ServerEventsMap } from "@tiddlywiki/events";
 const debugCORS = Debug("mws:cors");

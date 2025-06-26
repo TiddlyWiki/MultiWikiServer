@@ -15,22 +15,6 @@ const workspaces = [
 ];
 (async function run(arg) {
   switch(arg) {
-    case "install":
-      // run npm install in each workspace
-      await start("npm install", []);
-      for(const ws of workspaces) {
-        console.log("================================")
-        await start("npm install", [], {}, { cwd: ws });
-      }
-      break;
-    case "tsc":
-      // run tsc in each workspace
-      await start("npm run tsc", []).catch(console.log);
-      for(const ws of workspaces) {
-        console.log("================================")
-        await start("npm run tsc", [], {}, { cwd: ws }).catch(console.log);
-      }
-      break;
     case "start":
       // don't wait on tsc, it's just for checking types
       // await start("npm run tsc", []);

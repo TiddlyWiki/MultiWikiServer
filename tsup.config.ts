@@ -17,11 +17,12 @@ export default defineConfig({
     "esbuild",
     "env-cmd",
     "zod-to-ts",
-    "@prisma/client",
     "@prisma/adapter-libsql",
     "@prisma/adapter-better-sqlite3",
     "@serenity-kit/opaque",
+    "prisma-client",
   ],
+
   dts: false,
   keepNames: true,
   sourcemap: true,

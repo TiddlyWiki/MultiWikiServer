@@ -12,9 +12,14 @@ export const info: CommandInfo = {
 
 export class Command extends BaseCommand {
 
-	async execute() {
+	async execute(): Promise<any> {
+		await this.setupStore().catch((err) => {
 
-		if (!this.config.setupRequired) return;
+			throw err;
+		});
+	}
+
+	async setupStore() {
 
 		await this.config.$transaction(async (prisma) => {
 			const userCount = await prisma.users.count();
@@ -40,9 +45,11 @@ export class Command extends BaseCommand {
 					data: { password: password }
 				});
 
+				console.log("Default user created with username 'admin' and password '1234'. Please change this password after logging in.");
 			}
 
 		});
+
 		// should give us the path to boot.js
 		const tweditions = resolve(dist_require_resolve("tiddlywiki"), "../../editions");
 
@@ -52,7 +59,7 @@ export class Command extends BaseCommand {
 				"bag-description": [bagDesc],
 				"recipe-name": [recName],
 				"recipe-description": [recDesc],
-				overwrite: true
+				overwrite: false
 			});
 			command.$tw = this.$tw;
 			command.config = this.config;

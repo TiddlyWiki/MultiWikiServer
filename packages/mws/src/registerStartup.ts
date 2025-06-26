@@ -1,5 +1,5 @@
-import { PrismaClient } from "@prisma/client";
-import { Debug } from "@prisma/client/runtime/library";
+import { PrismaClient } from "prisma-client";
+import Debug from "debug";
 import { serverEvents } from "@tiddlywiki/events";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "fs";
 import * as path from "path";

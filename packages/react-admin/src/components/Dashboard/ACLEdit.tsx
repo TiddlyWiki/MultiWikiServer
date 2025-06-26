@@ -8,7 +8,7 @@ import Add from '@mui/icons-material/Add';
 import Remove from '@mui/icons-material/Remove';
 import * as forms from "angular-forms-only";
 import { EventEmitter, MissingFavicon, SelectField, SelectOption, useEventEmitter, useObservable } from '../../helpers';
-import { BagAcl, RecipeAcl } from '@prisma/client';
+import { BagAcl, RecipeAcl } from 'prisma-client';
 import { createDialogForm, FormDialogSubmitButton } from '../../forms';
 
 export type EntityACL = {

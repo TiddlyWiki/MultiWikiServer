@@ -1,9 +1,10 @@
-import { PrismaClient, Prisma } from "@prisma/client";
-import { ITXClientDenyList } from "@prisma/client/runtime/library";
+import { PrismaClient, Prisma } from "prisma-client";
+import { ITXClientDenyList } from "prisma-client/runtime/library";
 import { TW } from "tiddlywiki";
 import pkg from "../../../package.json";
 import { createPasswordService } from "./services/PasswordService";
 import { startupCache } from "./services/cache";
+import { Types } from "prisma-client/runtime/client";
 
 /** This is an alias for ServerState in case we want to separate the two purposes. */
 export type SiteConfig = ServerState;
@@ -112,6 +113,21 @@ export class ServerState {
     // $transaction doesn't have the client extensions types,
     // but should have them available (were they not just types).
     return this.engine.$transaction(fn as (prisma: any) => Promise<any>, options);
+  }
+
+  $transactionTupleDebug<P extends Prisma.PrismaPromise<any>[]>(fn: (prisma: PrismaTxnClient) => [...P], options?: { isolationLevel?: Prisma.TransactionIsolationLevel }): Promise<Types.Utils.UnwrapTuple<P>> {
+    return this.engine.$transaction(async (prisma) => {
+      const queries = fn(prisma as PrismaTxnClient);
+      const results = new Array(queries.length);
+      for (let i = 0; i < queries.length; i++) {
+        results[i] = await queries[i].catch(err => {
+          console.error(`Error in query ${i + 1} of ${queries.length}:`, err.message);
+          console.log(new Error().stack);
+          throw err;
+        });
+      }
+      return results as any;
+    })
   }
 
   wikiPath;

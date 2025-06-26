@@ -1,4 +1,4 @@
-import { Prisma, PrismaClient } from "@prisma/client";
+import { Prisma, PrismaClient } from "prisma-client";
 
 class ProxyPromise {
   static getErrorStack(t: ProxyPromise) { return t.#error.stack; }

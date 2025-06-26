@@ -1,8 +1,7 @@
 
 import { join, resolve } from "path";
-import { Prisma } from "@prisma/client";
+import { Prisma } from "prisma-client";
 import * as _fsp from "fs/promises";
-import { PrismaClientKnownRequestError } from "@prisma/client/runtime/library";
 import { existsSync } from "fs";
 import { v7 as uuidv7 } from "uuid";
 import { ServerState } from "../ServerState";
@@ -208,7 +207,7 @@ class Archiver2 {
 			}
 
 		}).catch(e => {
-			if (e instanceof PrismaClientKnownRequestError) {
+			if (e.name === "PrismaClientKnownRequestError") {
 				console.log(e.code, e.meta, e.message);
 				throw e.message;
 			} else {
