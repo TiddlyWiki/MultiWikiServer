@@ -6,7 +6,7 @@ datasource db {
 generator client {
   // prisma 7 will remove the need for native node files, everything will be js and wasm
   provider        = "prisma-client-js"
-  previewFeatures = ["relationJoins", "driverAdapters", "queryCompiler"]
+  previewFeatures = ["relationJoins", "driverAdapters"]
   binaryTargets   = []
   output = "client"
 }
