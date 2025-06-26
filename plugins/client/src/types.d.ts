@@ -991,12 +991,12 @@ declare module "packages/mws/src/services/cache" {
     export type CacheState = ART<typeof startupCache>;
 }
 declare module "packages/mws/src/ServerState" {
-    import type { PrismaClient, Prisma } from "prisma-client";
-    import type { ITXClientDenyList } from "prisma-client/runtime/library";
+    import { PrismaClient, Prisma } from "prisma-client";
+    import { ITXClientDenyList } from "prisma-client/runtime/library";
     import { TW } from "tiddlywiki";
     import { createPasswordService } from "packages/mws/src/services/PasswordService";
     import { startupCache } from "packages/mws/src/services/cache";
-    import type { Types } from "prisma-client/runtime/client";
+    import { Types } from "prisma-client/runtime/library";
     /** This is an alias for ServerState in case we want to separate the two purposes. */
     export type SiteConfig = ServerState;
     export class ServerState {
@@ -1069,8 +1069,8 @@ declare module "packages/mws/src/ServerState" {
     export type TiddlerCache = ART<typeof startupCache>;
 }
 declare module "packages/mws/src/RequestState" {
-    import type { Prisma } from 'prisma-client';
-    import type { Types } from 'prisma-client/runtime/library';
+    import { Prisma } from 'prisma-client';
+    import { Types } from 'prisma-client/runtime/library';
     import { ServerState } from "packages/mws/src/ServerState";
     import { BodyFormat, RouteMatch, Router, ServerRequestClass, Streamer } from "packages/server/src/index";
     export class StateObject<B extends BodyFormat = BodyFormat, M extends string = string, D = unknown> extends ServerRequestClass<B, M, D> {
