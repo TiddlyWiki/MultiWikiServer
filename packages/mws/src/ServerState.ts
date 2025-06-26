@@ -127,6 +127,9 @@ export class ServerState {
         });
       }
       return results as any;
+    }, {
+      maxWait: 10000,
+      timeout: 20000,
     })
   }
 
