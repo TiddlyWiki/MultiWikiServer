@@ -220,7 +220,7 @@ const config = {
       value: "prisma-client-js",
     },
     output: {
-      value: "/home/arlen2/GitHub/MWS-main/prisma/client",
+      value: "/workspaces/MultiWikiServer/prisma/client",
       fromEnvVar: null,
     },
     config: {
@@ -229,12 +229,12 @@ const config = {
     binaryTargets: [
       {
         fromEnvVar: null,
-        value: "debian-openssl-3.0.x",
+        value: "debian-openssl-1.1.x",
         native: true,
       },
     ],
     previewFeatures: ["driverAdapters", "queryCompiler", "relationJoins"],
-    sourceFilePath: "/home/arlen2/GitHub/MWS-main/prisma/schema.prisma",
+    sourceFilePath: "/workspaces/MultiWikiServer/prisma/schema.prisma",
     isCustomOutput: true,
   },
   relativeEnvPaths: {
