@@ -48,6 +48,7 @@
     "build:client": "PLUGINDTS=1 tsup && cd plugins/client && tsc",
     "install-android": "GYP_DEFINES=\"android_ndk_path=''\" npm install",
     "prisma:format": "prettier --write prisma/client/*.js prisma/client/*/*.js",
+    "prisma:generate": "node scripts.mjs prisma:generate",
     "env": "env",
     "test": "node scripts.mjs test",
     "prepublishOnly": "npm run build",

@@ -1,14 +1,13 @@
-import { PropsWithChildren, useCallback, useMemo } from 'react';
-import { IndexJson, serverRequest, truthy, useIndexJson } from '../../helpers/utils';
+import { useCallback, useMemo } from 'react';
+import { serverRequest, truthy } from '../../helpers/utils';
 import {
-  Avatar, DialogContent, DialogTitle, IconButton, Link, ListItem, ListItemAvatar, ListItemText,
+  Avatar, IconButton, Link, ListItem, ListItemAvatar, ListItemText,
   Stack, useTheme
 } from "@mui/material";
 import Add from '@mui/icons-material/Add';
 import Remove from '@mui/icons-material/Remove';
 import * as forms from "angular-forms-only";
-import { EventEmitter, MissingFavicon, SelectField, SelectOption, useEventEmitter, useObservable } from '../../helpers';
-import { BagAcl, RecipeAcl } from 'prisma-client';
+import { MissingFavicon, SelectField, useObservable } from '../../helpers';
 import { createDialogForm, FormDialogSubmitButton } from '../../forms';
 
 export type EntityACL = {

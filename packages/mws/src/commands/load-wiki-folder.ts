@@ -61,47 +61,19 @@ export class Command extends BaseCommand<[string], {
 			return;
 		}
 
-		const makeQueries = (prisma: PrismaTxnClient) => {
-			const store = new TiddlerStore_PrismaBase(prisma);
-			const queries = loadWikiFolder({
-				wikiPath: this.params[0],
-				bagName,
-				bagDescription,
-				recipeName,
-				recipeDescription,
-				overwrite,
-				store,
-				$tw: this.$tw,
-				cache: this.config.pluginCache
-			});
-			queries.forEach((e: any) => {
-				if (e.toString() !== "[object PrismaPromise]")
-					throw new Error("Expected PrismaPromise, got " + e.toString());
-				// console.log(JSON.stringify(e.spec, null, 2));
-			});
-			return queries;
-		}
-
-		if (true) {
-			await this.config.engine.$transaction(makeQueries(this.config.engine)).catch((err) => {
-				console.error("Error loading wiki folder:", err.stack);
-				throw new Error(`Failed to load wiki folder: ${err.message}`);
-			});
-		} else {
-			await this.config.engine.$transaction(async prisma => {
-				const queries = makeQueries(prisma as any);
-				// for (const query of queries) {
-				// 	await query.catch(err => {
-				// 		console.error("Error in query:", err.message);
-				// 		console.log(new Error().stack);
-				// 		throw err;
-				// 	});
-				// }
-			}).catch((err) => {
-				console.error("Error loading wiki folder:", err.stack);
-				throw new Error(`Failed to load wiki folder: ${err.message}`);
-			});
-		}
+	
+		const store = new TiddlerStore_PrismaBase(this.config.engine);
+		await this.config.engine.$transaction(loadWikiFolder({
+			wikiPath: this.params[0],
+			bagName,
+			bagDescription,
+			recipeName,
+			recipeDescription,
+			overwrite,
+			store,
+			$tw: this.$tw,
+			cache: this.config.pluginCache
+		}))
 
 		console.log(info.name, "complete:", this.params[0])
 		return null;

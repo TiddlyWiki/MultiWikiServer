@@ -4,7 +4,7 @@
 
 import { spawn } from "child_process";
 import EventEmitter from "events";
-import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from "fs";
+import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from "fs";
 import * as path from "path";
 const events = new EventEmitter();
 const workspaces = [
@@ -33,8 +33,22 @@ const workspaces = [
       await run("start");
       break;
     case "prisma:generate":
-      await start("prisma generate", [], {
-        PRISMA_CLIENT_FORCE_WASM: "true"
+      // rm -rf prisma/client && PRISMA_CLIENT_FORCE_WASM=true npx prisma generate && npm run prisma:format && rm -f prisma/client/*.node
+      console.log("Generating Prisma client...");
+      // remove the old client
+      await start("rm -rf prisma/client");
+      await start("prisma generate", [], { PRISMA_CLIENT_FORCE_WASM: "true" });
+      // await start("npm run prisma:format");
+      console.log("Formatting Prisma client...");
+      await start("prettier --write prisma/client/*.js prisma/client/*/*.js");
+      // remove the .node files, we don't need them in the client
+      console.log("Removing .node files from Prisma client...");
+      readdirSync("prisma/client").forEach(file => {
+        if(file.endsWith(".node")) {
+          const filePath = path.join("prisma/client", file);
+          console.log(`Removing ${filePath}`);
+          if(existsSync(filePath)) rmSync(filePath);
+        }
       });
       break;
     case "client-types": {

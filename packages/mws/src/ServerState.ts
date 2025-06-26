@@ -4,7 +4,7 @@ import { TW } from "tiddlywiki";
 import pkg from "../../../package.json";
 import { createPasswordService } from "./services/PasswordService";
 import { startupCache } from "./services/cache";
-import { Types } from "prisma-client/runtime/client";
+import { Types } from "prisma-client/runtime/library";
 
 /** This is an alias for ServerState in case we want to separate the two purposes. */
 export type SiteConfig = ServerState;

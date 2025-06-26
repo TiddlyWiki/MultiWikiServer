@@ -3,6 +3,7 @@ import { existsSync, mkdirSync, readFileSync } from "node:fs";
 import runMWS from "./dist/mws.js";
 import { resolve } from "node:path";
 Error.stackTraceLimit = 30;
+console.log(process.version);
 /** * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * 
  * For development, it is usually preferred to have a custom configuration that 
  * doesn't get committed or overwritten. For this purpose I have gitignore'd two 
