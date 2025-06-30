@@ -78,7 +78,7 @@ If you want to work on the project,
 - `cd MultiWikiServer`
 - `npm install` or `npm run install-android`
 - `npm run certs` - if you want https (unix only)
-- `npm start` - this will run the build every time, but it's very fast.
+- `npm start` - this will run the build every time, but it's very fast. Add `init-store` to the command to create the `admin` user and add some wikis.
 
 The development wiki will be active at http://localhost:8080/dev
 
