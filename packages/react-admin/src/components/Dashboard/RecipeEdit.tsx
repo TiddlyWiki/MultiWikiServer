@@ -133,7 +133,8 @@ export const useRecipeEditForm = createDialogForm({
           />
           <span>Skip Required Plugins</span>
         </Stack>
-        <FormHelperText sx={{ marginBlock: 0 }}>Don't include required plugins.</FormHelperText>
+        {!!recipeForm.controls.skip_required_plugins.value && <FormHelperText sx={{ marginBlock: 0 }}>Don't include required plugins.</FormHelperText>}
+        {!recipeForm.controls.skip_required_plugins.value && <FormHelperText sx={{ marginBlock: 0 }}>Include required plugins.</FormHelperText>}
       </Stack>
       <Divider />
       <Stack direction="column" justifyContent="stretch" alignItems="stretch" spacing={0}>
@@ -150,7 +151,8 @@ export const useRecipeEditForm = createDialogForm({
           />
           <span>Skip The Core!</span>
         </Stack>
-        <FormHelperText sx={{ marginBlock: 0 }}>Don't include the core.</FormHelperText>
+        {!!recipeForm.controls.skip_core.value && <FormHelperText sx={{ marginBlock: 0 }}>Don't include the core.</FormHelperText>}
+        {!recipeForm.controls.skip_core.value && <FormHelperText sx={{ marginBlock: 0 }}>Include the core.</FormHelperText>}
       </Stack>
       <FormDialogSubmitButton
         onSubmit={async () => {
