@@ -114,7 +114,7 @@ export const useRecipeEditForm = createDialogForm({
       ))}
       <h2>Client Plugins</h2>
       <SelectField
-        title="Roles"
+        title="Plugins"
         multiple
         control={recipeForm.controls.plugin_names}
         options={indexJson.clientPlugins.map(e => ({ value: e, label: e }))}
