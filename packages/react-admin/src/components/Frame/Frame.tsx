@@ -180,16 +180,17 @@ export function PageRoot() {
       right={userIsLoggedIn ? <>
         {/* <IconButton onClick={() => { }} sx={{ padding: 2 }} size="large"><SettingsIcon /></IconButton> */}
         <Tooltip title="User menu">
-          <IconButton
+          <Button
             onClick={handleClick}
             size="small"
-            sx={{ ml: 2 }}
+            sx={{ ml: 2, textTransform: 'none', fontSize: '0.9em', color: 'white'}}
             aria-controls={open ? 'account-menu' : undefined}
             aria-haspopup="true"
             aria-expanded={open ? 'true' : undefined}
+            endIcon={<Avatar />}
           >
-            <Avatar></Avatar>
-          </IconButton>
+	  {indexJson.username}
+          </Button>
         </Tooltip>
         <Menu
           anchorEl={anchorEl}
@@ -201,9 +202,9 @@ export function PageRoot() {
           anchorOrigin={{ horizontal: 'right', vertical: 'bottom' }}
         >
           <MenuItem onClick={handleClickProfile}>
-            <ListItemIcon ><Avatar sx={{ width: 24, height: 24 }} /></ListItemIcon>
-            {indexJson.username}
-          </MenuItem>
+	  <ListItemIcon><PersonIcon fontSize="small" /></ListItemIcon>
+          Profile
+	  </MenuItem>
           {/* <MenuItem onClick={handleClose}>
             <ListItemIcon><Settings fontSize="small" /></ListItemIcon>Settings
           </MenuItem> */}
