@@ -70,11 +70,13 @@ export const useRecipeEditForm = createDialogForm({
         onChange={onChange(recipeForm.controls.recipe_name)}
         disabled={recipeForm.controls.recipe_name.disabled}
         helperText={recipeForm.controls.recipe_name.disabled && "Recipe name cannot be changed."}
+        required={!recipeForm.controls.recipe_name.disabled}
       />}
       <TextField
         label="Description"
         value={recipeForm.controls.description.value}
         onChange={onChange(recipeForm.controls.description)}
+        required
       />
       <OwnerSelection
         type="recipe"
