@@ -42,9 +42,9 @@ export const useRecipeEditForm = createDialogForm({
         nonNullable: true
       }),
       bag_names: new forms.FormArray<ReturnType<typeof RecipeBagRow>>(
-        !value ? [] : value.bag_names.map(e => RecipeBagRow(e)), {
-        validators: [forms.Validators.required]
-      }),
+        !value ? [RecipeBagRow({ bag_name: "", with_acl: false })] : value.bag_names.map(e => RecipeBagRow(e)),
+        { validators: [forms.Validators.required] }
+      ),
       plugin_names: new forms.FormControl<string[]>(value?.plugin_names ?? [], {
         nonNullable: true, validators: [],
       }),
