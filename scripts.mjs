@@ -19,11 +19,11 @@ const workspaces = [
     case "start":
       // don't wait on tsc, it's just for checking types
       // await start("npm run tsc", []);
-      await start("tsup --silent", [], {
+      await start("tsup", [], {
         SKIPDTS: "1"
       });
       await start("node --trace-uncaught --trace-warnings mws.dev.mjs", process.argv.slice(3), {
-        // ENABLE_DEV_SERVER: "mws",
+        ENABLE_DEV_SERVER: "mws",
         ENABLE_EXTERNAL_PLUGINS: "1",
       });
       break;

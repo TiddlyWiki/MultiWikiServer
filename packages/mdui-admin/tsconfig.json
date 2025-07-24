@@ -1,0 +1,19 @@
+{
+  "compilerOptions": {
+    "experimentalDecorators": false,
+    "useDefineForClassFields": true,
+    "moduleResolution": "bundler",
+    "target": "es2022",
+    "lib": [
+      "ES2022",
+      "DOM"
+    ],
+    "jsx": "react-jsx",
+    "jsxImportSource": "webjsx",
+
+    "strictNullChecks": true,
+  },
+  "include": [
+    "src",
+  ]
+}

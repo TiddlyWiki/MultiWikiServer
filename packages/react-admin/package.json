@@ -2,6 +2,16 @@
   "name": "@tiddlywiki/react-admin",
   "private": true,
   "type": "module",
+  "exports": {
+    ".": {
+      "import": "./src/main.tsx",
+      "default": "./src/main.tsx"
+    },
+    "./esbuild.context.js": {
+      "import": "./esbuild.context.js",
+      "default": "./esbuild.context.js"
+    }
+  },
   "scripts": {
     "lint": "eslint",
     "tsc": "tsc --noEmit"

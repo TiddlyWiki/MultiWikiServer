@@ -23,6 +23,7 @@
     "packages/commander",
     "packages/server",
     "packages/mws",
+    "packages/mdui-admin",
     "packages/react-admin",
     "packages/tiddlywiki-types"
   ],

@@ -1,0 +1,30 @@
+{
+  "name": "@tiddlywiki/mdui-admin",
+  "private": true,
+  "type": "module",
+  "exports":{
+    ".": {
+      "import": "./src/main.tsx",
+      "default": "./src/main.tsx"
+    },
+    "./esbuild.context.js": {
+      "import": "./esbuild.context.js",
+      "default": "./esbuild.context.js"
+    }
+  },
+  "scripts": {
+    "lint": "eslint",
+    "tsc": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@fontsource/roboto": "^5.2.6",
+    "@types/luxon": "^3.6.2",
+    "@types/react": "^19.1.8",
+    "lit": "3.3.1",
+    "luxon": "^3.7.1",
+    "material-dynamic-colors": "^1.1.2",
+    "mdui": "2.1.4",
+    "normalize.css": "^8.0.1",
+    "webjsx": "file:webjsx"
+  }
+}

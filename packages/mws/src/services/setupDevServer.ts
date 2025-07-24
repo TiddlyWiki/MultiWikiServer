@@ -7,6 +7,7 @@ import { existsSync, writeFileSync } from "fs";
 import { ServerState } from "../ServerState";
 import { dist_resolve, ServerRequest } from "@tiddlywiki/server";
 
+
 class ExtString {
   constructor(private str: string) {
 
@@ -21,14 +22,14 @@ class ExtString {
   [Symbol.toPrimitive](hint: "string") { return this.str; }
 }
 
-const rootdir = dist_resolve('../packages/react-admin');
-const publicdir = dist_resolve('../public/react-admin');
+const rootdir = dist_resolve('../packages/mdui-admin');
+const publicdir = dist_resolve('../public/mdui-admin');
 
 export async function setupDevServer(
   config: ServerState,
 ) {
-  const {enableDevServer} = config;
-  
+  const { enableDevServer } = config;
+
 
   const make_index_file = async (pathPrefix: string) =>
     Buffer.from(new ExtString(await readFile(join(publicdir, "index.html"), "utf8"))
@@ -105,6 +106,7 @@ export async function setupDevServer(
           "etag": index_hash,
         }, index_file);
       } else {
+        // if (statusCode >= 500) console.log("Error from dev server:", statusCode, headers);
         return state.sendStream(statusCode as number, headers, proxyRes);
       }
 
@@ -113,37 +115,31 @@ export async function setupDevServer(
 }
 
 export async function esbuildStartup() {
-  const esbuild = await import("esbuild");
 
   const entry = resolve(rootdir, 'src/main.tsx');
 
-  if(!existsSync(entry)) {
+  if (!existsSync(entry)) {
     throw new Error(`Entry file ${entry} does not exist. You might be running this in production via the ENABLE_DEV_SERVER=mws environment variable, which is only valid in the git repo.`);
   }
 
-  let ctx = await esbuild.context({
-    entryPoints: [resolve(rootdir, 'src/main.tsx')],
-    bundle: true,
-    target: 'es2020',
-    platform: 'browser',
-    jsx: 'automatic',
-    outdir: publicdir,
-    minify: true,
-    sourcemap: true,
-    metafile: true,
-    splitting: true,
-    format: "esm",
-  });
+  const { default: context } = await import("@tiddlywiki/mdui-admin/esbuild.context.js")
+
+  const ctx = await context(rootdir, publicdir);
+
+  console.log(rootdir, publicdir)
 
   const { port } = await ctx.serve({
     servedir: publicdir,
-    host: "127.0.0.20"
+    host: "127.0.0.20",
+    onRequest(args) {
+      console.log(args);
+    },
+    fallback: "index.html",
   });
 
   const result = await ctx.rebuild();
 
-  writeFileSync(resolve(publicdir, 'stats.json'), JSON.stringify(result.metafile));
-
+  writeFileSync(resolve(publicdir, 'stats/client.json'), JSON.stringify(result.metafile));
 
   return { ctx, port, result, rootdir, publicdir };
 }
