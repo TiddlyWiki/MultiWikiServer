@@ -42,5 +42,8 @@ declare module "@tiddlywiki/server" {
 
     "LAST_EVENT_ID_NOT_PROVIDED":
     SendErrorItem<403, null>;
+
+    "INCORRECT_SERVER_RESPONSE_SENT":
+    SendErrorItem<500, { instead: any }>
   }
 }

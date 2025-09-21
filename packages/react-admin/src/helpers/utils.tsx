@@ -8,6 +8,7 @@ import type { StatusManagerMap } from "@tiddlywiki/mws/src/managers/index.ts";
 import { Button, ButtonProps } from "@mui/material";
 import { SessionManagerMap } from "@tiddlywiki/mws/src/services/sessions";
 import { SettingsManagerMap } from "@tiddlywiki/mws/src/managers/admin-settings";
+import type { ServerToReactAdmin } from "@tiddlywiki/mws/src/services/setupDevServer";
 
 
 type MapLike = { entries: () => Iterable<[string, any]> };
@@ -82,6 +83,7 @@ export type IndexJson = ART<typeof getIndexJson>;
 declare global {
   // see packages/mws/services/setupDevServer.ts
   const pathPrefix: string;
+  const embeddedServerResponse: ServerToReactAdmin;
 }
 type t = StatusManagerMap["index_json"]
 

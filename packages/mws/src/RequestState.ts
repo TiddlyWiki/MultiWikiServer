@@ -3,6 +3,7 @@ import { Types } from 'prisma-client/runtime/library';
 import { ServerState } from "./ServerState";
 import { BodyFormat, RouteMatch, Router, ServerRequestClass, Streamer } from "@tiddlywiki/server";
 import { SendError, SendErrorReasonData } from "@tiddlywiki/server";
+import { ServerToReactAdmin } from './services/setupDevServer';
 
 export class StateObject<
   B extends BodyFormat = BodyFormat,
@@ -28,7 +29,7 @@ export class StateObject<
     this.pluginCache = router.config.pluginCache;
 
     this.asserted = false;
-    this.sendAdmin = (status: number, response: string) => router.sendAdmin(this, status, response);
+    this.sendAdmin = (status: number, response: ServerToReactAdmin) => router.sendAdmin(this, status, response);
   }
 
   okUser() {
@@ -56,7 +57,7 @@ export class StateObject<
     status: SendErrorReasonData[ReasonStr]["status"],
     details: SendErrorReasonData[ReasonStr]["details"]
   ): typeof STREAM_ENDED {
-    
+
     return this.sendString(
       status,
       { "x-reason": reason },

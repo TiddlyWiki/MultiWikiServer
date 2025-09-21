@@ -27,6 +27,7 @@ import { sessionRequest } from '../../helpers';
 import { ClientPlugins } from './ClientPlugins';
 import Settings from './Settings';
 import { Users } from './UsersList';
+import { WikiError } from './WikiError';
 
 
 function Message({ children }: PropsWithChildren<{}>) {
@@ -121,6 +122,13 @@ export function PageRoot() {
     [/^\/admin\/users\/(.*)$/, ([, user_id]) => <ManageUser userID={user_id!} />, "Manage User"],
     [/^\/admin\/roles$/, () => <UsersScreen />, "Roles"],
     [/^\/admin\/settings$/, () => <Settings />, "Settings"],
+    [/^\/wiki\/(.*)$/, () => <WikiError
+      err={embeddedServerResponse?.sendError
+        ?? {
+        reason: "INCORRECT_SERVER_RESPONSE_SENT",
+        status: 500,
+        details: { instead: embeddedServerResponse }
+      }} />, "Wiki Error"]
   ];
   const route = location.pathname.slice(pathPrefix.length);
   const matches = pages.map(([re]) => re.exec(route));

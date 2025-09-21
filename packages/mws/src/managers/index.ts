@@ -26,7 +26,7 @@ serverEvents.on("mws.routes.fallback", (root, config) => {
     path: /^\/.*/,
     bodyFormat: "stream",
   }, async state => {
-    await state.sendAdmin(200, "null");
+    await state.sendAdmin(200, null);
     return STREAM_ENDED;
   });
 });

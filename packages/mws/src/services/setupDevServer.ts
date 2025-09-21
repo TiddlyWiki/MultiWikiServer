@@ -5,7 +5,20 @@ import { createHash } from "crypto";
 import { readFile } from "fs/promises";
 import { existsSync, writeFileSync } from "fs";
 import { ServerState } from "../ServerState";
-import { dist_resolve, ServerRequest } from "@tiddlywiki/server";
+import {
+  dist_resolve, ServerRequest,
+  SendErrorReasonData, SendError,
+} from "@tiddlywiki/server";
+
+export type ServerToReactAdmin
+  = { [k in keyof ServerToReactAdminMap]?: ServerToReactAdminMap[k] }
+  | null
+
+export interface ServerToReactAdminMap {
+  sendError: ReturnType<SendError<keyof SendErrorReasonData>["toJSON"]>,
+}
+
+
 
 class ExtString {
   constructor(private str: string) {
@@ -27,7 +40,7 @@ const publicdir = dist_resolve('../public/react-admin');
 
 export async function setupDevServer(
   config: ServerState,
-): Promise<(state: ServerRequest, status: number, serverResponse: string) => Promise<typeof STREAM_ENDED>> {
+): Promise<(state: ServerRequest, status: number, serverResponse: ServerToReactAdmin) => Promise<typeof STREAM_ENDED>> {
   const { enableDevServer } = config;
 
   // Escaped </script> to avoid ending the script block early
@@ -43,8 +56,8 @@ export async function setupDevServer(
   };
 
   if (!enableDevServer) {
-    return async function sendProdServer(state: ServerRequest, status: number, serverResponse: string) {
-      const index_file = await make_index_file(state.pathPrefix, serverResponse);
+    return async function sendProdServer(state: ServerRequest, status: number, serverResponse: ServerToReactAdmin) {
+      const index_file = await make_index_file(state.pathPrefix, JSON.stringify(serverResponse));
       const index_hash = createHash("sha1").update(index_file).digest().toString("base64");
       const sendIndex = (): typeof STREAM_ENDED => state.sendBuffer(200, {
         "content-type": "text/html",
@@ -64,8 +77,9 @@ export async function setupDevServer(
   } else {
     const { ctx, port } = await esbuildStartup();
 
-    return async function sendDevServer(state: ServerRequest, status: number, serverResponse: string) {
-      const index_file = await make_index_file(state.pathPrefix, serverResponse);
+    return async function sendDevServer(
+      state: ServerRequest, status: number, serverResponse: ServerToReactAdmin) {
+      const index_file = await make_index_file(state.pathPrefix, JSON.stringify(serverResponse));
       const index_hash = createHash("sha1").update(index_file).digest().toString("base64");
       // const sendIndex = (): typeof STREAM_ENDED => ;
 
