@@ -163,7 +163,7 @@ export function Recipes() {
                         <ListItemText
                           primary={<>
                             {getBagName(bag.bag_id)}
-                            {getBag(bag.bag_id)?.owner_id && <span> (by {getBag(bag.bag_id)!.owner_id})</span>}
+                            {getBag(bag.bag_id)?.owner_id && <span> (by {getOwner(getBag(bag.bag_id)!.owner_id)})</span>}
                           </>}
                           secondary={getBagDesc(bag.bag_id)} />
                       </ListItem>
