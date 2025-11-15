@@ -1,5 +1,5 @@
 {
-  "name": "@tiddlywiki/mws-prisma",
+  "name": "prisma-client-5e1f7a411804d0c15f624cb274a52a054f81f0529069d799f8e739257332d03a",
   "main": "index.js",
   "types": "index.d.ts",
   "browser": "default.js",
@@ -169,6 +169,5 @@
       },
       "default": "./index.js"
     }
-  },
-  "private": true
+  }
 }
