@@ -24,5 +24,6 @@
   },
   "include": [
     "packages/**/src",
+    "packages/webjsx/*",
   ]
 }
