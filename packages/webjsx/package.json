@@ -1,0 +1,7 @@
+{
+  "name": "webjsx",
+  "private": true,
+  "type": "module",
+  "types": "./index.ts",
+  "module": "./index.ts"
+}
