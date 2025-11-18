@@ -36,7 +36,7 @@ export default async function({ rootdir, publicdir }) {
     platform: 'browser',
     jsx: 'automatic',
     outdir: publicdir,
-    minify: true,
+    minify: !process.env.NOMINIFY,
     sourcemap: true,
     metafile: true,
     splitting: true,

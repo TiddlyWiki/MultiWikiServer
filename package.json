@@ -42,7 +42,7 @@
     "tsc": "TSCMWS=1 npx tsup",
     "tsc2": "tsc -p tsconfig.json --noEmit",
     "tsc-client": "cd packages/react-admin && npm run tsc",
-    "build": "tsup && npm run build:admin",
+    "build": "node scripts/scripts.mjs build",
     "build:admin": "node scripts/scripts.mjs client-build",
     "build:client": "cd plugins/client && tsc",
     "build:types": "PLUGINDTS=1 npx tsup",
@@ -57,11 +57,13 @@
     "@serenity-kit/opaque": "^0.8.4",
     "@tiddlywiki/mws-prisma": "file:prisma/client",
     "@types/source-map-support": "^0.5.10",
+    "html-element-attributes": "^3.5.0",
+    "html-jsx": "^1.0.0",
     "source-map-support": "^0.5.21",
-    "tiddlywiki": "^5.3.2"
+    "tiddlywiki": "^5.3.2",
+    "typed-html": "^3.0.1"
   },
   "devDependencies": {
-    
     "@types/node": "^24.6.0",
     "prettier": "^3.6.1",
     "prisma": "6.19.0",

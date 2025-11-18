@@ -38,7 +38,7 @@ export const App = DataLoader(async () => {
   return (
     <StrictMode>
       <ThemeProvider theme={theme} defaultMode="system" noSsr>
-        <CssBaseline enableColorScheme />
+        <CssBaseline enableColorScheme  />
         <IndexJsonContext.Provider value={[indexJson, refresh]}>
           <ErrorBoundary fallback={null} >
             {route === "/login" ? <Login /> : <PageRoot />}

@@ -50,15 +50,10 @@ export default async function runMWS(oldOptions?: any) {
     process.exit(1);
   }
   await opaque.ready;
-  if (process.env.CLIENT_BUILD) {
-    await runBuildOnce({
-      rootdir: dist_resolve("../packages/react-admin"),
-      publicdir: dist_resolve("../public/react-admin")
-    });
-  } else {
-    await startup();
-    await runCLI();
-  }
+
+  await startup();
+  await runCLI();
+
 
 }
 
@@ -67,4 +62,9 @@ serverEvents.on("cli.commander", (program) => {
 })
 
 
-
+if (process.env.CLIENT_BUILD) {
+  await runBuildOnce({
+    rootdir: dist_resolve("../packages/react-admin"),
+    publicdir: dist_resolve("../public/react-admin")
+  });
+}

@@ -32,6 +32,7 @@ declare global {
 
     type ElementEvents<T extends Node> = T extends { __jsx_events__: infer E } ? E : never;
 
+    
 
     type IgnoredProperties =
       | "connectedCallback"
