@@ -398,8 +398,6 @@ environment:
   - TZ=America/New_York  # Set timezone
 ```
 
-Note: `DATABASE_URL` is set internally by MWS and does not need to be configured.
-
 ---
 
 ## Getting Help
