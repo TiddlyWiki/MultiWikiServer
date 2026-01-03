@@ -1,0 +1,28 @@
+version: '3.8'
+
+services:
+  mws:
+    image: mws:latest
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: multiwikiserver
+    ports:
+      - "8080:8080"
+    volumes:
+      # Use bind mount to local data directory
+      # This directory will contain store/, cache/, and passwords.key
+      - ./data:/data
+    environment:
+      # Database URL for Prisma (SQLite)
+      - DATABASE_URL=file:./store/mws.db
+      # Node environment
+      - NODE_ENV=production
+    restart: unless-stopped
+    command: ["npx", "mws", "listen", "--listener", "host=0.0.0.0", "port=8080"]
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:8080/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s

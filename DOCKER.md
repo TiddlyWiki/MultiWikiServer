@@ -8,7 +8,22 @@ This guide explains how to deploy MultiWikiServer using Docker and Docker Compos
 - Docker Engine 20.10+
 - Docker Compose 2.0+ (or docker-compose 1.29+)
 
-### Basic Setup
+## Two Deployment Modes
+
+MultiWikiServer provides two Docker Compose configurations:
+
+1. **docker-compose.volumes.yml** - Uses Docker-managed volumes (easier for simple deployments)
+2. **docker-compose.directory.yml** - Uses a local directory bind mount (easier for backups and data access)
+
+Choose the mode that best fits your needs.
+
+---
+
+## Mode 1: Docker Volumes (docker-compose.volumes.yml)
+
+This mode uses Docker-managed named volumes for data storage.
+
+### Setup
 
 1. **Clone the repository:**
    ```bash
@@ -16,139 +31,157 @@ This guide explains how to deploy MultiWikiServer using Docker and Docker Compos
    cd MultiWikiServer
    ```
 
-2. **Build and start MWS:**
+2. **Build and start the container:**
    ```bash
-   docker-compose up -d
+   docker-compose -f docker-compose.volumes.yml up -d
+   ```
+
+3. **Initialize the database (required on first run):**
+   ```bash
+   docker-compose -f docker-compose.volumes.yml exec mws npx mws init-store
    ```
    
-   This will:
-   - Build a Docker image with the latest MWS from npm
-   - Create necessary Docker volumes for data persistence
-   - Initialize the database on first run
-   - Start the MWS server
+   This creates:
+   - The default `admin` user with password `1234`
+   - Initial database schema
+   - Default wiki content
 
-3. **Access your wiki:**
+4. **Access your wiki:**
    - Open http://localhost:8080 in your browser
    - Default credentials: username `admin`, password `1234`
    - **Important:** Change the default password immediately after first login!
 
-4. **View logs:**
+5. **View logs:**
    ```bash
-   docker-compose logs -f mws
+   docker-compose -f docker-compose.volumes.yml logs -f mws
    ```
 
-5. **Stop MWS:**
+6. **Stop MWS:**
    ```bash
-   docker-compose down
+   docker-compose -f docker-compose.volumes.yml down
    ```
 
-### About the Docker Image
+### Data Location
+
+Data is stored in a Docker-managed volume named `mws-data`. This volume contains:
+- `store/` - SQLite database with all wikis and tiddlers
+- `passwords.key` - Master key for password encryption (in the working directory)
+- `cache/` - Cache files (regenerated on startup if deleted)
+
+---
+
+## Mode 2: Directory Mount (docker-compose.directory.yml)
+
+This mode uses a local `./data` directory for data storage, making it easier to access and backup your data.
+
+### Setup
+
+1. **Clone the repository:**
+   ```bash
+   git clone https://github.com/TiddlyWiki/MultiWikiServer.git
+   cd MultiWikiServer
+   ```
+
+2. **Create the data directory:**
+   ```bash
+   mkdir -p data
+   ```
+
+3. **Build and start the container:**
+   ```bash
+   docker-compose -f docker-compose.directory.yml up -d
+   ```
+
+4. **Initialize the database (required on first run):**
+   ```bash
+   docker-compose -f docker-compose.directory.yml exec mws npx mws init-store
+   ```
+   
+   This creates:
+   - The default `admin` user with password `1234`
+   - Initial database schema
+   - Default wiki content
+
+5. **Access your wiki:**
+   - Open http://localhost:8080 in your browser
+   - Default credentials: username `admin`, password `1234`
+   - **Important:** Change the default password immediately after first login!
+
+6. **View logs:**
+   ```bash
+   docker-compose -f docker-compose.directory.yml logs -f mws
+   ```
+
+7. **Stop MWS:**
+   ```bash
+   docker-compose -f docker-compose.directory.yml down
+   ```
+
+### Data Location
+
+Data is stored in the `./data` directory in your current directory:
+- `./data/store/` - SQLite database with all wikis and tiddlers
+- `./data/passwords.key` - Master key for password encryption
+- `./data/cache/` - Cache files (regenerated on startup if deleted)
+
+---
+
+## About the Docker Image
 
 The provided `Dockerfile` builds an image that:
-- Uses Node.js 18 Alpine Linux for a small footprint
+- Uses Node.js 22 Alpine Linux for a small footprint
 - Installs the latest stable version of MWS from npm
-- Automatically initializes the database on first run
 - Exposes port 8080 by default
 
-The image installs MWS as an npm package, so you always get the official, published version. This approach:
-- Ensures consistency with the standard Node.js installation
-- Benefits from pre-built native modules (better-sqlite3)
-- Simplifies updates through `docker-compose build --no-cache`
+The image installs MWS as an npm package, ensuring consistency with the standard Node.js installation.
 
-## Data Persistence
+## Important Files
 
-MWS uses Docker volumes to persist your data:
-
-- **mws-data** (default setup): A single named volume containing all data:
-  - `store/`: SQLite database with wikis and tiddlers
-  - `passwords.key`: Master key for password encryption
-  - `cache/`: Cache files (regenerated on startup if missing)
+- **store/** - SQLite database with all your wikis and tiddlers
+  - **Never delete files in this folder!** All files are data files.
+  - Contains the database and all tiddler content
   
-- **./data/** (production setup): A bind-mounted directory containing:
-  - `store/`: SQLite database
-  - `passwords.key`: Password master key
-  - `cache/`: Cache files
+- **passwords.key** - Master key for password encryption
+  - If this file is lost or changed, all user passwords will need to be reset
+  - Keep this file safe and include it in backups
+  
+- **cache/** - Cache files
+  - Can be safely deleted; will be regenerated on startup
+  - Can be excluded from backups
 
-### Important Files
-
-- `store/`: SQLite database with all your wikis and tiddlers - **Never delete files in this folder!**
-- `passwords.key`: If this file is lost or changed, all user passwords will need to be reset
-- `cache/`: Can be safely deleted; will be regenerated on startup
-
-## Configuration Options
-
-### Using docker-compose.yml (Default)
-
-The default `docker-compose.yml` uses named Docker volumes for data storage:
-
-```bash
-docker-compose up -d
-```
-
-Advantages:
-- Docker manages storage automatically
-- Works well for development and testing
-
-### Using docker-compose.production.yml
-
-For production deployments, use `docker-compose.production.yml` which uses bind mounts:
-
-```bash
-docker-compose -f docker-compose.production.yml up -d
-```
-
-Advantages:
-- Easier to backup (data is in `./data/` directory)
-- More control over file locations
-- Better for production environments
-
-### Custom Port
-
-To run on a different port, set the `MWS_PORT` environment variable:
-
-```bash
-MWS_PORT=3000 docker-compose -f docker-compose.production.yml up -d
-```
-
-### Custom Timezone
-
-Set the `TZ` environment variable:
-
-```bash
-TZ=America/New_York docker-compose -f docker-compose.production.yml up -d
-```
+---
 
 ## Backup and Restore
 
-### Backup with Named Volumes (Default Setup)
+### Backup with Docker Volumes Mode
 
 ```bash
 # Stop the container
-docker-compose down
+docker-compose -f docker-compose.volumes.yml down
 
-# Backup the entire data volume (includes store, passwords.key, and cache)
+# Backup the entire data volume
 docker run --rm \
   -v multiwikiserver_mws-data:/data \
   -v $(pwd):/backup \
   alpine tar czf /backup/mws-backup-$(date +%Y%m%d).tar.gz /data
 ```
 
-### Backup with Bind Mounts (Production Setup)
+### Backup with Directory Mode
 
 ```bash
 # Stop the container (optional but recommended)
-docker-compose -f docker-compose.production.yml down
+docker-compose -f docker-compose.directory.yml down
 
 # Simply backup the data directory
 tar czf mws-backup-$(date +%Y%m%d).tar.gz ./data/
 ```
 
-### Restore
+### Restore from Backup
 
-For named volumes (default setup):
+For Docker volumes mode:
 ```bash
 # Stop the container
-docker-compose down
+docker-compose -f docker-compose.volumes.yml down
 
 # Restore the backup
 docker run --rm \
@@ -156,23 +189,23 @@ docker run --rm \
   -v $(pwd):/backup \
   alpine sh -c "cd / && tar xzf /backup/mws-backup-YYYYMMDD.tar.gz"
 
-# Start the container
-docker-compose up -d
+# Start the container (no need to run init-store again)
+docker-compose -f docker-compose.volumes.yml up -d
 ```
 
-For bind mounts (production setup):
+For directory mode:
 ```bash
 # Stop the container
-docker-compose -f docker-compose.production.yml down
+docker-compose -f docker-compose.directory.yml down
 
 # Restore the backup
 tar xzf mws-backup-YYYYMMDD.tar.gz
 
-# Start the container
-docker-compose -f docker-compose.production.yml up -d
+# Start the container (no need to run init-store again)
+docker-compose -f docker-compose.directory.yml up -d
 ```
 
-## Updates
+---
 
 ## Updates
 
@@ -182,60 +215,74 @@ docker-compose -f docker-compose.production.yml up -d
 
 2. **Update the Docker image:**
    ```bash
-   docker-compose down
-   docker-compose build --no-cache
-   docker-compose up -d
+   # For volumes mode
+   docker-compose -f docker-compose.volumes.yml down
+   docker-compose -f docker-compose.volumes.yml build --no-cache
+   docker-compose -f docker-compose.volumes.yml up -d
+   
+   # For directory mode
+   docker-compose -f docker-compose.directory.yml down
+   docker-compose -f docker-compose.directory.yml build --no-cache
+   docker-compose -f docker-compose.directory.yml up -d
    ```
 
 3. **Check logs for any migration messages:**
    ```bash
-   docker-compose logs -f mws
+   # For volumes mode
+   docker-compose -f docker-compose.volumes.yml logs -f mws
+   
+   # For directory mode
+   docker-compose -f docker-compose.directory.yml logs -f mws
    ```
 
-### Migrating Data
+---
+
+## Migrating from Existing Node.js Installation
 
 If you have an existing MWS installation and want to migrate to Docker:
 
-**For Production Setup (recommended for migration):**
+### Using Directory Mode (Recommended for Migration)
 
 1. **Copy your data:**
    ```bash
    # Create data directory
    mkdir -p ./data
    
-   # Copy your entire existing data folder
+   # Copy your entire existing data
    cp -r /path/to/your/mws/store ./data/
    cp /path/to/your/mws/passwords.key ./data/
    # Copy cache if you want (optional)
    cp -r /path/to/your/mws/cache ./data/ 2>/dev/null || true
    ```
 
-2. **Start with docker-compose.production.yml:**
+2. **Start with docker-compose.directory.yml:**
    ```bash
-   docker-compose -f docker-compose.production.yml up -d
+   docker-compose -f docker-compose.directory.yml up -d
    ```
 
-**For Default Setup (with named volumes):**
+### Using Volumes Mode
 
 1. **Start the container first to create the volume:**
    ```bash
-   docker-compose up -d
-   docker-compose down
+   docker-compose -f docker-compose.volumes.yml up -d
+   docker-compose -f docker-compose.volumes.yml down
    ```
 
 2. **Copy data into the volume:**
    ```bash
-   # Copy store folder
+   # Copy store folder and passwords.key
    docker run --rm \
      -v multiwikiserver_mws-data:/data \
      -v /path/to/your/mws:/source \
      alpine sh -c "cp -r /source/store /data/ && cp /source/passwords.key /data/"
    ```
 
-3. **Start the container:**
+3. **Start the container (no need to run init-store):**
    ```bash
-   docker-compose up -d
+   docker-compose -f docker-compose.volumes.yml up -d
    ```
+
+---
 
 ## Troubleshooting
 
@@ -243,104 +290,126 @@ If you have an existing MWS installation and want to migrate to Docker:
 
 Check logs:
 ```bash
-docker-compose logs mws
+# For volumes mode
+docker-compose -f docker-compose.volumes.yml logs mws
+
+# For directory mode
+docker-compose -f docker-compose.directory.yml logs mws
 ```
 
 ### Database is locked
 
 This can happen if the container was forcefully stopped:
 ```bash
-# Stop the container
-docker-compose down
-
-# Remove lock files (if using bind mounts)
+# For directory mode (easier to fix)
+docker-compose -f docker-compose.directory.yml down
 rm -f ./data/store/*.lock
+docker-compose -f docker-compose.directory.yml up -d
 
-# Restart
-docker-compose up -d
+# For volumes mode
+docker-compose -f docker-compose.volumes.yml down
+docker run --rm -v multiwikiserver_mws-data:/data alpine rm -f /data/store/*.lock
+docker-compose -f docker-compose.volumes.yml up -d
 ```
 
 ### Permission issues
 
-If you encounter permission issues with bind mounts:
+If you encounter permission issues with directory mode:
 ```bash
 # Fix ownership (adjust UID/GID as needed)
 sudo chown -R $(id -u):$(id -g) ./data/
+```
+
+### Forgot to run init-store
+
+If you started the container without running init-store:
+```bash
+# For volumes mode
+docker-compose -f docker-compose.volumes.yml exec mws npx mws init-store
+
+# For directory mode
+docker-compose -f docker-compose.directory.yml exec mws npx mws init-store
 ```
 
 ### Reset to fresh installation
 
 **Warning: This will delete all your data!**
 
-For default setup:
+For volumes mode:
 ```bash
 # Stop and remove containers
-docker-compose down
+docker-compose -f docker-compose.volumes.yml down
 
 # Remove the data volume
 docker volume rm multiwikiserver_mws-data
 
-# Start fresh
-docker-compose up -d
+# Start fresh and initialize
+docker-compose -f docker-compose.volumes.yml up -d
+docker-compose -f docker-compose.volumes.yml exec mws npx mws init-store
 ```
 
-For production setup:
+For directory mode:
 ```bash
 # Stop containers
-docker-compose -f docker-compose.production.yml down
+docker-compose -f docker-compose.directory.yml down
 
 # Remove data directory
 rm -rf ./data/
 
-# Start fresh
-docker-compose -f docker-compose.production.yml up -d
+# Start fresh and initialize
+mkdir -p ./data
+docker-compose -f docker-compose.directory.yml up -d
+docker-compose -f docker-compose.directory.yml exec mws npx mws init-store
 ```
+
+---
 
 ## Advanced Configuration
 
 ### Using HTTPS
 
-To enable HTTPS, you'll need to:
+To enable HTTPS, you'll need to generate or obtain SSL certificates and pass them to MWS:
 
-1. Generate or obtain SSL certificates
-2. Mount them into the container
-3. Pass them as arguments to the MWS listen command
+1. Generate certificates (example using openssl):
+   ```bash
+   openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
+     -keyout ./certs/key.pem -out ./certs/cert.pem
+   ```
 
-Example docker-compose.yml modification:
+2. Mount the certificates and modify the command in your docker-compose file:
+   ```yaml
+   volumes:
+     - ./data:/data
+     - ./certs:/certs:ro
+   command: >
+     sh -c "npx mws listen --listener host=0.0.0.0 port=8080 
+     key=/certs/key.pem cert=/certs/cert.pem secure=true"
+   ```
+
+### Custom Port
+
+To change the exposed port, modify the `ports` section in your docker-compose file:
+
 ```yaml
-services:
-  mws:
-    # ... other config ...
-    volumes:
-      - ./ssl/key.pem:/certs/key.pem:ro
-      - ./ssl/cert.pem:/certs/cert.pem:ro
-    command: >
-      sh -c "
-      if [ ! -f /data/store/mws.db ]; then
-        npx mws init-store
-      fi &&
-      npx mws listen --listener host=0.0.0.0 port=8080 key=/certs/key.pem cert=/certs/cert.pem secure=true
-      "
+ports:
+  - "3000:8080"  # Host port 3000 -> Container port 8080
 ```
 
-### Using a Reverse Proxy
+### Environment Variables
 
-For production deployments, it's recommended to use a reverse proxy like Nginx or Traefik. See `docker-compose.production.yml` for an example setup.
+You can set additional environment variables in your docker-compose file:
 
-### Running Multiple Instances
-
-Each instance needs its own data directory and port:
-
-```bash
-# Instance 1
-MWS_PORT=8081 docker-compose -f docker-compose.production.yml -p mws1 up -d
-
-# Instance 2
-MWS_PORT=8082 docker-compose -f docker-compose.production.yml -p mws2 up -d
+```yaml
+environment:
+  - DATABASE_URL=file:./store/mws.db
+  - NODE_ENV=production
+  - TZ=America/New_York  # Set timezone
 ```
+
+---
 
 ## Getting Help
 
 - [MWS Discussions](https://github.com/TiddlyWiki/MultiWikiServer/discussions)
 - [Report Issues](https://github.com/TiddlyWiki/MultiWikiServer/issues)
-- [Main Documentation](../README.md)
+- [Main Documentation](README.md)

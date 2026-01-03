@@ -59,26 +59,46 @@ If you run into trouble, or need help figuring something out, feel free to [star
 
 For easier deployment and consistent environments, you can run MWS using Docker Compose. See **[DOCKER.md](DOCKER.md)** for complete documentation.
 
-**Quick start:**
+**Quick start with volumes mode:**
 ```bash
 # Clone the repository
 git clone https://github.com/TiddlyWiki/MultiWikiServer.git
 cd MultiWikiServer
 
-# Start MWS (will automatically initialize on first run)
-docker-compose up -d
+# Start MWS with Docker volumes
+docker-compose -f docker-compose.volumes.yml up -d
+
+# Initialize the database (required on first run)
+docker-compose -f docker-compose.volumes.yml exec mws npx mws init-store
 
 # Access at http://localhost:8080
 # Default credentials: admin / 1234
 ```
 
-The Docker setup automatically:
-- Initializes the database on first run
-- Creates the default `admin` user with password `1234`
-- Persists data in Docker volumes
-- Exposes the server on port `8080`
+**Quick start with directory mode:**
+```bash
+# Clone the repository
+git clone https://github.com/TiddlyWiki/MultiWikiServer.git
+cd MultiWikiServer
 
-For production deployments, backup strategies, HTTPS configuration, and more, see **[DOCKER.md](DOCKER.md)**.
+# Create data directory
+mkdir -p data
+
+# Start MWS with directory mount
+docker-compose -f docker-compose.directory.yml up -d
+
+# Initialize the database (required on first run)
+docker-compose -f docker-compose.directory.yml exec mws npx mws init-store
+
+# Access at http://localhost:8080
+# Default credentials: admin / 1234
+```
+
+Two deployment modes are available:
+- **docker-compose.volumes.yml** - Uses Docker-managed volumes
+- **docker-compose.directory.yml** - Uses local `./data` directory for easier backups
+
+For detailed instructions, backup strategies, migration guides, and troubleshooting, see **[DOCKER.md](DOCKER.md)**.
 
 ## Updates
 
