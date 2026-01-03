@@ -62,13 +62,13 @@ For easier deployment and consistent environments, you can run MWS using Docker 
 **Quick start with volumes mode:**
 ```bash
 # Download the docker-compose file
-curl -O https://raw.githubusercontent.com/TiddlyWiki/MultiWikiServer/main/docker-compose.volumes.yml
+curl -O https://raw.githubusercontent.com/TiddlyWiki/MultiWikiServer/main/docker-compose.volume.yml
 
 # Start MWS
-docker-compose -f docker-compose.volumes.yml up -d
+docker-compose -f docker-compose.volume.yml up -d
 
 # Initialize the database (required on first run)
-docker-compose -f docker-compose.volumes.yml exec mws npx mws init-store
+docker-compose -f docker-compose.volume.yml exec mws npx mws init-store
 
 # Access at http://localhost:8080
 # Default credentials: admin / 1234
@@ -97,7 +97,7 @@ docker-compose -f docker-compose.directory.yml exec mws npx mws init-store
 ```
 
 Two deployment modes are available:
-- **docker-compose.volumes.yml** - Uses Docker-managed volumes (simpler)
+- **docker-compose.volume.yml** - Uses Docker-managed volumes (simpler)
 - **docker-compose.directory.yml** - Uses local `./store` directory (easier backups and access)
 
 For detailed instructions, backup strategies, migration guides, and troubleshooting, see **[DOCKER.md](DOCKER.md)**.

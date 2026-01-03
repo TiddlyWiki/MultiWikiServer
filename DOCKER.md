@@ -12,14 +12,14 @@ This guide explains how to deploy MultiWikiServer using Docker and Docker Compos
 
 MultiWikiServer provides two Docker Compose configurations:
 
-1. **docker-compose.volumes.yml** - Uses Docker-managed volumes (simpler, data managed by Docker)
+1. **docker-compose.volume.yml** - Uses Docker-managed volumes (simpler, data managed by Docker)
 2. **docker-compose.directory.yml** - Uses a local directory bind mount (data easily accessible on host)
 
 Choose the mode that best fits your needs.
 
 ---
 
-## Mode 1: Docker Volumes (docker-compose.volumes.yml)
+## Mode 1: Docker Volumes (docker-compose.volume.yml)
 
 This mode uses Docker-managed named volumes for data storage.
 
@@ -27,17 +27,17 @@ This mode uses Docker-managed named volumes for data storage.
 
 1. **Download the docker-compose file:**
    ```bash
-   curl -O https://raw.githubusercontent.com/TiddlyWiki/MultiWikiServer/main/docker-compose.volumes.yml
+   curl -O https://raw.githubusercontent.com/TiddlyWiki/MultiWikiServer/main/docker-compose.volume.yml
    ```
 
 2. **Start the container:**
    ```bash
-   docker-compose -f docker-compose.volumes.yml up -d
+   docker-compose -f docker-compose.volume.yml up -d
    ```
 
 3. **Initialize the database (required on first run):**
    ```bash
-   docker-compose -f docker-compose.volumes.yml exec mws npx mws init-store
+   docker-compose -f docker-compose.volume.yml exec mws npx mws init-store
    ```
    
    This creates:
@@ -52,12 +52,12 @@ This mode uses Docker-managed named volumes for data storage.
 
 5. **View logs:**
    ```bash
-   docker-compose -f docker-compose.volumes.yml logs -f mws
+   docker-compose -f docker-compose.volume.yml logs -f mws
    ```
 
 6. **Stop MWS:**
    ```bash
-   docker-compose -f docker-compose.volumes.yml down
+   docker-compose -f docker-compose.volume.yml down
    ```
 
 ### Data Location
@@ -125,30 +125,6 @@ This mode uses a local `./store` directory for data storage, making it easier to
 Data is stored in the `./store` directory in your current directory. This directory contains your SQLite database and all wikis and tiddlers.
 
 Cache files are ephemeral and regenerated on startup as needed.
-   - The default `admin` user with password `1234`
-   - Initial database schema
-   - Default wiki content
-
-5. **Access your wiki:**
-   - Open http://localhost:8080 in your browser
-   - Default credentials: username `admin`, password `1234`
-   - **Important:** Change the default password immediately after first login!
-
-6. **View logs:**
-   ```bash
-   docker-compose -f docker-compose.directory.yml logs -f mws
-   ```
-
-7. **Stop MWS:**
-   ```bash
-   docker-compose -f docker-compose.directory.yml down
-   ```
-
-### Data Location
-
-Data is stored in the `./store` directory in your current directory. This directory contains your SQLite database and all wikis and tiddlers.
-
-Cache files are ephemeral and regenerated on startup as needed.
 
 ---
 
@@ -179,7 +155,7 @@ The image installs MWS as an npm package, ensuring consistency with the standard
 
 ```bash
 # Stop the container
-docker-compose -f docker-compose.volumes.yml down
+docker-compose -f docker-compose.volume.yml down
 
 # Backup the store volume
 docker run --rm \
@@ -203,7 +179,7 @@ tar czf mws-backup-$(date +%Y%m%d).tar.gz ./store/
 For Docker volumes mode:
 ```bash
 # Stop the container
-docker-compose -f docker-compose.volumes.yml down
+docker-compose -f docker-compose.volume.yml down
 
 # Restore the backup
 docker run --rm \
@@ -212,7 +188,7 @@ docker run --rm \
   alpine sh -c "cd / && tar xzf /backup/mws-backup-YYYYMMDD.tar.gz"
 
 # Start the container (no need to run init-store again)
-docker-compose -f docker-compose.volumes.yml up -d
+docker-compose -f docker-compose.volume.yml up -d
 ```
 
 For directory mode:
@@ -238,9 +214,9 @@ docker-compose -f docker-compose.directory.yml up -d
 2. **Update the Docker image:**
    ```bash
    # For volumes mode
-   docker-compose -f docker-compose.volumes.yml down
-   docker-compose -f docker-compose.volumes.yml build --no-cache
-   docker-compose -f docker-compose.volumes.yml up -d
+   docker-compose -f docker-compose.volume.yml down
+   docker-compose -f docker-compose.volume.yml build --no-cache
+   docker-compose -f docker-compose.volume.yml up -d
    
    # For directory mode
    docker-compose -f docker-compose.directory.yml down
@@ -251,7 +227,7 @@ docker-compose -f docker-compose.directory.yml up -d
 3. **Check logs for any migration messages:**
    ```bash
    # For volumes mode
-   docker-compose -f docker-compose.volumes.yml logs -f mws
+   docker-compose -f docker-compose.volume.yml logs -f mws
    
    # For directory mode
    docker-compose -f docker-compose.directory.yml logs -f mws
@@ -288,13 +264,13 @@ If you have an existing MWS installation and want to migrate to Docker:
 
 1. **Download the docker-compose file:**
    ```bash
-   curl -O https://raw.githubusercontent.com/TiddlyWiki/MultiWikiServer/main/docker-compose.volumes.yml
+   curl -O https://raw.githubusercontent.com/TiddlyWiki/MultiWikiServer/main/docker-compose.volume.yml
    ```
 
 2. **Start the container first to create the volume:**
    ```bash
-   docker-compose -f docker-compose.volumes.yml up -d
-   docker-compose -f docker-compose.volumes.yml down
+   docker-compose -f docker-compose.volume.yml up -d
+   docker-compose -f docker-compose.volume.yml down
    ```
 
 3. **Copy store folder into the volume:**
@@ -307,7 +283,7 @@ If you have an existing MWS installation and want to migrate to Docker:
 
 4. **Start the container (no need to run init-store):**
    ```bash
-   docker-compose -f docker-compose.volumes.yml up -d
+   docker-compose -f docker-compose.volume.yml up -d
    ```
 
 ---
@@ -319,7 +295,7 @@ If you have an existing MWS installation and want to migrate to Docker:
 Check logs:
 ```bash
 # For volumes mode
-docker-compose -f docker-compose.volumes.yml logs mws
+docker-compose -f docker-compose.volume.yml logs mws
 
 # For directory mode
 docker-compose -f docker-compose.directory.yml logs mws
@@ -335,9 +311,9 @@ rm -f ./store/*.lock
 docker-compose -f docker-compose.directory.yml up -d
 
 # For volumes mode
-docker-compose -f docker-compose.volumes.yml down
+docker-compose -f docker-compose.volume.yml down
 docker run --rm -v multiwikiserver_mws-store:/data/store alpine rm -f /data/store/*.lock
-docker-compose -f docker-compose.volumes.yml up -d
+docker-compose -f docker-compose.volume.yml up -d
 ```
 
 ### Permission issues
@@ -353,7 +329,7 @@ sudo chown -R $(id -u):$(id -g) ./store/
 If you started the container without running init-store:
 ```bash
 # For volumes mode
-docker-compose -f docker-compose.volumes.yml exec mws npx mws init-store
+docker-compose -f docker-compose.volume.yml exec mws npx mws init-store
 
 # For directory mode
 docker-compose -f docker-compose.directory.yml exec mws npx mws init-store
@@ -366,14 +342,14 @@ docker-compose -f docker-compose.directory.yml exec mws npx mws init-store
 For volumes mode:
 ```bash
 # Stop and remove containers
-docker-compose -f docker-compose.volumes.yml down
+docker-compose -f docker-compose.volume.yml down
 
 # Remove the store volume
 docker volume rm multiwikiserver_mws-store
 
 # Start fresh and initialize
-docker-compose -f docker-compose.volumes.yml up -d
-docker-compose -f docker-compose.volumes.yml exec mws npx mws init-store
+docker-compose -f docker-compose.volume.yml up -d
+docker-compose -f docker-compose.volume.yml exec mws npx mws init-store
 ```
 
 For directory mode:
