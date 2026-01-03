@@ -63,10 +63,10 @@ This mode uses Docker-managed named volumes for data storage.
 
 ### Data Location
 
-Data is stored in a Docker-managed volume named `mws-data`. This volume contains:
+Data is stored in a Docker-managed volume named `mws-store`. This volume contains:
 - `store/` - SQLite database with all wikis and tiddlers
-- `passwords.key` - Master key for password encryption (in the working directory)
-- `cache/` - Cache files (regenerated on startup if deleted)
+
+Cache files are ephemeral and regenerated on startup as needed.
 
 ---
 
@@ -84,7 +84,7 @@ This mode uses a local `./data` directory for data storage, making it easier to 
 
 2. **Create the data directory:**
    ```bash
-   mkdir -p data
+   mkdir -p data/store
    ```
 
 3. **Build and start the container:**
@@ -119,10 +119,10 @@ This mode uses a local `./data` directory for data storage, making it easier to 
 
 ### Data Location
 
-Data is stored in the `./data` directory in your current directory:
+Data is stored in the `./data/store` directory in your current directory:
 - `./data/store/` - SQLite database with all wikis and tiddlers
-- `./data/passwords.key` - Master key for password encryption
-- `./data/cache/` - Cache files (regenerated on startup if deleted)
+
+Cache files are ephemeral and regenerated on startup as needed.
 
 ---
 
@@ -141,13 +141,9 @@ The image installs MWS as an npm package, ensuring consistency with the standard
   - **Never delete files in this folder!** All files are data files.
   - Contains the database and all tiddler content
   
-- **passwords.key** - Master key for password encryption
-  - If this file is lost or changed, all user passwords will need to be reset
-  - Keep this file safe and include it in backups
-  
-- **cache/** - Cache files
-  - Can be safely deleted; will be regenerated on startup
-  - Can be excluded from backups
+- **cache/** - Cache files (ephemeral)
+  - Automatically regenerated on startup if missing
+  - Not persisted in Docker deployments
 
 ---
 
@@ -159,11 +155,11 @@ The image installs MWS as an npm package, ensuring consistency with the standard
 # Stop the container
 docker-compose -f docker-compose.volumes.yml down
 
-# Backup the entire data volume
+# Backup the store volume
 docker run --rm \
-  -v multiwikiserver_mws-data:/data \
+  -v multiwikiserver_mws-store:/data/store \
   -v $(pwd):/backup \
-  alpine tar czf /backup/mws-backup-$(date +%Y%m%d).tar.gz /data
+  alpine tar czf /backup/mws-backup-$(date +%Y%m%d).tar.gz /data/store
 ```
 
 ### Backup with Directory Mode
@@ -172,8 +168,8 @@ docker run --rm \
 # Stop the container (optional but recommended)
 docker-compose -f docker-compose.directory.yml down
 
-# Simply backup the data directory
-tar czf mws-backup-$(date +%Y%m%d).tar.gz ./data/
+# Simply backup the store directory
+tar czf mws-backup-$(date +%Y%m%d).tar.gz ./data/store/
 ```
 
 ### Restore from Backup
@@ -185,7 +181,7 @@ docker-compose -f docker-compose.volumes.yml down
 
 # Restore the backup
 docker run --rm \
-  -v multiwikiserver_mws-data:/data \
+  -v multiwikiserver_mws-store:/data/store \
   -v $(pwd):/backup \
   alpine sh -c "cd / && tar xzf /backup/mws-backup-YYYYMMDD.tar.gz"
 
@@ -245,14 +241,11 @@ If you have an existing MWS installation and want to migrate to Docker:
 
 1. **Copy your data:**
    ```bash
-   # Create data directory
+   # Create data directory structure
    mkdir -p ./data
    
-   # Copy your entire existing data
+   # Copy your existing store folder
    cp -r /path/to/your/mws/store ./data/
-   cp /path/to/your/mws/passwords.key ./data/
-   # Copy cache if you want (optional)
-   cp -r /path/to/your/mws/cache ./data/ 2>/dev/null || true
    ```
 
 2. **Start with docker-compose.directory.yml:**
@@ -268,13 +261,12 @@ If you have an existing MWS installation and want to migrate to Docker:
    docker-compose -f docker-compose.volumes.yml down
    ```
 
-2. **Copy data into the volume:**
+2. **Copy store folder into the volume:**
    ```bash
-   # Copy store folder and passwords.key
    docker run --rm \
-     -v multiwikiserver_mws-data:/data \
+     -v multiwikiserver_mws-store:/data/store \
      -v /path/to/your/mws:/source \
-     alpine sh -c "cp -r /source/store /data/ && cp /source/passwords.key /data/"
+     alpine sh -c "cp -r /source/store/* /data/store/"
    ```
 
 3. **Start the container (no need to run init-store):**
@@ -308,7 +300,7 @@ docker-compose -f docker-compose.directory.yml up -d
 
 # For volumes mode
 docker-compose -f docker-compose.volumes.yml down
-docker run --rm -v multiwikiserver_mws-data:/data alpine rm -f /data/store/*.lock
+docker run --rm -v multiwikiserver_mws-store:/data/store alpine rm -f /data/store/*.lock
 docker-compose -f docker-compose.volumes.yml up -d
 ```
 
@@ -340,8 +332,8 @@ For volumes mode:
 # Stop and remove containers
 docker-compose -f docker-compose.volumes.yml down
 
-# Remove the data volume
-docker volume rm multiwikiserver_mws-data
+# Remove the store volume
+docker volume rm multiwikiserver_mws-store
 
 # Start fresh and initialize
 docker-compose -f docker-compose.volumes.yml up -d
@@ -353,11 +345,11 @@ For directory mode:
 # Stop containers
 docker-compose -f docker-compose.directory.yml down
 
-# Remove data directory
-rm -rf ./data/
+# Remove store directory
+rm -rf ./data/store/
 
 # Start fresh and initialize
-mkdir -p ./data
+mkdir -p ./data/store
 docker-compose -f docker-compose.directory.yml up -d
 docker-compose -f docker-compose.directory.yml exec mws npx mws init-store
 ```

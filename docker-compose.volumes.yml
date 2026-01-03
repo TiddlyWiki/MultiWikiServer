@@ -10,8 +10,9 @@ services:
     ports:
       - "8080:8080"
     volumes:
-      # Persist all data in a named Docker volume
-      - mws-data:/data
+      # Persist store data in a named Docker volume
+      - mws-store:/data/store
+      # Cache is ephemeral - not persisted
     environment:
       # Database URL for Prisma (SQLite)
       - DATABASE_URL=file:./store/mws.db
@@ -27,6 +28,6 @@ services:
       start_period: 40s
 
 volumes:
-  # Named volume for all MWS data
-  mws-data:
+  # Named volume for MWS store (database and tiddlers)
+  mws-store:
     driver: local

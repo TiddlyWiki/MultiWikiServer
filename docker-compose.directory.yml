@@ -10,9 +10,9 @@ services:
     ports:
       - "8080:8080"
     volumes:
-      # Use bind mount to local data directory
-      # This directory will contain store/, cache/, and passwords.key
-      - ./data:/data
+      # Use bind mount to local store directory
+      - ./data/store:/data/store
+      # Cache is ephemeral - not persisted
     environment:
       # Database URL for Prisma (SQLite)
       - DATABASE_URL=file:./store/mws.db
