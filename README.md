@@ -61,11 +61,10 @@ For easier deployment and consistent environments, you can run MWS using Docker 
 
 **Quick start with volumes mode:**
 ```bash
-# Clone the repository
-git clone https://github.com/TiddlyWiki/MultiWikiServer.git
-cd MultiWikiServer
+# Download the docker-compose file
+curl -O https://raw.githubusercontent.com/TiddlyWiki/MultiWikiServer/main/docker-compose.volumes.yml
 
-# Start MWS with Docker volumes
+# Start MWS
 docker-compose -f docker-compose.volumes.yml up -d
 
 # Initialize the database (required on first run)
@@ -77,14 +76,17 @@ docker-compose -f docker-compose.volumes.yml exec mws npx mws init-store
 
 **Quick start with directory mode:**
 ```bash
-# Clone the repository
-git clone https://github.com/TiddlyWiki/MultiWikiServer.git
-cd MultiWikiServer
+# Create your data directory
+mkdir my-mws-data
+cd my-mws-data
+
+# Download the docker-compose file
+curl -O https://raw.githubusercontent.com/TiddlyWiki/MultiWikiServer/main/docker-compose.directory.yml
 
 # Create store directory
-mkdir -p data/store
+mkdir -p store
 
-# Start MWS with directory mount
+# Start MWS
 docker-compose -f docker-compose.directory.yml up -d
 
 # Initialize the database (required on first run)
@@ -95,8 +97,8 @@ docker-compose -f docker-compose.directory.yml exec mws npx mws init-store
 ```
 
 Two deployment modes are available:
-- **docker-compose.volumes.yml** - Uses Docker-managed volumes for store data
-- **docker-compose.directory.yml** - Uses local `./data/store` directory for easier backups
+- **docker-compose.volumes.yml** - Uses Docker-managed volumes (simpler)
+- **docker-compose.directory.yml** - Uses local `./store` directory (easier backups and access)
 
 For detailed instructions, backup strategies, migration guides, and troubleshooting, see **[DOCKER.md](DOCKER.md)**.
 

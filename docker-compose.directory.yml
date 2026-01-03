@@ -11,11 +11,9 @@ services:
       - "8080:8080"
     volumes:
       # Use bind mount to local store directory
-      - ./data/store:/data/store
+      - ./store:/data/store
       # Cache is ephemeral - not persisted
     environment:
-      # Database URL for Prisma (SQLite)
-      - DATABASE_URL=file:./store/mws.db
       # Node environment
       - NODE_ENV=production
     restart: unless-stopped
