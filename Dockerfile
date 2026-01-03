@@ -15,7 +15,8 @@ RUN npm install --save-exact tiddlywiki@latest @tiddlywiki/mws@latest
 EXPOSE 8080
 
 # Set up volume for data persistence
-VOLUME ["/data/store"]
+# This includes store/, cache/, and passwords.key
+VOLUME ["/data"]
 
 # Default command - users can override this with docker-compose
 CMD ["npx", "mws", "listen", "--listener", "host=0.0.0.0", "port=8080"]

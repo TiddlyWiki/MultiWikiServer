@@ -172,16 +172,7 @@ tar xzf mws-backup-YYYYMMDD.tar.gz
 docker-compose -f docker-compose.production.yml up -d
 ```
 
-# Start the container
-docker-compose up -d
-```
-
-For bind mounts (production):
-```bash
-docker-compose -f docker-compose.production.yml down
-tar xzf mws-backup-YYYYMMDD.tar.gz
-docker-compose -f docker-compose.production.yml up -d
-```
+## Updates
 
 ## Updates
 
