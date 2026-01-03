@@ -10,13 +10,9 @@ services:
     ports:
       - "8080:8080"
     volumes:
-      # Persist the SQLite database and all data
-      - mws-data:/data/store
-      # Persist the password master key file
-      # IMPORTANT: Keep this file safe - if it changes, all passwords will need to be reset
-      - ./passwords.key:/data/passwords.key
-      # Optional: persist cache (can be regenerated on startup)
-      - mws-cache:/data/cache
+      # Persist all data (store, cache, and passwords.key) in one volume
+      # This makes backups simpler - just backup one volume
+      - mws-data:/data
     environment:
       # Database URL for Prisma (SQLite)
       - DATABASE_URL=file:./store/mws.db
@@ -31,7 +27,7 @@ services:
         npx mws init-store
       fi &&
       echo 'Starting MultiWikiServer...' &&
-      npx mws listen --listener
+      npx mws listen --listener host=0.0.0.0 port=8080
       "
     healthcheck:
       test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:8080/"]
@@ -41,9 +37,7 @@ services:
       start_period: 40s
 
 volumes:
-  # Named volume for wiki database - managed by Docker
+  # Named volume for all MWS data (store, cache, passwords.key)
+  # This is managed by Docker and includes everything
   mws-data:
-    driver: local
-  # Named volume for cache - managed by Docker
-  mws-cache:
     driver: local

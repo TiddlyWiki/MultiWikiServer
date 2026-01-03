@@ -12,10 +12,9 @@ services:
       # Map custom port if needed
       - "${MWS_PORT:-8080}:8080"
     volumes:
-      # Use bind mounts for easier backup access
-      - ./data/store:/data/store
-      - ./data/passwords.key:/data/passwords.key
-      - ./data/cache:/data/cache
+      # Use bind mount to local data directory for easier backup access
+      # This directory will contain store/, cache/, and passwords.key
+      - ./data:/data
     environment:
       - DATABASE_URL=file:./store/mws.db
       - NODE_ENV=production

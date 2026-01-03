@@ -59,14 +59,21 @@ The image installs MWS as an npm package, so you always get the official, publis
 
 MWS uses Docker volumes to persist your data:
 
-- **mws-data**: Contains your SQLite database (store folder)
-- **passwords.key**: Master key for password encryption (bind-mounted to host)
-- **mws-cache**: Cache files (regenerated on startup if missing)
+- **mws-data** (default setup): A single named volume containing all data:
+  - `store/`: SQLite database with wikis and tiddlers
+  - `passwords.key`: Master key for password encryption
+  - `cache/`: Cache files (regenerated on startup if missing)
+  
+- **./data/** (production setup): A bind-mounted directory containing:
+  - `store/`: SQLite database
+  - `passwords.key`: Password master key
+  - `cache/`: Cache files
 
 ### Important Files
 
 - `store/`: SQLite database with all your wikis and tiddlers - **Never delete files in this folder!**
 - `passwords.key`: If this file is lost or changed, all user passwords will need to be reset
+- `cache/`: Can be safely deleted; will be regenerated on startup
 
 ## Configuration Options
 
@@ -113,32 +120,32 @@ TZ=America/New_York docker-compose -f docker-compose.production.yml up -d
 
 ## Backup and Restore
 
-### Backup with Named Volumes
+### Backup with Named Volumes (Default Setup)
 
 ```bash
 # Stop the container
 docker-compose down
 
-# Backup the database volume
+# Backup the entire data volume (includes store, passwords.key, and cache)
 docker run --rm \
   -v multiwikiserver_mws-data:/data \
   -v $(pwd):/backup \
   alpine tar czf /backup/mws-backup-$(date +%Y%m%d).tar.gz /data
-
-# Backup the passwords.key file
-cp passwords.key passwords.key.backup
 ```
 
-### Backup with Bind Mounts (Production)
+### Backup with Bind Mounts (Production Setup)
 
 ```bash
+# Stop the container (optional but recommended)
+docker-compose -f docker-compose.production.yml down
+
 # Simply backup the data directory
 tar czf mws-backup-$(date +%Y%m%d).tar.gz ./data/
 ```
 
 ### Restore
 
-For named volumes:
+For named volumes (default setup):
 ```bash
 # Stop the container
 docker-compose down
@@ -149,8 +156,21 @@ docker run --rm \
   -v $(pwd):/backup \
   alpine sh -c "cd / && tar xzf /backup/mws-backup-YYYYMMDD.tar.gz"
 
-# Restore passwords.key
-cp passwords.key.backup passwords.key
+# Start the container
+docker-compose up -d
+```
+
+For bind mounts (production setup):
+```bash
+# Stop the container
+docker-compose -f docker-compose.production.yml down
+
+# Restore the backup
+tar xzf mws-backup-YYYYMMDD.tar.gz
+
+# Start the container
+docker-compose -f docker-compose.production.yml up -d
+```
 
 # Start the container
 docker-compose up -d
@@ -185,21 +205,45 @@ docker-compose -f docker-compose.production.yml up -d
 
 If you have an existing MWS installation and want to migrate to Docker:
 
+**For Production Setup (recommended for migration):**
+
 1. **Copy your data:**
    ```bash
-   # Create data directory structure
-   mkdir -p ./data/store
+   # Create data directory
+   mkdir -p ./data
    
-   # Copy your existing store folder
-   cp -r /path/to/your/mws/store/* ./data/store/
-   
-   # Copy passwords.key
-   cp /path/to/your/mws/passwords.key ./data/passwords.key
+   # Copy your entire existing data folder
+   cp -r /path/to/your/mws/store ./data/
+   cp /path/to/your/mws/passwords.key ./data/
+   # Copy cache if you want (optional)
+   cp -r /path/to/your/mws/cache ./data/ 2>/dev/null || true
    ```
 
 2. **Start with docker-compose.production.yml:**
    ```bash
    docker-compose -f docker-compose.production.yml up -d
+   ```
+
+**For Default Setup (with named volumes):**
+
+1. **Start the container first to create the volume:**
+   ```bash
+   docker-compose up -d
+   docker-compose down
+   ```
+
+2. **Copy data into the volume:**
+   ```bash
+   # Copy store folder
+   docker run --rm \
+     -v multiwikiserver_mws-data:/data \
+     -v /path/to/your/mws:/source \
+     alpine sh -c "cp -r /source/store /data/ && cp /source/passwords.key /data/"
+   ```
+
+3. **Start the container:**
+   ```bash
+   docker-compose up -d
    ```
 
 ## Troubleshooting
@@ -237,18 +281,28 @@ sudo chown -R $(id -u):$(id -g) ./data/
 
 **Warning: This will delete all your data!**
 
+For default setup:
 ```bash
 # Stop and remove containers
 docker-compose down
 
-# Remove volumes
-docker volume rm multiwikiserver_mws-data multiwikiserver_mws-cache
-
-# Remove passwords.key
-rm -f passwords.key
+# Remove the data volume
+docker volume rm multiwikiserver_mws-data
 
 # Start fresh
 docker-compose up -d
+```
+
+For production setup:
+```bash
+# Stop containers
+docker-compose -f docker-compose.production.yml down
+
+# Remove data directory
+rm -rf ./data/
+
+# Start fresh
+docker-compose -f docker-compose.production.yml up -d
 ```
 
 ## Advanced Configuration

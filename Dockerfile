@@ -14,8 +14,8 @@ RUN npm install --save-exact tiddlywiki@latest @tiddlywiki/mws@latest
 # Expose default MWS port
 EXPOSE 8080
 
-# Set up volumes for data persistence
-VOLUME ["/data/store", "/data/passwords.key"]
+# Set up volume for data persistence
+VOLUME ["/data/store"]
 
 # Default command - users can override this with docker-compose
-CMD ["npx", "mws", "listen", "--listener"]
+CMD ["npx", "mws", "listen", "--listener", "host=0.0.0.0", "port=8080"]

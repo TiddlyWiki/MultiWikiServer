@@ -40,10 +40,15 @@ archive
 *~
 .DS_Store
 
-# Lock files (better-sqlite3 can create these)
-localhost.*
-*.key
-
-# MWS specific
+# MWS specific runtime files (not needed during build)
 TiddlyWiki5
 cache
+store
+passwords.key
+data/
+
+# Docker files
+docker-compose*.yml
+Dockerfile
+.dockerignore
+DOCKER.md
