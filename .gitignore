@@ -12,5 +12,4 @@ editions/mws-docs/tiddlers/$__StoryList.tid
 
 # Docker
 .env
-data/
-passwords.key
+store/

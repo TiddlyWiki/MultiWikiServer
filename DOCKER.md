@@ -25,9 +25,10 @@ This mode uses Docker-managed named volumes for data storage.
 
 ### Setup
 
-1. **Download the docker-compose file:**
+1. **Download the required files:**
    ```bash
    curl -O https://raw.githubusercontent.com/TiddlyWiki/MultiWikiServer/main/docker-compose.volume.yml
+   curl -O https://raw.githubusercontent.com/TiddlyWiki/MultiWikiServer/main/Dockerfile
    ```
 
 2. **Start the container:**
@@ -80,9 +81,10 @@ This mode uses a local `./store` directory for data storage, making it easier to
    cd my-mws-data
    ```
 
-2. **Download the docker-compose file:**
+2. **Download the required files:**
    ```bash
    curl -O https://raw.githubusercontent.com/TiddlyWiki/MultiWikiServer/main/docker-compose.directory.yml
+   curl -O https://raw.githubusercontent.com/TiddlyWiki/MultiWikiServer/main/Dockerfile
    ```
 
 3. **Create the store directory:**
@@ -250,9 +252,10 @@ If you have an existing MWS installation and want to migrate to Docker:
    cp -r /path/to/your/mws/store ./
    ```
 
-2. **Download the docker-compose file:**
+2. **Download the required files:**
    ```bash
    curl -O https://raw.githubusercontent.com/TiddlyWiki/MultiWikiServer/main/docker-compose.directory.yml
+   curl -O https://raw.githubusercontent.com/TiddlyWiki/MultiWikiServer/main/Dockerfile
    ```
 
 3. **Start the container (no need to run init-store):**
@@ -262,9 +265,10 @@ If you have an existing MWS installation and want to migrate to Docker:
 
 ### Using Volumes Mode
 
-1. **Download the docker-compose file:**
+1. **Download the required files:**
    ```bash
    curl -O https://raw.githubusercontent.com/TiddlyWiki/MultiWikiServer/main/docker-compose.volume.yml
+   curl -O https://raw.githubusercontent.com/TiddlyWiki/MultiWikiServer/main/Dockerfile
    ```
 
 2. **Start the container first to create the volume:**
@@ -383,7 +387,7 @@ To enable HTTPS, you'll need to generate or obtain SSL certificates and pass the
 2. Mount the certificates and modify the command in your docker-compose file:
    ```yaml
    volumes:
-     - ./data:/data
+     - ./store:/data/store
      - ./certs:/certs:ro
    command: >
      sh -c "npx mws listen --listener host=0.0.0.0 port=8080 
@@ -405,10 +409,11 @@ You can set additional environment variables in your docker-compose file:
 
 ```yaml
 environment:
-  - DATABASE_URL=file:./store/mws.db
   - NODE_ENV=production
   - TZ=America/New_York  # Set timezone
 ```
+
+Note: `DATABASE_URL` is set internally by MWS and does not need to be configured.
 
 ---
 

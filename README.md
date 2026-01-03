@@ -59,10 +59,11 @@ If you run into trouble, or need help figuring something out, feel free to [star
 
 For easier deployment and consistent environments, you can run MWS using Docker Compose. See **[DOCKER.md](DOCKER.md)** for complete documentation.
 
-**Quick start with volumes mode:**
+**Quick start with volume mode:**
 ```bash
-# Download the docker-compose file
+# Download the required files
 curl -O https://raw.githubusercontent.com/TiddlyWiki/MultiWikiServer/main/docker-compose.volume.yml
+curl -O https://raw.githubusercontent.com/TiddlyWiki/MultiWikiServer/main/Dockerfile
 
 # Start MWS
 docker-compose -f docker-compose.volume.yml up -d
@@ -80,8 +81,9 @@ docker-compose -f docker-compose.volume.yml exec mws npx mws init-store
 mkdir my-mws-data
 cd my-mws-data
 
-# Download the docker-compose file
+# Download the required files
 curl -O https://raw.githubusercontent.com/TiddlyWiki/MultiWikiServer/main/docker-compose.directory.yml
+curl -O https://raw.githubusercontent.com/TiddlyWiki/MultiWikiServer/main/Dockerfile
 
 # Create store directory
 mkdir -p store
