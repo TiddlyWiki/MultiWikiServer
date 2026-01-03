@@ -10,25 +10,50 @@ This guide explains how to deploy MultiWikiServer using Docker and Docker Compos
 
 ### Basic Setup
 
-1. **Build and start MWS:**
+1. **Clone the repository:**
+   ```bash
+   git clone https://github.com/TiddlyWiki/MultiWikiServer.git
+   cd MultiWikiServer
+   ```
+
+2. **Build and start MWS:**
    ```bash
    docker-compose up -d
    ```
+   
+   This will:
+   - Build a Docker image with the latest MWS from npm
+   - Create necessary Docker volumes for data persistence
+   - Initialize the database on first run
+   - Start the MWS server
 
-2. **Access your wiki:**
+3. **Access your wiki:**
    - Open http://localhost:8080 in your browser
    - Default credentials: username `admin`, password `1234`
    - **Important:** Change the default password immediately after first login!
 
-3. **View logs:**
+4. **View logs:**
    ```bash
    docker-compose logs -f mws
    ```
 
-4. **Stop MWS:**
+5. **Stop MWS:**
    ```bash
    docker-compose down
    ```
+
+### About the Docker Image
+
+The provided `Dockerfile` builds an image that:
+- Uses Node.js 18 Alpine Linux for a small footprint
+- Installs the latest stable version of MWS from npm
+- Automatically initializes the database on first run
+- Exposes port 8080 by default
+
+The image installs MWS as an npm package, so you always get the official, published version. This approach:
+- Ensures consistency with the standard Node.js installation
+- Benefits from pre-built native modules (better-sqlite3)
+- Simplifies updates through `docker-compose build --no-cache`
 
 ## Data Persistence
 
