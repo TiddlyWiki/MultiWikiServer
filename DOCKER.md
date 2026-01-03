@@ -305,21 +305,6 @@ docker-compose -f docker-compose.volume.yml logs mws
 docker-compose -f docker-compose.directory.yml logs mws
 ```
 
-### Database is locked
-
-This can happen if the container was forcefully stopped:
-```bash
-# For directory mode (easier to fix)
-docker-compose -f docker-compose.directory.yml down
-rm -f ./store/*.lock
-docker-compose -f docker-compose.directory.yml up -d
-
-# For volumes mode
-docker-compose -f docker-compose.volume.yml down
-docker run --rm -v multiwikiserver_mws-store:/data/store alpine rm -f /data/store/*.lock
-docker-compose -f docker-compose.volume.yml up -d
-```
-
 ### Permission issues
 
 If you encounter permission issues with directory mode:
