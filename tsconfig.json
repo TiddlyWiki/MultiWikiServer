@@ -10,7 +10,6 @@
     "moduleResolution": "bundler",
     "checkJs": true,
     "allowJs": true,
-    "jsx": "preserve",
     "allowImportingTsExtensions": true,
     "forceConsistentCasingInFileNames": true,
     "noEmit": true,

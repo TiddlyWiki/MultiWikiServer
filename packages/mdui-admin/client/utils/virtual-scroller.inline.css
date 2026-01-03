@@ -1,0 +1,20 @@
+:host {
+  overflow-y: auto;
+  overflow-x: hidden;
+
+  scrollbar-color: rgb(var(--mdui-color-primary)) transparent;
+
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+
+  overflow-anchor: none;
+}
+
+.list-start {
+  flex: 0 0 var(--virtualized-start);
+}
+
+.list-end {
+  flex: 0 0 var(--virtualized-end);
+}

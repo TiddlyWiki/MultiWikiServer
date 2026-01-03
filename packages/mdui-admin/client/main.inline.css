@@ -1,0 +1,13 @@
+:host {
+  height: 100%;
+  width: 100%;
+  max-width: var(--mdui-breakpoint-lg);
+  margin: 0 auto;
+  box-sizing: border-box;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  user-select: none;
+  overflow-x: hidden;
+  overflow-y: auto;
+}

@@ -40,9 +40,13 @@ serverEvents.on("listen.router.init", async (listen, router) => {
   router.config = listen.config;
 
   // router.sendAdmin = await setupDevServer(listen.config);
+  // router.sendAdmin = await setupClientBuild({
+  //   rootdir: dist_resolve("../packages/react-admin"),
+  //   publicdir: dist_resolve("../public/react-admin")
+  // });
   router.sendAdmin = await setupClientBuild({
-    rootdir: dist_resolve("../packages/react-admin"),
-    publicdir: dist_resolve("../public/react-admin")
+    rootdir: dist_resolve("../packages/mdui-admin"),
+    publicdir: dist_resolve("../public/mdui-admin")
   });
   router.createServerRequest = async (request, routePath, bodyFormat) => {
     const user = await SessionManager.parseIncomingRequest(request.cookies, router.config);

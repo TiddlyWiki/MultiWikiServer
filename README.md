@@ -31,25 +31,24 @@ Most of these features are still in development.
 
 ![this is fine](https://github.com/user-attachments/assets/49505d25-7a48-42f1-b4f7-73e8630c1ba1)
 
-
 ## Also, this is a database, please make backups
 
-Databases try very hard to be perfect, and data bugs are rare. But that doesn't mean things can't go wrong. Backups are pretty important. 
+Databases try very hard to be perfect, and data bugs are rare. But that doesn't mean things can't go wrong. Backups are pretty important.
 
 ## How to run
 
-The init command creates a new folder and installs what you need to get started. You can name "my-folder" whatever you want. 
+The init command creates a new folder and installs what you need to get started. You can name "my-folder" whatever you want.
 
 - `npm init @tiddlywiki/mws@latest my-folder`
 - `cd my-folder`
 - `npx mws init-store`
 - `npx mws listen --listener`
 
-You can run `npx mws help` to get more information about the commands. 
+You can run `npx mws help` to get more information about the commands.
 
 - the server runs on port `8080`. It does not use HTTPS by default, but you can enable it by specifying a key and cert.
 - A `passwords.key` file is created which contains the password master salt. If this file changes, all passwords will need to be reset.
-- Your database is in the `store` folder. All files in the `store` folder are data files, not temp or lock files! Never delete them! 
+- Your database is in the `store` folder. All files in the `store` folder are data files, not temp or lock files! Never delete them!
 
 The initial user created on first run has the username `admin` and password `1234`.
 
@@ -70,14 +69,14 @@ The 0.1 database is incompatible with the 0.0 database. Version 0.1 will detect 
 
 ## Backups
 
-It is recommended to backup your entire data folder, not just the `store` folder, except the `cache` folder. 
+It is recommended to backup your entire data folder, not just the `store` folder, except the `cache` folder.
 
-- You must *always* backup the *entire* `store` folder. Never delete any files in the `store` folder. All files in the `store` folder are data files!
-- You should definitely backup the `package.json` file, as it contains the MWS version you are currently using. The `package-lock.json` file is also useful if you don't want to back up the entire `node_modules` folder for some reason. 
-- The `cache` folder (next to the `store` folder) is generated every time MWS starts, so you can exclude that from backups if you want. 
-- The `node_modules` folder should be included in your backup, as it contains all the application code required to run your database, but it can also be reconstructed from the `package-lock.json` file or the `package.json` file. 
+- You must _always_ backup the _entire_ `store` folder. Never delete any files in the `store` folder. All files in the `store` folder are data files!
+- You should definitely backup the `package.json` file, as it contains the MWS version you are currently using. The `package-lock.json` file is also useful if you don't want to back up the entire `node_modules` folder for some reason.
+- The `cache` folder (next to the `store` folder) is generated every time MWS starts, so you can exclude that from backups if you want.
+- The `node_modules` folder should be included in your backup, as it contains all the application code required to run your database, but it can also be reconstructed from the `package-lock.json` file or the `package.json` file.
 
-MWS uses NPM packages, so as long as you back up the *entire* store folder, and the package-lock.json file, you should have enough information for a NodeJS developer to reconstruct the site. 
+MWS uses NPM packages, so as long as you back up the _entire_ store folder, and the package-lock.json file, you should have enough information for a NodeJS developer to reconstruct the site.
 
 ## Development
 

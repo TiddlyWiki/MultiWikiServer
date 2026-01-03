@@ -121,8 +121,18 @@ export async function setupClientBuild({ rootdir, publicdir }: { rootdir: string
   if (!existsSync(publicdir)) throw new Error(`${publicdir} does not exist`);
 
   return async function sendProdServer(state, indexOptions) {
-    if (indexOptions) serveIndex({ state, publicdir, status: indexOptions.status, serverResponse: indexOptions.serverResponse });
-    const sendIndex = () => serveIndex({ state, publicdir, status: 200, serverResponse: null });
+    if (indexOptions) serveIndex({
+      state,
+      publicdir,
+      status: indexOptions.status,
+      serverResponse: indexOptions.serverResponse
+    });
+    const sendIndex = () => serveIndex({
+      state,
+      publicdir,
+      status: 200,
+      serverResponse: null
+    });
     return state.sendFile(200, {}, {
       root: publicdir,
       reqpath: state.url,

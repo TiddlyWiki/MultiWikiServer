@@ -55,3 +55,50 @@ Internal notes by core developers
 - Recipe templates, which have a simple list of plugins and readonly bags, and are assigned to the writable bag.
 
 
+- Let everyone see when someone is editing a tiddler and how long since last keystroke.
+- Auth and Admin needs to be fully user aware and swappable for different situations. 
+- API endpoints need to be clean and understandable.
+- 
+
+
+## list of current routes
+
+```js
+[ 'POST' ] ^\/login\/1$ 
+[ 'POST' ] ^\/login\/2$ 
+[ 'POST' ] ^\/logout$
+[ 'GET', 'HEAD' ] ^\/\$cache\/(?<plugin>._)\/plugin\.js$ 
+[ 'POST' ] ^\/admin\/bag_create_or_update$ +0ms
+[ 'POST' ] ^\/admin\/bag_delete$ +0ms
+[ 'POST' ] ^\/admin\/bag_acl_update$ +0ms
+[ 'POST' ] ^\/admin\/recipe_create_or_update$ +1ms
+[ 'POST' ] ^\/admin\/recipe_delete$ +0ms
+[ 'POST' ] ^\/admin\/recipe_acl_update$ +0ms
+[ 'POST' ] ^\/admin\/user_edit_data$ +0ms
+[ 'POST' ] ^\/admin\/user_create$ +0ms
+[ 'POST' ] ^\/admin\/user_delete$ +0ms
+[ 'POST' ] ^\/admin\/user_list$ +0ms
+[ 'POST' ] ^\/admin\/user_update$ +0ms
+[ 'POST' ] ^\/admin\/user_update_password$ +1ms
+[ 'POST' ] ^\/admin\/role_create$ +0ms
+[ 'POST' ] ^\/admin\/role_update$ +0ms
+[ 'POST' ] ^\/admin\/settings_read$ +0ms
+[ 'POST' ] ^\/admin\/settings_update$ +0ms
+[] ^(?=\/recipe\/) +0ms
+[ 'GET', 'HEAD' ] ^\/recipe\/(?<recipe_name>[^/]+)\/all-bags-state$ +0ms
+[ 'GET', 'HEAD' ] ^\/recipe\/(?<recipe_name>[^/]+)\/bags\/(?<bag_name>[^/]+)\/state$ +0ms
+[ 'GET', 'HEAD' ] ^\/recipe\/(?<recipe_name>[^/]+)\/status$ +0ms
+[ 'GET', 'HEAD' ] ^\/recipe\/(?<recipe_name>[^/]+)\/events$ +0ms
+[ 'GET', 'HEAD' ] ^\/recipe\/(?<recipe_name>[^/]+)\/bags$ +0ms
+[ 'DELETE' ] ^\/recipe\/(?<recipe_name>[^/]+)\/tiddlers\/(?<title>.+)$ +1ms
+[ 'GET', 'HEAD' ] ^\/recipe\/(?<recipe_name>[^/]+)\/tiddlers\/(?<title>.+)$ +0ms
+[ 'PUT' ] ^\/recipe\/(?<recipe_name>[^/]+)\/tiddlers\/(?<title>.+)$ +0ms
+[ 'PUT' ] ^\/recipe\/(?<recipe_name>[^/]+)\/rpc\/rpcDeleteRecipeTiddlerList$ +0ms
+[ 'PUT' ] ^\/recipe\/(?<recipe_name>[^/]+)\/rpc\/rpcLoadRecipeTiddlerList$ +0ms
+[ 'PUT' ] ^\/recipe\/(?<recipe_name>[^/]+)\/rpc\/rpcSaveRecipeTiddlerList$ +0ms
+[ 'GET', 'HEAD', 'OPTIONS' ] ^\/wiki\/(?<recipe_name>._)$ +0ms
+[ 'GET', 'HEAD' ] ^\/user\/status$ +0ms
+[ 'POST' ] ^\/admin\/index_json$ +0ms
+[ 'GET', 'HEAD' ] ^\/stats\/(?<folder>[^\/]+)\/(?<file>._) +0ms
+[ 'GET' ] ^\/._ +1ms
+```

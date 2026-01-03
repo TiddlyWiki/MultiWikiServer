@@ -1,0 +1,27 @@
+{
+  "name": "@tiddlywiki/mws-admin",
+  "private": true,
+  "main": "routes.ts",
+  "types": "index.ts",
+  "browser": "index.ts",
+  "dependencies": {
+    "@fontsource/roboto": "^5.2.6",
+    "@material/web": "^2.4.0",
+    "@mdui/icons": "^1.0.3",
+    "@types/luxon": "^3.6.2",
+    "@types/react": "^19.2.2",
+    "beercss": "^3.11.32",
+    "comdb": "^6.0.0-beta",
+    "esbuild-plugin-copy": "^2.1.1",
+    "events": "^3.3.0",
+    "lit": "3.3.1",
+    "luxon": "^3.7.1",
+    "material-dynamic-colors": "^1.1.2",
+    "mdui": "2.1.4",
+    "normalize.css": "^8.0.1",
+    "react": "^19.2.0",
+    "replicache": "^15.3.0",
+    "ui7": "^0.2.3",
+    "uuid": "^13.0.0"
+  }
+}
