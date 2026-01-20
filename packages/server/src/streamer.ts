@@ -1,7 +1,7 @@
 import * as http2 from 'node:http2';
 import send, { SendOptions } from 'send';
 import { Readable } from 'stream';
-import { IncomingMessage, ServerResponse, IncomingHttpHeaders as NodeIncomingHeaders, OutgoingHttpHeaders, OutgoingHttpHeader } from 'node:http';
+import * as http from 'node:http';
 import { caughtPromise, is, zodDecodeURIComponent } from './utils';
 import { createReadStream } from 'node:fs';
 import { Writable } from 'node:stream';
@@ -12,7 +12,7 @@ import { truthy } from './utils';
 import { BodyFormat, RouteMatch } from './router';
 import { zod } from './Z2';
 import { getMultipartBoundary, isMultipartRequestHeader, MultipartPart, parseNodeMultipartStream } from '@mjackson/multipart-parser';
-import { SendError } from './SendError';
+import { SendError, SendErrorReason, SendErrorReasonData } from './SendError';
 
 declare module 'node:net' {
   interface Socket {
@@ -25,7 +25,7 @@ declare module 'node:net' {
 }
 
 
-export interface IncomingHttpHeaders extends NodeIncomingHeaders {
+export interface IncomingHttpHeaders extends http.IncomingHttpHeaders {
   "x-requested-with"?: string;
 }
 
@@ -45,12 +45,12 @@ export interface SendFileOptions extends Omit<SendOptions, "root" | "dotfiles" |
 }
 
 export type StreamerChunk = { data: string, encoding: NodeJS.BufferEncoding } | NodeJS.ReadableStream | Readable | Buffer;
-export type GenericRequest = IncomingMessage | http2.Http2ServerRequest;
+export type GenericRequest = http.IncomingMessage | http2.Http2ServerRequest;
 interface Http1ServerResponse
   extends
-  Omit<ServerResponse, "writeHead">,
-  Omit<Record<keyof http2.Http2ServerResponse, undefined>, keyof ServerResponse> {
-  writeHead(statusCode: number, headers?: OutgoingHttpHeaders): this;
+  Omit<http.ServerResponse, "writeHead">,
+  Omit<Record<keyof http2.Http2ServerResponse, undefined>, keyof http.ServerResponse> {
+  writeHead(statusCode: number, headers?: http.OutgoingHttpHeaders): this;
 }
 export type GenericResponse = Http1ServerResponse | http2.Http2ServerResponse;
 
@@ -79,7 +79,7 @@ export class Streamer {
       }
     }
 
-    if (is<http2.Http2ServerRequest>(req, req.httpVersionMajor > 1))
+    if (is2(req))
       req.headers.host = req.headers[":authority"] as string;
     if (!req.headers.host) throw new Error("This should never happen");
 
@@ -207,6 +207,15 @@ export class Streamer {
 
   }
 
+  
+  get remoteFamily() { return this.#req.socket.remoteFamily; }
+  get remoteAddress() { return this.#req.socket.remoteAddress; }
+  get remotePort() { return this.#req.socket.remotePort; }
+
+  get localFamily() { return this.#req.socket.localFamily; }
+  get localAddress() { return this.#req.socket.localAddress; }
+  get localPort() { return this.#req.socket.localPort; }
+
   /** type-narrowing helper function. This affects anywhere T is used. */
   isBodyFormat(format: BodyFormat): boolean {
     return this.bodyFormat as BodyFormat === format;
@@ -320,7 +329,7 @@ export class Streamer {
   }
 
 
-  sendEmpty(status: number, headers: OutgoingHttpHeaders = {}): typeof STREAM_ENDED {
+  sendEmpty(status: number, headers: http.OutgoingHttpHeaders = {}): typeof STREAM_ENDED {
     if (process.env.DEBUG?.split(",").includes("send")) {
       console.error("sendEmpty", status, headers);
     }
@@ -329,7 +338,7 @@ export class Streamer {
     return STREAM_ENDED;
   }
 
-  sendString(status: number, headers: OutgoingHttpHeaders, data: string, encoding: NodeJS.BufferEncoding): typeof STREAM_ENDED {
+  sendString(status: number, headers: http.OutgoingHttpHeaders, data: string, encoding: NodeJS.BufferEncoding): typeof STREAM_ENDED {
     if (process.env.DEBUG?.split(",").includes("send")) {
       console.error("sendString", status, headers);
     }
@@ -344,7 +353,7 @@ export class Streamer {
     return STREAM_ENDED;
   }
 
-  sendBuffer(status: number, headers: OutgoingHttpHeaders, data: Buffer): typeof STREAM_ENDED {
+  sendBuffer(status: number, headers: http.OutgoingHttpHeaders, data: Buffer): typeof STREAM_ENDED {
     if (process.env.DEBUG?.split(",").includes("send")) {
       console.error("sendBuffer", status, headers);
     }
@@ -357,7 +366,7 @@ export class Streamer {
     return STREAM_ENDED;
   }
   /** If this is a HEAD request, the stream will be destroyed. */
-  sendStream(status: number, headers: OutgoingHttpHeaders, stream: Readable): typeof STREAM_ENDED {
+  sendStream(status: number, headers: http.OutgoingHttpHeaders, stream: Readable): typeof STREAM_ENDED {
     if (process.env.DEBUG?.split(",").includes("send")) {
       console.error("sendStream", status, headers);
     }
@@ -373,7 +382,7 @@ export class Streamer {
 
 
   // I'm not sure if there's a use case for this
-  private sendFD(status: number, headers: OutgoingHttpHeaders, options: {
+  private sendFD(status: number, headers: http.OutgoingHttpHeaders, options: {
     fd: number;
     offset?: number;
     length?: number;
@@ -410,7 +419,7 @@ export class Streamer {
   
    * @returns STREAM_ENDED
    */
-  sendFile(status: number, headers: OutgoingHttpHeaders, options: SendFileOptions) {
+  sendFile(status: number, headers: http.OutgoingHttpHeaders, options: SendFileOptions) {
 
     // the headers and status have to be set on the response object before piping the stream
     this.#res.statusCode = status;
@@ -571,6 +580,14 @@ export class Streamer {
     }, JSON.stringify(obj), "utf8");
   }
 
+  sendError<REASON extends SendErrorReason>(
+    status: SendErrorReasonData[REASON]["status"],
+    reason: REASON,
+    details: SendErrorReasonData[REASON]["details"],
+  ): never {
+    throw new SendError(reason, status, details);
+  }
+
   /**
    *
    * Sends a **302** status code and **Location** header to the client.
@@ -703,7 +720,7 @@ export class Streamer {
   setHeader(name: string, value: string): void {
     this.#res.setHeader(name, value);
   }
-  writeHead(status: number, headers: OutgoingHttpHeaders = {}): void {
+  writeHead(status: number, headers: http.OutgoingHttpHeaders = {}): void {
     if (Debug.enabled("send"))
       console.error("writeHead", status, headers);
 
@@ -794,4 +811,8 @@ export class Streamer {
 }
 
 
+
+export function is2(req: GenericRequest) {
+  return is<http2.Http2ServerRequest>(req, req.httpVersionMajor > 1);
+}
 

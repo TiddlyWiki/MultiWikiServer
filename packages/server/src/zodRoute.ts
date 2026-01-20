@@ -5,18 +5,35 @@ import { RouteDef } from "./router";
 import { Z2, zod as z } from "./Z2";
 import * as core from "zod/v4/core";
 
+
 export function zodRoute<
   M extends string,
   B extends "GET" | "HEAD" extends M ? "ignore" : BodyFormat,
   P extends Record<string, z.ZodType<any, string | undefined>>,
   Q extends Record<string, z.ZodType<any, string[] | undefined>>,
   T extends z.ZodTypeAny,
-  R extends JsonValue
+  R
 >(route: Omit<ZodRoute<M, B, P, Q, T, R>, "registerError">): ZodRoute<M, B, P, Q, T, R> {
   (route as any).registerError = new Error();
+  (route as any)[zodRoute.symbol] = true;
   return route as ZodRoute<M, B, P, Q, T, R>;
 }
+{
+  const COMPILE_TIME_BUT_NEVER_RUNTIME: true = false as any;
+  zodRoute.symbol = Symbol("zodRoute");
+  const t2 = (instance: any): instance is ZodRoute<any, any, any, any, any, any> =>
+    typeof instance === "object" && instance && instance[zodRoute.symbol] === true;
 
+  if (COMPILE_TIME_BUT_NEVER_RUNTIME) {
+    zodRoute[Symbol.hasInstance] = t2;
+  } else {
+    Object.defineProperty(zodRoute, Symbol.hasInstance, {
+      value: t2,
+      configurable: true,
+      writable: false,
+    });
+  }
+}
 
 export type FieldTypeGroups = "STRING" | "JSON";
 
@@ -31,7 +48,7 @@ export interface ZodRoute<
   P extends Record<string, z.ZodType<any, string | undefined>>,
   Q extends Record<string, z.ZodType<any, string[] | undefined>>,
   T extends z.ZodTypeAny,
-  R extends JsonValue
+  R
 > {
 
   /**
