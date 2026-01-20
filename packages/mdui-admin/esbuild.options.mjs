@@ -29,6 +29,8 @@ export default async function({ rootdir, publicdir }) {
       throw new Error(`Entry file for ${e.out} does not exist at ${e.in}`);
   });
 
+  const prod = false;
+
   const options = optionsTyped({
     entryPoints,
     bundle: true,
@@ -36,11 +38,25 @@ export default async function({ rootdir, publicdir }) {
     platform: 'browser',
     jsx: 'automatic',
     outdir: publicdir,
-    minify: !process.env.NOMINIFY,
     sourcemap: true,
     metafile: true,
     splitting: true,
     format: "esm",
+    loader: { '.inline.css': 'text' },
+    minify: !process.env.NOMINIFY,
+    external: ['node:crypto'],
+    define: prod ? {
+      "process.env.NODE_ENV": JSON.stringify("production"),
+      "import.meta.env.DEV": "false",
+      "import.meta.env.PROD": "true",
+      "import.meta.env.SSR": "false",
+    } : {
+      "process.env.NODE_ENV": JSON.stringify("development"),
+      "import.meta.env.DEV": "true",
+      "import.meta.env.PROD": "false",
+      "import.meta.env.SSR": "false",
+    },
+    conditions: prod ? [] : ["development"],
     plugins: [
       copy({
         assets: [{

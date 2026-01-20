@@ -15,6 +15,7 @@ import "./utils/virtual-scroller";
 import main_inline_css from './main.inline.css';
 
 import { styles as typescaleStyles } from '@material/web/typography/md-typescale-styles.js';
+import { SearchBar } from './ui/appbar';
 
 document.adoptedStyleSheets.push(typescaleStyles.styleSheet!);
 // this appends a style tag to the head, so I just baked it into the html.
@@ -31,10 +32,17 @@ document.documentElement.classList.add("loaded");
 @customElement('mws-app')
 @addstyles(main_inline_css)
 class App extends JSXElement<{}> {
-
+  render(){
+    return <>
+      <SearchBar
+        onsearch={() => {}}
+        title="Search Wikis"
+      ></SearchBar>
+    </>;
+  }
 }
 
 setTimeout(() => {
   document.body.appendChild(new App());
-});
+}, 100);
 
