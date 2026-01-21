@@ -16,59 +16,19 @@ import type * as Prisma from "./prismaNamespace.ts"
 
 
 const config: runtime.GetPrismaClientConfig = {
-  "generator": {
-    "name": "client",
-    "provider": {
-      "fromEnvVar": null,
-      "value": "prisma-client"
-    },
-    "output": {
-      "value": "/workspaces/MultiWikiServer/prisma/client",
-      "fromEnvVar": null
-    },
-    "config": {
-      "engineType": "client"
-    },
-    "binaryTargets": [
-      {
-        "fromEnvVar": null,
-        "value": "debian-openssl-1.1.x",
-        "native": true
-      }
-    ],
-    "previewFeatures": [],
-    "sourceFilePath": "/workspaces/MultiWikiServer/prisma/schema.prisma",
-    "isCustomOutput": true
-  },
-  "relativePath": "..",
-  "clientVersion": "6.19.0",
-  "engineVersion": "2ba551f319ab1df4bc874a89965d8b3641056773",
-  "datasourceNames": [
-    "db"
-  ],
+  "previewFeatures": [],
+  "clientVersion": "7.2.0",
+  "engineVersion": "0c8ef2ce45c83248ab3df073180d5eda9e8be7a3",
   "activeProvider": "sqlite",
-  "postinstall": true,
-  "inlineDatasources": {
-    "db": {
-      "url": {
-        "fromEnvVar": "DATABASE_URL",
-        "value": null
-      }
-    }
-  },
-  "inlineSchema": "datasource db {\n  provider = \"sqlite\"\n  url      = env(\"DATABASE_URL\")\n}\n\ngenerator client {\n  provider   = \"prisma-client\"\n  output     = \"client\"\n  engineType = \"client\"\n}\n\ngenerator json {\n  provider     = \"prisma-json-types-generator\"\n  namespace    = \"PrismaJson\"\n  clientOutput = \"client\"\n  useType      = \"AllTypes\"\n}\n\nenum Permission {\n  READ\n  WRITE\n  ADMIN\n}\n\n// The `packages/mws/src/managers/` folder is the primary place this schema is used. \n// SQLite initialization is done in `packages/mws/src/db/sqlite-adapter.ts`.\n\nmodel Settings {\n  key   String @id\n  value String\n\n  @@map(\"settings\")\n}\n\nmodel Recipes {\n  recipe_id             String        @id @default(uuid(7))\n  recipe_name           String        @unique\n  description           String\n  owner_id              String?\n  /// [Recipes_plugin_names]\n  plugin_names          Json\n  skip_required_plugins Boolean       @default(false)\n  skip_core             Boolean       @default(false)\n  preload_store         Boolean       @default(false)\n  custom_wiki           String?\n  recipe_bags           Recipe_bags[]\n  acl                   RecipeAcl[]\n\n  @@map(\"recipes\")\n}\n\nmodel RecipeAcl {\n  acl_id     Int        @id @default(autoincrement())\n  role_id    String\n  permission Permission\n  recipe     Recipes    @relation(fields: [recipe_id], references: [recipe_id], onDelete: Cascade)\n  recipe_id  String\n\n  @@map(\"recipe_acl\")\n}\n\nmodel Recipe_bags {\n  recipe_id    String\n  bag_id       String\n  position     Int\n  with_acl     Boolean @default(false)\n  load_modules Boolean @default(false)\n\n  bag    Bags    @relation(fields: [bag_id], references: [bag_id], onDelete: Cascade)\n  recipe Recipes @relation(fields: [recipe_id], references: [recipe_id], onDelete: Cascade)\n\n  @@unique([recipe_id, bag_id])\n  @@index([recipe_id])\n  @@map(\"recipe_bags\")\n}\n\nmodel Bags {\n  bag_id      String        @id @default(uuid(7))\n  bag_name    String        @unique\n  description String\n  owner_id    String?\n  recipe_bags Recipe_bags[]\n  tiddlers    Tiddlers[]\n  acl         BagAcl[]\n\n  @@map(\"bags\")\n}\n\nmodel BagAcl {\n  acl_id     Int        @id @default(autoincrement())\n  bag_id     String\n  bag        Bags       @relation(fields: [bag_id], references: [bag_id], onDelete: Cascade)\n  role_id    String\n  permission Permission\n\n  @@map(\"bag_acl\")\n}\n\nmodel Tiddlers {\n  revision_id     String   @id @default(uuid(7))\n  bag_id          String\n  title           String\n  is_deleted      Boolean\n  attachment_hash String?\n  fields          Fields[]\n  // Deleting a referenced record (bag) will trigger the deletion of referencing record (tiddler).\n  bag             Bags     @relation(fields: [bag_id], references: [bag_id], onDelete: Cascade)\n\n  @@unique([bag_id, title])\n  @@index([bag_id])\n  @@map(\"tiddlers\")\n}\n\nmodel Fields {\n  revision_id String\n  field_name  String\n  field_value String\n  // Deleting a referenced record (tiddler) will trigger the deletion of referencing record (field).\n  tiddler     Tiddlers @relation(fields: [revision_id], references: [revision_id], onDelete: Cascade)\n\n  @@id([revision_id, field_name])\n  @@index([revision_id])\n  @@map(\"fields\")\n}\n\nmodel Roles {\n  role_id     String  @id @default(uuid(7))\n  role_name   String  @unique()\n  description String?\n  users       Users[]\n\n  @@map(\"roles\")\n}\n\nmodel Users {\n  user_id    String     @id @default(uuid(7))\n  username   String     @unique\n  email      String     @unique\n  password   String\n  created_at DateTime   @default(now())\n  last_login DateTime?\n  sessions   Sessions[]\n  roles      Roles[]\n\n  @@map(\"users\")\n}\n\nmodel Sessions {\n  session_id    String   @id\n  created_at    DateTime @default(now())\n  last_accessed DateTime\n  session_key   String?\n  user_id       String\n  user          Users    @relation(fields: [user_id], references: [user_id], onDelete: NoAction, onUpdate: NoAction)\n\n  @@map(\"sessions\")\n}\n",
-  "inlineSchemaHash": "773e65a0827433a1bbaaf16c93512b9ff0ad883490443b7e0e030fb3aeebbb4b",
-  "copyEngine": true,
+  "inlineSchema": "datasource db {\n  provider = \"sqlite\"\n}\n\ngenerator client {\n  provider = \"prisma-client\"\n  output   = \"client\"\n}\n\ngenerator json {\n  provider  = \"prisma-json-types-generator\"\n  namespace = \"PrismaJson\"\n}\n\nenum Permission {\n  READ\n  WRITE\n  ADMIN\n}\n\n// The `packages/mws/src/managers/` folder is the primary place this schema is used. \n// SQLite initialization is done in `packages/mws/src/db/sqlite-adapter.ts`.\n\nmodel Settings {\n  key   String @id\n  value String\n\n  @@map(\"settings\")\n}\n\nmodel Recipes {\n  recipe_id             String        @id @default(uuid(7))\n  recipe_name           String        @unique\n  description           String\n  owner_id              String?\n  /// [Recipes_plugin_names]\n  plugin_names          Json\n  skip_required_plugins Boolean       @default(false)\n  skip_core             Boolean       @default(false)\n  preload_store         Boolean       @default(false)\n  custom_wiki           String?\n  recipe_bags           Recipe_bags[]\n  acl                   RecipeAcl[]\n\n  @@map(\"recipes\")\n}\n\nmodel RecipeAcl {\n  acl_id     Int        @id @default(autoincrement())\n  role_id    String\n  permission Permission\n  recipe     Recipes    @relation(fields: [recipe_id], references: [recipe_id], onDelete: Cascade)\n  recipe_id  String\n\n  @@map(\"recipe_acl\")\n}\n\nmodel Recipe_bags {\n  recipe_id    String\n  bag_id       String\n  position     Int\n  with_acl     Boolean @default(false)\n  load_modules Boolean @default(false)\n\n  bag    Bags    @relation(fields: [bag_id], references: [bag_id], onDelete: Cascade)\n  recipe Recipes @relation(fields: [recipe_id], references: [recipe_id], onDelete: Cascade)\n\n  @@unique([recipe_id, bag_id])\n  @@index([recipe_id])\n  @@map(\"recipe_bags\")\n}\n\nmodel Bags {\n  bag_id      String        @id @default(uuid(7))\n  bag_name    String        @unique\n  description String\n  owner_id    String?\n  recipe_bags Recipe_bags[]\n  tiddlers    Tiddlers[]\n  acl         BagAcl[]\n\n  @@map(\"bags\")\n}\n\nmodel BagAcl {\n  acl_id     Int        @id @default(autoincrement())\n  bag_id     String\n  bag        Bags       @relation(fields: [bag_id], references: [bag_id], onDelete: Cascade)\n  role_id    String\n  permission Permission\n\n  @@map(\"bag_acl\")\n}\n\nmodel Tiddlers {\n  revision_id     String   @id @default(uuid(7))\n  bag_id          String\n  title           String\n  is_deleted      Boolean\n  attachment_hash String?\n  fields          Fields[]\n  // Deleting a referenced record (bag) will trigger the deletion of referencing record (tiddler).\n  bag             Bags     @relation(fields: [bag_id], references: [bag_id], onDelete: Cascade)\n\n  @@unique([bag_id, title])\n  @@index([bag_id])\n  @@map(\"tiddlers\")\n}\n\nmodel Fields {\n  revision_id String\n  field_name  String\n  field_value String\n  // Deleting a referenced record (tiddler) will trigger the deletion of referencing record (field).\n  tiddler     Tiddlers @relation(fields: [revision_id], references: [revision_id], onDelete: Cascade)\n\n  @@id([revision_id, field_name])\n  @@index([revision_id])\n  @@map(\"fields\")\n}\n\nmodel Roles {\n  role_id     String  @id @default(uuid(7))\n  role_name   String  @unique()\n  description String?\n  users       Users[]\n\n  @@map(\"roles\")\n}\n\nmodel Users {\n  user_id    String     @id @default(uuid(7))\n  username   String     @unique\n  email      String     @unique\n  password   String\n  created_at DateTime   @default(now())\n  last_login DateTime?\n  sessions   Sessions[]\n  roles      Roles[]\n\n  @@map(\"users\")\n}\n\nmodel Sessions {\n  session_id    String   @id\n  created_at    DateTime @default(now())\n  last_accessed DateTime\n  session_key   String?\n  user_id       String\n  user          Users    @relation(fields: [user_id], references: [user_id], onDelete: NoAction, onUpdate: NoAction)\n\n  @@map(\"sessions\")\n}\n",
   "runtimeDataModel": {
     "models": {},
     "enums": {},
     "types": {}
-  },
-  "dirname": ""
+  }
 }
 
 config.runtimeDataModel = JSON.parse("{\"models\":{\"Settings\":{\"fields\":[{\"name\":\"key\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"value\",\"kind\":\"scalar\",\"type\":\"String\"}],\"dbName\":\"settings\"},\"Recipes\":{\"fields\":[{\"name\":\"recipe_id\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"recipe_name\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"description\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"owner_id\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"plugin_names\",\"kind\":\"scalar\",\"type\":\"Json\"},{\"name\":\"skip_required_plugins\",\"kind\":\"scalar\",\"type\":\"Boolean\"},{\"name\":\"skip_core\",\"kind\":\"scalar\",\"type\":\"Boolean\"},{\"name\":\"preload_store\",\"kind\":\"scalar\",\"type\":\"Boolean\"},{\"name\":\"custom_wiki\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"recipe_bags\",\"kind\":\"object\",\"type\":\"Recipe_bags\",\"relationName\":\"Recipe_bagsToRecipes\"},{\"name\":\"acl\",\"kind\":\"object\",\"type\":\"RecipeAcl\",\"relationName\":\"RecipeAclToRecipes\"}],\"dbName\":\"recipes\"},\"RecipeAcl\":{\"fields\":[{\"name\":\"acl_id\",\"kind\":\"scalar\",\"type\":\"Int\"},{\"name\":\"role_id\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"permission\",\"kind\":\"enum\",\"type\":\"Permission\"},{\"name\":\"recipe\",\"kind\":\"object\",\"type\":\"Recipes\",\"relationName\":\"RecipeAclToRecipes\"},{\"name\":\"recipe_id\",\"kind\":\"scalar\",\"type\":\"String\"}],\"dbName\":\"recipe_acl\"},\"Recipe_bags\":{\"fields\":[{\"name\":\"recipe_id\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"bag_id\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"position\",\"kind\":\"scalar\",\"type\":\"Int\"},{\"name\":\"with_acl\",\"kind\":\"scalar\",\"type\":\"Boolean\"},{\"name\":\"load_modules\",\"kind\":\"scalar\",\"type\":\"Boolean\"},{\"name\":\"bag\",\"kind\":\"object\",\"type\":\"Bags\",\"relationName\":\"BagsToRecipe_bags\"},{\"name\":\"recipe\",\"kind\":\"object\",\"type\":\"Recipes\",\"relationName\":\"Recipe_bagsToRecipes\"}],\"dbName\":\"recipe_bags\"},\"Bags\":{\"fields\":[{\"name\":\"bag_id\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"bag_name\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"description\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"owner_id\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"recipe_bags\",\"kind\":\"object\",\"type\":\"Recipe_bags\",\"relationName\":\"BagsToRecipe_bags\"},{\"name\":\"tiddlers\",\"kind\":\"object\",\"type\":\"Tiddlers\",\"relationName\":\"BagsToTiddlers\"},{\"name\":\"acl\",\"kind\":\"object\",\"type\":\"BagAcl\",\"relationName\":\"BagAclToBags\"}],\"dbName\":\"bags\"},\"BagAcl\":{\"fields\":[{\"name\":\"acl_id\",\"kind\":\"scalar\",\"type\":\"Int\"},{\"name\":\"bag_id\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"bag\",\"kind\":\"object\",\"type\":\"Bags\",\"relationName\":\"BagAclToBags\"},{\"name\":\"role_id\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"permission\",\"kind\":\"enum\",\"type\":\"Permission\"}],\"dbName\":\"bag_acl\"},\"Tiddlers\":{\"fields\":[{\"name\":\"revision_id\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"bag_id\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"title\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"is_deleted\",\"kind\":\"scalar\",\"type\":\"Boolean\"},{\"name\":\"attachment_hash\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"fields\",\"kind\":\"object\",\"type\":\"Fields\",\"relationName\":\"FieldsToTiddlers\"},{\"name\":\"bag\",\"kind\":\"object\",\"type\":\"Bags\",\"relationName\":\"BagsToTiddlers\"}],\"dbName\":\"tiddlers\"},\"Fields\":{\"fields\":[{\"name\":\"revision_id\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"field_name\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"field_value\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"tiddler\",\"kind\":\"object\",\"type\":\"Tiddlers\",\"relationName\":\"FieldsToTiddlers\"}],\"dbName\":\"fields\"},\"Roles\":{\"fields\":[{\"name\":\"role_id\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"role_name\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"description\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"users\",\"kind\":\"object\",\"type\":\"Users\",\"relationName\":\"RolesToUsers\"}],\"dbName\":\"roles\"},\"Users\":{\"fields\":[{\"name\":\"user_id\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"username\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"email\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"password\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"created_at\",\"kind\":\"scalar\",\"type\":\"DateTime\"},{\"name\":\"last_login\",\"kind\":\"scalar\",\"type\":\"DateTime\"},{\"name\":\"sessions\",\"kind\":\"object\",\"type\":\"Sessions\",\"relationName\":\"SessionsToUsers\"},{\"name\":\"roles\",\"kind\":\"object\",\"type\":\"Roles\",\"relationName\":\"RolesToUsers\"}],\"dbName\":\"users\"},\"Sessions\":{\"fields\":[{\"name\":\"session_id\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"created_at\",\"kind\":\"scalar\",\"type\":\"DateTime\"},{\"name\":\"last_accessed\",\"kind\":\"scalar\",\"type\":\"DateTime\"},{\"name\":\"session_key\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"user_id\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"user\",\"kind\":\"object\",\"type\":\"Users\",\"relationName\":\"SessionsToUsers\"}],\"dbName\":\"sessions\"}},\"enums\":{},\"types\":{}}")
-config.engineWasm = undefined
 
 async function decodeBase64AsWasm(wasmBase64: string): Promise<WebAssembly.Module> {
   const { Buffer } = await import('node:buffer')
@@ -87,7 +47,6 @@ config.compilerWasm = {
 
 
 
-
 export type LogOptions<ClientOptions extends Prisma.PrismaClientOptions> =
   'log' extends keyof ClientOptions ? ClientOptions['log'] extends Array<Prisma.LogLevel | Prisma.LogDefinition> ? Prisma.GetEvents<ClientOptions['log']> : never : never
 
@@ -103,7 +62,7 @@ export interface PrismaClientConstructor {
    * const settings = await prisma.settings.findMany()
    * ```
    * 
-   * Read more in our [docs](https://www.prisma.io/docs/reference/tools-and-interfaces/prisma-client).
+   * Read more in our [docs](https://pris.ly/d/client).
    */
 
   new <
@@ -111,7 +70,7 @@ export interface PrismaClientConstructor {
     LogOpts extends LogOptions<Options> = LogOptions<Options>,
     OmitOpts extends Prisma.PrismaClientOptions['omit'] = Options extends { omit: infer U } ? U : Prisma.PrismaClientOptions['omit'],
     ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs
-  >(options?: Prisma.Subset<Options, Prisma.PrismaClientOptions> ): PrismaClient<LogOpts, OmitOpts, ExtArgs>
+  >(options: Prisma.Subset<Options, Prisma.PrismaClientOptions> ): PrismaClient<LogOpts, OmitOpts, ExtArgs>
 }
 
 /**
@@ -125,12 +84,12 @@ export interface PrismaClientConstructor {
  * const settings = await prisma.settings.findMany()
  * ```
  * 
- * Read more in our [docs](https://www.prisma.io/docs/reference/tools-and-interfaces/prisma-client).
+ * Read more in our [docs](https://pris.ly/d/client).
  */
 
 export interface PrismaClient<
   in LogOpts extends Prisma.LogLevel = never,
-  in out OmitOpts extends Prisma.PrismaClientOptions['omit'] = Prisma.PrismaClientOptions['omit'],
+  in out OmitOpts extends Prisma.PrismaClientOptions['omit'] = undefined,
   in out ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs
 > {
   [K: symbol]: { types: Prisma.TypeMap<ExtArgs>['other'] }
@@ -154,7 +113,7 @@ export interface PrismaClient<
    * const result = await prisma.$executeRaw`UPDATE User SET cool = ${true} WHERE email = ${'user@email.com'};`
    * ```
    *
-   * Read more in our [docs](https://www.prisma.io/docs/reference/tools-and-interfaces/prisma-client/raw-database-access).
+   * Read more in our [docs](https://pris.ly/d/raw-queries).
    */
   $executeRaw<T = unknown>(query: TemplateStringsArray | Prisma.Sql, ...values: any[]): Prisma.PrismaPromise<number>;
 
@@ -166,7 +125,7 @@ export interface PrismaClient<
    * const result = await prisma.$executeRawUnsafe('UPDATE User SET cool = $1 WHERE email = $2 ;', true, 'user@email.com')
    * ```
    *
-   * Read more in our [docs](https://www.prisma.io/docs/reference/tools-and-interfaces/prisma-client/raw-database-access).
+   * Read more in our [docs](https://pris.ly/d/raw-queries).
    */
   $executeRawUnsafe<T = unknown>(query: string, ...values: any[]): Prisma.PrismaPromise<number>;
 
@@ -177,7 +136,7 @@ export interface PrismaClient<
    * const result = await prisma.$queryRaw`SELECT * FROM User WHERE id = ${1} OR email = ${'user@email.com'};`
    * ```
    *
-   * Read more in our [docs](https://www.prisma.io/docs/reference/tools-and-interfaces/prisma-client/raw-database-access).
+   * Read more in our [docs](https://pris.ly/d/raw-queries).
    */
   $queryRaw<T = unknown>(query: TemplateStringsArray | Prisma.Sql, ...values: any[]): Prisma.PrismaPromise<T>;
 
@@ -189,7 +148,7 @@ export interface PrismaClient<
    * const result = await prisma.$queryRawUnsafe('SELECT * FROM User WHERE id = $1 OR email = $2;', 1, 'user@email.com')
    * ```
    *
-   * Read more in our [docs](https://www.prisma.io/docs/reference/tools-and-interfaces/prisma-client/raw-database-access).
+   * Read more in our [docs](https://pris.ly/d/raw-queries).
    */
   $queryRawUnsafe<T = unknown>(query: string, ...values: any[]): Prisma.PrismaPromise<T>;
 
@@ -210,7 +169,6 @@ export interface PrismaClient<
   $transaction<P extends Prisma.PrismaPromise<any>[]>(arg: [...P], options?: { isolationLevel?: Prisma.TransactionIsolationLevel }): runtime.Types.Utils.JsPromise<runtime.Types.Utils.UnwrapTuple<P>>
 
   $transaction<R>(fn: (prisma: Omit<PrismaClient, runtime.ITXClientDenyList>) => runtime.Types.Utils.JsPromise<R>, options?: { maxWait?: number, timeout?: number, isolationLevel?: Prisma.TransactionIsolationLevel }): runtime.Types.Utils.JsPromise<R>
-
 
   $extends: runtime.Types.Extensions.ExtendsHook<"extends", Prisma.TypeMapCb<OmitOpts>, ExtArgs, runtime.Types.Utils.Call<Prisma.TypeMapCb<OmitOpts>, {
     extArgs: ExtArgs
@@ -327,7 +285,6 @@ export interface PrismaClient<
   get sessions(): Prisma.SessionsDelegate<ExtArgs, { omit: OmitOpts }>;
 }
 
-export function getPrismaClientClass(dirname: string): PrismaClientConstructor {
-  config.dirname = dirname
+export function getPrismaClientClass(): PrismaClientConstructor {
   return runtime.getPrismaClient(config) as unknown as PrismaClientConstructor
 }

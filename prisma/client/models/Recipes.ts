@@ -53,7 +53,7 @@ export type RecipesCountAggregateOutputType = {
   recipe_name: number
   description: number
   owner_id: number
-  plugin_names: number
+  plugin_names:PrismaJson.Recipes_plugin_names
   skip_required_plugins: number
   skip_core: number
   preload_store: number
@@ -174,7 +174,7 @@ export type RecipesGroupByOutputType = {
   recipe_name: string
   description: string
   owner_id: string | null
-  plugin_names:PrismaJson.AllTypes["Recipes_plugin_names"]
+  plugin_names:PrismaJson.Recipes_plugin_names
   skip_required_plugins: boolean
   skip_core: boolean
   preload_store: boolean
@@ -282,7 +282,7 @@ export type RecipesCreateInput = {
   recipe_name: string
   description: string
   owner_id?: string | null
-  plugin_names:PrismaJson.AllTypes["Recipes_plugin_names"]
+  plugin_names:PrismaJson.Recipes_plugin_names
   skip_required_plugins?: boolean
   skip_core?: boolean
   preload_store?: boolean
@@ -296,7 +296,7 @@ export type RecipesUncheckedCreateInput = {
   recipe_name: string
   description: string
   owner_id?: string | null
-  plugin_names:PrismaJson.AllTypes["Recipes_plugin_names"]
+  plugin_names:PrismaJson.Recipes_plugin_names
   skip_required_plugins?: boolean
   skip_core?: boolean
   preload_store?: boolean
@@ -310,7 +310,7 @@ export type RecipesUpdateInput = {
   recipe_name?: Prisma.StringFieldUpdateOperationsInput | string
   description?: Prisma.StringFieldUpdateOperationsInput | string
   owner_id?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  plugin_names?:PrismaJson.AllTypes["Recipes_plugin_names"]
+  plugin_names?:PrismaJson.Recipes_plugin_names
   skip_required_plugins?: Prisma.BoolFieldUpdateOperationsInput | boolean
   skip_core?: Prisma.BoolFieldUpdateOperationsInput | boolean
   preload_store?: Prisma.BoolFieldUpdateOperationsInput | boolean
@@ -324,7 +324,7 @@ export type RecipesUncheckedUpdateInput = {
   recipe_name?: Prisma.StringFieldUpdateOperationsInput | string
   description?: Prisma.StringFieldUpdateOperationsInput | string
   owner_id?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  plugin_names?:PrismaJson.AllTypes["Recipes_plugin_names"]
+  plugin_names?:PrismaJson.Recipes_plugin_names
   skip_required_plugins?: Prisma.BoolFieldUpdateOperationsInput | boolean
   skip_core?: Prisma.BoolFieldUpdateOperationsInput | boolean
   preload_store?: Prisma.BoolFieldUpdateOperationsInput | boolean
@@ -338,7 +338,7 @@ export type RecipesCreateManyInput = {
   recipe_name: string
   description: string
   owner_id?: string | null
-  plugin_names:PrismaJson.AllTypes["Recipes_plugin_names"]
+  plugin_names:PrismaJson.Recipes_plugin_names
   skip_required_plugins?: boolean
   skip_core?: boolean
   preload_store?: boolean
@@ -350,7 +350,7 @@ export type RecipesUpdateManyMutationInput = {
   recipe_name?: Prisma.StringFieldUpdateOperationsInput | string
   description?: Prisma.StringFieldUpdateOperationsInput | string
   owner_id?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  plugin_names?:PrismaJson.AllTypes["Recipes_plugin_names"]
+  plugin_names?:PrismaJson.Recipes_plugin_names
   skip_required_plugins?: Prisma.BoolFieldUpdateOperationsInput | boolean
   skip_core?: Prisma.BoolFieldUpdateOperationsInput | boolean
   preload_store?: Prisma.BoolFieldUpdateOperationsInput | boolean
@@ -362,7 +362,7 @@ export type RecipesUncheckedUpdateManyInput = {
   recipe_name?: Prisma.StringFieldUpdateOperationsInput | string
   description?: Prisma.StringFieldUpdateOperationsInput | string
   owner_id?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  plugin_names?:PrismaJson.AllTypes["Recipes_plugin_names"]
+  plugin_names?:PrismaJson.Recipes_plugin_names
   skip_required_plugins?: Prisma.BoolFieldUpdateOperationsInput | boolean
   skip_core?: Prisma.BoolFieldUpdateOperationsInput | boolean
   preload_store?: Prisma.BoolFieldUpdateOperationsInput | boolean
@@ -449,7 +449,7 @@ export type RecipesCreateWithoutAclInput = {
   recipe_name: string
   description: string
   owner_id?: string | null
-  plugin_names:PrismaJson.AllTypes["Recipes_plugin_names"]
+  plugin_names:PrismaJson.Recipes_plugin_names
   skip_required_plugins?: boolean
   skip_core?: boolean
   preload_store?: boolean
@@ -462,7 +462,7 @@ export type RecipesUncheckedCreateWithoutAclInput = {
   recipe_name: string
   description: string
   owner_id?: string | null
-  plugin_names:PrismaJson.AllTypes["Recipes_plugin_names"]
+  plugin_names:PrismaJson.Recipes_plugin_names
   skip_required_plugins?: boolean
   skip_core?: boolean
   preload_store?: boolean
@@ -491,7 +491,7 @@ export type RecipesUpdateWithoutAclInput = {
   recipe_name?: Prisma.StringFieldUpdateOperationsInput | string
   description?: Prisma.StringFieldUpdateOperationsInput | string
   owner_id?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  plugin_names?:PrismaJson.AllTypes["Recipes_plugin_names"]
+  plugin_names?:PrismaJson.Recipes_plugin_names
   skip_required_plugins?: Prisma.BoolFieldUpdateOperationsInput | boolean
   skip_core?: Prisma.BoolFieldUpdateOperationsInput | boolean
   preload_store?: Prisma.BoolFieldUpdateOperationsInput | boolean
@@ -504,7 +504,7 @@ export type RecipesUncheckedUpdateWithoutAclInput = {
   recipe_name?: Prisma.StringFieldUpdateOperationsInput | string
   description?: Prisma.StringFieldUpdateOperationsInput | string
   owner_id?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  plugin_names?:PrismaJson.AllTypes["Recipes_plugin_names"]
+  plugin_names?:PrismaJson.Recipes_plugin_names
   skip_required_plugins?: Prisma.BoolFieldUpdateOperationsInput | boolean
   skip_core?: Prisma.BoolFieldUpdateOperationsInput | boolean
   preload_store?: Prisma.BoolFieldUpdateOperationsInput | boolean
@@ -517,7 +517,7 @@ export type RecipesCreateWithoutRecipe_bagsInput = {
   recipe_name: string
   description: string
   owner_id?: string | null
-  plugin_names:PrismaJson.AllTypes["Recipes_plugin_names"]
+  plugin_names:PrismaJson.Recipes_plugin_names
   skip_required_plugins?: boolean
   skip_core?: boolean
   preload_store?: boolean
@@ -530,7 +530,7 @@ export type RecipesUncheckedCreateWithoutRecipe_bagsInput = {
   recipe_name: string
   description: string
   owner_id?: string | null
-  plugin_names:PrismaJson.AllTypes["Recipes_plugin_names"]
+  plugin_names:PrismaJson.Recipes_plugin_names
   skip_required_plugins?: boolean
   skip_core?: boolean
   preload_store?: boolean
@@ -559,7 +559,7 @@ export type RecipesUpdateWithoutRecipe_bagsInput = {
   recipe_name?: Prisma.StringFieldUpdateOperationsInput | string
   description?: Prisma.StringFieldUpdateOperationsInput | string
   owner_id?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  plugin_names?:PrismaJson.AllTypes["Recipes_plugin_names"]
+  plugin_names?:PrismaJson.Recipes_plugin_names
   skip_required_plugins?: Prisma.BoolFieldUpdateOperationsInput | boolean
   skip_core?: Prisma.BoolFieldUpdateOperationsInput | boolean
   preload_store?: Prisma.BoolFieldUpdateOperationsInput | boolean
@@ -572,7 +572,7 @@ export type RecipesUncheckedUpdateWithoutRecipe_bagsInput = {
   recipe_name?: Prisma.StringFieldUpdateOperationsInput | string
   description?: Prisma.StringFieldUpdateOperationsInput | string
   owner_id?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  plugin_names?:PrismaJson.AllTypes["Recipes_plugin_names"]
+  plugin_names?:PrismaJson.Recipes_plugin_names
   skip_required_plugins?: Prisma.BoolFieldUpdateOperationsInput | boolean
   skip_core?: Prisma.BoolFieldUpdateOperationsInput | boolean
   preload_store?: Prisma.BoolFieldUpdateOperationsInput | boolean
@@ -694,7 +694,7 @@ export type $RecipesPayload<ExtArgs extends runtime.Types.Extensions.InternalArg
     /**
      * [Recipes_plugin_names]
      */
-    plugin_names:PrismaJson.AllTypes["Recipes_plugin_names"]
+    plugin_names:PrismaJson.Recipes_plugin_names
     skip_required_plugins: boolean
     skip_core: boolean
     preload_store: boolean

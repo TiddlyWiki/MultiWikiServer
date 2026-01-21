@@ -1,5 +1,5 @@
-import { PrismaBetterSQLite3 } from "@prisma/adapter-better-sqlite3";
-import { SqlDriverAdapter, SqlMigrationAwareDriverAdapterFactory } from "@prisma/driver-adapter-utils";
+import { PrismaBetterSqlite3 } from "@prisma/adapter-better-sqlite3";
+import { ArgType, SqlDriverAdapter, SqlMigrationAwareDriverAdapterFactory, SqlQuery } from "@prisma/driver-adapter-utils";
 import { readdir, readFile } from "fs/promises";
 import { createHash, randomUUID } from "crypto";
 import { existsSync, writeFileSync } from "fs";
@@ -11,7 +11,7 @@ const INIT_0_1 = "20250606001949_init";
 
 export class SqliteAdapter {
   constructor(private databasePath: string, private isDevMode: boolean) {
-    this.adapter = new PrismaBetterSQLite3({ url: "file:" + this.databasePath });
+    this.adapter = new PrismaBetterSqlite3({ url: "file:" + this.databasePath });
   }
 
   adapter!: SqlMigrationAwareDriverAdapterFactory;
@@ -161,17 +161,63 @@ export class SqliteAdapter {
         await libsql.executeScript(fileContent);
       }
 
-      await libsql.executeRaw({
-        sql: 'INSERT INTO _prisma_migrations (' +
-          'id, migration_name, checksum, finished_at, logs, rolled_back_at, started_at, applied_steps_count' +
-          ') VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-        args: [randomUUID(), migration, generateChecksum(fileContent), Date.now(), null, null, Date.now(), 1],
-        argTypes: ["string", "string", "string", "datetime", null, null, "datetime", "int"],
-      });
+      await libsql.executeRaw(InsertStatement("_prisma_migrations", [
+        {
+          name: "id", value: randomUUID(),
+          arity: "scalar", scalarType: "string", dbType: "TEXT",
+        },
+        {
+          name: "migration_name", value: migration,
+          arity: "scalar", scalarType: "string", dbType: "TEXT",
+        },
+        {
+          name: "checksum", value: generateChecksum(fileContent),
+          arity: "scalar", scalarType: "string", dbType: "TEXT",
+        },
+        {
+          name: "finished_at", value: Date.now(),
+          arity: "scalar", scalarType: "datetime", dbType: "DATETIME",
+        },
+        {
+          name: "logs", value: null,
+          arity: "scalar", scalarType: "string", dbType: "TEXT",
+        },
+        {
+          name: "rolled_back_at", value: null,
+          arity: "scalar", scalarType: "datetime", dbType: "DATETIME",
+        },
+        {
+          name: "started_at", value: Date.now(),
+          arity: "scalar", scalarType: "datetime", dbType: "DATETIME",
+        },
+        {
+          name: "applied_steps_count", value: 1,
+          arity: "scalar", scalarType: "int", dbType: "INTEGER",
+        },
+      ]));
 
     }
     console.log("Migrations applied", new_migrations);
   }
 
+}
+
+interface InsertArg extends ArgType {
+  name: string;
+  value: any;
+}
+
+function InsertStatement(table: string, args: InsertArg[]): SqlQuery {
+  return {
+    sql: 'INSERT INTO ' + table + ' (' +
+      args.map(e => `"${e.name}"`).join(', ') +
+      ') VALUES (' +
+      args.map(() => `?`).join(', ') +
+      ')',
+    args: args.map(e => e.value),
+    argTypes: args.map(({ arity, scalarType, dbType }) => {
+      return { arity, scalarType, dbType, }
+    }),
+  }
 }
 

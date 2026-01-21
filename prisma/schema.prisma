@@ -1,19 +1,15 @@
 datasource db {
   provider = "sqlite"
-  url      = env("DATABASE_URL")
 }
 
 generator client {
-  provider   = "prisma-client"
-  output     = "client"
-  engineType = "client"
+  provider = "prisma-client"
+  output   = "client"
 }
 
 generator json {
-  provider     = "prisma-json-types-generator"
-  namespace    = "PrismaJson"
-  clientOutput = "client"
-  useType      = "AllTypes"
+  provider  = "prisma-json-types-generator"
+  namespace = "PrismaJson"
 }
 
 enum Permission {

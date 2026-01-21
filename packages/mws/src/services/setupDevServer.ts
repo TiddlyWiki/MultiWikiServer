@@ -21,7 +21,7 @@ export interface ServerToReactAdminMap {
 }
 
 export interface SendAdmin {
-  (state: ServerRequest, sendIndex?: { status: number, serverResponse: ServerToReactAdmin }): Promise<typeof STREAM_ENDED>;
+  (state: ServerRequest<any, any, any>, sendIndex?: { status: number, serverResponse: ServerToReactAdmin }): Promise<typeof STREAM_ENDED>;
 }
 
 

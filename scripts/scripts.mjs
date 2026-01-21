@@ -17,7 +17,7 @@ import { join, resolve } from "path";
     case "docs":
     case "start":
       await run("tsup", {});
-      await run("node --trace-warnings --trace-uncaught mws.dev.mjs", {
+      await start("node --trace-warnings --trace-uncaught mws.dev.mjs", process.argv.slice(3), {
         DEVSERVER: true ? "watch" : "build",
         ENABLE_EXTERNAL_PLUGINS: "1",
         ENABLE_DOCS_ROUTE: arg === "docs" ? "1" : "",

@@ -52,7 +52,7 @@ export class StateObject<
 
     this.asserted = false;
     this.sendAdmin = (options?: { status: number, serverResponse: ServerToReactAdmin }): Promise<typeof STREAM_ENDED> =>
-      router.sendAdmin(this as ServerRequest<B, M, D>, options);
+      router.sendAdmin(this, options);
 
     if (this.compressor)
       this.compressor.enabled = router.config.enableGzip;
@@ -76,20 +76,6 @@ export class StateObject<
     if (!this.asserted)
       throw new Error("You must check access before opening a transaction.");
     return this.engine.$transaction(arg(this.engine), options);
-  }
-
-  sendError<ReasonStr extends keyof SendErrorReasonData>(
-    reason: ReasonStr,
-    status: SendErrorReasonData[ReasonStr]["status"],
-    details: SendErrorReasonData[ReasonStr]["details"]
-  ): typeof STREAM_ENDED {
-
-    return this.sendString(
-      status,
-      { "x-reason": reason },
-      JSON.stringify({ status, reason, details }),
-      "utf8"
-    );
   }
 
   makeTiddlerEtag(options: { bag_name: string; revision_id: string | number; }) {

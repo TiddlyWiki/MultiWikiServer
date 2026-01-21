@@ -21,6 +21,11 @@
     "noImplicitReturns": true,
     "noFallthroughCasesInSwitch": true,
     "noUncheckedIndexedAccess": false,
+    "paths": {
+      "@tiddlywiki/mws-prisma": [
+        "./prisma/client"
+      ]
+    }
   },
   "include": [
     "packages/**/src",
