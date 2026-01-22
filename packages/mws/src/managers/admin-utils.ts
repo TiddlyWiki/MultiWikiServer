@@ -19,12 +19,12 @@ export function admin<T extends zod.ZodTypeAny, R extends JsonValue>(
     zodRequestBody: zodRequest,
     inner: async (state) => {
 
-      debug("admin request from origin %s referer %s", state.headers.origin, state.headers.referer);
+      debug("admin request from origin %s referer %s", state.headers.get("origin"), state.headers.get("referer"));
 
-      if (!state.headers.referer)
+      if (!state.headers.get("referer"))
         throw state.sendEmpty(400, { "x-reason": "Missing referer header" });
 
-      const url = new URL(state.headers.referer);
+      const url = new URL(state.headers.get("referer")!);
 
       const allowed = url.pathname.startsWith(state.pathPrefix + "/admin/")
         || url.pathname === state.pathPrefix + "/"

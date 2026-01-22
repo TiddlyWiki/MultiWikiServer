@@ -119,9 +119,8 @@ export class StateObject<
 
   getRefererRecipe() {
     const state = this;
-    if (!state.headers.referer)
-      return;
-    const referer = new URL(state.headers.referer);
+    if (!state.headers.get("referer")) return;
+    const referer = new URL(state.headers.get("referer")!);
     // console.log("Referer", state.headers.referer, referer);
     if (!referer.pathname.startsWith(state.pathPrefix))
       throw state.sendEmpty(404, { "x-reason": "invalid path prefix" });

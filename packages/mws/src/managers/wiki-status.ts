@@ -58,7 +58,7 @@ export class WikiStatusRoutes {
 
       await state.assertRecipeAccess(recipe_name, false);
 
-      let lastEventID = state.headers['last-event-id'] || state.queryParams["first-event-id"]?.[0];
+      let lastEventID = state.headers.get('last-event-id') || state.queryParams["first-event-id"]?.[0];
 
       if (!lastEventID) throw new SendError("LAST_EVENT_ID_NOT_PROVIDED", 403, null);
 
@@ -185,7 +185,7 @@ export class WikiStatusRoutes {
         if (etag < t.revision_id) etag = t.revision_id;
       }
       const newEtag = `"${etag}"`;
-      const match = state.headers["if-none-match"] === newEtag;
+      const match = state.headers.get("if-none-match")?.has(newEtag);
       state.setHeader("etag", newEtag);
 
       if (match) throw state.sendEmpty(304, {});
@@ -248,7 +248,7 @@ export class WikiStatusRoutes {
         }
       }
       const newEtag = `"${etag}${gzip_stream}"`;
-      const match = state.headers["if-none-match"] === newEtag;
+      const match = state.headers.get("if-none-match")?.has(newEtag);
       // 304 has to return the same headers if they're to be useful, 
       // so we'll also put them in the etag in case it ignores the query
       state.writeHead(match ? 304 : 200, gzip_stream ? {

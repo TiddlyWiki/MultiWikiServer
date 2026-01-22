@@ -123,7 +123,7 @@ export class WikiRecipeRoutes {
 
       const { recipe_id } = await state.assertRecipeAccess(recipe_name, true);
 
-      const fields = parseTiddlerFields(state.data, state.headers["content-type"]);
+      const fields = parseTiddlerFields(state.data, state.headers.get("content-type")?.mediaType);
 
       if (fields === undefined)
         throw state.sendEmpty(400, {

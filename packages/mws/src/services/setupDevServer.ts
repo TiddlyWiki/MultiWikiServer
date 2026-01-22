@@ -205,17 +205,13 @@ async function startDevServer({ rootdir, publicdir }: { rootdir: string; publicd
   return async function sendDevServer(state: ServerRequest, indexOptions?: { status: number, serverResponse: ServerToReactAdmin }): Promise<typeof STREAM_ENDED> {
     // this will rebuild the html on page load
     // if the build fails, esbuild will serve the error so we just ignore it
-    if (state.headers["sec-fetch-dest"] === "document")
+    if (state.headers.get("sec-fetch-dest") === "document")
       await rebuild().catch((e) => { if (!(e.errors && e.warnings)) throw e; });
 
     if (indexOptions) return await serveIndex({ state, publicdir, status: indexOptions.status, serverResponse: indexOptions.serverResponse });
 
     const proxyRes = await new Promise<import("http").IncomingMessage>((resolve, reject) => {
-      const headers = { ...state.headers };
-      delete headers[":method"];
-      delete headers[":path"];
-      delete headers[":authority"];
-      delete headers[":scheme"];
+      const headers = state.headers.toObject();
       headers.host = "localhost";
       const proxyReq = request({
         hostname: DEV_HOST,

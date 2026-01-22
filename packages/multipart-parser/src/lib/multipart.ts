@@ -1,13 +1,29 @@
-import Headers from '@remix-run/headers';
-
 import { readStream } from './read-stream.ts'
 import type { SearchFunction, PartialTailSearchFunction } from './buffer-search.ts'
 import { createSearch, createPartialTailSearch } from './buffer-search.ts'
+import { parse as parseRawHeaders } from '@remix-run/headers'
+import { BetterHeaders } from '@tiddlywiki/server'
+
+
+// function parseRawHeaders(raw: string): [string, string][] {
+//   let headers: [string, string][] = []
+//   for (let line of raw.split('\r\n')) {
+//     let match = line.match(/^([^:]+):(.*)/)
+//     if (match) {
+//       headers.push([match[1].trim(), match[2].trim()])
+//     }
+//   }
+//   return headers
+// }
+
 
 /**
  * The base class for errors thrown by the multipart parser.
  */
 export class MultipartParseError extends Error {
+  /**
+   * @param message The error message
+   */
   constructor(message: string) {
     super(message)
     this.name = 'MultipartParseError'
@@ -18,6 +34,9 @@ export class MultipartParseError extends Error {
  * An error thrown when the maximum allowed size of a header is exceeded.
  */
 export class MaxHeaderSizeExceededError extends MultipartParseError {
+  /**
+   * @param maxHeaderSize The maximum header size that was exceeded
+   */
   constructor(maxHeaderSize: number) {
     super(`Multipart header size exceeds maximum allowed size of ${maxHeaderSize} bytes`)
     this.name = 'MaxHeaderSizeExceededError'
@@ -28,12 +47,18 @@ export class MaxHeaderSizeExceededError extends MultipartParseError {
  * An error thrown when the maximum allowed size of a file is exceeded.
  */
 export class MaxFileSizeExceededError extends MultipartParseError {
+  /**
+   * @param maxFileSize The maximum file size that was exceeded
+   */
   constructor(maxFileSize: number) {
     super(`File size exceeds maximum allowed size of ${maxFileSize} bytes`)
     this.name = 'MaxFileSizeExceededError'
   }
 }
 
+/**
+ * Options for parsing a multipart message.
+ */
 export interface ParseMultipartOptions {
   /**
    * The boundary string used to separate parts in the multipart message,
@@ -44,14 +69,14 @@ export interface ParseMultipartOptions {
    * The maximum allowed size of a header in bytes. If an individual part's header
    * exceeds this size, a `MaxHeaderSizeExceededError` will be thrown.
    *
-   * Default: 8 KiB
+   * @default 8192 (8 KiB)
    */
   maxHeaderSize?: number
   /**
    * The maximum allowed size of a file in bytes. If an individual part's content
    * exceeds this size, a `MaxFileSizeExceededError` will be thrown.
    *
-   * Default: 2 MiB
+   * @default 2097152 (2 MiB)
    */
   maxFileSize?: number
 
@@ -67,7 +92,7 @@ export interface ParseMultipartOptions {
  *
  * @param message The multipart message as a `Uint8Array` or an iterable of `Uint8Array` chunks
  * @param options Options for the parser
- * @return A generator that yields `MultipartPart` objects
+ * @returns A generator that yields `MultipartPart` objects
  */
 export async function* parseMultipart(
   message: Uint8Array | Iterable<Uint8Array>,
@@ -123,6 +148,9 @@ export async function* parseMultipartStream(
   parser.finish()
 }
 
+/**
+ * Options for configuring a `MultipartParser`.
+ */
 export type MultipartParserOptions = Omit<ParseMultipartOptions, 'boundary'>
 
 const MultipartParserStateStart = 0
@@ -157,7 +185,10 @@ export class MultipartParser {
 
   #useContentPart: MultipartParserOptions['useContentPart']
   #onCreatePart: MultipartParserOptions['onCreatePart']
-
+  /**
+   * @param boundary The boundary string used to separate parts
+   * @param options Options for the parser
+   */
   constructor(boundary: string, options?: MultipartParserOptions) {
     this.boundary = boundary
     this.maxHeaderSize = options?.maxHeaderSize ?? 8 * oneKb
@@ -177,7 +208,7 @@ export class MultipartParser {
    * Write a chunk of data to the parser.
    *
    * @param chunk A chunk of data to write to the parser
-   * @return A generator yielding `MultipartPart` objects as they are parsed
+   * @returns A generator yielding `MultipartPart` objects as they are parsed
    */
   async *write(chunk: Uint8Array): AsyncGenerator<MultipartPart, void, unknown> {
     if (this.#state === MultipartParserStateDone) {
@@ -312,8 +343,6 @@ export class MultipartParser {
    *
    * Note: This will throw if the multipart message is incomplete or
    * wasn't properly terminated.
-   *
-   * @return void
    */
   finish(): void {
     if (this.#state !== MultipartParserStateDone) {
@@ -330,7 +359,7 @@ const decoder = new TextDecoder('utf-8', { fatal: true })
 export class MultipartPart {
 
   #header: Uint8Array
-  #headers?: Headers
+  #headers?: BetterHeaders
 
   constructor(header: Uint8Array) {
     this.#header = header
@@ -340,12 +369,13 @@ export class MultipartPart {
     throw new Error("Not implemented. Please assign or override this method.");
   }
 
+  
   /**
    * The headers associated with this part.
    */
-  get headers(): Headers {
+  get headers(): BetterHeaders {
     if (!this.#headers) {
-      this.#headers = new Headers(decoder.decode(this.#header))
+      this.#headers = new BetterHeaders(parseRawHeaders(decoder.decode(this.#header)))
     }
 
     return this.#headers
@@ -369,21 +399,21 @@ export class MultipartPart {
    * The filename of the part, if it is a file upload.
    */
   get filename(): string | undefined {
-    return this.headers.contentDisposition.preferredFilename
+    return this.headers.get('content-disposition')?.preferredFilename
   }
 
   /**
    * The media type of the part.
    */
   get mediaType(): string | undefined {
-    return this.headers.contentType.mediaType
+    return this.headers.get('content-type')?.mediaType
   }
 
   /**
    * The name of the part, usually the `name` of the field in the `<form>` that submitted the request.
    */
   get name(): string | undefined {
-    return this.headers.contentDisposition.name
+    return this.headers.get('content-disposition')?.name
   }
 
 }

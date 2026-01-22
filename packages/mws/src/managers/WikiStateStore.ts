@@ -106,7 +106,7 @@ export class WikiStateStore extends TiddlerStore_PrismaTransaction {
     const contentDigest = hash.digest("hex");
 
     const newEtag = `"${contentDigest}"`;
-    const match = false && state.headers["if-none-match"] === newEtag;
+    const match = false && state.headers.get("if-none-match")?.has(newEtag);
 
     const headers: Record<string, string> = {};
     headers["content-type"] = "text/html";
@@ -383,8 +383,8 @@ $tw.preloadTiddler = function(fields) {
 
     const result = getTiddlerFields(title, tiddler.fields);
 
-    const accept_json = state.headers.accept?.includes("application/json");
-    const accept_mws_tiddler = state.headers.accept?.includes("application/x-mws-tiddler");
+    const accept_json = state.headers.get("accept")?.has("application/json");
+    const accept_mws_tiddler = state.headers.get("accept")?.has("application/x-mws-tiddler");
 
     // If application/json is requested then this is an API request, and gets the response in JSON
     if (accept_json || accept_mws_tiddler) {
@@ -400,7 +400,7 @@ $tw.preloadTiddler = function(fields) {
           bag_name,
           revision_id: tiddler.revision_id,
         }),
-        "Content-Type": "application/json",
+        "Content-Type": type,
         "X-Revision-Number": tiddler.revision_id,
         "X-Bag-Name": bag_name,
       }, formatTiddlerFields(result, type), "utf8");

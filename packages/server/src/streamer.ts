@@ -13,6 +13,8 @@ import { BodyFormat, RouteMatch } from './router';
 import { zod } from './Z2';
 import { getMultipartBoundary, isMultipartRequestHeader, MultipartPart, parseNodeMultipartStream } from '@mjackson/multipart-parser';
 import { SendError, SendErrorReason, SendErrorReasonData } from './SendError';
+import { } from '@remix-run/headers';
+import { BetterHeaders, BetterHeadersData } from './better-headers';
 
 declare module 'node:net' {
   interface Socket {
@@ -54,6 +56,17 @@ interface Http1ServerResponse
 }
 export type GenericResponse = Http1ServerResponse | http2.Http2ServerResponse;
 
+class IterableHeaders implements Iterable<[string, string]> {
+  constructor(private headers: string[]) { }
+  *[Symbol.iterator]() {
+    for (let i = 0; i < this.headers.length; i += 2) {
+      yield [this.headers[i], this.headers[i + 1]] as [string, string];
+    }
+
+  }
+}
+
+
 type S1 = ReturnType<typeof Streamer["parseRequest"]>;
 export interface ParsedRequest extends S1 { }
 /**
@@ -79,25 +92,20 @@ export class Streamer {
       }
     }
 
-    if (is2(req))
-      req.headers.host = req.headers[":authority"] as string;
+    if (is2(req)) req.headers.host = req.headers[":authority"] as string;
     if (!req.headers.host) throw new Error("This should never happen");
-
     if (!req.method) throw new Error("This should never happen");
-    // if (!is<AllowedMethod>(req.method, AllowedMethods.includes(req.method as any))) {
-    //   //https://httpwg.org/specs/rfc9110.html#status.501
-    //   res.writeHead(501, {}).end("Method not supported", "utf8");
-    //   throw STREAM_ENDED;
-    // }
+    // I assume Node would do this, but just in case. Now all headers are strings. 
+    if (req.headers['set-cookie']?.length) delete req.headers['set-cookie'];
 
-    const headers = req.headers as IncomingHttpHeaders;
     const method = req.method as string;
-    const host = headers.host!;
-    const cookies = Streamer.parseCookieString(headers.cookie || "");
-
+    const host = req.headers.host!;
+    
     const urlInfo = new URL(`https://${req.headers.host}${url}`);
+    
+    const headers = new BetterHeaders(req.headers);
 
-    return { req, res, url, urlInfo, pathPrefix, expectSecure, method, host, cookies, headers }
+    return { req, res, url, urlInfo, pathPrefix, expectSecure, method, host, cookies: headers.get("cookie"), headers }
   }
 
   static parseCookieString(cookieString: string) {
@@ -121,8 +129,8 @@ export class Streamer {
   readonly urlInfo: URL;
   /** The request url with path prefix removed. */
   readonly url: string;
-  readonly headers: IncomingHttpHeaders;
-  readonly cookies: URLSearchParams;
+  readonly headers: BetterHeaders;
+  readonly cookies: BetterHeadersData["cookie"];
   protected readonly compressor: Compressor | undefined;
   /** 
    * The path prefix is a essentially folder mount point. 
@@ -207,7 +215,7 @@ export class Streamer {
 
   }
 
-  
+
   get remoteFamily() { return this.#req.socket.remoteFamily; }
   get remoteAddress() { return this.#req.socket.remoteAddress; }
   get remotePort() { return this.#req.socket.remotePort; }
@@ -237,16 +245,14 @@ export class Streamer {
     cbPartEnd: (part: MultipartPart) => Promise<void>;
   }): Promise<void> {
 
-    const contentType = this.headers['content-type'];
-    if (!contentType || !isMultipartRequestHeader(contentType))
+    const contentType = this.headers.get("content-type");
+    if (!contentType?.mediaType?.startsWith("multipart/"))
       throw new SendError("MULTIPART_INVALID_CONTENT_TYPE", 400, null);
-
-    const boundary = getMultipartBoundary(contentType);
-    if (!boundary)
+    if (!contentType.boundary)
       throw new SendError("MULTIPART_MISSING_BOUNDARY", 400, null);
 
     for await (let part of parseNodeMultipartStream(this.reader, {
-      boundary,
+      boundary: contentType.boundary,
       useContentPart: false,
       onCreatePart: async (part) => {
         part.append = async (chunk: Uint8Array) => {

@@ -97,7 +97,7 @@ export async function recieveTiddlerMultipartUpload(state: ZodState<"POST", "str
           part2.fileStream!.write(chunk) ? res() : part2.fileStream!.once("drain", () => res());
         });
       } else {
-        const encoding = part.headers.contentType?.charset || "utf8";
+        const encoding = part.headers.get("content-type")?.charset || "utf8";
         if (!Buffer.isEncoding(encoding)) {
           throw new SendError("MULTIPART_INVALID_PART_ENCODING", 400, {
             partIndex: parts.length,
@@ -129,7 +129,7 @@ export async function recieveTiddlerMultipartUpload(state: ZodState<"POST", "str
 
   const missingfilename = "File uploaded " + new Date().toISOString();
 
-  const type = partFile.headers.contentType.mediaType;
+  const type = partFile.headers.get("content-type")?.mediaType;
   const tiddlerFields: TiddlerFields = { title: partFile.filename ?? missingfilename, type, };
 
   for (const part of parts) {

@@ -1,5 +1,5 @@
 
-import { jsonify, JsonValue, registerZodRoutes, RouterKeyMap, ServerRoute, Streamer, Z2, zod, ZodRoute, zodRoute, ZodState } from "@tiddlywiki/server";
+import { Cookie, jsonify, JsonValue, registerZodRoutes, RouterKeyMap, ServerRoute, Streamer, Z2, zod, ZodRoute, zodRoute, ZodState } from "@tiddlywiki/server";
 import { createHash, randomBytes } from "node:crypto";
 import { ServerState } from "../ServerState";
 import { serverEvents } from "@tiddlywiki/events";
@@ -46,7 +46,7 @@ export function zodSession<P extends string, T extends zod.ZodTypeAny, R extends
 ): ZodSessionRoute<P, T, R> {
   return {
     ...zodRoute({
-      method: ["POST"], 
+      method: ["POST"],
       path,
       bodyFormat: "json",
       zodPathParams: z => ({}),
@@ -90,7 +90,7 @@ export class SessionManager {
     registerZodRoutes(root, new SessionManager(), Object.keys(SessionKeyMap))
   }
 
-  static async parseIncomingRequest(cookies: URLSearchParams, config: ServerState): Promise<AuthUser> {
+  static async parseIncomingRequest(cookies: Cookie, config: ServerState): Promise<AuthUser> {
 
     const sessionId = cookies.getAll("session") as PrismaField<"Sessions", "session_id">[];
     const session = sessionId && await config.engine.sessions.findFirst({
@@ -206,11 +206,9 @@ export class SessionManager {
     if (state.user.isLoggedIn) {
       await prisma.sessions.delete({ where: { session_id: state.user.sessionId } });
     }
-    var cookies = state.headers.cookie ? state.headers.cookie.split(";") : [];
-    for (var i = 0; i < cookies.length; i++) {
-      var cookie = cookies[i]?.trim().split("=")[0];
-      if (!cookie) continue;
-      // state.setHeader("Set-Cookie", cookie + "=; HttpOnly; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Strict");
+    
+    state.headers.get("cookie")?.forEach((cookie) => {
+      if (!cookie) return;
       state.setCookie(cookie, "", {
         httpOnly: true,
         path: state.pathPrefix + "/",
@@ -218,7 +216,7 @@ export class SessionManager {
         secure: state.expectSecure,
         sameSite: "Strict"
       });
-    }
+    });
 
     return null;
   });

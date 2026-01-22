@@ -14,6 +14,7 @@ export * from "./utils";
 export * from "./Z2";
 export * from "./zodRegister";
 export * from "./zodRoute";
+export * from "./better-headers";
 
 /**
  * A startup function which currently does nothing but might eventually do something.

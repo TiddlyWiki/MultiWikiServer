@@ -84,7 +84,7 @@ export class WikiExternalRoutes {
     inner: async (state) => {
       const { bag_name, title } = state.pathParams;
       const { bag_id } = await state.assertBagAccess(bag_name, true);
-      const fields = parseTiddlerFields(state.data, state.headers["content-type"]);
+      const fields = parseTiddlerFields(state.data, state.headers.get("content-type")?.mediaType);
       if (fields === undefined)
         throw state.sendEmpty(400, {
           "x-reason": "PUT tiddler expects a valid json or x-mws-tiddler body"

@@ -8,6 +8,8 @@ import { SendError } from "./SendError";
 import { zodTransformJSON } from "./utils";
 import { Compressor } from "./compression";
 import { MultipartPart } from "@mjackson/multipart-parser";
+import { BetterHeaders } from "./better-headers";
+
 
 
 const debug = Debug("mws:router:matching");
@@ -248,7 +250,7 @@ export class Router {
    * @param streamer
    * @returns The tree path matched
    */
-  handleRouteMatching(streamer: { method: string, urlInfo: URL, headers: IncomingHttpHeaders }): { routePath: RouteMatch[], bodyFormat: BodyFormat } {
+  handleRouteMatching(streamer: { method: string, urlInfo: URL, headers: BetterHeaders }): { routePath: RouteMatch[], bodyFormat: BodyFormat } {
     const { method, urlInfo, headers } = streamer;
     let testPath = urlInfo.pathname || "/";
     const routes = this.findRouteRecursive([this.rootRoute as any], testPath, method, false);
@@ -271,7 +273,7 @@ export class Router {
     // 3. The server checks the CSRF token against the session.
     // 4. If the CSRF token is valid, the request is processed.
     // 5. If the CSRF token is invalid, the request is rejected with a 403 Forbidden.
-    const reqwith = headers["x-requested-with"] as keyof AllowedRequestedWithHeaderKeys | undefined;
+    const reqwith = headers.get("x-requested-with") as keyof AllowedRequestedWithHeaderKeys | undefined;
     // If the route requires a CSRF check,
     if (routePath.some(e => e.route.securityChecks?.requestedWithHeader))
       // If the method is not GET, HEAD, or OPTIONS, 

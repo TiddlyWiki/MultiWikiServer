@@ -66,7 +66,7 @@ serverEvents.on("mws.routes", (root, config) => {
     const etag = `"${state.pluginCache.pluginHashes.get(plugin)}"`;
     state.setHeader("Etag", etag);
 
-    const match = state.headers["if-none-match"] === etag;
+    const match = state.headers.get("if-none-match")?.has(etag);
     if (match) throw state.sendEmpty(304, { "x-reason": "Etag Match" });
 
     const accepts = state.acceptsEncoding(["gzip", "identity"]);
