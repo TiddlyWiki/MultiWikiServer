@@ -129,6 +129,7 @@ export class Streamer {
   readonly urlInfo: URL;
   /** The request url with path prefix removed. */
   readonly url: string;
+  /** The request headers. Never includes the four http2 headers, besides `:authority` as `host`. */
   readonly headers: BetterHeaders;
   readonly cookies: BetterHeadersData["cookie"];
   protected readonly compressor: Compressor | undefined;
