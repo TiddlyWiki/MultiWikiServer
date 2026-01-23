@@ -153,7 +153,7 @@ export interface ZodState<
   B extends BodyFormat,
   P extends Record<string, z.ZodType<any, string | undefined>>,
   Q extends Record<string, z.ZodType<any, string[] | undefined>>,
-  T extends z.ZodTypeAny
+  T extends z.ZodType
 > extends ServerRequest<B, M, z.output<T>> {
   pathParams: z.output<z.ZodObject<P, core.$strict>> & Record<string, any>;
   queryParams: z.output<z.ZodObject<Q, core.$strict>> & Record<string, any>;
