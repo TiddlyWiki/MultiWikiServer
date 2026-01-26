@@ -38,6 +38,12 @@ export interface SendErrorReasonData {
 
   "MULTIPART_INVALID_PART_ENCODING":
   SendErrorItem<400, { partIndex: number; partEncoding: string; }>;
+
+  "REQUIRES_HTTPS":
+  SendErrorItem<400, null>;
+
+  "HOST_NOT_RECOGNIZED": 
+  SendErrorItem<400, null>;
 };
 
 export class SendError<REASON extends SendErrorReason>

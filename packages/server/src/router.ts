@@ -103,6 +103,7 @@ export class Router {
     await serverEvents.emitAsync("request.middleware", this, req, res, options);
     const secure = !!(options.key && options.cert || options.secure);
     const request = Streamer.parseRequest(req, res, options.prefix ?? "", secure);
+    await serverEvents.emitAsync("request.init", this, request);
 
     // This should always have a length of at least 1 because of the root route.
     const { routePath, bodyFormat } = this.handleRouteMatching(request);
@@ -250,7 +251,7 @@ export class Router {
    * @param streamer
    * @returns The tree path matched
    */
-  handleRouteMatching(streamer: { method: string, urlInfo: URL, headers: BetterHeaders }): { routePath: RouteMatch[], bodyFormat: BodyFormat } {
+  handleRouteMatching(streamer: ParsedRequest): { routePath: RouteMatch[], bodyFormat: BodyFormat } {
     const { method, urlInfo, headers } = streamer;
     let testPath = urlInfo.pathname || "/";
     const routes = this.findRouteRecursive([this.rootRoute as any], testPath, method, false);
@@ -282,6 +283,11 @@ export class Router {
         if (!reqwith || !Router.allowedRequestedWithHeaders[reqwith])
           // we reject the request with a 403 Forbidden.
           throw new SendError("INVALID_X_REQUESTED_WITH", 400, null);
+
+    if (routePath.some(e => e.route.securityChecks?.requireHTTPS))
+      if (!streamer.assumeHTTPS)
+        throw new SendError("REQUIRES_HTTPS", 400, null);
+
 
     // if no bodyFormat is specified, we default to ignore
     const bodyFormat = routePath.find(e => e.route.bodyFormat)?.route.bodyFormat || "ignore";
@@ -343,6 +349,17 @@ export interface RouteDef {
      * @see {@link AllowedRequestedWithHeaderKeys}
      */
     requestedWithHeader?: boolean;
+
+    /**
+     * If true, the request must be made over HTTPS.
+     * If the request is not secure, it will be rejected with a 403 Forbidden.
+     * 
+     * There are several ways this can be true:
+     * - The request came through a listener with the --secure flag set.
+     * - The request came through a listener setup with TLS key/cert.
+     * 
+     */
+    requireHTTPS?: boolean;
   };
 
 }

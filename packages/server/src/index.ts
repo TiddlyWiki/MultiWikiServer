@@ -1,7 +1,7 @@
 import { serverEvents } from "@tiddlywiki/events";
 import { Router } from "./router";
 import { ListenerHTTP, ListenerHTTPS, ListenOptions } from "./listeners";
-import type { GenericRequest, GenericResponse } from "./streamer";
+import type { GenericRequest, GenericResponse, ParsedRequest } from "./streamer";
 import type { ServerRequest } from "./router";
 import { Z2, zod as z } from "./Z2";
 import { caughtPromise } from "./utils";
@@ -112,6 +112,7 @@ declare module "@tiddlywiki/events" {
   interface ServerEventsMap {
     "zod.make": [zod: Z2<any>]
     "request.middleware": [router: Router, req: GenericRequest, res: GenericResponse, options: ListenOptions]
+    "request.init": [router: Router, options: ParsedRequest]
     "request.state": [router: Router, state: ServerRequest]
     "request.fallback": [router: Router, state: ServerRequest]
     "exit": []

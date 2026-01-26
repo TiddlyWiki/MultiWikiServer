@@ -74,7 +74,7 @@ export interface ParsedRequest extends S1 { }
  * The NodeJS HTTP2 server actually calls the HTTP1 parser for all HTTP1 requests. 
  */
 export class Streamer {
-  static parseRequest(req: GenericRequest, res: GenericResponse, pathPrefix: string, expectSecure: boolean) {
+  static parseRequest(req: GenericRequest, res: GenericResponse, pathPrefix: string, assumeHTTPS: boolean) {
 
     let url = req.url as string;
 
@@ -105,7 +105,7 @@ export class Streamer {
     
     const headers = new BetterHeaders(req.headers);
 
-    return { req, res, url, urlInfo, pathPrefix, expectSecure, method, host, cookies: headers.get("cookie"), headers }
+    return { req, res, url, urlInfo, pathPrefix, assumeHTTPS, method, host, cookies: headers.get("cookie"), headers }
   }
 
   static parseCookieString(cookieString: string) {
@@ -142,7 +142,7 @@ export class Streamer {
    */
   public readonly pathPrefix: string;
   /** This is based on the listener either having a key + cert or having secure set */
-  public readonly expectSecure: boolean;
+  public readonly assumeHTTPS: boolean;
 
 
 
@@ -183,7 +183,7 @@ export class Streamer {
     this.url = request.url;
     this.urlInfo = request.urlInfo;
     this.pathPrefix = request.pathPrefix;
-    this.expectSecure = request.expectSecure;
+    this.assumeHTTPS = request.assumeHTTPS;
     this.method = request.method;
     this.host = request.host;
     this.headers = request.headers;
