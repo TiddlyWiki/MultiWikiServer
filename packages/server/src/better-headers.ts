@@ -27,7 +27,7 @@ interface SuperHeadersMap {
   "content-disposition"?: ContentDisposition
   "content-range"?: ContentRange
   "content-type"?: ContentType
-  "cookie": Cookie
+  "cookie": BetterCookie
   "if-match"?: IfMatch
   "if-none-match"?: IfNoneMatch
   "range"?: Range
@@ -60,7 +60,9 @@ export class BetterHeaders {
     else
       for (let [key, value] of Object.entries(headers))
         this.initHeader(key, value);
-
+    
+    if(!this.headers.cookie)
+      this.headers.cookie = new BetterCookie();
   }
   initHeader(key: string, value: string | string[] | undefined) {
     key = key.toLowerCase();
@@ -121,7 +123,7 @@ export class BetterHeaders {
   }
 }
 
-export class Cookie extends URLSearchParams {
+export class BetterCookie extends URLSearchParams {
   constructor(cookieString?: string) {
     super();
     if (cookieString) {
@@ -155,12 +157,12 @@ export class Cookie extends URLSearchParams {
    * @param value The header value (string, init object, or null)
    * @returns A Cookie instance (empty if null)
    */
-  static from(value: string | Iterable<[string, string]> | Record<string, string> | null): Cookie {
-    let header = new Cookie()
+  static from(value: string | Iterable<[string, string]> | Record<string, string> | null): BetterCookie {
+    let header = new BetterCookie()
 
     if (value !== null) {
       if (typeof value === 'string') {
-        let params = Cookie.parseParams(value)
+        let params = BetterCookie.parseParams(value)
         for (let [name, val] of params) {
           header.append(name, val ?? '')
         }
@@ -228,7 +230,7 @@ const superHeaderClasses: { [K in keyof SuperHeadersMap]-?: { new(value: string)
   "content-disposition": ContentDisposition,
   "content-range": ContentRange,
   "content-type": ContentType,
-  "cookie": Cookie,
+  "cookie": BetterCookie,
   "if-match": IfMatch,
   "if-none-match": IfNoneMatch,
   "range": Range,

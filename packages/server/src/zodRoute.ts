@@ -168,7 +168,7 @@ export type RouterRouteMap<T> = {
 }
 
 export type jsonify<T> =
-  T extends void ? null :
+  T extends void ? undefined :
   T extends Promise<any> ? unknown :
   T extends Date ? string :
   // T extends Map<infer K, infer V> ? [jsonify<K>, jsonify<V>][] :

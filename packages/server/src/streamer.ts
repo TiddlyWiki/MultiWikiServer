@@ -14,7 +14,7 @@ import { zod } from './Z2';
 import { getMultipartBoundary, isMultipartRequestHeader, MultipartPart, parseNodeMultipartStream } from '@mjackson/multipart-parser';
 import { SendError, SendErrorReason, SendErrorReasonData } from './SendError';
 import { } from '@remix-run/headers';
-import { BetterHeaders, BetterHeadersData } from './better-headers';
+import { BetterCookie, BetterHeaders, BetterHeadersData } from './better-headers';
 
 declare module 'node:net' {
   interface Socket {
@@ -131,7 +131,7 @@ export class Streamer {
   readonly url: string;
   /** The request headers. Never includes the four http2 headers, besides `:authority` as `host`. */
   readonly headers: BetterHeaders;
-  readonly cookies: BetterHeadersData["cookie"];
+  readonly cookies: BetterCookie;
   protected readonly compressor: Compressor | undefined;
   /** 
    * The path prefix is a essentially folder mount point. 
