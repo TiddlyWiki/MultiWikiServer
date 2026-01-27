@@ -1,5 +1,5 @@
 
-import { Cookie, jsonify, JsonValue, registerZodRoutes, RouterKeyMap, ServerRoute, Streamer, Z2, zod, ZodRoute, zodRoute, ZodState } from "@tiddlywiki/server";
+import { BetterCookie, jsonify, JsonValue, registerZodRoutes, RouterKeyMap, ServerRoute, Streamer, Z2, zod, ZodRoute, zodRoute, ZodState } from "@tiddlywiki/server";
 import { createHash, randomBytes } from "node:crypto";
 import { ServerState } from "../ServerState";
 import { serverEvents } from "@tiddlywiki/events";
@@ -90,7 +90,7 @@ export class SessionManager {
     registerZodRoutes(root, new SessionManager(), Object.keys(SessionKeyMap))
   }
 
-  static async parseIncomingRequest(cookies: Cookie, config: ServerState): Promise<AuthUser> {
+  static async parseIncomingRequest(cookies: BetterCookie, config: ServerState): Promise<AuthUser> {
 
     const sessionId = cookies.getAll("session") as PrismaField<"Sessions", "session_id">[];
     const session = sessionId && await config.engine.sessions.findFirst({
@@ -174,7 +174,7 @@ export class SessionManager {
       state.setCookie("session", session_id, {
         httpOnly: true,
         path: state.pathPrefix + "/",
-        secure: state.expectSecure,
+        secure: state.assumeHTTPS,
         sameSite: "Strict"
       });
     }
@@ -213,7 +213,7 @@ export class SessionManager {
         httpOnly: true,
         path: state.pathPrefix + "/",
         expires: new Date(0),
-        secure: state.expectSecure,
+        secure: state.assumeHTTPS,
         sameSite: "Strict"
       });
     });
