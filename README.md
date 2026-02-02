@@ -55,6 +55,55 @@ The initial user created on first run has the username `admin` and password `123
 
 If you run into trouble, or need help figuring something out, feel free to [start a discussion](https://github.com/TiddlyWiki/MultiWikiServer/discussions). If you know what's wrong, you can also open an issue.
 
+## Running with Docker Compose
+
+For easier deployment and consistent environments, you can run MWS using Docker Compose. See **[DOCKER.md](DOCKER.md)** for complete documentation.
+
+**Quick start with volume mode:**
+```bash
+# Download the required files
+curl -O https://raw.githubusercontent.com/TiddlyWiki/MultiWikiServer/main/docker-compose.volume.yml
+curl -O https://raw.githubusercontent.com/TiddlyWiki/MultiWikiServer/main/Dockerfile
+
+# Start MWS
+docker-compose -f docker-compose.volume.yml up -d
+
+# Initialize the database (required on first run)
+docker-compose -f docker-compose.volume.yml exec mws npx mws init-store
+
+# Access at http://localhost:8080
+# Default credentials: admin / 1234
+```
+
+**Quick start with directory mode:**
+```bash
+# Create your data directory
+mkdir my-mws-data
+cd my-mws-data
+
+# Download the required files
+curl -O https://raw.githubusercontent.com/TiddlyWiki/MultiWikiServer/main/docker-compose.directory.yml
+curl -O https://raw.githubusercontent.com/TiddlyWiki/MultiWikiServer/main/Dockerfile
+
+# Create store directory
+mkdir -p store
+
+# Start MWS
+docker-compose -f docker-compose.directory.yml up -d
+
+# Initialize the database (required on first run)
+docker-compose -f docker-compose.directory.yml exec mws npx mws init-store
+
+# Access at http://localhost:8080
+# Default credentials: admin / 1234
+```
+
+Two deployment modes are available:
+- **docker-compose.volume.yml** - Uses Docker-managed volumes (simpler)
+- **docker-compose.directory.yml** - Uses local `./store` directory (easier backups and access)
+
+For detailed instructions, backup strategies, migration guides, and troubleshooting, see **[DOCKER.md](DOCKER.md)**.
+
 ## Updates
 
 If upgrading from 0.0, the best way to save your information is to open each wiki and click the cloud status icon, then click "save snapshot for offline use". You can then create a new instance and import your wikis via the browser.
