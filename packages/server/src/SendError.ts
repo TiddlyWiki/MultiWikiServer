@@ -42,12 +42,20 @@ export interface SendErrorReasonData {
   "REQUIRES_HTTPS":
   SendErrorItem<400, null>;
 
-  "HOST_NOT_RECOGNIZED": 
+  "HOST_NOT_RECOGNIZED":
   SendErrorItem<400, null>;
 };
 
-export class SendError<REASON extends SendErrorReason>
-  extends Error {
+
+export type SendErrorTypes = {
+  [K in keyof SendErrorReasonData]: SendError<K>;
+}[keyof SendErrorReasonData];
+
+export class SendError<REASON extends SendErrorReason> extends Error {
+
+  static [Symbol.hasInstance](instance: any): instance is SendErrorTypes {
+    return Function.prototype[Symbol.hasInstance].call(this, instance);
+  }
 
   constructor(
     public reason: REASON,

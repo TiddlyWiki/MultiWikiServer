@@ -19,14 +19,15 @@ export function zodRoute<
   return route as ZodRoute<M, B, P, Q, T, R>;
 }
 {
-  const COMPILE_TIME_BUT_NEVER_RUNTIME: true = false as any;
   zodRoute.symbol = Symbol("zodRoute");
   const t2 = (instance: any): instance is ZodRoute<any, any, any, any, any, any> =>
     typeof instance === "object" && instance && instance[zodRoute.symbol] === true;
 
-  if (COMPILE_TIME_BUT_NEVER_RUNTIME) {
+  if (false as any as true) {
+    // typescript needs this for typing, but it doesn't work at runtime 
     zodRoute[Symbol.hasInstance] = t2;
   } else {
+    // this works in runtime but Typescript doesn't know what it does
     Object.defineProperty(zodRoute, Symbol.hasInstance, {
       value: t2,
       configurable: true,
