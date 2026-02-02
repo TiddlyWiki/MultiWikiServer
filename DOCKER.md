@@ -2,6 +2,12 @@
 
 This guide explains how to deploy MultiWikiServer using Docker and Docker Compose.
 
+## GitHub Copilot implemented the Docker files, and wrote this page, and we need testers who know Docker
+
+![this is fine](https://github.com/user-attachments/assets/49505d25-7a48-42f1-b4f7-73e8630c1ba1)
+
+No, seriously. This Docker stuff hasn't been properly tested yet by someone who actually knows docker well, and I've only merged it in to give it visibility. 
+
 ## Quick Start
 
 ### Prerequisites
