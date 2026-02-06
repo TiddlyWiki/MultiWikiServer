@@ -1,5 +1,5 @@
 import * as z4 from "zod/v4";
-import { FieldTypeGroups } from "./zodRoute";
+export type FieldTypeGroups = "STRING" | "JSON";
 
 export type _zod = typeof z4;
 
