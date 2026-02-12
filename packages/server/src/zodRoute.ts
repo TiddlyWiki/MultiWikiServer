@@ -94,6 +94,10 @@ export interface ZodRoute<
   /** 
    * The filter to match requests to. It can either be a string or a regex.
    * 
+   * If the string ends with a slash, it will denote a folder, but the matching child path will 
+   * still start with a slash. So a route with the path `/literal/` would match a request 
+   * to `/literal/test/hello/world/`, and the child route would see the path as `/test/hello/world/`.
+   * 
    * The following string is converted to the following regex. Notice the last param entirely 
    * matches the rest of the path, and it may be zero length (the url may be `/literal/test/hello/world/`)
    *   - `/literal/:param1/hello/world/:param2`

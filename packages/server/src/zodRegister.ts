@@ -101,8 +101,10 @@ export function checkData<
   const inputCheck = Z2.any().pipe(zodRequestBody(Z2)).safeParse(state.data);
   if (!inputCheck.success) {
     console.log(`${inputCheck.error}\nfor\n${registerError.stack?.split("\n").slice(1).join("\n")}`);
-    throw state.sendString(400, { "x-reason": "zod-request" },
-      Z2.prettifyError(inputCheck.error).toString(), "utf8");
+    throw state.sendString(400, {
+      "content-type": "text/plain; charset=utf-8",
+      "x-reason": "zod-request"
+    }, Z2.prettifyError(inputCheck.error).toString(), "utf8");
   }
   state.data = inputCheck.data;
 }
@@ -117,8 +119,10 @@ export function checkQuery<
   const queryCheck = Z2.strictObject(zodQueryParams(Z2)).safeParse(state.queryParams);
   if (!queryCheck.success) {
     console.log(`${queryCheck.error}\nfor\n${registerError.stack?.split("\n").slice(1).join("\n")}`);
-    throw state.sendString(400, { "x-reason": "zod-query" },
-      Z2.prettifyError(queryCheck.error).toString(), "utf8");
+    throw state.sendString(400, {
+      "content-type": "text/plain; charset=utf-8",
+      "x-reason": "zod-query"
+    }, Z2.prettifyError(queryCheck.error).toString(), "utf8");
   }
   state.queryParams = queryCheck.data as any;
 }
