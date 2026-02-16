@@ -86,8 +86,11 @@ export function defineZodRoute(
         throw error;
       }
     }
-
-    return state.sendJSON(200, res);
+    if (res === undefined) {
+      return state.sendEmpty(204, { "content-type": "application/json" });
+    } else {
+      return state.sendJSON(200, res);
+    }
   });
 }
 
