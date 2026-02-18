@@ -6,11 +6,15 @@ import { Router } from "./router";
 import { serverEvents } from '@tiddlywiki/events';
 import { GenericRequest, GenericResponse } from './streamer';
 
+export interface ListenerRouter {
+  handle: (req: GenericRequest, res: GenericResponse, options: ListenOptions) => void;
+}
+
 export class ListenerBase {
 
   constructor(
     public server: Http2SecureServer | Server,
-    public router: Router,
+    public router: ListenerRouter,
     public bindInfo: string,
     public options: ListenOptions,
   ) {
@@ -70,7 +74,7 @@ export class ListenerBase {
 }
 
 export class ListenerHTTPS extends ListenerBase {
-  constructor(router: Router, config: ListenOptions) {
+  constructor(router: ListenerRouter, config: ListenOptions) {
     const { port, host, prefix } = config;
     const bindInfo = `HTTPS ${host} ${port} ${prefix}`;
     const options = config.secureServerOptions ?? (() => {
@@ -91,7 +95,7 @@ export class ListenerHTTPS extends ListenerBase {
 
 export class ListenerHTTP extends ListenerBase {
   /** Create an http1 server */
-  constructor(router: Router, config: ListenOptions) {
+  constructor(router: ListenerRouter, config: ListenOptions) {
     const { port, host, prefix } = config;
     const bindInfo = `HTTP ${host} ${port} ${prefix}`;
     super(createServer(), router, bindInfo, config);

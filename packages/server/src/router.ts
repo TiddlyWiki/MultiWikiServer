@@ -63,6 +63,8 @@ export class Router {
 
   }
 
+  tag = "";
+
   handle(
     req: GenericRequest,
     res: GenericResponse,
@@ -261,7 +263,7 @@ export class Router {
     // because if the request does not match a route, we have no way of knowing what
     // resource they thought they were requesting and whether or not it exists.
     if (!routePath.length || routePath[routePath.length - 1]?.route.denyFinal) {
-      console.log("No route found for", method, urlInfo.pathname, routePath.length);
+      console.log("No route found for", this.tag, method, urlInfo.pathname, routePath.length);
       routePath.forEach(e => console.log(e.route.method, e.route.path.source, e.route.denyFinal));
       throw new SendError("NO_ROUTE_MATCHED", 400, null);
     }

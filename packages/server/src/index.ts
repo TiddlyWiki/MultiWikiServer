@@ -1,6 +1,6 @@
 import { serverEvents } from "@tiddlywiki/events";
 import { Router } from "./router";
-import { ListenerHTTP, ListenerHTTPS, ListenOptions } from "./listeners";
+import { ListenerHTTP, ListenerHTTPS, ListenerRouter, ListenOptions } from "./listeners";
 import type { GenericRequest, GenericResponse, ParsedRequest } from "./streamer";
 import type { ServerRequest } from "./router";
 import { Z2, zod as z } from "./Z2";
@@ -67,7 +67,7 @@ const listenOptionsCheck = z.object({
 }).strict().array();
 
 export async function startListening(
-  router: Router,
+  router: ListenerRouter,
   options: Partial<ListenOptions>[] = []
 ) {
 
