@@ -1,0 +1,23 @@
+{
+  "name": "@arwc/client",
+  "scripts": {
+    "start": "cd .. && npm start",
+    "tsc": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@fontsource/roboto": "^5.2.6",
+    "@material/web": "^2.4.0",
+    "@mdui/icons": "^1.0.3",
+    "@types/luxon": "^3.6.2",
+    "@types/react": "^19.2.2",
+    "esbuild-plugin-copy": "^2.1.1",
+    "events": "^3.3.0",
+    "lit": "3.3.1",
+    "luxon": "^3.7.1",
+    "mdui": "file:mdui-2.1.4.tgz",
+    "normalize.css": "^8.0.1",
+    "react": "^19.2.0",
+    "replicache": "^15.3.0",
+    "uuid": "^13.0.0"
+  }
+}

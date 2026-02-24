@@ -1,0 +1,225 @@
+import type * as htmljsx from 'html-jsx';
+import { JSXElementSymbol } from "./jsx-render";
+import { MaybeArray, MaybeArrayDeep, is } from "./jsx-utils";
+export { render, updateElement } from "./jsx-render";
+
+export const Fragment = () => {
+  throw new Error("Fragment is a placeholder and should not be called directly.");
+};
+
+type DOMElement = Element;
+
+declare global {
+  export interface CustomElements { }
+  /**
+   * The JSX namespace defines the types for JSX elements, attributes, and event handlers.
+   * 
+   * ```
+   * declare global {
+   *   interface CustomElements {
+   *     'mws-app': JSX.SimpleAttrs<{
+   *       test: string;
+   *     }, App>;
+   *   }
+   * }
+   * ```
+   */
+  export namespace JSX {
+    export type KeyPrimitive = symbol | string | number | null | undefined;
+    /** DOM elements passed directly as children will be inserted, not cloned. */
+    export type Node = JSX.Element | JSX.Primitive | DOMElement;
+    export type Primitive = string | number | boolean | null | undefined;
+    export type Ref<T extends Element = Element> = (e: T) => void;
+
+    export interface Element {
+      $$type: typeof JSXElementSymbol;
+      type: string | Function;
+      props: { children?: JSX.Node[]; } & Record<string, unknown>;
+      key?: KeyPrimitive;
+    }
+
+    export interface EventHandler<T extends DOMElement, E extends Event> extends htmljsx.EventHandler<T, E> { }
+    /** 
+     * Restricts what element types are allowed. 
+     * 
+     * Lowercase first letter gets converted to a string by JSX.
+     * 
+     * Uppercase first letter is expected to be a reference.
+     * 
+     * We use HTMLElement here only, because elsewhere the types also include the string resolved types.
+     */
+    export type ElementType = string | { new(): HTMLElement };
+    export interface ElementClass extends DOMElement { }
+    export interface ElementAttributesProperty { props: {}; }
+    export interface ElementChildrenAttribute { children: {}; }
+
+    export type IntrinsicWatchAttributes = {
+      [K in `webjsx-watch-${string}`]?: { get?(): string | null; set?(value: string | null): void; }
+    }
+    export interface IntrinsicAttributes extends IntrinsicWatchAttributes {
+      key?: KeyPrimitive;
+      children?: MaybeArrayDeep<JSX.Node>;
+      style?: string;
+      className?: string;
+      class?: string;
+    }
+
+    /** 
+     * For lowercase tag names, C is `(props: P) => JSX.Element`. 
+     * For uppercase, C is the constructor type, 
+     * whether that's a class or a function. 
+     * 
+     * It's useful for accessing static members.
+     */
+    export type LibraryManagedAttributes<C, P> =
+      C extends { new(): infer E extends HTMLElement }
+      ? SimpleAttrs<P, E>
+      : P;
+    /** lowercase tags and function types do not use this. For class types this is the instance type. */
+    export interface IntrinsicClassAttributes<T extends DOMElement> {
+      ref?: (e: T) => void;
+    }
+
+    export interface HTMLAttributes<E extends HTMLElement> extends htmljsx.HTMLAttributes<E> { }
+    export interface DOMAttributes<E extends HTMLElement> extends htmljsx.DOMAttributes<E> { }
+    export interface SVGAttributes<E extends HTMLElement> extends htmljsx.SVGAttributes<E> { }
+
+
+
+    // properties specific to Reference 
+    // export interface IntrinsicClassAttributes<T extends ElementClass>
+    //   extends IntrinsicAttributes<T>,
+    //   ToAttr<htmljsx.HTMLAttributes<T>> { }
+
+    /** 
+     * This interface is expected to conform to the following format.
+     * 
+     * ```ts
+     * { [tagName: string]: { 
+     *   [attrName: `on${string}`]?: EventHandler
+     *   [attrName: string]?: string | number | boolean | null | undefined 
+     * }}
+     * ```
+     * 
+     * `webjsx-watch-${keyof T}` and `webjsx-attr-${string}` are added automatically
+     * 
+     * types set for `"style"`, `"class"`, `"className"`, `"children"`, `"key"`, and `"xmlns"` are ignored
+     * 
+     * type set for `"ref"` will be used for `Ref<T>`
+     * 
+     * all attributes are always optional
+     * 
+     */
+
+    export interface IntrinsicElements extends CustomElements { }
+    export interface IntrinsicElements extends ElementsModified<htmljsx.IntrinsicElements> { }
+    export interface IntrinsicElements extends IconElements { }
+
+
+    type IgnoredProperties = "style" | "class" | "className" | "children" | "key" | "ref" | "xmlns" | `on${string}`;
+
+
+
+    /**
+     * T extends { [tagName: string]: { [attributeName: string]: string; }}
+     */
+    type ElementsModified<T> = {
+      [K in keyof T]:
+      T[K] extends htmljsx.DOMAttributes<infer E extends DOMElement> ? SimpleAttrs<T[K], E> :
+      T[K] extends { ref?: (e: infer E extends DOMElement) => any } ? SimpleAttrs<T[K], E> :
+      K extends keyof HTMLElementTagNameMap ? SimpleAttrs<T[K], HTMLElementTagNameMap[K]> :
+      SimpleAttrs<T[K], DOMElement>;
+    }
+
+    export type SimpleAttrs<T, E extends DOMElement> =
+      & AddWatched<{ [P in keyof T as P extends IgnoredProperties ? never : P]?: Extract<T[P], Primitive> }>
+      & IntrinsicAttributes
+      & GlobalEventsMap<E>
+      & WebjsxAttrString
+      & { ref?: (e: E) => void; }
+
+    type WebjsxAttrString = { [K in `webjsx-attr-${string}`]?: string };
+
+    type AddWatched<T> = T
+      & {
+      [K in `webjsx-watch-${string & keyof T}`]?:
+      K extends `webjsx-watch-${infer U extends string & keyof T}`
+      ? { get?(): T[U]; set?(value: T[U]): void; }
+      : never;
+    }
+
+    type ToAttr<T> = {
+      [P in `webjsx-attr-${string & keyof T} ` as P extends `webjsx-attr-on${string} ` ? never : P]?:
+      Primitive;
+    } & {
+      [P in `webjsx-attr-${string & keyof T} ` as P extends `webjsx-attr-on${string} ` ? P : never]?:
+      T[P extends `webjsx-attr-${infer U extends string & keyof T} ` ? U : never];
+    }
+
+    type IconElements = {
+      [K in keyof HTMLElementTagNameMap as K extends `mdui-icon-${string}` ? K : never]:
+      htmljsx.HTMLAttributes<HTMLElementTagNameMap[K]>
+    };
+
+    type GlobalEventsMap<T extends DOMElement> = {
+      [K in keyof GlobalEventHandlers]?:
+      GlobalEventHandlers[K] extends ((ev: infer E extends Event) => any) | null ? EventHandler<T, E> : never;
+    }
+
+  }
+}
+
+
+/**
+ * JSX transform factory function.
+ * @param type Element type or component
+ * @param props Element properties
+ * @param key Optional key for element identification
+ * @returns Virtual element
+ */
+export function jsx(
+  type: string | Function,
+  props: Record<string, unknown> | null,
+  key: JSX.KeyPrimitive
+): MaybeArray<JSX.Node> {
+
+  props ??= {};
+
+  if (!Array.isArray(props.children))
+    props.children = [props.children];
+  else
+    props.children = props.children.flat(Infinity);
+  // fix types
+  if (!is<{ children: any[] }>(props, true)) throw new Error();
+
+  if (type === Fragment) return props.children;
+
+  if (typeof type === "string") type = type.toUpperCase();
+
+  return { $$type: JSXElementSymbol, type, props, key };
+
+}
+
+/**
+ * JSX transform factory for elements with multiple children.
+ * Functionally identical to jsx() in this implementation.
+ */
+export function jsxs(
+  type: string | Function,
+  props: Record<string, unknown> | null,
+  key: JSX.KeyPrimitive
+) {
+  return jsx(type, props, key);
+}
+
+/**
+ * Development mode JSX transform factory.
+ * Currently identical to jsx() in this implementation.
+ */
+export function jsxDEV(
+  type: string | Function,
+  props: Record<string, unknown> | null,
+  key: JSX.KeyPrimitive
+) {
+  return jsx(type, props, key);
+}

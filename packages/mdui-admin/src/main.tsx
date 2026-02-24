@@ -1,0 +1,88 @@
+/// <reference path="types.d.ts" />
+import 'mdui/mdui.css';
+import 'mdui';
+// global css (not scoped)
+import "./main.css";
+
+// 
+import type * as TMDUI from "mdui/jsx2.en.d.ts";
+declare global {
+  export interface CustomElements extends TMDUI.IntrinsicElements { }
+}
+declare module "mdui/jsx2.en.d.ts" {
+  export interface IntrinsicAttributes<T extends Element> extends JSX.SimpleAttrs<{}, T> { }
+}
+
+import '@mdui/icons/leaderboard--outlined';
+import '@mdui/icons/image--outlined';
+import '@mdui/icons/library-music--outlined';
+import '@mdui/icons/place';
+import '@mdui/icons/commute';
+import '@mdui/icons/people';
+import '@mdui/icons/emoji-food-beverage.js';
+import '@mdui/icons/medication.js';
+import '@mdui/icons/search';
+import '@mdui/icons/arrow-back.js';
+import '@mdui/icons/arrow-forward--outlined.js';
+import '@mdui/icons/keyboard-arrow-up.js';
+import '@mdui/icons/keyboard-arrow-down.js';
+import '@mdui/icons/phone.js';
+import '@mdui/icons/email--outlined.js';
+import '@mdui/icons/location-on--outlined.js';
+import '@mdui/icons/edit--outlined.js';
+import '@mdui/icons/check--outlined.js';
+
+import { setColorScheme } from 'mdui';
+import { styles as typescaleStyles } from '@material/web/typography/md-typescale-styles.js';
+import { customElement, property, state } from "lit/decorators.js";
+import { JSXElement } from './utils/JSXElement';
+
+
+document.adoptedStyleSheets.push(typescaleStyles.styleSheet!);
+// this appends a style tag to the head, so I just baked it into the html.
+setColorScheme('#a45b89');
+// `mdui-theme-${"light" | "dark" | "auto"}`
+document.documentElement.classList.add("mdui-theme-auto");
+// disables the "flash of white" styles
+document.documentElement.classList.add("loaded");
+
+// Source - https://stackoverflow.com/a/52695341
+// Posted by Gary Vernon Grubb, modified by community. 
+// See post 'Timeline' for change history
+// Retrieved 2026-01-30, License - CC BY-SA 4.0
+
+const isInStandaloneMode = () => false
+  || (window.matchMedia('(display-mode: standalone)').matches)
+  || (window.matchMedia('(display-mode: fullscreen)').matches)
+  || (window.matchMedia('(display-mode: minimal-ui)').matches)
+  || ("standalone" in window.navigator && window.navigator.standalone)
+  || document.referrer.includes('android-app://');
+
+if (isInStandaloneMode()) {
+  console.log("webapp is installed")
+}
+
+declare global {
+  interface CustomElements {
+    'mws-app': JSX.SimpleAttrs<{}, App>;
+  }
+}
+
+@customElement("mws-app")
+class App extends JSXElement {
+
+  protected render() {
+    return null;
+  }
+}
+
+function setup() {
+  document.body.appendChild(document.createElement('mws-app'));
+}
+
+if (document.readyState === "loading") {
+  document.addEventListener("DOMContentLoaded", setup);
+} else {
+  setup();
+}
+
