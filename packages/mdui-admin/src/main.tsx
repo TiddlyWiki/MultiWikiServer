@@ -34,9 +34,8 @@ import '@mdui/icons/check--outlined.js';
 
 import { setColorScheme } from 'mdui';
 import { styles as typescaleStyles } from '@material/web/typography/md-typescale-styles.js';
-import { customElement, property, state } from "lit/decorators.js";
-import { JSXElement } from './utils/JSXElement';
 
+import { App } from "./app";
 
 document.adoptedStyleSheets.push(typescaleStyles.styleSheet!);
 // this appends a style tag to the head, so I just baked it into the html.
@@ -62,22 +61,8 @@ if (isInStandaloneMode()) {
   console.log("webapp is installed")
 }
 
-declare global {
-  interface CustomElements {
-    'mws-app': JSX.SimpleAttrs<{}, App>;
-  }
-}
-
-@customElement("mws-app")
-class App extends JSXElement {
-
-  protected render() {
-    return null;
-  }
-}
-
 function setup() {
-  document.body.appendChild(document.createElement('mws-app'));
+  document.body.appendChild(new App());
 }
 
 if (document.readyState === "loading") {

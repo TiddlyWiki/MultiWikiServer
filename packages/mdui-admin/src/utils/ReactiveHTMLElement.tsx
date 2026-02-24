@@ -68,5 +68,3 @@ export abstract class ReactiveHTMLElement extends HTMLElement {
   protected adoptedCallback() { }
 
 }
-// Hi Arlen, I am stealing your computer to do some relaxing coding and I have no idea how to code. Ready, set, GO
-// this.anotherAttr = NewV + " Jenny is making friends at southern market. BOOM";

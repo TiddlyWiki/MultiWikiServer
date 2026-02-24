@@ -64,6 +64,17 @@ declare global {
       class?: string;
     }
 
+    export interface BaseAttrs<E extends DOMElement> extends
+      IntrinsicAttributes,
+      GlobalEventsMap<E>,
+      WebjsxAttrString {
+      ref?: (e: E) => void;
+    }
+
+    export type SimpleAttrs<T, E extends DOMElement> =
+      & AddWatched<{ [P in keyof T as P extends IgnoredProperties ? never : P]?: Extract<T[P], Primitive> }>
+      & BaseAttrs<E>;
+
     /** 
      * For lowercase tag names, C is `(props: P) => JSX.Element`. 
      * For uppercase, C is the constructor type, 
@@ -73,12 +84,10 @@ declare global {
      */
     export type LibraryManagedAttributes<C, P> =
       C extends { new(): infer E extends HTMLElement }
-      ? SimpleAttrs<P, E>
+      ? P & BaseAttrs<E>
       : P;
     /** lowercase tags and function types do not use this. For class types this is the instance type. */
-    export interface IntrinsicClassAttributes<T extends DOMElement> {
-      ref?: (e: T) => void;
-    }
+    export interface IntrinsicClassAttributes<T extends DOMElement> { }
 
     export interface HTMLAttributes<E extends HTMLElement> extends htmljsx.HTMLAttributes<E> { }
     export interface DOMAttributes<E extends HTMLElement> extends htmljsx.DOMAttributes<E> { }
@@ -131,12 +140,8 @@ declare global {
       SimpleAttrs<T[K], DOMElement>;
     }
 
-    export type SimpleAttrs<T, E extends DOMElement> =
-      & AddWatched<{ [P in keyof T as P extends IgnoredProperties ? never : P]?: Extract<T[P], Primitive> }>
-      & IntrinsicAttributes
-      & GlobalEventsMap<E>
-      & WebjsxAttrString
-      & { ref?: (e: E) => void; }
+
+
 
     type WebjsxAttrString = { [K in `webjsx-attr-${string}`]?: string };
 
