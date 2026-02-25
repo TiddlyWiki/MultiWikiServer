@@ -10,6 +10,7 @@ import { addstyles } from "./addstyles";
 import { style as textFieldStyle } from "mdui/components/text-field/style";
 import Dropzone from "dropzone";
 import { createHybridRef } from "@tiddlywiki/jsx-runtime/jsx-utils";
+import { Observable, Subscription, isObservable } from "rxjs";
 // ────────────────────────────────────────────────────────────────────────────
 // Field descriptor types
 // ────────────────────────────────────────────────────────────────────────────
@@ -45,7 +46,7 @@ export interface RadioOption { value: string; label: string; disabled?: boolean;
 export interface SelectDescriptor extends FieldCallbacks {
   _type: 'select';
   label: string;
-  options: SelectOption[];
+  options: SelectOption[] | Observable<SelectOption[]>;
   required?: boolean;
   disabled?: boolean;
   helperText?: string;
@@ -62,7 +63,7 @@ export interface CheckboxDescriptor extends FieldCallbacks {
 export interface RadioGroupDescriptor extends FieldCallbacks {
   _type: 'radio';
   label: string;
-  options: RadioOption[];
+  options: RadioOption[] | Observable<RadioOption[]>;
   disabled?: boolean;
   helperText?: string;
   style?: string;
@@ -91,7 +92,7 @@ export interface FileUploadDescriptor extends FieldCallbacks {
 export interface MultiSelectDescriptor extends FieldCallbacks {
   _type: 'multiselect';
   label: string;
-  suggestions: string[];
+  suggestions: string[] | Observable<string[]>;
   placeholder?: string;
   style?: string;
 }
@@ -308,21 +309,33 @@ declare global {
 export class FormsComp extends JSXElement {
   @state() accessor props!: {
     state: FormState;
-    title?: string;
-    children?: JSX.Node;
   };
 
+  private _obsListSubs = new Map<string, Subscription>();
+  private _obsListMemo = new Map<string, SelectOption[]>();
+
+  connectedCallback() {
+    super.connectedCallback();
+    this._obsListSubs.clear();
+    // Subscriptions are created lazily in _renderSelect on first render.
+    // Re-subscribe any that were cleaned up on disconnect.
+    this.requestUpdate();
+  }
+
+  disconnectedCallback() {
+    super.disconnectedCallback();
+    this._obsListSubs.forEach(sub => sub.unsubscribe());
+    this._obsListSubs.clear();
+  }
+
   protected render(): JSX.Node {
-    const { state } = this.props ?? {};
-
-    const submitLabel = state?.submitLabel ?? 'Save';
-    const cancelLabel = state?.cancelLabel ?? 'Cancel';
-    const title = this.props?.title ?? state?.options?.title;
-
+    if (!this.props.state) return <></>;
+    const fields = Object.entries(this.props.state.fields);
+    this.useKey(fields.map(([key]) => key).join(','));
     return <>
-      {state && Object.entries(state.fields)
-        .filter(([, field]) => !field.active || field.active(state.values))
-        .map(([key, field]) => this._renderField(state, key, field))}
+      {fields.map(([key, field]) =>
+        this._renderField(this.props.state, key, field)
+      )}
     </>;
 
   }
@@ -340,17 +353,17 @@ export class FormsComp extends JSXElement {
       case 'text':
         return this._renderTextField(field, value, error, onChange);
       case 'select':
-        return this._renderSelect(field, value, error, onChange);
+        return this._renderSelect(field, key, value, error, onChange);
       case 'checkbox':
         return this._renderCheckbox(field, value, onChange);
       case 'radio':
-        return this._renderRadio(field, value, error, onChange);
+        return this._renderRadio(field, key, value, error, onChange);
       case 'switch':
         return this._renderSwitch(field, value, onChange);
       case 'file':
         return this._renderFile(field, value, error, onChange);
       case 'multiselect':
-        return this._renderMultiSelect(field, value, error, onChange);
+        return this._renderMultiSelect(field, key, value, error, onChange);
       case 'divider':
         return <mdui-divider class="field-divider" style={field.style} />;
       case 'sectionheader':
@@ -364,7 +377,12 @@ export class FormsComp extends JSXElement {
     }
   }
 
+  isFieldActive(field: FieldDescriptor) {
+    return !field.active || !!field.active(this.props.state.values);
+  }
+
   private _renderTextField(field: TextFieldDescriptor, value: any, error: string | undefined, onChange: (v: any) => void): JSX.Element {
+    if (!this.isFieldActive(field)) return <></>;
     return (
       <mdui-text-field
         class="field-text"
@@ -388,7 +406,11 @@ export class FormsComp extends JSXElement {
     );
   }
 
-  private _renderSelect(field: SelectDescriptor, value: any, error: string | undefined, onChange: (v: any) => void): JSX.Element {
+  private _renderSelect(field: SelectDescriptor, key: string, value: any, error: string | undefined, onChange: (v: any) => void): JSX.Element {
+    if (!this.isFieldActive(field)) return <></>;
+
+    const options = this.useObservableListMemo(field.options, key);
+
     return (
       <div class="field-select-wrapper" style={field.style}>
         <mdui-select
@@ -399,7 +421,7 @@ export class FormsComp extends JSXElement {
           value={value ?? ''}
           onchange={(e) => onChange((e.target as any).value)}
         >
-          {field.options.map(opt => (
+          {options.map(opt => (
             <mdui-menu-item value={opt.value} disabled={opt.disabled}>{opt.label}</mdui-menu-item>
           ))}
         </mdui-select>
@@ -413,6 +435,7 @@ export class FormsComp extends JSXElement {
   }
 
   private _renderCheckbox(field: CheckboxDescriptor, value: any, onChange: (v: any) => void): JSX.Element {
+    if (!this.isFieldActive(field)) return <></>;
     return (
       <div>
         <mdui-checkbox
@@ -429,7 +452,9 @@ export class FormsComp extends JSXElement {
     );
   }
 
-  private _renderRadio(field: RadioGroupDescriptor, value: any, error: string | undefined, onChange: (v: any) => void): JSX.Element {
+  private _renderRadio(field: RadioGroupDescriptor, key: string, value: any, error: string | undefined, onChange: (v: any) => void): JSX.Element {
+    if (!this.isFieldActive(field)) return <></>;
+    const options = this.useObservableListMemo(field.options, key); // Use label as key for options list memoization
     return (
       <div class="field-radio-wrapper" style={field.style}>
         <div class="field-radio-label">{field.label}</div>
@@ -437,7 +462,7 @@ export class FormsComp extends JSXElement {
           value={value ?? ''}
           onchange={(e) => onChange((e.target as any).value)}
         >
-          {field.options.map(opt => (
+          {options.map(opt => (
             <mdui-radio value={opt.value} disabled={opt.disabled}>{opt.label}</mdui-radio>
           ))}
         </mdui-radio-group>
@@ -451,6 +476,7 @@ export class FormsComp extends JSXElement {
   }
 
   private _renderSwitch(field: SwitchDescriptor, value: any, onChange: (v: any) => void): JSX.Element {
+    if (!this.isFieldActive(field)) return <></>;
     return (
       <div class="field-switch-wrapper" style={field.style}>
         <div class="field-switch-row">
@@ -480,6 +506,7 @@ export class FormsComp extends JSXElement {
   }
 
   private _renderFile(field: FileUploadDescriptor, value: any, error: string | undefined, onChange: (v: any) => void): JSX.Element {
+    if (!this.isFieldActive(field)) return <></>;
     const handleChange = async (file: File | null) => {
       onChange(file);
       if (field.onFileChange) await field.onFileChange(file);
@@ -511,8 +538,10 @@ export class FormsComp extends JSXElement {
     </mdui-field>
   }
 
-  private _renderMultiSelect(field: MultiSelectDescriptor, value: any, error: string | undefined, onChange: (v: any) => void): JSX.Element {
+  private _renderMultiSelect(field: MultiSelectDescriptor, key: string, value: any, error: string | undefined, onChange: (v: any) => void): JSX.Element {
+    if (!this.isFieldActive(field)) return <></>;
     const items: string[] = Array.isArray(value) ? value : [];
+    const suggestions = this.useObservableListMemo(field.suggestions, key); // Use label as key for suggestions list memoization
     return (
       <div class="field-multiselect-wrapper" style={field.style}>
         <mdui-select
@@ -522,7 +551,7 @@ export class FormsComp extends JSXElement {
           variant="outlined"
           onchange={(e) => onChange((e.target as any).value as string[])}
         >
-          {field.suggestions.map(s => (
+          {suggestions.map(s => (
             <mdui-menu-item value={s}>{s}</mdui-menu-item>
           ))}
         </mdui-select>
@@ -532,6 +561,7 @@ export class FormsComp extends JSXElement {
   }
 
   private _renderSectionHeader(field: SectionHeaderDescriptor): JSX.Element {
+    if (!this.isFieldActive(field)) return <></>;
     return (
       <div>
         <div class="field-section-title">{field.title}</div>
@@ -541,6 +571,37 @@ export class FormsComp extends JSXElement {
       </div>
     );
   }
+
+  private useObservableListMemo<T>(options: T[] | Observable<T[]>, key: string): T[] {
+
+    const state = this.useMemo(() => createHybridRef<{
+      subs: Subscription[];
+      list: T[];
+    }>(), []);
+
+    this.useCallback(() => {
+      state.current = { subs: [], list: [] }
+      if (isObservable(options)) {
+        const sub = options.subscribe(list => {
+          if(!state.current) return;
+          state.current.list = list;
+          this.requestUpdate();
+        });
+        state.current.subs.push(sub);
+      } else {
+        state.current.list = options;
+      }
+      return () => {
+        if (!state.current) return;
+        state.current.subs.forEach(s => s.unsubscribe());
+        state.current.subs = [];
+      }
+    }, [key, options]);
+
+    return state.current?.list ?? [];
+
+  }
+
 }
 
 

@@ -167,7 +167,23 @@ export class JSXElement extends ReactiveElement {
     return [state.value, state.setValue] as const;
   }
 
+  protected useCallback(fn: () => () => void, deps: any[] = []) {
+    const state = this.protectHook<{
+      callback: () => void,
+      deps?: any[]
+    }>(this.useCallback, () => ({
+      callback: fn(),
+      deps: deps
+    }));
 
+    if (checkDeps(state.deps, deps)) {
+      state.callback();
+      this.useArraySubs.remove(state.callback);
+      state.callback = fn();
+      state.deps = deps;
+      this.useArraySubs.add(state.callback);
+    }
+  }
 
   protected useMemo<T>(fn: () => T, deps: any[] = []): T {
 
@@ -276,6 +292,7 @@ export class JSXElement extends ReactiveElement {
 
   connectedCallback(): void {
     super.connectedCallback();
+    this.requestUpdate();
   }
 
   disconnectedCallback(): void {
@@ -285,9 +302,6 @@ export class JSXElement extends ReactiveElement {
     this.useArrayIndex = 0;
     this.resetHooks();
   }
-
-
-
 }
 
 function checkDeps(oldDeps: any[] | undefined, newDeps: any[] | undefined): boolean {

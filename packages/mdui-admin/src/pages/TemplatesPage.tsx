@@ -1,10 +1,10 @@
 import { customElement, state } from "lit/decorators.js";
+import { Subscription } from 'rxjs';
 import { JSXElement } from '../utils/JSXElement';
 import { PopupContainer } from '../components/mdui-popup';
 import { createHybridRef } from "@tiddlywiki/jsx-runtime/jsx-utils";
 import { FormState, FormsComp } from '../utils/forms';
-import { createKVStore } from "../utils/indexeddb";
-import { addstyles } from "../utils/addstyles";
+import { dataService, Template } from '../services/data.service';
 
 declare global {
   interface CustomElements {
@@ -12,60 +12,21 @@ declare global {
   }
 }
 
-type TemplateType = 'basic' | 'advanced';
-
-interface BasicTemplate {
-  type: 'basic';
-  name: string;
-  description: string;
-  bags: string[];
-  plugins: string[];
-  requiredPluginsEnabled: boolean;
-}
-
-interface AdvancedTemplate {
-  type: 'advanced';
-  name: string;
-  description: string;
-  htmlFile: File | null;
-  htmlContent: string;
-  injectionArray: string;
-  injectionLocation: string;
-}
-
 @customElement("mws-templates-page")
 export class TemplatesPage extends JSXElement {
   @state() accessor showNewTemplatePopup = false;
-  @state() accessor savedTemplates: (BasicTemplate | AdvancedTemplate)[] = [];
+  @state() accessor savedTemplates: Template[] = [];
   @state() accessor isCreatingNew = true;
 
-  kvstore = createKVStore({
-    dbName: 'mws-templates',
-    storeName: 'templates',
-    version: 1,
-  });
+  private _dataSub!: Subscription;
 
   async connectedCallback() {
     super.connectedCallback();
     this.forms.events.on('change', this._onFormsChange);
-    await this.loadTemplates();
-  }
-
-  async loadTemplates() {
-    try {
-      await this.kvstore.open();
-      const templates: (BasicTemplate | AdvancedTemplate)[] = [];
-      await this.kvstore.openCursor(null, 'next', (cursor) => {
-        if (cursor) {
-          templates.push(cursor.value);
-          cursor.continue();
-        }
-      });
+    this._dataSub = dataService.templates$.subscribe(templates => {
       this.savedTemplates = templates;
-      await this.kvstore.close();
-    } catch (error) {
-      console.error('Error loading templates:', error);
-    }
+    });
+    await dataService.loadTemplates();
   }
 
   private newTemplateButton = createHybridRef<HTMLElement>();
@@ -196,7 +157,7 @@ export class TemplatesPage extends JSXElement {
     });
   };
 
-  private loadTemplateForEdit = (template: BasicTemplate | AdvancedTemplate) => {
+  private loadTemplateForEdit = (template: Template) => {
     if (template.type === 'basic') {
       this.forms.setValues({
         templateName: template.name,
@@ -231,36 +192,11 @@ export class TemplatesPage extends JSXElement {
 
   private doSave = async (values: Record<string, any>) => {
     try {
-      await this.kvstore.open();
-      if (values.selectedTemplateType === 'basic') {
-        const template: BasicTemplate = {
-          type: 'basic',
-          name: values.templateName,
-          description: values.templateDescription,
-          bags: (values.bags as string[]).filter((b: string) => b.trim()),
-          plugins: (values.plugins as string[]).filter((p: string) => p.trim()),
-          requiredPluginsEnabled: values.requiredPluginsEnabled,
-        };
-        await this.kvstore.set(values.templateName, template);
-      } else {
-        const template: AdvancedTemplate = {
-          type: 'advanced',
-          name: values.templateName,
-          description: values.templateDescription,
-          htmlFile: values.htmlFile,
-          htmlContent: values.htmlContent,
-          injectionArray: values.injectionArray,
-          injectionLocation: values.injectionLocation,
-        };
-        await this.kvstore.set(values.templateName, template);
-      }
-      await this.kvstore.close();
-      await this.loadTemplates();
+      await dataService.saveTemplate(values);
       this.closePopup();
     } catch (error) {
       console.error('Error saving template:', error);
       alert('Failed to save template');
-      await this.kvstore.close();
     }
   };
 
@@ -269,9 +205,10 @@ export class TemplatesPage extends JSXElement {
   disconnectedCallback() {
     super.disconnectedCallback();
     this.forms.events.off('change', this._onFormsChange);
+    this._dataSub?.unsubscribe();
   }
 
-  private renderTemplateListItem(template: BasicTemplate | AdvancedTemplate) {
+  private renderTemplateListItem(template: Template) {
     const icon = template.type === 'basic' ? 'dashboard' : 'code';
     let description = '';
     if (template.type === 'basic') {

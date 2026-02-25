@@ -1,7 +1,10 @@
 import { customElement, state } from "lit/decorators.js";
+import { Subscription } from 'rxjs';
 import { JSXElement } from '../utils/JSXElement';
 import { PopupContainer } from '../components/mdui-popup';
 import { createHybridRef } from "@tiddlywiki/jsx-runtime/jsx-utils";
+import { FormState, FormsComp } from '../utils/forms';
+import { dataService, Bag } from '../services/data.service';
 
 declare global {
   interface CustomElements {
@@ -12,67 +15,95 @@ declare global {
 @customElement("mws-bags-page")
 export class BagsPage extends JSXElement {
   @state() accessor showNewBagPopup = false;
+  @state() accessor savedBags: Bag[] = [];
+
+  private _dataSub!: Subscription;
+
   private newBagButton = createHybridRef<HTMLElement>();
   private popup = createHybridRef<PopupContainer>();
 
-  @state() accessor bagName = '';
-  @state() accessor bagDescription = '';
+  async connectedCallback() {
+    super.connectedCallback();
+    this.forms.events.on('change', this._onFormsChange);
+    this._dataSub = dataService.bags$.subscribe(bags => {
+      this.savedBags = bags;
+    });
+    await dataService.loadBags();
+  }
 
-  private handleSave = async () => {
-    // Validate inputs
-    if (!this.bagName.trim()) {
-      alert('Please enter a bag name');
-      return;
-    }
+  disconnectedCallback() {
+    super.disconnectedCallback();
+    this.forms.events.off('change', this._onFormsChange);
+    this._dataSub?.unsubscribe();
+  }
 
+  private forms = new FormState({
+    bagName: FormState.TextField({
+      label: 'Bag Name',
+      required: true,
+      default: '',
+      valid: (v) => !v?.trim() ? 'Bag name is required' : undefined,
+    }),
+    bagDescription: FormState.TextArea({
+      label: 'Description',
+      default: '',
+    }),
+  }, {
+    onCancel: () => this.closePopup(),
+    onSubmit: async (values) => { await this.doSave(values); },
+  });
+
+  private closePopup = () => {
+    this.popup.current?.close(() => {
+      this.showNewBagPopup = false;
+      this.forms.resetValues();
+    });
+  };
+
+  private doSave = async (values: Record<string, any>) => {
     try {
-      // TODO: Implement actual save logic (API call)
-      console.log('Saving bag:', { name: this.bagName, description: this.bagDescription });
-
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 500));
-
-      // Close popup and reset form
-      this.popup.current!.close(() => {
-        this.showNewBagPopup = false;
-        this.bagName = '';
-        this.bagDescription = '';
-      });
+      await dataService.saveBag(values);
+      this.closePopup();
     } catch (error) {
       console.error('Error saving bag:', error);
       alert('Failed to save bag');
     }
   };
 
+  private _onFormsChange = () => this.requestUpdate();
+
   protected render() {
+    const submitLabel = this.forms.submitLabel;
+    const cancelLabel = this.forms.cancelLabel;
+
     return (
       <div class="page-content">
         <mdui-card variant="outlined" style="margin: 16px;">
           <div style="padding: 24px;">
-            <div class="md-typescale-headline-medium" style="margin-bottom: 16px;">
+            <div style="margin-bottom: 16px; font-size: 28px; font-weight: 400; line-height: 36px;">
               Bags
             </div>
-            <div class="md-typescale-body-medium" style="margin-bottom: 24px; color: var(--mdui-color-on-surface-variant);">
+            <div style="margin-bottom: 24px; color: var(--mdui-color-on-surface-variant); font-size: 14px; line-height: 20px;">
               Bags store the pages you edit in wikis. Each bag can contain tiddlers (pages).
             </div>
 
-            <mdui-list>
-              <mdui-list-item>
-                <mdui-icon webjsx-attr-slot="icon" name="folder"></mdui-icon>
-                main-bag
-                <div webjsx-attr-slot="description">Contains 42 tiddlers · Used by 3 wikis</div>
-              </mdui-list-item>
-              <mdui-list-item>
-                <mdui-icon webjsx-attr-slot="icon" name="folder"></mdui-icon>
-                blog-bag
-                <div webjsx-attr-slot="description">Contains 18 tiddlers · Used by 1 wiki</div>
-              </mdui-list-item>
-              <mdui-list-item>
-                <mdui-icon webjsx-attr-slot="icon" name="folder"></mdui-icon>
-                docs-bag
-                <div webjsx-attr-slot="description">Contains 67 tiddlers · Used by 2 wikis</div>
-              </mdui-list-item>
-            </mdui-list>
+            {this.savedBags.length > 0 ? (
+              <mdui-list>
+                {this.savedBags.map(bag => (
+                  <mdui-list-item>
+                    <mdui-icon webjsx-attr-slot="icon" name="folder"></mdui-icon>
+                    {bag.name}
+                    {bag.description && (
+                      <div webjsx-attr-slot="description">{bag.description}</div>
+                    )}
+                  </mdui-list-item>
+                ))}
+              </mdui-list>
+            ) : (
+              <div style="padding: 24px; text-align: center; color: var(--mdui-color-on-surface-variant); font-size: 14px; line-height: 20px;">
+                No bags yet. Click "New Bag" to create one.
+              </div>
+            )}
 
             <mdui-button
               ref={this.newBagButton}
@@ -86,64 +117,29 @@ export class BagsPage extends JSXElement {
           </div>
         </mdui-card>
 
-        {/* New Bag Popup */}
         {this.showNewBagPopup && (
           <PopupContainer
             ref={this.popup}
             source={this.newBagButton.current}
-            cardStyle="width: 400px; max-width: 90vw;"
-            oncancel={() => {
-              this.popup.current!.close(() => {
-                this.showNewBagPopup = false;
-                this.bagName = '';
-                this.bagDescription = '';
-              });
-            }}
+            cardStyle="max-width: 80vw; max-height: 80vh;"
+            oncancel={this.closePopup}
           >
-            <div style="padding: 24px;">
-              <div class="md-typescale-headline-small" style="margin-bottom: 24px;">
-                Create New Bag
-              </div>
-
-              <mdui-text-field
-                label="Bag Name"
-                variant="outlined"
-                required
-                value={this.bagName}
-                oninput={(e) => { this.bagName = (e.target as HTMLInputElement).value; }}
-                style="width: 100%; margin-bottom: 16px;"
-              />
-
-              <mdui-text-field
-                label="Description"
-                variant="outlined"
-                value={this.bagDescription}
-                oninput={(e) => { this.bagDescription = (e.target as HTMLInputElement).value; }}
-                style="width: 100%; margin-bottom: 24px;"
-                rows={3}
-              />
-
-              <div style="display: flex; justify-content: flex-end; gap: 8px;">
-                <mdui-button
-                  variant="text"
-                  onclick={() => {
-                    this.popup.current!.close(() => {
-                      this.showNewBagPopup = false;
-                      this.bagName = '';
-                      this.bagDescription = '';
-                    });
-                  }}
-                >
-                  Cancel
+            <mdui-forms-popup>
+              <display-content slot="title">Create New Bag</display-content>
+              <display-content slot="fields">
+                <FormsComp state={this.forms}>
+                  {this.forms.renderSlots()}
+                </FormsComp>
+              </display-content>
+              <display-content slot="actions">
+                <mdui-button variant="text" onclick={() => this.forms.options.onCancel?.()}>
+                  {cancelLabel}
                 </mdui-button>
-                <mdui-button
-                  variant="filled"
-                  onclick={this.handleSave}
-                >
-                  Save
+                <mdui-button variant="filled" onclick={() => this.forms.handleSubmit()}>
+                  {submitLabel}
                 </mdui-button>
-              </div>
-            </div>
+              </display-content>
+            </mdui-forms-popup>
           </PopupContainer>
         )}
       </div>

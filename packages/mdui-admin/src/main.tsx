@@ -51,8 +51,7 @@ document.documentElement.classList.add("loaded");
 
 window.addEventListener("drop", (e) => {
   e.preventDefault();
-  console.log("Prevented the default browser behavior of doing stuff with dropped stuff");
-  console.log("If you have a use case for this, please open an issue.");
+  console.log("Prevented the default browser behavior of doing stuff with dropped stuff. If you have a use case for this, please open an issue.");
 });
 
 console.log(buttonStyle);
@@ -60,7 +59,7 @@ console.log(buttonStyle);
 :host([variant=filled]){
   color: rgb(var(--mdui-color-on-primary-container));
   background-color: rgb(var(--mdui-color-primary-container));
-}`
+}`;
 
 // Source - https://stackoverflow.com/a/52695341
 // Posted by Gary Vernon Grubb, modified by community. 
