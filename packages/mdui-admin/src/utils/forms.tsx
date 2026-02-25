@@ -8,7 +8,8 @@ import EventEmitter from "events";
 import forms_inline_css from "./forms.inline.css";
 import { addstyles } from "./addstyles";
 import { style as textFieldStyle } from "mdui/components/text-field/style";
-import { css } from "lit"
+import Dropzone from "dropzone";
+import { createHybridRef } from "@tiddlywiki/jsx-runtime/jsx-utils";
 // ────────────────────────────────────────────────────────────────────────────
 // Field descriptor types
 // ────────────────────────────────────────────────────────────────────────────
@@ -77,10 +78,13 @@ export interface SwitchDescriptor extends FieldCallbacks {
 
 export interface FileUploadDescriptor extends FieldCallbacks {
   _type: 'file';
+  id: string;
   label: string;
   accept?: string;
   helperText?: string;
   style?: string;
+  // options: Dropzone.DropzoneOptions;
+  // onInit?: (dropzone: Dropzone) => void;
   onFileChange?: (file: File | null) => void | Promise<void>;
 }
 
@@ -265,8 +269,8 @@ export class FormState<T extends Record<string, any> = Record<string, any>> {
     return { _type: 'switch', ...opts };
   }
 
-  static FileUpload(opts: Omit<FileUploadDescriptor, '_type'>): FileUploadDescriptor {
-    return { _type: 'file', ...opts };
+  static FileUpload(opts: Omit<FileUploadDescriptor, '_type' | 'id'>): FileUploadDescriptor {
+    return { _type: 'file', id: `file-${Math.random().toString(36).slice(2, 9)}`, ...opts };
   }
 
   static MultiSelect(opts: Omit<MultiSelectDescriptor, '_type'>): MultiSelectDescriptor {
@@ -480,13 +484,19 @@ export class FormsComp extends JSXElement {
       onChange(file);
       if (field.onFileChange) await field.onFileChange(file);
     };
-    return <mdui-field>
+    // const dropzone = createHybridRef<HTMLElement>(e => {
+    //   if (!e) return;
+    //   const dz = new Dropzone(e, field.options);
+    //   field.onInit?.(dz);
+    // });
+    return <mdui-field variant="outlined">
       <div class="field-file-label">{field.label}</div>
       {field.helperText && !error && (
         <div class="field-file-helper">{field.helperText}</div>
       )}
       {error && <div class="field-file-error">{error}</div>}
       <input
+        id={field.id}
         class="field-file-input"
         type="file"
         accept={field.accept}
@@ -499,11 +509,6 @@ export class FormsComp extends JSXElement {
         <div class="field-file-selected">Selected: {(value as File).name}</div>
       )}
     </mdui-field>
-    // return (
-    //   <div class="field-file-wrapper" style={field.style}>
-
-    //   </div>
-    // );
   }
 
   private _renderMultiSelect(field: MultiSelectDescriptor, value: any, error: string | undefined, onChange: (v: any) => void): JSX.Element {
@@ -583,41 +588,77 @@ export class FieldWrapper extends JSXElement {
 
   render() {
     return (
-      <div part="container" class={`container ${this["has-value"] ? 'has-value' : ''}`}>
+      <div
+        part="container"
+        class={`container ${this["has-value"] ? 'has-value' : ''}`}
+      >
         <div class="input-container">
           <slot class="input"></slot>
         </div>
-        {this.supporting && <div part="supporting" class="supporting">
-          <slot name="supporting"></slot>
-        </div>}
+        {this.supporting && (
+          <div part="supporting" class="supporting">
+            <slot name="supporting"></slot>
+          </div>
+        )}
       </div>
     );
-    // return html`<div part="container" class=${className}>
-    //     ${this.renderPrefix()}
-    //     <div class="input-container">
-    //       ${this.renderLabel()}
-    //       ${this.isTextarea
-    //     ? this.renderTextArea(hasInputSlot)
-    //     : this.renderInput(hasInputSlot)}
-    //       ${when(
-    //       hasInputSlot,
-    //       () => html`<slot name="input" class="input"></slot>`,
-    //     )}
-    //     </div>
-    //     ${this.renderSuffix()}${this.renderClearButton(hasClearButton)}
-    //     ${this.renderTogglePasswordButton(hasTogglePasswordButton)}
-    //     ${this.renderRightIcon(hasErrorIcon)}
-    //   </div>
-    //   ${when(
-    //       hasError || hasHelper || hasCounter,
-    //       () =>
-    //         html`<div
-    //         part="supporting"
-    //         class=${classMap({ supporting: true, ...invalidClassNameObj })}
-    //       >
-    //         ${this.renderHelper(hasError, hasHelper)}
-    //         ${this.renderCounter(hasCounter)}
-    //       </div>`,
-    //     )}`;
+  }
+}
+
+declare global {
+  interface CustomElements {
+    "mdui-forms-popup": JSX.SimpleAttrs<{}, FormsPopup>;
+  }
+}
+
+@addstyles(`
+
+:host {
+  padding: 24px;
+  overflow: hidden;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.title {
+  margin-bottom: 24px;
+  font-size: 24px;
+  font-weight: 400;
+  line-height: 32px;
+}
+
+.fields {
+  padding-top: 8px;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  overflow-y: auto;
+}
+
+.actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 24px;
+}
+
+`)
+@customElement("mdui-forms-popup")
+export class FormsPopup extends JSXElement {
+
+  render() {
+    return (<>
+      <div part="title" class="title">
+        <slot name="title"></slot>
+      </div>
+      <div part="fields" class="fields">
+        <slot name="fields"></slot>
+      </div>
+      <div part="actions" class="actions">
+        <slot name="actions"></slot>
+      </div>
+    </>);
   }
 }

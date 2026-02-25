@@ -30,6 +30,9 @@ import '@mdui/icons/email--outlined.js';
 import '@mdui/icons/location-on--outlined.js';
 import '@mdui/icons/edit--outlined.js';
 import '@mdui/icons/check--outlined.js';
+import { style as buttonStyle } from "mdui/components/button/style.js";
+
+import "./helpers";
 
 import { setColorScheme } from 'mdui';
 import { styles as typescaleStyles } from '@material/web/typography/md-typescale-styles.js';
@@ -38,11 +41,26 @@ import { App } from "./app";
 
 document.adoptedStyleSheets.push(typescaleStyles.styleSheet!);
 // this appends a style tag to the head, so I just baked it into the html.
-setColorScheme('#a45b89');
+setColorScheme('#a45b89', {
+  customColors: []
+});
 // `mdui-theme-${"light" | "dark" | "auto"}`
 document.documentElement.classList.add("mdui-theme-auto");
 // disables the "flash of white" styles
 document.documentElement.classList.add("loaded");
+
+window.addEventListener("drop", (e) => {
+  e.preventDefault();
+  console.log("Prevented the default browser behavior of doing stuff with dropped stuff");
+  console.log("If you have a use case for this, please open an issue.");
+});
+
+console.log(buttonStyle);
+(buttonStyle as any).cssText += `
+:host([variant=filled]){
+  color: rgb(var(--mdui-color-on-primary-container));
+  background-color: rgb(var(--mdui-color-primary-container));
+}`
 
 // Source - https://stackoverflow.com/a/52695341
 // Posted by Gary Vernon Grubb, modified by community. 
@@ -59,6 +77,7 @@ const isInStandaloneMode = () => false
 if (isInStandaloneMode()) {
   console.log("webapp is installed")
 }
+
 
 function setup() {
   document.body.appendChild(new App());

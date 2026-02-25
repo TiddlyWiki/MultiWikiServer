@@ -33,40 +33,6 @@ interface AdvancedTemplate {
   injectionLocation: string;
 }
 
-@addstyles(`
-
-.forms-container {
-  padding: 24px;
-  overflow: hidden;
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-}
-
-.forms-title {
-  margin-bottom: 24px;
-  font-size: 24px;
-  font-weight: 400;
-  line-height: 32px;
-}
-
-.forms-fields {
-  padding-top: 8px;
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 24px;
-  overflow-y: auto;
-}
-
-.forms-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 8px;
-  margin-top: 24px;
-}
-
-`)
 @customElement("mws-templates-page")
 export class TemplatesPage extends JSXElement {
   @state() accessor showNewTemplatePopup = false;
@@ -369,23 +335,24 @@ export class TemplatesPage extends JSXElement {
             cardStyle="max-width: 80vw; max-height: 80vh;"
             oncancel={this.closePopup}
           >
-            <div class="forms-container">
-              {title && <div class="forms-title">{title}</div>}
-              <div class="forms-fields">
+            <mdui-forms-popup>
+              <display-content slot="title">
+                {title}
+              </display-content>
+              <display-content slot="fields">
                 <FormsComp state={this.forms}>
                   {this.forms.renderSlots()}
                 </FormsComp>
-              </div>
-              <div class="forms-actions">
+              </display-content>
+              <display-content slot="actions">
                 <mdui-button variant="text" onclick={() => this.forms?.options?.onCancel?.()}>
                   {cancelLabel}
                 </mdui-button>
                 <mdui-button variant="filled" onclick={() => this.forms?.handleSubmit()}>
                   {submitLabel}
                 </mdui-button>
-              </div>
-            </div>
-
+              </display-content>
+            </mdui-forms-popup>
           </PopupContainer>
         )}
       </div>
