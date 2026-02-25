@@ -2,8 +2,9 @@ import { customElement, state } from "lit/decorators.js";
 import { JSXElement } from '../utils/JSXElement';
 import { PopupContainer } from '../components/mdui-popup';
 import { createHybridRef } from "@tiddlywiki/jsx-runtime/jsx-utils";
-import { FormBuilder } from '../utils/forms';
+import { FormState, FormsComp } from '../utils/forms';
 import { createKVStore } from "../utils/indexeddb";
+import { addstyles } from "../utils/addstyles";
 
 declare global {
   interface CustomElements {
@@ -19,7 +20,7 @@ interface BasicTemplate {
   description: string;
   bags: string[];
   plugins: string[];
-  skipRequiredPlugins: boolean;
+  requiredPluginsEnabled: boolean;
 }
 
 interface AdvancedTemplate {
@@ -32,22 +33,55 @@ interface AdvancedTemplate {
   injectionLocation: string;
 }
 
-type ErrorKey = 'templateName' | 'bags' | 'injectionArray' | 'injectionLocation';
+@addstyles(`
 
+.forms-container {
+  padding: 24px;
+  overflow: hidden;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.forms-title {
+  margin-bottom: 24px;
+  font-size: 24px;
+  font-weight: 400;
+  line-height: 32px;
+}
+
+.forms-fields {
+  padding-top: 8px;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  overflow-y: auto;
+}
+
+.forms-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 24px;
+}
+
+`)
 @customElement("mws-templates-page")
 export class TemplatesPage extends JSXElement {
   @state() accessor showNewTemplatePopup = false;
-  @state() accessor selectedTemplateType: TemplateType = 'basic';
   @state() accessor savedTemplates: (BasicTemplate | AdvancedTemplate)[] = [];
+  @state() accessor isCreatingNew = true;
 
   kvstore = createKVStore({
     dbName: 'mws-templates',
     storeName: 'templates',
     version: 1,
-  })
+  });
 
   async connectedCallback() {
     super.connectedCallback();
+    this.forms.events.on('change', this._onFormsChange);
     await this.loadTemplates();
   }
 
@@ -55,14 +89,12 @@ export class TemplatesPage extends JSXElement {
     try {
       await this.kvstore.open();
       const templates: (BasicTemplate | AdvancedTemplate)[] = [];
-      
       await this.kvstore.openCursor(null, 'next', (cursor) => {
         if (cursor) {
           templates.push(cursor.value);
           cursor.continue();
         }
       });
-      
       this.savedTemplates = templates;
       await this.kvstore.close();
     } catch (error) {
@@ -73,118 +105,189 @@ export class TemplatesPage extends JSXElement {
   private newTemplateButton = createHybridRef<HTMLElement>();
   private popup = createHybridRef<PopupContainer>();
 
-  // Form values state
-  @state() accessor formValues = {
-    templateName: '',
-    templateDescription: '',
-    bags: [''] as string[],
-    plugins: [''] as string[],
-    skipRequiredPlugins: false,
-    htmlFile: null as File | null,
-    htmlContent: '',
-    injectionArray: '$tw.preloadTiddlers',
-    injectionLocation: '',
-  };
-
-  // Validation state
-  @state() accessor errors: Record<string, string | undefined> = {};
-
-  // Form builder instance
-  private forms = new FormBuilder(
-    () => this.formValues,
-    (values) => this.formValues = values,
-    () => this.errors,
-    (errors) => this.errors = errors
-  );
-
-  // Available bags and plugins for autocomplete
   private availableBags = ['main-bag', 'blog-bag', 'docs-bag', 'system-bag', 'plugins-bag'];
   private availablePlugins = ['markdown', 'codemirror', 'highlight', 'katex', 'plugins/tiddlywiki/filesystem'];
+
+  private forms = new FormState({
+    templateName: FormState.TextField({
+      label: 'Template Name',
+      required: true,
+      default: '',
+      valid: (v) => !v?.trim() ? 'Template name is required' : undefined,
+    }),
+    templateDescription: FormState.TextArea({
+      label: 'Description',
+      default: '',
+    }),
+    selectedTemplateType: FormState.RadioGroup({
+      label: 'Template Type',
+      options: [
+        { value: 'basic', label: 'Basic' },
+        { value: 'advanced', label: 'Advanced' },
+      ],
+      default: 'basic',
+      active: () => this.isCreatingNew,
+    }),
+    modeExplanation: FormState.CustomRender(
+      (values) => (
+        <div style="padding: 16px; background-color: var(--mdui-color-surface-container); border-radius: 8px; color: var(--mdui-color-on-surface-variant); font-size: 14px; line-height: 20px;">
+          {values.selectedTemplateType === 'basic' ? (
+            <>
+              <div style="margin-bottom: 8px; font-weight: 500; color: var(--mdui-color-on-surface);">Basic Mode</div>
+              <div>Define wikis using bags and plugins. The system generates the HTML and manages all server-side operations.</div>
+            </>
+          ) : (
+            <>
+              <div style="margin-bottom: 8px; font-weight: 500; color: var(--mdui-color-on-surface);">Advanced Mode</div>
+              <div>Upload a custom HTML file and inject tiddlers at a specific location. Useful for custom wiki builds, old TiddlyWiki versions, or completely custom implementations.</div>
+            </>
+          )}
+        </div>
+      ),
+      { active: () => this.isCreatingNew }
+    ),
+    bags: FormState.MultiSelect({
+      label: 'Bags',
+      suggestions: this.availableBags,
+      default: [],
+      active: () => !this.isCreatingNew,
+      valid: (v) => !v?.length ? 'At least one bag is required' : undefined,
+    }),
+    plugins: FormState.MultiSelect({
+      label: 'Client Plugins',
+      suggestions: this.availablePlugins,
+      default: [],
+      active: (values) => !this.isCreatingNew && values.selectedTemplateType === 'basic',
+    }),
+    requiredPluginsEnabled: FormState.Switch({
+      label: 'Required Plugins',
+      description: 'Core plugins enable wiki sync functionality. Disable for vanilla wikis or custom sync implementations.',
+      default: true,
+      active: (values) => !this.isCreatingNew && values.selectedTemplateType === 'basic',
+    }),
+    htmlFile: FormState.FileUpload({
+      label: 'Custom HTML File',
+      accept: '.html,.htm',
+      helperText: 'Upload a static HTML file to use as the wiki base. This allows you to completely replace the wiki page with a custom one, including raw markup, old versions of core, or even a completely different wiki.',
+      default: null,
+      active: (values) => !this.isCreatingNew && values.selectedTemplateType === 'advanced',
+      onFileChange: async (file) => {
+        if (file) this.forms.setValue('htmlContent', await this.parseHtmlFile(file));
+      },
+    }),
+    htmlContent: FormState.TextField({
+      label: '',
+      default: '',
+      active: () => false,
+    }),
+    injectionArray: FormState.TextField({
+      label: 'Injection Array',
+      required: true,
+      default: '$tw.preloadTiddlers',
+      helperText: 'Name of the JavaScript array to push tiddlers onto (e.g., $tw.preloadTiddlers)',
+      active: (values) => !this.isCreatingNew && values.selectedTemplateType === 'advanced',
+      valid: (v) => !v?.trim() ? 'Injection array is required' : undefined,
+    }),
+    injectionLocation: FormState.TextField({
+      label: 'Injection Location',
+      required: true,
+      default: '',
+      helperText: 'Inject the tiddlers BEFORE this string in the HTML file. MUST NOT be inside a script tag! (e.g., <!-- INJECT STORE TIDDLERS HERE -->)',
+      active: (values) => !this.isCreatingNew && values.selectedTemplateType === 'advanced',
+      valid: (v) => !v?.trim() ? 'Injection location is required' : undefined,
+    }),
+    advancedNote: FormState.CustomRender(
+      () => (
+        <div style="color: var(--mdui-color-on-surface-variant); font-size: 14px; line-height: 20px;">
+          All HTTP endpoints will still work, and the store tiddlers and recipe plugins will be
+          added at the injection location. Boot, library, and raw markup tiddlers are not read
+          from store and must be included in the HTML manually.
+        </div>
+      ),
+      { active: (values) => !this.isCreatingNew && values.selectedTemplateType === 'advanced' }
+    ),
+  }, {
+    onCancel: () => this.closePopup(),
+    onSubmit: async (values) => {
+      if (this.isCreatingNew) {
+        this.isCreatingNew = false;
+      } else {
+        await this.doSave(values);
+      }
+    },
+    submitLabel: () => this.isCreatingNew ? 'Continue' : 'Save',
+  });
+
+  private parseHtmlFile(file: File): Promise<string> {
+    return file.text();
+  }
 
   private closePopup = () => {
     this.popup.current?.close(() => {
       this.showNewTemplatePopup = false;
-      this.resetForm();
+      this.forms.resetValues();
+      this.isCreatingNew = true;
     });
   };
 
-  private resetForm = () => {
-    this.formValues = {
-      templateName: '',
-      templateDescription: '',
-      bags: [''],
-      plugins: [''],
-      skipRequiredPlugins: false,
-      htmlFile: null,
-      htmlContent: '',
-      injectionArray: '$tw.preloadTiddlers',
-      injectionLocation: '',
-    };
-    this.selectedTemplateType = 'basic';
-    this.errors = {};
+  private loadTemplateForEdit = (template: BasicTemplate | AdvancedTemplate) => {
+    if (template.type === 'basic') {
+      this.forms.setValues({
+        templateName: template.name,
+        templateDescription: template.description,
+        selectedTemplateType: 'basic',
+        bags: template.bags,
+        plugins: template.plugins,
+        requiredPluginsEnabled: template.requiredPluginsEnabled,
+        htmlFile: null,
+        htmlContent: '',
+        injectionArray: '$tw.preloadTiddlers',
+        injectionLocation: '',
+      });
+    } else {
+      this.forms.setValues({
+        templateName: template.name,
+        templateDescription: template.description,
+        selectedTemplateType: 'advanced',
+        bags: [],
+        plugins: [],
+        requiredPluginsEnabled: true,
+        htmlFile: template.htmlFile,
+        htmlContent: template.htmlContent,
+        injectionArray: template.injectionArray,
+        injectionLocation: template.injectionLocation,
+      });
+    }
+    this.forms.setErrors({});
+    this.isCreatingNew = false;
+    this.showNewTemplatePopup = true;
   };
 
-  private validateForm = (): boolean => {
-    const newErrors: Record<string, string | undefined> = {};
-
-    // Validate template name
-    if (!this.formValues.templateName.trim()) {
-      newErrors.templateName = 'Template name is required';
-    }
-
-    // Validate bags - at least one non-empty bag
-    const validBags = this.formValues.bags.filter(b => b.trim());
-    if (validBags.length === 0) {
-      newErrors.bags = 'At least one bag is required';
-    }
-
-    // Validate advanced template specific fields
-    if (this.selectedTemplateType === 'advanced') {
-      if (!this.formValues.injectionArray.trim()) {
-        newErrors.injectionArray = 'Injection array is required';
-      }
-      if (!this.formValues.injectionLocation.trim()) {
-        newErrors.injectionLocation = 'Injection location is required';
-      }
-    }
-
-    this.errors = newErrors;
-    return Object.keys(newErrors).length === 0;
-  };
-
-  private handleSave = async () => {
-    if (!this.validateForm()) {
-      return;
-    }
-
+  private doSave = async (values: Record<string, any>) => {
     try {
       await this.kvstore.open();
-
-      if (this.selectedTemplateType === 'basic') {
+      if (values.selectedTemplateType === 'basic') {
         const template: BasicTemplate = {
           type: 'basic',
-          name: this.formValues.templateName,
-          description: this.formValues.templateDescription,
-          bags: this.formValues.bags.filter(b => b.trim()),
-          plugins: this.formValues.plugins.filter(p => p.trim()),
-          skipRequiredPlugins: this.formValues.skipRequiredPlugins,
+          name: values.templateName,
+          description: values.templateDescription,
+          bags: (values.bags as string[]).filter((b: string) => b.trim()),
+          plugins: (values.plugins as string[]).filter((p: string) => p.trim()),
+          requiredPluginsEnabled: values.requiredPluginsEnabled,
         };
-        await this.kvstore.set(this.formValues.templateName, template);
-        console.log('Saved basic template:', template);
+        await this.kvstore.set(values.templateName, template);
       } else {
         const template: AdvancedTemplate = {
           type: 'advanced',
-          name: this.formValues.templateName,
-          description: this.formValues.templateDescription,
-          htmlFile: this.formValues.htmlFile,
-          htmlContent: this.formValues.htmlContent,
-          injectionArray: this.formValues.injectionArray,
-          injectionLocation: this.formValues.injectionLocation,
+          name: values.templateName,
+          description: values.templateDescription,
+          htmlFile: values.htmlFile,
+          htmlContent: values.htmlContent,
+          injectionArray: values.injectionArray,
+          injectionLocation: values.injectionLocation,
         };
-        await this.kvstore.set(this.formValues.templateName, template);
-        console.log('Saved advanced template:', template);
+        await this.kvstore.set(values.templateName, template);
       }
-
       await this.kvstore.close();
       await this.loadTemplates();
       this.closePopup();
@@ -195,15 +298,16 @@ export class TemplatesPage extends JSXElement {
     }
   };
 
-  private parseHtmlFile = async (file: File): Promise<string> => {
-    // TODO: Implement HTML parsing
-    return file.text();
-  };
+  private _onFormsChange = () => this.requestUpdate();
+
+  disconnectedCallback() {
+    super.disconnectedCallback();
+    this.forms.events.off('change', this._onFormsChange);
+  }
 
   private renderTemplateListItem(template: BasicTemplate | AdvancedTemplate) {
     const icon = template.type === 'basic' ? 'dashboard' : 'code';
     let description = '';
-    
     if (template.type === 'basic') {
       const bagCount = template.bags.length;
       const pluginCount = template.plugins.length;
@@ -211,9 +315,8 @@ export class TemplatesPage extends JSXElement {
     } else {
       description = 'Advanced · Custom HTML with injection';
     }
-
     return (
-      <mdui-list-item>
+      <mdui-list-item onclick={() => this.loadTemplateForEdit(template)}>
         <mdui-icon webjsx-attr-slot="icon" name={icon}></mdui-icon>
         {template.name}
         <div webjsx-attr-slot="description">{description}</div>
@@ -222,14 +325,18 @@ export class TemplatesPage extends JSXElement {
   }
 
   protected render() {
+    const formTitle = this.isCreatingNew ? 'Create New Template' : 'Configure Template';
+    const submitLabel = this.forms?.submitLabel ?? 'Save';
+    const cancelLabel = this.forms?.cancelLabel ?? 'Cancel';
+    const title = formTitle ?? this.forms?.options?.title;
     return (
       <div class="page-content">
         <mdui-card variant="outlined" style="margin: 16px;">
           <div style="padding: 24px;">
-            <div class="md-typescale-headline-medium" style="margin-bottom: 16px;">
+            <div style="margin-bottom: 16px; font-size: 28px; font-weight: 400; line-height: 36px;">
               Templates
             </div>
-            <div class="md-typescale-body-medium" style="margin-bottom: 24px; color: var(--mdui-color-on-surface-variant);">
+            <div style="margin-bottom: 24px; color: var(--mdui-color-on-surface-variant); font-size: 14px; line-height: 20px;">
               Templates define the structure and features of wikis. They combine bags, plugins, and configuration.
             </div>
 
@@ -238,7 +345,7 @@ export class TemplatesPage extends JSXElement {
                 {this.savedTemplates.map(template => this.renderTemplateListItem(template))}
               </mdui-list>
             ) : (
-              <div class="md-typescale-body-medium" style="padding: 24px; text-align: center; color: var(--mdui-color-on-surface-variant);">
+              <div style="padding: 24px; text-align: center; color: var(--mdui-color-on-surface-variant); font-size: 14px; line-height: 20px;">
                 No templates yet. Click "New Template" to create one.
               </div>
             )}
@@ -255,118 +362,33 @@ export class TemplatesPage extends JSXElement {
           </div>
         </mdui-card>
 
-        {/* New Template Popup */}
         {this.showNewTemplatePopup && (
           <PopupContainer
             ref={this.popup}
             source={this.newTemplateButton.current}
-            cardStyle="width: 600px; max-width: 90vw; max-height: 90vh; overflow-y: auto;"
+            cardStyle="max-width: 80vw; max-height: 80vh;"
             oncancel={this.closePopup}
           >
-            <div style="padding: 24px;">
-              {this.renderNewTemplateForm()}
+            <div class="forms-container">
+              {title && <div class="forms-title">{title}</div>}
+              <div class="forms-fields">
+                <FormsComp state={this.forms}>
+                  {this.forms.renderSlots()}
+                </FormsComp>
+              </div>
+              <div class="forms-actions">
+                <mdui-button variant="text" onclick={() => this.forms?.options?.onCancel?.()}>
+                  {cancelLabel}
+                </mdui-button>
+                <mdui-button variant="filled" onclick={() => this.forms?.handleSubmit()}>
+                  {submitLabel}
+                </mdui-button>
+              </div>
             </div>
+
           </PopupContainer>
         )}
       </div>
     );
-  }
-
-  renderNewTemplateForm() {
-    // Create a separate FormBuilder for selectedTemplateType
-    const typeForm = new FormBuilder(
-      () => ({ selectedTemplateType: this.selectedTemplateType }),
-      (values) => this.selectedTemplateType = values.selectedTemplateType as TemplateType,
-      () => ({}),
-      () => {}
-    );
-
-    return <>
-      <div class="md-typescale-headline-small" style="margin-bottom: 24px;">
-        Create New Template
-      </div>
-
-      {/* Common Fields */}
-      {this.forms.TextField('templateName', 'Template Name', { required: true })}
-
-      {this.forms.TextArea('templateDescription', 'Description', 3)}
-
-      {/* Template Type Selection */}
-      {typeForm.RadioGroup(
-        'selectedTemplateType',
-        'Template Type',
-        [
-          { value: 'basic', label: 'Basic' },
-          { value: 'advanced', label: 'Advanced' }
-        ]
-      )}
-
-      {this.forms.EditableList('bags', 'Bags', { placeholder: 'Enter bag name' })}
-
-      {/* Basic Template Fields */}
-      {this.selectedTemplateType === 'basic' && (
-        <>
-          {this.forms.EditableList('plugins', 'Client Plugins', { placeholder: 'Enter plugin name' })}
-
-          {FormBuilder.Divider()}
-
-          {FormBuilder.SectionHeader(
-            'Required Plugins',
-            'Core plugins enable wiki sync functionality. Disable for vanilla wikis or custom sync implementations.'
-          )}
-
-          {this.forms.Checkbox('skipRequiredPlugins', 'Skip Required Plugins')}
-        </>
-      )}
-
-      {/* Advanced Template Fields */}
-      {this.selectedTemplateType === 'advanced' && (
-        <>
-          {this.forms.FileUpload(
-            'htmlFile',
-            'Custom HTML File',
-            {
-              accept: '.html,.htm',
-              helperText: 'Upload a static HTML file to use as the wiki base. This allows you to completely replace the wiki page with a custom one, including raw markup, old versions of core, or even a completely different wiki.',
-              onFileChange: async (file) => {
-                if (file) {
-                  this.formValues = {
-                    ...this.formValues,
-                    htmlContent: await this.parseHtmlFile(file)
-                  };
-                }
-              }
-            }
-          )}
-
-          {this.forms.TextField(
-            'injectionArray',
-            'Injection Array',
-            {
-              required: true,
-              helperText: 'Name of the JavaScript array to push tiddlers onto (e.g., $tw.preloadTiddlers)'
-            }
-          )}
-
-          {this.forms.TextField(
-            'injectionLocation',
-            'Injection Location',
-            {
-              required: true,
-              helperText: 'Inject the tiddlers BEFORE this string in the HTML file. MUST NOT be inside a script tag! (e.g., <!-- INJECT STORE TIDDLERS HERE -->)'
-            }
-          )}
-
-          <div class="md-typescale-body-small" style="margin-top: -8px; margin-bottom: 16px; color: var(--mdui-color-on-surface-variant);">
-            All HTTP endpoints will still work, and the store tiddlers and
-            recipe plugins will be added at the injection location.
-            Boot, library, and raw markup tiddlers are not read from
-            store and must be included in the HTML manually.
-          </div>
-        </>
-      )}
-
-      {FormBuilder.FormActions(this.closePopup, this.handleSave)}
-    </>
   }
 }

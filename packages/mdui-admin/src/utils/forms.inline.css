@@ -1,0 +1,162 @@
+:host {
+  display: contents;
+}
+
+
+/* ── Text field ──────────────────────────────────────────────────────────── */
+
+.field-text {
+  width: 100%;
+}
+
+/* ── Select ──────────────────────────────────────────────────────────────── */
+
+.field-select-wrapper {
+  width: 100%;
+}
+
+.field-helper {
+  margin-top: 4px;
+  margin-left: 16px;
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--mdui-color-on-surface-variant);
+}
+
+.field-helper--error {
+  color: var(--mdui-color-error);
+}
+
+/* ── Checkbox ────────────────────────────────────────────────────────────── */
+
+.field-checkbox-description {
+  margin-left: 32px;
+  margin-top: 4px;
+  color: var(--mdui-color-on-surface-variant);
+  font-size: 12px;
+  line-height: 16px;
+}
+
+/* ── Radio group ─────────────────────────────────────────────────────────── */
+
+.field-radio-wrapper {
+
+}
+
+.field-radio-label {
+  margin-bottom: 8px;
+  font-size: 14px;
+  line-height: 20px;
+}
+
+.field-radio-helper {
+  margin-top: 8px;
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--mdui-color-on-surface-variant);
+}
+
+.field-radio-helper--error {
+  color: var(--mdui-color-error);
+}
+
+/* ── Switch ──────────────────────────────────────────────────────────────── */
+
+.field-switch-wrapper {
+  margin-bottom: 16px;
+}
+
+.field-switch-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.field-switch-label {
+  font-size: 20px;
+  font-weight: 400;
+  line-height: 28px;
+  cursor: pointer;
+}
+
+.field-switch-description {
+  margin-top: 4px;
+  color: var(--mdui-color-on-surface-variant);
+  font-size: 12px;
+  line-height: 16px;
+}
+
+/* ── File upload ─────────────────────────────────────────────────────────── */
+
+.field-file-wrapper {
+  margin-bottom: 24px;
+}
+
+.field-file-label {
+  margin-bottom: 8px;
+  font-size: 14px;
+  line-height: 20px;
+}
+
+.field-file-helper {
+  margin-bottom: 12px;
+  color: var(--mdui-color-on-surface-variant);
+  font-size: 12px;
+  line-height: 16px;
+}
+
+.field-file-error {
+  margin-bottom: 12px;
+  color: var(--mdui-color-error);
+  font-size: 12px;
+  line-height: 16px;
+}
+
+.field-file-input {
+  margin-bottom: 8px;
+}
+
+.field-file-selected {
+  color: var(--mdui-color-primary);
+  font-size: 12px;
+  line-height: 16px;
+}
+
+/* ── Multi-select ────────────────────────────────────────────────────────── */
+
+.field-multiselect-wrapper {
+
+}
+
+.field-multiselect-error {
+  color: var(--mdui-color-error);
+  font-size: 12px;
+  line-height: 16px;
+  margin-top: 4px;
+}
+
+/* ── Section header ──────────────────────────────────────────────────────── */
+
+.field-section-title {
+  margin-bottom: 8px;
+  font-size: 20px;
+  font-weight: 400;
+  line-height: 28px;
+}
+
+.field-section-description {
+  color: var(--mdui-color-on-surface-variant);
+  font-size: 14px;
+  line-height: 20px;
+}
+
+/* ── Divider ─────────────────────────────────────────────────────────────── */
+
+.field-divider {
+  margin: 24px 0;
+  display: block;
+}
+
+mdui-text-field::part(container) {
+  height: unset;
+}

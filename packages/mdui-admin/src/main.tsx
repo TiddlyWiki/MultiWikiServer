@@ -3,7 +3,6 @@ import 'mdui/mdui.css';
 import 'mdui';
 // global css (not scoped)
 import "./main.css";
-
 // 
 import type * as TMDUI from "mdui/jsx2.en.d.ts";
 declare global {
