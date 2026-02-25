@@ -1,8 +1,6 @@
 {
   "name": "@tiddlywiki/jsx-runtime",
   "dependencies": {
-    "@types/react": "^19.2.2",
-
     "html-jsx": "^1.0.0"
   }
 }

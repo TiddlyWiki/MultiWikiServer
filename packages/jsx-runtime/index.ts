@@ -2,6 +2,7 @@ import type * as htmljsx from 'html-jsx';
 import { JSXElementSymbol } from "./jsx-render";
 import { MaybeArray, MaybeArrayDeep, is } from "./jsx-utils";
 export { render, updateElement } from "./jsx-render";
+export * from "./jsx-utils";
 
 export const Fragment = () => {
   throw new Error("Fragment is a placeholder and should not be called directly.");
@@ -67,6 +68,7 @@ declare global {
     export interface BaseAttrs<E extends DOMElement> extends
       IntrinsicAttributes,
       GlobalEventsMap<E>,
+      Omit<htmljsx.HTMLAttributes<E>, IgnoredProperties>,
       WebjsxAttrString {
       ref?: (e: E) => void;
     }
