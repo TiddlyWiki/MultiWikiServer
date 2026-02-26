@@ -1,5 +1,5 @@
 import { customElement, state } from "lit/decorators.js";
-import { Subscription } from 'rxjs';
+import { map, Subscription } from 'rxjs';
 import { JSXElement } from '../utils/JSXElement';
 import { PopupContainer } from '../components/mdui-popup';
 import { createHybridRef } from "@tiddlywiki/jsx-runtime/jsx-utils";
@@ -40,6 +40,7 @@ export class WikisPage extends JSXElement {
   }
 
   private forms = new FormState({
+    
     wikiName: FormState.TextField({
       label: 'Wiki Name',
       required: true,
@@ -58,13 +59,7 @@ export class WikisPage extends JSXElement {
     writableBag: FormState.Select({
       label: 'Writable Bag',
       default: 'main-bag',
-      options: [
-        { value: 'main-bag', label: 'main-bag' },
-        { value: 'blog-bag', label: 'blog-bag' },
-        { value: 'docs-bag', label: 'docs-bag' },
-        { value: 'system-bag', label: 'system-bag' },
-        { value: 'plugins-bag', label: 'plugins-bag' },
-      ],
+      options: dataService.bags$.pipe(map(bags => bags.map(b => ({ value: b.name, label: b.name }))))
     }),
   }, {
     onCancel: () => this.closePopup(),

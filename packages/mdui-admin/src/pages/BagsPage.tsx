@@ -25,10 +25,10 @@ export class BagsPage extends JSXElement {
   async connectedCallback() {
     super.connectedCallback();
     this.forms.events.on('change', this._onFormsChange);
-    this._dataSub = dataService.bags$.subscribe(bags => {
+    this._dataSub = dataService.bags.changes$.subscribe(bags => {
       this.savedBags = bags;
     });
-    await dataService.loadBags();
+    await dataService.bags.loadAll();
   }
 
   disconnectedCallback() {
@@ -50,7 +50,13 @@ export class BagsPage extends JSXElement {
     }),
   }, {
     onCancel: () => this.closePopup(),
-    onSubmit: async (values) => { await this.doSave(values); },
+    onSubmit: async (values) => {
+      await this.doSave(values as {
+        id: string;
+        name: string;
+        description?: string;
+      });
+    },
   });
 
   private closePopup = () => {
@@ -60,9 +66,9 @@ export class BagsPage extends JSXElement {
     });
   };
 
-  private doSave = async (values: Record<string, any>) => {
+  private doSave = async (values: Bag) => {
     try {
-      await dataService.saveBag(values);
+      await dataService.bags.save(values);
       this.closePopup();
     } catch (error) {
       console.error('Error saving bag:', error);

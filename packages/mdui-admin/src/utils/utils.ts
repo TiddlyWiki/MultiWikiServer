@@ -9,24 +9,6 @@ export function get24HourDefault() {
   return hour12 === false;
 }
 
-export interface HybridRef<T extends Node> {
-  events: EventEmitter<{ change: [T | null] }>;
-  current: T | null;
-  (node: T | null): void;
-}
-
-export const createRef = <T extends Node>(callback?: (e: T | null) => void): HybridRef<T> => {
-
-  const ref: HybridRef<T> = (node: T | null) => {
-    ref.current = node;
-    ref.events.emit("change", node);
-    callback?.(node);
-  };
-  ref.events = new EventEmitter();
-  ref.current = null;
-  return ref;
-}
-
 const BASE64_PREFIX = "data:application/octet-stream;base64,";
 
 export async function bytesToBase64(bytes: Uint8Array<ArrayBuffer>, type = "application/octet-stream") {

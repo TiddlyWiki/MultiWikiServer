@@ -50,11 +50,6 @@ export class PluginsPage extends JSXElement {
       label: 'Description',
       default: '',
     }),
-    enabled: FormState.Switch({
-      label: 'Enabled',
-      description: 'Enable this plugin immediately after installation.',
-      default: true,
-    }),
   }, {
     onCancel: () => this.closePopup(),
     onSubmit: async (values) => { await this.doInstall(values); },
@@ -102,7 +97,6 @@ export class PluginsPage extends JSXElement {
                     <mdui-icon webjsx-attr-slot="icon" name="extension"></mdui-icon>
                     {plugin.path}
                     <div webjsx-attr-slot="description">
-                      {plugin.enabled ? 'Enabled' : 'Disabled'}
                       {plugin.description ? ` · ${plugin.description}` : ''}
                     </div>
                   </mdui-list-item>
