@@ -52,12 +52,12 @@ export interface Plugin {
 export class DataStore<T extends { id: string }> {
   private _store;
   readonly changes$ = new BehaviorSubject<T[]>([]);
-  constructor(public name: string, private onupgrade?: (event: IDBVersionChangeEvent, db: IDBDatabase) => void) {
+  constructor(public name: string) {
     this._store = createKVStore({
-      dbName: 'mws',
+      dbName: DataService.dbName,
       storeName: name,
-      version: 2,
-      onupgrade: this.onupgrade,
+      version: DataService.version,
+      onupgrade: DataService.onupgrade,
     });
   }
 
@@ -90,9 +90,9 @@ export class DataStore<T extends { id: string }> {
 // ── Service ───────────────────────────────────────────────────────────────────
 
 class DataService {
-
-
-  onupgrade = (event: IDBVersionChangeEvent, db: IDBDatabase) => {
+  static dbName = 'mws';
+  static version = 2;
+  static onupgrade = (event: IDBVersionChangeEvent, db: IDBDatabase) => {
     for (const storeName of ['bags', 'wikis', 'templates', 'plugins']) {
       if (!db.objectStoreNames.contains(storeName)) {
         db.createObjectStore(storeName);
@@ -100,12 +100,10 @@ class DataService {
     }
   }
 
-  bags = new DataStore<Bag>('bags', this.onupgrade);
-  wikis = new DataStore<Wiki>('wikis', this.onupgrade)
-  templates = new DataStore<Template>('templates', this.onupgrade);
-  plugins = new DataStore<Plugin>('plugins', this.onupgrade);
-
-
+  bags = new DataStore<Bag>('bags');
+  wikis = new DataStore<Wiki>('wikis');
+  templates = new DataStore<Template>('templates');
+  plugins = new DataStore<Plugin>('plugins');
 }
 
 export const dataService = new DataService();

@@ -1,4 +1,4 @@
-export { WikisPage } from './WikisPage';
-export { TemplatesPage } from './TemplatesPage';
-export { BagsPage } from './BagsPage';
-export { PluginsPage } from './PluginsPage';
+export { createWikisFormState } from './WikisPage';
+export { createTemplatesFormState } from './TemplatesPage';
+export { createBagsFormState } from './BagsPage';
+export { createPluginsFormState } from './PluginsPage';

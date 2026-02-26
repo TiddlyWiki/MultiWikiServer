@@ -133,7 +133,8 @@ export type FieldDescriptor =
 // ────────────────────────────────────────────────────────────────────────────
 
 export interface FormStateOptions {
-  getID: () => string;
+  store: DataStore<any>,
+  idKey: string;
   onInit?: (item: any | undefined) => void | Promise<void>;
   onCancel?: () => void;
   onSubmit?: (values: any) => void | Promise<void>;
@@ -147,6 +148,7 @@ export interface FormStateOptions {
   listDescription?: JSX.Node;
   listEmptyText?: JSX.Node;
   createItemLabel?: JSX.Node;
+  renderListItem(item: any): JSX.Element;
 }
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -156,7 +158,7 @@ type FormValues = Record<string, any>;
 type FormErrors = Partial<Record<string, string | undefined>>;
 type SKey<T> = Extract<keyof T, string>;
 
-export class FormState {
+export class FormState<T extends Record<string, FieldDescriptor>> {
   private _values: FormValues;
   private _errors: FormErrors = {};
 
@@ -165,7 +167,7 @@ export class FormState {
   }>();
 
   constructor(
-    public readonly fields: Record<string, FieldDescriptor>,
+    public readonly fields: T,
     public readonly options: FormStateOptions
   ) {
     const defaults = {} as FormValues;
@@ -346,15 +348,15 @@ export class FormState {
 
 declare global {
   interface MyCustomElements {
-    'mws-forms-comp': JSX.SimpleAttrs<{}, FormsComp<{ id: string }>>;
+    'mws-forms-comp': JSX.SimpleAttrs<{}, FormsComp<any>>;
   }
 }
 
 @addstyles(forms_inline_css)
 @customElement('mws-forms-comp')
-export class FormsComp<T extends { id: string; }> extends JSXElement {
+export class FormsComp<T extends Record<string, FieldDescriptor>> extends JSXElement {
   @state() accessor props!: {
-    state: FormState;
+    state: FormState<T>;
   };
 
   private _obsListSubs = new Map<string, Subscription>();
@@ -770,20 +772,52 @@ export class FormsPopup extends JSXElement {
   }
 }
 
+@addstyles(`
+:host {
+  display: contents; 
+}
+.list-title {
+  margin-bottom: 16px; 
+  font-size: 28px; 
+  font-weight: 400; 
+  line-height: 36px;
+}
+.list-description {
+  color: var(--mdui-color-on-surface-variant);
+  margin-bottom: 24px;
+  font-size: 14px;
+  line-height: 20px;
+}
+.empty-list-text {
+  padding: 24px; 
+  text-align: center; 
+  color: var(--mdui-color-on-surface-variant); 
+  font-size: 14px; 
+  line-height: 20px;
+}
+`)
+@customElement("item-store-page")
+export class ItemStorePage<T extends { id: string }, S> extends JSXElement {
+  @state() accessor state!: S;
 
-export abstract class ItemStorePage<T extends { id: string; }> extends JSXElement {
-  abstract store: DataStore<T>
-  abstract forms: FormState;
-  abstract renderListItem(item: T): JSX.Element;
+  @state() accessor props!: {
+    create: () => FormState<any>;
+  }
+
+  forms!: FormState<any>;
+
+  get store() { return this.forms.options.store; }
 
   async connectedCallback() {
     super.connectedCallback();
+    console.log('connected', this.forms);
+    if (!this.forms) this.forms = this.props.create.call(this);
     this.forms.events.on('change', () => this.requestUpdate());
     this.subs.add(() => {
       this.forms.events.off('change', () => this.requestUpdate())
     });
-    this.subs.add(this.store.changes$.subscribe(templates => {
-      this.itemList = templates;
+    this.subs.add(this.store.changes$.subscribe(items => {
+      this.itemList = items;
     }));
     await this.store.loadAll();
   }
@@ -795,14 +829,14 @@ export abstract class ItemStorePage<T extends { id: string; }> extends JSXElemen
   protected newItemButton = createHybridRef<HTMLElement>();
   protected popup = createHybridRef<PopupContainer>();
 
-  protected closePopup = () => {
+  closePopup = () => {
     this.popup.current?.close(() => {
       this.showPopup = false;
       this.forms.resetValues();
     });
   };
 
-  protected loadItemForEdit = (template: T, listref: HybridRef<HTMLElement>) => {
+  loadItemForEdit = (template: T, listref: HybridRef<HTMLElement>) => {
     this.forms.setValues(template);
     this.forms.setErrors({});
     this.forms.options.onInit?.(template);
@@ -810,7 +844,7 @@ export abstract class ItemStorePage<T extends { id: string; }> extends JSXElemen
     this.showPopup = true;
   };
 
-  protected loadItemForCreate = () => {
+  loadItemForCreate = () => {
     this.forms.resetValues();
     this.forms.setErrors({});
     this.forms.options.onInit?.(undefined);
@@ -818,9 +852,9 @@ export abstract class ItemStorePage<T extends { id: string; }> extends JSXElemen
     this.showPopup = true;
   }
 
-  protected doSave = async (values: Record<string, any>) => {
+  doSave = async (values: Record<string, any>) => {
     try {
-      await this.store.save(this.forms.options.getID(), values as T);
+      await this.store.save(values[this.forms.options.idKey], values as T);
       this.closePopup();
     } catch (error) {
       console.error('Error saving template:', error);
@@ -829,27 +863,26 @@ export abstract class ItemStorePage<T extends { id: string; }> extends JSXElemen
   };
 
   protected render() {
-
     return (
-      <div class="page-content">
-        <mdui-card variant="outlined" style="margin: 16px;">
+      <>
+        <>
           <div style="padding: 24px;">
-            <div style="margin-bottom: 16px; font-size: 28px; font-weight: 400; line-height: 36px;">
+            <div class="list-title">
               {this.forms.options.listTitle}
             </div>
 
             {this.forms.options.listDescription && (
-              <div style="margin-bottom: 24px; color: var(--mdui-color-on-surface-variant); font-size: 14px; line-height: 20px;">
+              <div class="list-description">
                 {this.forms.options.listDescription || ''}
               </div>
             )}
 
             {this.itemList.length > 0 ? (
               <mdui-list>
-                {this.itemList.map(template => this.renderListItem(template))}
+                {this.itemList.map(template => this.forms.options.renderListItem(template))}
               </mdui-list>
             ) : (
-              <div style="padding: 24px; text-align: center; color: var(--mdui-color-on-surface-variant); font-size: 14px; line-height: 20px;">
+              <div class="empty-list-text">
                 {this.forms.options.listEmptyText || 'No items yet.'}
               </div>
             )}
@@ -864,19 +897,19 @@ export abstract class ItemStorePage<T extends { id: string; }> extends JSXElemen
               {this.forms.options.createItemLabel || 'New Item'}
             </mdui-button>
           </div>
-        </mdui-card>
+        </>
 
         {this.showPopup && (
           <PopupContainer
             ref={this.popup}
             source={this.popupSource?.current}
-            cardStyle="max-width: 80vw; max-height: 80vh;"
+            cardStyle="width: 80vw; max-height: 80vh;"
             oncancel={this.closePopup}
           >
             {this.forms.renderPopup()}
           </PopupContainer>
         )}
-      </div>
+      </>
     );
   }
 

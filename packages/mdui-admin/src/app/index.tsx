@@ -1,15 +1,18 @@
 
 import { customElement, property, state } from "lit/decorators.js";
 import { JSXElement } from '../utils/JSXElement';
-import { WikisPage, TemplatesPage, BagsPage, PluginsPage } from '../pages';
+import { createBagsFormState, createPluginsFormState, createTemplatesFormState, createWikisFormState } from '../pages';
 import "../pages";
 import { Tabs } from "mdui";
+import { ItemStorePage } from "../utils/forms";
 
 declare global {
   interface MyCustomElements {
     'mws-app': JSX.SimpleAttrs<{}, App>;
   }
 }
+
+
 
 @customElement("mws-app")
 export class App extends JSXElement {
@@ -22,6 +25,16 @@ export class App extends JSXElement {
     };
 
     console.log("Rendering App with activeTab:", activeTab);
+
+    const createFormState = this.useMemo(() => {
+      switch (activeTab) {
+        case 'wikis': return createWikisFormState;
+        case 'templates': return createTemplatesFormState;
+        case 'bags': return createBagsFormState;
+        case 'plugins': return createPluginsFormState;
+        default: throw new Error(`Unknown tab: ${activeTab}`);
+      }
+    }, [activeTab]);
 
     return (
       <div style="height: 100vh; display: flex; flex-direction: column;">
@@ -39,10 +52,7 @@ export class App extends JSXElement {
             <mdui-tab value="bags">Bags</mdui-tab>
             <mdui-tab value="plugins">Plugins</mdui-tab>
           </mdui-tabs>
-          {activeTab === 'wikis' && <mws-wikis-page />}
-          {activeTab === 'templates' && <mws-templates-page />}
-          {activeTab === 'bags' && <mws-bags-page />}
-          {activeTab === 'plugins' && <mws-plugins-page />}
+          <ItemStorePage key={activeTab} create={createFormState}></ItemStorePage>
         </div>
       </div>
     );

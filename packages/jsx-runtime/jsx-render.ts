@@ -132,6 +132,9 @@ function updateAttributes(
       if (key.startsWith("on")) {
         const eventName = key.slice(2).toLowerCase();
         el.removeEventListener(eventName, oldProps[key] as EventListener);
+      } else if (key.startsWith("webjsx-on-")) {
+        const eventName = key.slice("webjsx-on-".length).toLowerCase();
+        el.removeEventListener(eventName, oldProps[key] as EventListener);
       } else {
         el.removeAttribute(key);
       }
@@ -169,15 +172,17 @@ function updateChildren(
           && curKeyMap.get((newChildNode as any)[OwnKeySymbol])?.parentElement === el)
           console.warn("jsx child node had a key and may have conflicting lookups");
       } else if (isJSXElement(newChildDef)) {
-        // the first and third if blocks are the same
-        // if the key of both is null or undefined, that match is correct
         if (newChildDef.key === curChildNode?.[OwnKeySymbol]) {
+          // this branch matches when the new and old elements are at the same index
+          // if the key of both is null or undefined, that match is correct
           newChildNode = updateElement(
             newChildDef,
             isValidCurChildNode(curChildNode) ? curChildNode : null,
             el.namespaceURI ?? null
           );
         } else if (hasKey(newChildDef) && curKeyMap.has(newChildDef.key)) {
+          // this branch matches when the new element has a key and there 
+          // is an old element with the same key, even if they are at different indices
           const keyChildNode = curKeyMap.get(newChildDef.key);
           const isChild = keyChildNode && keyChildNode.parentNode === el;
           const isDOM = keyChildNode && DOMElementSymbol in keyChildNode && keyChildNode[DOMElementSymbol] === true;
@@ -187,9 +192,10 @@ function updateChildren(
             el.namespaceURI ?? null
           );
         } else {
+          // the keys don't match, so not valid to update.
           newChildNode = updateElement(
             newChildDef,
-            isValidCurChildNode(curChildNode) ? curChildNode : null,
+            null,// isValidCurChildNode(curChildNode) ? curChildNode : null,
             el.namespaceURI ?? null
           );
         }

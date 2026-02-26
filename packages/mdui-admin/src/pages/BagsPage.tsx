@@ -1,24 +1,9 @@
-import { customElement } from "lit/decorators.js";
 import { FormState, ItemStorePage } from '../utils/forms';
-import { dataService, DataStore, Bag } from '../services/data.service';
+import { dataService, Bag } from '../services/data.service';
 import { createHybridRef } from "@tiddlywiki/jsx-runtime/jsx-utils";
 
-declare global {
-  interface MyCustomElements {
-    'mws-bags-page': JSX.SimpleAttrs<{}, BagsPage>;
-  }
-}
-
-@customElement("mws-bags-page")
-export class BagsPage extends ItemStorePage<Bag> {
-  store: DataStore<Bag>;
-
-  constructor() {
-    super();
-    this.store = dataService.bags;
-  }
-
-  forms = new FormState({
+export function createBagsFormState(this: ItemStorePage<Bag, {}>) {
+  return new FormState({
     name: FormState.TextField({
       label: 'Bag Name',
       required: true,
@@ -30,7 +15,8 @@ export class BagsPage extends ItemStorePage<Bag> {
       default: '',
     }),
   }, {
-    getID: (): string => this.forms.getValue('name'),
+    store: dataService.bags,
+    idKey: 'name',
     onCancel: () => this.closePopup(),
     onSubmit: async (values) => { await this.doSave(values); },
     formTitle: 'Bag',
@@ -40,18 +26,17 @@ export class BagsPage extends ItemStorePage<Bag> {
     </>,
     listEmptyText: `No bags yet. Click "New Bag" to create one.`,
     createItemLabel: 'New Bag',
+    renderListItem: (bag: Bag) => {
+      const listref = createHybridRef<HTMLElement>();
+      return (
+        <mdui-list-item ref={listref} onclick={() => this.loadItemForEdit(bag, listref)}>
+          <mdui-icon webjsx-attr-slot="icon" name="folder"></mdui-icon>
+          {bag.name}
+          {bag.description && (
+            <div webjsx-attr-slot="description">{bag.description}</div>
+          )}
+        </mdui-list-item>
+      );
+    }
   });
-
-  renderListItem(bag: Bag) {
-    const listref = createHybridRef<HTMLElement>();
-    return (
-      <mdui-list-item ref={listref} onclick={() => this.loadItemForEdit(bag, listref)}>
-        <mdui-icon webjsx-attr-slot="icon" name="folder"></mdui-icon>
-        {bag.name}
-        {bag.description && (
-          <div webjsx-attr-slot="description">{bag.description}</div>
-        )}
-      </mdui-list-item>
-    );
-  }
 }

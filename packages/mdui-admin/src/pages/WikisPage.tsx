@@ -4,31 +4,8 @@ import { FormState, ItemStorePage } from '../utils/forms';
 import { dataService, DataStore, Wiki } from '../services/data.service';
 import { createHybridRef } from "@tiddlywiki/jsx-runtime/jsx-utils";
 
-declare global {
-  interface MyCustomElements {
-    'mws-wikis-page': JSX.SimpleAttrs<{}, WikisPage>;
-  }
-}
-
-@customElement("mws-wikis-page")
-export class WikisPage extends ItemStorePage<Wiki> {
-  store: DataStore<Wiki>;
-
-  constructor() {
-    super();
-    this.store = dataService.wikis;
-  }
-
-  async connectedCallback() {
-    await super.connectedCallback();
-    // Ensure options are populated for the select fields
-    await Promise.all([
-      dataService.templates.loadAll(),
-      dataService.bags.loadAll(),
-    ]);
-  }
-
-  forms = new FormState({
+export function createWikisFormState(this: ItemStorePage<Wiki, {}>) {
+  return new FormState({
     name: FormState.TextField({
       label: 'Wiki Name',
       required: true,
@@ -54,7 +31,14 @@ export class WikisPage extends ItemStorePage<Wiki> {
       ),
     }),
   }, {
-    getID: (): string => this.forms.getValue('name'),
+    store: dataService.wikis,
+    idKey: 'name',
+    onInit: async (item?: Wiki) => {
+      await Promise.all([
+        dataService.templates.loadAll(),
+        dataService.bags.loadAll(),
+      ]);
+    },
     onCancel: () => this.closePopup(),
     onSubmit: async (values) => { await this.doSave(values); },
     formTitle: 'Wiki',
@@ -64,18 +48,17 @@ export class WikisPage extends ItemStorePage<Wiki> {
     </>,
     listEmptyText: `No wikis yet. Click "New Wiki" to create one.`,
     createItemLabel: 'New Wiki',
+    renderListItem: (wiki: Wiki) => {
+      const listref = createHybridRef<HTMLElement>();
+      return (
+        <mdui-list-item ref={listref} onclick={() => this.loadItemForEdit(wiki, listref)}>
+          <mdui-icon webjsx-attr-slot="icon" name="description"></mdui-icon>
+          {wiki.name}
+          <div webjsx-attr-slot="description">
+            {wiki.template ? `Using ${wiki.template}` : 'No template'} · Writing to {wiki.writableBag}
+          </div>
+        </mdui-list-item>
+      );
+    }
   });
-
-  renderListItem(wiki: Wiki) {
-    const listref = createHybridRef<HTMLElement>();
-    return (
-      <mdui-list-item ref={listref} onclick={() => this.loadItemForEdit(wiki, listref)}>
-        <mdui-icon webjsx-attr-slot="icon" name="description"></mdui-icon>
-        {wiki.name}
-        <div webjsx-attr-slot="description">
-          {wiki.template ? `Using ${wiki.template}` : 'No template'} · Writing to {wiki.writableBag}
-        </div>
-      </mdui-list-item>
-    );
-  }
 }
