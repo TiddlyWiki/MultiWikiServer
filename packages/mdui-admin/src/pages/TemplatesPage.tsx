@@ -23,12 +23,6 @@ export class TemplatesPage extends ItemStorePage<Template> {
   }
 
   forms = new FormState({
-    id: FormState.TextField({
-      label: 'ID',
-      required: true,
-      default: '',
-      valid: (v) => !v?.trim() ? 'ID is required' : undefined,
-    }),
     templateName: FormState.TextField({
       label: 'Template Name',
       required: true,
@@ -127,6 +121,7 @@ export class TemplatesPage extends ItemStorePage<Template> {
       { active: (values) => !this.isCreatingNew && values.selectedTemplateType === 'advanced' }
     ),
   }, {
+    getID: (): string => this.forms.getValue('templateName'),
     onInit: (item?: Template) => {
       this.isCreatingNew = !item;
     },

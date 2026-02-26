@@ -14,6 +14,8 @@ export interface KVStoreOptions {
   storeName?: string;
   /** The database schema version number (defaults to 1) */
   version?: number;
+
+  onupgrade?: (event: IDBVersionChangeEvent, db: IDBDatabase) => void;
 }
 
 /**
@@ -274,6 +276,7 @@ export class IndexedDBKVStore {
   private dbName: string;
   private storeName: string;
   private version: number;
+  private onupgrade: KVStoreOptions['onupgrade'];
   private db: IDBDatabase | null = null;
 
   /**
@@ -284,6 +287,7 @@ export class IndexedDBKVStore {
     this.dbName = options.dbName || 'kvStore';
     this.storeName = options.storeName || 'keyValuePairs';
     this.version = options.version || 1;
+    this.onupgrade = options.onupgrade;
   }
 
   /**
@@ -306,9 +310,13 @@ export class IndexedDBKVStore {
       request.onupgradeneeded = (event) => {
         const db = (event.target as IDBOpenDBRequest).result;
 
-        // Create object store if it doesn't exist
-        if (!db.objectStoreNames.contains(this.storeName)) {
-          db.createObjectStore(this.storeName);
+        if (this.onupgrade) {
+          this.onupgrade(event, db);
+        } else {
+          // Create object store if it doesn't exist
+          if (!db.objectStoreNames.contains(this.storeName)) {
+            db.createObjectStore(this.storeName);
+          }
         }
       };
 

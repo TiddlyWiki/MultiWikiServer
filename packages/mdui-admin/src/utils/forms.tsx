@@ -133,6 +133,7 @@ export type FieldDescriptor =
 // ────────────────────────────────────────────────────────────────────────────
 
 export interface FormStateOptions {
+  getID: () => string;
   onInit?: (item: any | undefined) => void | Promise<void>;
   onCancel?: () => void;
   onSubmit?: (values: any) => void | Promise<void>;
@@ -245,6 +246,7 @@ export class FormState {
     return typeof lbl === 'function' ? lbl() : (lbl ?? 'Cancel');
   }
 
+  /** This gets rendered in the ItemStorePage, not the FormsComp */
   renderPopup() {
     const title = this.formTitle
     const submitLabel = this.submitLabel;
@@ -818,7 +820,7 @@ export abstract class ItemStorePage<T extends { id: string; }> extends JSXElemen
 
   protected doSave = async (values: Record<string, any>) => {
     try {
-      await this.store.save(values as T);
+      await this.store.save(this.forms.options.getID(), values as T);
       this.closePopup();
     } catch (error) {
       console.error('Error saving template:', error);

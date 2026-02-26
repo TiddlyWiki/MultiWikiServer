@@ -52,11 +52,12 @@ export interface Plugin {
 export class DataStore<T extends { id: string }> {
   private _store;
   readonly changes$ = new BehaviorSubject<T[]>([]);
-  constructor(public name: string) {
+  constructor(public name: string, private onupgrade?: (event: IDBVersionChangeEvent, db: IDBDatabase) => void) {
     this._store = createKVStore({
       dbName: 'mws',
       storeName: name,
-      version: 1,
+      version: 2,
+      onupgrade: this.onupgrade,
     });
   }
 
@@ -72,10 +73,10 @@ export class DataStore<T extends { id: string }> {
     }
   }
 
-  async save(record: T): Promise<void> {
+  async save(id: string, record: T): Promise<void> {
     try {
       await this._store.open();
-      await this._store.set(record.id, record);
+      await this._store.set(id, record);
       this.changes$.next(await this._store.getAll());
       await this._store.close();
     } catch (error) {
@@ -90,11 +91,21 @@ export class DataStore<T extends { id: string }> {
 
 class DataService {
 
-  bags = new DataStore<Bag>('bags');
-  wikis = new DataStore<Wiki>('wikis')
-  templates = new DataStore<Template>('templates');
-  plugins = new DataStore<Plugin>('plugins');
-  
+
+  onupgrade = (event: IDBVersionChangeEvent, db: IDBDatabase) => {
+    for (const storeName of ['bags', 'wikis', 'templates', 'plugins']) {
+      if (!db.objectStoreNames.contains(storeName)) {
+        db.createObjectStore(storeName);
+      }
+    }
+  }
+
+  bags = new DataStore<Bag>('bags', this.onupgrade);
+  wikis = new DataStore<Wiki>('wikis', this.onupgrade)
+  templates = new DataStore<Template>('templates', this.onupgrade);
+  plugins = new DataStore<Plugin>('plugins', this.onupgrade);
+
+
 }
 
 export const dataService = new DataService();
