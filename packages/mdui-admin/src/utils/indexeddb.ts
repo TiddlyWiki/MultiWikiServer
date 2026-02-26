@@ -435,7 +435,7 @@ export class IndexedDBKVStore {
   async destructivelyDeleteDatabase(seriously?: "yes! really delete data!"): Promise<void> {
     if (seriously !== "yes! really delete data!")
       throw new Error("Destructive delete requires explicit confirmation");
-    
+
     this.close();
 
     return new Promise<void>((resolve, reject) => {
@@ -459,6 +459,24 @@ export class IndexedDBKVStore {
   async get<T = any>(key: IDBValidKey): Promise<T | undefined> {
     return this.run('readonly', function* (tx) {
       return yield* tx.get<T>(key);
+    });
+  }
+
+  /**
+   * Retrieves all values from the store (convenience method).
+   * @template T The type of values to retrieve
+   * @param query - Key or key range to filter results
+   * @param count - Maximum number of results to retrieve
+   * @returns Promise that resolves to an array of values
+   * @example
+   * const users = await db.getAll();
+   */
+  getAll<T = any>(query?: IDBValidKey | IDBKeyRange | null | undefined, count?: number) {
+    return new Promise<T[]>((resolve, reject) => {
+      if (!this.db) return reject(new Error('Database not opened'));
+      const request = this.db.transaction([this.storeName], 'readonly').objectStore(this.storeName).getAll(query, count);
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(new Error(`Failed to get all records: ${request.error?.message}`));
     });
   }
 

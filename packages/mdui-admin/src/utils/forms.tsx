@@ -8,9 +8,11 @@ import EventEmitter from "events";
 import forms_inline_css from "./forms.inline.css";
 import { addstyles } from "./addstyles";
 import { style as textFieldStyle } from "mdui/components/text-field/style";
-import Dropzone from "dropzone";
-import { createHybridRef } from "@tiddlywiki/jsx-runtime/jsx-utils";
+// import Dropzone from "dropzone";
+import { createHybridRef, HybridRef } from "@tiddlywiki/jsx-runtime/jsx-utils";
 import { Observable, Subscription, isObservable } from "rxjs";
+import { PopupContainer } from "../components/mdui-popup";
+import { DataStore } from "../services/data.service";
 // ────────────────────────────────────────────────────────────────────────────
 // Field descriptor types
 // ────────────────────────────────────────────────────────────────────────────
@@ -131,21 +133,31 @@ export type FieldDescriptor =
 // ────────────────────────────────────────────────────────────────────────────
 
 export interface FormStateOptions {
-  title?: string;
+  onInit?: (item: any | undefined) => void | Promise<void>;
   onCancel?: () => void;
-  onSubmit?: (values: Record<string, any>) => void | Promise<void>;
+  onSubmit?: (values: any) => void | Promise<void>;
   /** String or callback returning a string */
   submitLabel?: string | (() => string);
+  /** String or callback returning a string */
   cancelLabel?: string | (() => string);
+  /** String or callback returning a string */
+  formTitle?: string | (() => string);
+  listTitle: JSX.Node;
+  listDescription?: JSX.Node;
+  listEmptyText?: JSX.Node;
+  createItemLabel?: JSX.Node;
 }
 
 // ────────────────────────────────────────────────────────────────────────────
 // FormState
 // ────────────────────────────────────────────────────────────────────────────
+type FormValues = Record<string, any>;
+type FormErrors = Partial<Record<string, string | undefined>>;
+type SKey<T> = Extract<keyof T, string>;
 
-export class FormState<T extends Record<string, any> = Record<string, any>> {
-  private _values: Record<string, any>;
-  private _errors: Record<string, string | undefined> = {};
+export class FormState {
+  private _values: FormValues;
+  private _errors: FormErrors = {};
 
   public events = new EventEmitter<{
     change: [];
@@ -153,17 +165,17 @@ export class FormState<T extends Record<string, any> = Record<string, any>> {
 
   constructor(
     public readonly fields: Record<string, FieldDescriptor>,
-    public readonly options: FormStateOptions = {}
+    public readonly options: FormStateOptions
   ) {
-    const defaults: Record<string, any> = {};
+    const defaults = {} as FormValues;
     for (const [key, field] of Object.entries(fields)) {
       if (field.default !== undefined) defaults[key] = field.default;
     }
     this._values = defaults;
   }
 
-  get values(): T { return this._values as T; }
-  get errors(): Record<string, string | undefined> { return this._errors; }
+  get values() { return this._values; }
+  get errors() { return this._errors; }
 
   getValue(key: string): any { return this._values[key]; }
 
@@ -177,18 +189,18 @@ export class FormState<T extends Record<string, any> = Record<string, any>> {
     this.events.emit('change');
   }
 
-  setValues(partial: Partial<T>) {
+  setValues(partial: FormValues) {
     this._values = { ...this._values, ...partial };
     this.events.emit('change');
   }
 
-  setErrors(errors: Record<string, string | undefined>) {
+  setErrors(errors: FormErrors) {
     this._errors = { ...errors };
     this.events.emit('change');
   }
 
   resetValues() {
-    const defaults: Record<string, any> = {};
+    const defaults = {} as FormValues;
     for (const [key, field] of Object.entries(this.fields)) {
       defaults[key] = field.default !== undefined ? field.default : undefined;
     }
@@ -198,7 +210,7 @@ export class FormState<T extends Record<string, any> = Record<string, any>> {
   }
 
   validate(): boolean {
-    const newErrors: Record<string, string | undefined> = {};
+    const newErrors: Partial<Record<string, string | undefined>> = {};
     for (const [key, field] of Object.entries(this.fields)) {
       if (field.active && !field.active(this._values)) continue;
       if (field.valid) {
@@ -213,8 +225,14 @@ export class FormState<T extends Record<string, any> = Record<string, any>> {
 
   async handleSubmit() {
     if (this.validate() && this.options.onSubmit) {
-      await this.options.onSubmit(this._values as T);
+      await this.options.onSubmit(this._values);
+
     }
+  }
+
+  get formTitle(): string {
+    const title = this.options.formTitle;
+    return typeof title === 'function' ? title() : (title ?? '');
   }
 
   get submitLabel(): string {
@@ -225,6 +243,32 @@ export class FormState<T extends Record<string, any> = Record<string, any>> {
   get cancelLabel(): string {
     const lbl = this.options.cancelLabel;
     return typeof lbl === 'function' ? lbl() : (lbl ?? 'Cancel');
+  }
+
+  renderPopup() {
+    const title = this.formTitle
+    const submitLabel = this.submitLabel;
+    const cancelLabel = this.cancelLabel;
+    return (
+      <mdui-forms-popup>
+        <display-content slot="title">
+          {title}
+        </display-content>
+        <display-content slot="fields">
+          <FormsComp state={this}>
+            {this.renderSlots()}
+          </FormsComp>
+        </display-content>
+        <display-content slot="actions">
+          <mdui-button variant="text" onclick={() => this.options?.onCancel?.()}>
+            {cancelLabel}
+          </mdui-button>
+          <mdui-button variant="filled" onclick={() => this.handleSubmit()}>
+            {submitLabel}
+          </mdui-button>
+        </display-content>
+      </mdui-forms-popup>
+    )
   }
 
   /**
@@ -300,13 +344,13 @@ export class FormState<T extends Record<string, any> = Record<string, any>> {
 
 declare global {
   interface MyCustomElements {
-    'mws-forms-comp': JSX.SimpleAttrs<{}, FormsComp>;
+    'mws-forms-comp': JSX.SimpleAttrs<{}, FormsComp<{ id: string }>>;
   }
 }
 
 @addstyles(forms_inline_css)
 @customElement('mws-forms-comp')
-export class FormsComp extends JSXElement {
+export class FormsComp<T extends { id: string; }> extends JSXElement {
   @state() accessor props!: {
     state: FormState;
   };
@@ -334,7 +378,7 @@ export class FormsComp extends JSXElement {
     this.useKey(fields.map(([key]) => key).join(','));
     return <>
       {fields.map(([key, field]) =>
-        this._renderField(this.props.state, key, field)
+        this._renderField(key as SKey<T>, field)
       )}
     </>;
 
@@ -344,10 +388,10 @@ export class FormsComp extends JSXElement {
   // Field renderers
   // ──────────────────────────────────────────────────────────────────────────
 
-  private _renderField(state: FormState, key: string, field: FieldDescriptor): JSX.Element {
-    const value = state.values[key];
-    const error = state.errors[key];
-    const onChange = (v: any) => state.setValue(key, v);
+  private _renderField(key: SKey<T>, field: FieldDescriptor): JSX.Element {
+    const value = this.props.state.values[key];
+    const error = this.props.state.errors[key];
+    const onChange = (v: any) => this.props.state.setValue(key, v);
 
     switch (field._type) {
       case 'text':
@@ -583,7 +627,7 @@ export class FormsComp extends JSXElement {
       state.current = { subs: [], list: [] }
       if (isObservable(options)) {
         const sub = options.subscribe(list => {
-          if(!state.current) return;
+          if (!state.current) return;
           state.current.list = list;
           this.requestUpdate();
         });
@@ -722,4 +766,116 @@ export class FormsPopup extends JSXElement {
       </div>
     </>);
   }
+}
+
+
+export abstract class ItemStorePage<T extends { id: string; }> extends JSXElement {
+  abstract store: DataStore<T>
+  abstract forms: FormState;
+  abstract renderListItem(item: T): JSX.Element;
+
+  async connectedCallback() {
+    super.connectedCallback();
+    this.forms.events.on('change', () => this.requestUpdate());
+    this.subs.add(() => {
+      this.forms.events.off('change', () => this.requestUpdate())
+    });
+    this.subs.add(this.store.changes$.subscribe(templates => {
+      this.itemList = templates;
+    }));
+    await this.store.loadAll();
+  }
+
+  @state() accessor itemList: T[] = [];
+  @state() protected accessor showPopup = false;
+
+  protected popupSource: HybridRef<HTMLElement> | null = null;
+  protected newItemButton = createHybridRef<HTMLElement>();
+  protected popup = createHybridRef<PopupContainer>();
+
+  protected closePopup = () => {
+    this.popup.current?.close(() => {
+      this.showPopup = false;
+      this.forms.resetValues();
+    });
+  };
+
+  protected loadItemForEdit = (template: T, listref: HybridRef<HTMLElement>) => {
+    this.forms.setValues(template);
+    this.forms.setErrors({});
+    this.forms.options.onInit?.(template);
+    this.popupSource = listref;
+    this.showPopup = true;
+  };
+
+  protected loadItemForCreate = () => {
+    this.forms.resetValues();
+    this.forms.setErrors({});
+    this.forms.options.onInit?.(undefined);
+    this.popupSource = this.newItemButton;
+    this.showPopup = true;
+  }
+
+  protected doSave = async (values: Record<string, any>) => {
+    try {
+      await this.store.save(values as T);
+      this.closePopup();
+    } catch (error) {
+      console.error('Error saving template:', error);
+      alert('Failed to save template');
+    }
+  };
+
+  protected render() {
+
+    return (
+      <div class="page-content">
+        <mdui-card variant="outlined" style="margin: 16px;">
+          <div style="padding: 24px;">
+            <div style="margin-bottom: 16px; font-size: 28px; font-weight: 400; line-height: 36px;">
+              {this.forms.options.listTitle}
+            </div>
+
+            {this.forms.options.listDescription && (
+              <div style="margin-bottom: 24px; color: var(--mdui-color-on-surface-variant); font-size: 14px; line-height: 20px;">
+                {this.forms.options.listDescription || ''}
+              </div>
+            )}
+
+            {this.itemList.length > 0 ? (
+              <mdui-list>
+                {this.itemList.map(template => this.renderListItem(template))}
+              </mdui-list>
+            ) : (
+              <div style="padding: 24px; text-align: center; color: var(--mdui-color-on-surface-variant); font-size: 14px; line-height: 20px;">
+                {this.forms.options.listEmptyText || 'No items yet.'}
+              </div>
+            )}
+
+            <mdui-button
+              ref={this.newItemButton}
+              variant="filled"
+              style="margin-top: 16px;"
+              icon="add"
+              onclick={() => { this.loadItemForCreate(); }}
+            >
+              {this.forms.options.createItemLabel || 'New Item'}
+            </mdui-button>
+          </div>
+        </mdui-card>
+
+        {this.showPopup && (
+          <PopupContainer
+            ref={this.popup}
+            source={this.popupSource?.current}
+            cardStyle="max-width: 80vw; max-height: 80vh;"
+            oncancel={this.closePopup}
+          >
+            {this.forms.renderPopup()}
+          </PopupContainer>
+        )}
+      </div>
+    );
+  }
+
 }

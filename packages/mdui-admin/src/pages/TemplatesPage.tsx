@@ -1,10 +1,10 @@
 import { customElement, state } from "lit/decorators.js";
-import { Subscription } from 'rxjs';
+import { map, Subscription } from 'rxjs';
 import { JSXElement } from '../utils/JSXElement';
 import { PopupContainer } from '../components/mdui-popup';
-import { createHybridRef } from "@tiddlywiki/jsx-runtime/jsx-utils";
-import { FormState, FormsComp } from '../utils/forms';
-import { dataService, Template } from '../services/data.service';
+import { createHybridRef, HybridRef } from "@tiddlywiki/jsx-runtime/jsx-utils";
+import { FormState, FormsComp, ItemStorePage } from '../utils/forms';
+import { dataService, DataStore, Template } from '../services/data.service';
 
 declare global {
   interface MyCustomElements {
@@ -13,29 +13,22 @@ declare global {
 }
 
 @customElement("mws-templates-page")
-export class TemplatesPage extends JSXElement {
-  @state() accessor showNewTemplatePopup = false;
-  @state() accessor savedTemplates: Template[] = [];
-  @state() accessor isCreatingNew = true;
+export class TemplatesPage extends ItemStorePage<Template> {
+  store: DataStore<Template>;
 
-  private _dataSub!: Subscription;
 
-  async connectedCallback() {
-    super.connectedCallback();
-    this.forms.events.on('change', this._onFormsChange);
-    this._dataSub = dataService.templates$.subscribe(templates => {
-      this.savedTemplates = templates;
-    });
-    await dataService.loadTemplates();
+  constructor() {
+    super();
+    this.store = dataService.templates;
   }
 
-  private newTemplateButton = createHybridRef<HTMLElement>();
-  private popup = createHybridRef<PopupContainer>();
-
-  private availableBags = ['main-bag', 'blog-bag', 'docs-bag', 'system-bag', 'plugins-bag'];
-  private availablePlugins = ['markdown', 'codemirror', 'highlight', 'katex', 'plugins/tiddlywiki/filesystem'];
-
-  private forms = new FormState({
+  forms = new FormState({
+    id: FormState.TextField({
+      label: 'ID',
+      required: true,
+      default: '',
+      valid: (v) => !v?.trim() ? 'ID is required' : undefined,
+    }),
     templateName: FormState.TextField({
       label: 'Template Name',
       required: true,
@@ -75,14 +68,14 @@ export class TemplatesPage extends JSXElement {
     ),
     bags: FormState.MultiSelect({
       label: 'Bags',
-      suggestions: this.availableBags,
+      suggestions: dataService.bags.changes$.pipe(map(bags => bags.map(b => b.name))),
       default: [],
       active: () => !this.isCreatingNew,
-      valid: (v) => !v?.length ? 'At least one bag is required' : undefined,
+      valid: (v) => undefined, //!v?.length ? 'At least one bag is required' : undefined,
     }),
     plugins: FormState.MultiSelect({
       label: 'Client Plugins',
-      suggestions: this.availablePlugins,
+      suggestions: dataService.plugins.changes$.pipe(map(plugins => plugins.map(p => p.path))),
       default: [],
       active: (values) => !this.isCreatingNew && values.selectedTemplateType === 'basic',
     }),
@@ -99,7 +92,7 @@ export class TemplatesPage extends JSXElement {
       default: null,
       active: (values) => !this.isCreatingNew && values.selectedTemplateType === 'advanced',
       onFileChange: async (file) => {
-        if (file) this.forms.setValue('htmlContent', await this.parseHtmlFile(file));
+        if (file) this.forms.setValue('htmlContent', await file.text());
       },
     }),
     htmlContent: FormState.TextField({
@@ -134,6 +127,9 @@ export class TemplatesPage extends JSXElement {
       { active: (values) => !this.isCreatingNew && values.selectedTemplateType === 'advanced' }
     ),
   }, {
+    onInit: (item?: Template) => {
+      this.isCreatingNew = !item;
+    },
     onCancel: () => this.closePopup(),
     onSubmit: async (values) => {
       if (this.isCreatingNew) {
@@ -143,72 +139,18 @@ export class TemplatesPage extends JSXElement {
       }
     },
     submitLabel: () => this.isCreatingNew ? 'Continue' : 'Save',
+    formTitle: () => this.isCreatingNew ? 'Create New Template' : 'Configure Template',
+    listTitle: "Templates",
+    listDescription: <>
+      Templates define the structure and features of wikis. They combine bags, plugins, and configuration.
+    </>,
+    listEmptyText: `No templates yet. Click "New Template" to create one.`,
+    createItemLabel: 'New Template',
   });
 
-  private parseHtmlFile(file: File): Promise<string> {
-    return file.text();
-  }
+  @state() accessor isCreatingNew = true;
 
-  private closePopup = () => {
-    this.popup.current?.close(() => {
-      this.showNewTemplatePopup = false;
-      this.forms.resetValues();
-      this.isCreatingNew = true;
-    });
-  };
-
-  private loadTemplateForEdit = (template: Template) => {
-    if (template.type === 'basic') {
-      this.forms.setValues({
-        templateName: template.name,
-        templateDescription: template.description,
-        selectedTemplateType: 'basic',
-        bags: template.bags,
-        plugins: template.plugins,
-        requiredPluginsEnabled: template.requiredPluginsEnabled,
-        htmlFile: null,
-        htmlContent: '',
-        injectionArray: '$tw.preloadTiddlers',
-        injectionLocation: '',
-      });
-    } else {
-      this.forms.setValues({
-        templateName: template.name,
-        templateDescription: template.description,
-        selectedTemplateType: 'advanced',
-        bags: [],
-        plugins: [],
-        requiredPluginsEnabled: true,
-        htmlFile: template.htmlFile,
-        htmlContent: template.htmlContent,
-        injectionArray: template.injectionArray,
-        injectionLocation: template.injectionLocation,
-      });
-    }
-    this.forms.setErrors({});
-    this.isCreatingNew = false;
-    this.showNewTemplatePopup = true;
-  };
-
-  private doSave = async (values: Record<string, any>) => {
-    try {
-      await dataService.saveTemplate(values);
-      this.closePopup();
-    } catch (error) {
-      console.error('Error saving template:', error);
-      alert('Failed to save template');
-    }
-  };
-
-  private _onFormsChange = () => this.requestUpdate();
-
-  disconnectedCallback() {
-    super.disconnectedCallback();
-    this.forms.events.off('change', this._onFormsChange);
-    this._dataSub?.unsubscribe();
-  }
-
-  private renderTemplateListItem(template: Template) {
+  renderListItem(template: Template) {
     const icon = template.type === 'basic' ? 'dashboard' : 'code';
     let description = '';
     if (template.type === 'basic') {
@@ -218,8 +160,9 @@ export class TemplatesPage extends JSXElement {
     } else {
       description = 'Advanced · Custom HTML with injection';
     }
+    const listref = createHybridRef<HTMLElement>();
     return (
-      <mdui-list-item onclick={() => this.loadTemplateForEdit(template)}>
+      <mdui-list-item ref={listref} onclick={() => this.loadItemForEdit(template, listref)}>
         <mdui-icon webjsx-attr-slot="icon" name={icon}></mdui-icon>
         {template.name}
         <div webjsx-attr-slot="description">{description}</div>
@@ -227,72 +170,5 @@ export class TemplatesPage extends JSXElement {
     );
   }
 
-  protected render() {
-    const formTitle = this.isCreatingNew ? 'Create New Template' : 'Configure Template';
-    const submitLabel = this.forms?.submitLabel ?? 'Save';
-    const cancelLabel = this.forms?.cancelLabel ?? 'Cancel';
-    const title = formTitle ?? this.forms?.options?.title;
-    return (
-      <div class="page-content">
-        <mdui-card variant="outlined" style="margin: 16px;">
-          <div style="padding: 24px;">
-            <div style="margin-bottom: 16px; font-size: 28px; font-weight: 400; line-height: 36px;">
-              Templates
-            </div>
-            <div style="margin-bottom: 24px; color: var(--mdui-color-on-surface-variant); font-size: 14px; line-height: 20px;">
-              Templates define the structure and features of wikis. They combine bags, plugins, and configuration.
-            </div>
 
-            {this.savedTemplates.length > 0 ? (
-              <mdui-list>
-                {this.savedTemplates.map(template => this.renderTemplateListItem(template))}
-              </mdui-list>
-            ) : (
-              <div style="padding: 24px; text-align: center; color: var(--mdui-color-on-surface-variant); font-size: 14px; line-height: 20px;">
-                No templates yet. Click "New Template" to create one.
-              </div>
-            )}
-
-            <mdui-button
-              ref={this.newTemplateButton}
-              variant="filled"
-              style="margin-top: 16px;"
-              icon="add"
-              onclick={() => { this.showNewTemplatePopup = true; }}
-            >
-              New Template
-            </mdui-button>
-          </div>
-        </mdui-card>
-
-        {this.showNewTemplatePopup && (
-          <PopupContainer
-            ref={this.popup}
-            source={this.newTemplateButton.current}
-            cardStyle="max-width: 80vw; max-height: 80vh;"
-            oncancel={this.closePopup}
-          >
-            <mdui-forms-popup>
-              <display-content slot="title">
-                {title}
-              </display-content>
-              <display-content slot="fields">
-                <FormsComp state={this.forms}>
-                  {this.forms.renderSlots()}
-                </FormsComp>
-              </display-content>
-              <display-content slot="actions">
-                <mdui-button variant="text" onclick={() => this.forms?.options?.onCancel?.()}>
-                  {cancelLabel}
-                </mdui-button>
-                <mdui-button variant="filled" onclick={() => this.forms?.handleSubmit()}>
-                  {submitLabel}
-                </mdui-button>
-              </display-content>
-            </mdui-forms-popup>
-          </PopupContainer>
-        )}
-      </div>
-    );
-  }
 }

@@ -6,6 +6,7 @@ import { createKVStore } from '../utils/indexeddb';
 // ── Entity types ─────────────────────────────────────────────────────────────
 
 export interface BasicTemplate {
+  id: string;
   type: 'basic';
   name: string;
   description: string;
@@ -15,6 +16,7 @@ export interface BasicTemplate {
 }
 
 export interface AdvancedTemplate {
+  id: string;
   type: 'advanced';
   name: string;
   description: string;
@@ -27,11 +29,13 @@ export interface AdvancedTemplate {
 export type Template = BasicTemplate | AdvancedTemplate;
 
 export interface Bag {
+  id: string;
   name: string;
-  description: string;
+  description?: string;
 }
 
 export interface Wiki {
+  id: string;
   name: string;
   description: string;
   template: string;
@@ -39,126 +43,58 @@ export interface Wiki {
 }
 
 export interface Plugin {
+  id: string;
   path: string;
   description: string;
   enabled: boolean;
+}
+
+export class DataStore<T extends { id: string }> {
+  private _store;
+  readonly changes$ = new BehaviorSubject<T[]>([]);
+  constructor(public name: string) {
+    this._store = createKVStore({
+      dbName: 'mws',
+      storeName: name,
+      version: 1,
+    });
+  }
+
+  async loadAll() {
+    try {
+      await this._store.open();
+      this.changes$.next(await this._store.getAll());
+      await this._store.close();
+    } catch (error) {
+      console.error(`Error loading ${this.name}:`, error);
+      await this._store.close();
+      throw error;
+    }
+  }
+
+  async save(record: T): Promise<void> {
+    try {
+      await this._store.open();
+      await this._store.set(record.id, record);
+      this.changes$.next(await this._store.getAll());
+      await this._store.close();
+    } catch (error) {
+      console.error(`Error saving ${this.name}:`, error);
+      await this._store.close();
+      throw error;
+    }
+  }
 }
 
 // ── Service ───────────────────────────────────────────────────────────────────
 
 class DataService {
 
-  // ── Templates ──────────────────────────────────────────────────────────────
-
-  private _templatesKV = createKVStore({
-    dbName: 'mws-templates',
-    storeName: 'templates',
-    version: 1,
-  });
-
-  readonly templates$ = new BehaviorSubject<Template[]>([]);
-  /** Derived select options — emits whenever templates$ emits */
-  readonly templateOptions$ = new BehaviorSubject<{ value: string; label: string }[]>([]);
-
-  async loadTemplates() {
-    try {
-      await this._templatesKV.open();
-      const templates: Template[] = [];
-      await this._templatesKV.openCursor(null, 'next', (cursor) => {
-        if (cursor) { templates.push(cursor.value); cursor.continue(); }
-      });
-      this.templates$.next(templates);
-      this.templateOptions$.next(templates.map(t => ({ value: t.name, label: t.name })));
-      await this._templatesKV.close();
-    } catch (error) {
-      console.error('Error loading templates:', error);
-    }
-  }
-
-  async saveTemplate(values: Record<string, any>): Promise<void> {
-    try {
-      await this._templatesKV.open();
-      if (values.selectedTemplateType === 'basic') {
-        const template: BasicTemplate = {
-          type: 'basic',
-          name: values.templateName,
-          description: values.templateDescription,
-          bags: (values.bags as string[]).filter((b: string) => b.trim()),
-          plugins: (values.plugins as string[]).filter((p: string) => p.trim()),
-          requiredPluginsEnabled: values.requiredPluginsEnabled,
-        };
-        await this._templatesKV.set(values.templateName, template);
-      } else {
-        const template: AdvancedTemplate = {
-          type: 'advanced',
-          name: values.templateName,
-          description: values.templateDescription,
-          htmlFile: values.htmlFile,
-          htmlContent: values.htmlContent,
-          injectionArray: values.injectionArray,
-          injectionLocation: values.injectionLocation,
-        };
-        await this._templatesKV.set(values.templateName, template);
-      }
-      await this._templatesKV.close();
-      await this.loadTemplates();
-    } catch (error) {
-      console.error('Error saving template:', error);
-      await this._templatesKV.close();
-      throw error;
-    }
-  }
-
-  // ── Bags ───────────────────────────────────────────────────────────────────
-
-  readonly bags$ = new BehaviorSubject<Bag[]>([]);
-
-  async loadBags(): Promise<void> {
-    // TODO: load from API
-  }
-
-  async saveBag(values: Record<string, any>): Promise<void> {
-    // TODO: API call
-    const bag: Bag = { name: values.bagName, description: values.bagDescription };
-    this.bags$.next([...this.bags$.getValue(), bag]);
-  }
-
-  // ── Wikis ──────────────────────────────────────────────────────────────────
-
-  readonly wikis$ = new BehaviorSubject<Wiki[]>([]);
-
-  async loadWikis(): Promise<void> {
-    // TODO: load from API
-  }
-
-  async saveWiki(values: Record<string, any>): Promise<void> {
-    // TODO: API call
-    const wiki: Wiki = {
-      name: values.wikiName,
-      description: values.wikiDescription,
-      template: values.template,
-      writableBag: values.writableBag,
-    };
-    this.wikis$.next([...this.wikis$.getValue(), wiki]);
-  }
-
-  // ── Plugins ────────────────────────────────────────────────────────────────
-
-  readonly plugins$ = new BehaviorSubject<Plugin[]>([]);
-
-  async loadPlugins(): Promise<void> {
-    // TODO: load from API
-  }
-
-  async installPlugin(values: Record<string, any>): Promise<void> {
-    // TODO: API call
-    const plugin: Plugin = {
-      path: values.pluginPath,
-      description: values.pluginDescription,
-      enabled: values.enabled,
-    };
-    this.plugins$.next([...this.plugins$.getValue(), plugin]);
-  }
+  bags = new DataStore<Bag>('bags');
+  wikis = new DataStore<Wiki>('wikis')
+  templates = new DataStore<Template>('templates');
+  plugins = new DataStore<Plugin>('plugins');
+  
 }
 
 export const dataService = new DataService();
