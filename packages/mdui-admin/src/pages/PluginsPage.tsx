@@ -7,7 +7,7 @@ import { FormState, FormsComp } from '../utils/forms';
 import { dataService, Plugin } from '../services/data.service';
 
 declare global {
-  interface CustomElements {
+  interface MyCustomElements {
     'mws-plugins-page': JSX.SimpleAttrs<{}, PluginsPage>;
   }
 }

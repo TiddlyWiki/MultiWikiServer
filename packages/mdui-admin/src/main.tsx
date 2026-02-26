@@ -6,7 +6,7 @@ import "./main.css";
 // 
 import type * as TMDUI from "mdui/jsx2.en.d.ts";
 declare global {
-  export interface CustomElements extends TMDUI.IntrinsicElements { }
+  export interface MyCustomElements extends TMDUI.IntrinsicElements { }
 }
 declare module "mdui/jsx2.en.d.ts" {
   export interface IntrinsicAttributes<T extends Element> extends JSX.SimpleAttrs<{}, T> { }

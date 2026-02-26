@@ -7,7 +7,7 @@ import { FormState, FormsComp } from '../utils/forms';
 import { dataService, Wiki } from '../services/data.service';
 
 declare global {
-  interface CustomElements {
+  interface MyCustomElements {
     'mws-wikis-page': JSX.SimpleAttrs<{}, WikisPage>;
   }
 }

@@ -4,7 +4,7 @@ import { JSXElement } from "./utils/JSXElement";
 
 
 declare global {
-  interface CustomElements {
+  interface MyCustomElements {
     "display-content": JSX.SimpleAttrs<{}, DisplayContent>;
   }
 }

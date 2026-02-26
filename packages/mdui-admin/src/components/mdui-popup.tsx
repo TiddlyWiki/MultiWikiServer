@@ -143,7 +143,7 @@ export function openDetail(detail: HTMLElement, item: HTMLElement) {
 }
 
 declare global {
-  interface CustomElements {
+  interface MyCustomElements {
     'mdui-popup': JSX.SimpleAttrs<{
       oncancel: () => void;
       source?: HTMLElement | null | undefined;

@@ -299,7 +299,7 @@ export class FormState<T extends Record<string, any> = Record<string, any>> {
 // ────────────────────────────────────────────────────────────────────────────
 
 declare global {
-  interface CustomElements {
+  interface MyCustomElements {
     'mws-forms-comp': JSX.SimpleAttrs<{}, FormsComp>;
   }
 }
@@ -630,7 +630,7 @@ export const Validators = {
 
 
 declare global {
-  interface CustomElements {
+  interface MyCustomElements {
     "mdui-field": JSX.SimpleAttrs<{
       label: string;
       "supporting"?: boolean;
@@ -667,7 +667,7 @@ export class FieldWrapper extends JSXElement {
 }
 
 declare global {
-  interface CustomElements {
+  interface MyCustomElements {
     "mdui-forms-popup": JSX.SimpleAttrs<{}, FormsPopup>;
   }
 }

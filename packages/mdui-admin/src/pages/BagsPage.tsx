@@ -7,7 +7,7 @@ import { FormState, FormsComp } from '../utils/forms';
 import { dataService, Bag } from '../services/data.service';
 
 declare global {
-  interface CustomElements {
+  interface MyCustomElements {
     'mws-bags-page': JSX.SimpleAttrs<{}, BagsPage>;
   }
 }

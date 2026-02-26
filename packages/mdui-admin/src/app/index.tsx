@@ -6,7 +6,7 @@ import "../pages";
 import { Tabs } from "mdui";
 
 declare global {
-  interface CustomElements {
+  interface MyCustomElements {
     'mws-app': JSX.SimpleAttrs<{}, App>;
   }
 }
