@@ -10,14 +10,18 @@ export const Fragment = () => {
 
 type DOMElement = Element;
 
+//@ts-expect-error - CustomElements must not be declared inside the JSX namespace.
+type ERROR_CustomElements_MUST_NEVER_EXIST = JSX.CustomElements;
+
 declare global {
-  export interface CustomElements { }
+  export interface MyCustomElements { }
+  export interface MyCustomEvents extends HTMLElementEventMap { }
   /**
    * The JSX namespace defines the types for JSX elements, attributes, and event handlers.
    * 
    * ```
    * declare global {
-   *   interface CustomElements {
+   *   interface MyCustomElements {
    *     'mws-app': JSX.SimpleAttrs<{
    *       test: string;
    *     }, App>;
@@ -51,49 +55,55 @@ declare global {
      */
     export type ElementType = string | { new(): HTMLElement };
     export interface ElementClass extends DOMElement { }
-    export interface ElementAttributesProperty { props: {}; }
+    export interface ElementAttributesProperty { props: IntrinsicAttributes; }
     export interface ElementChildrenAttribute { children: {}; }
 
     export type IntrinsicWatchAttributes = {
       [K in `webjsx-watch-${string}`]?: { get?(): string | null; set?(value: string | null): void; }
     }
-    export interface IntrinsicAttributes extends IntrinsicWatchAttributes {
+    export interface IntrinsicAttributes {
       key?: KeyPrimitive;
       children?: MaybeArrayDeep<JSX.Node>;
       style?: string;
       className?: string;
       class?: string;
+      slot?: string;
+      id?: string;
     }
 
     export interface BaseAttrs<E extends DOMElement> extends
+      IntrinsicWatchAttributes,
       IntrinsicAttributes,
-      GlobalEventsMap<E>,
-      Omit<htmljsx.HTMLAttributes<E>, IgnoredProperties>,
-      WebjsxAttrString {
+      Internal.JSXEventsMap<MyCustomEvents, E>,
+      Omit<htmljsx.HTMLAttributes<E>, Internal.IgnoredProperties>,
+      Internal.WebjsxAttrString {
       ref?: (e: E) => void;
     }
 
     export type SimpleAttrs<T, E extends DOMElement> =
-      & AddWatched<{ [P in keyof T as P extends IgnoredProperties ? never : P]?: Extract<T[P], Primitive> }>
+      & Internal.AddWatched<{ [P in keyof T as P extends Internal.IgnoredProperties ? never : P]?: Extract<T[P], Primitive> }>
       & BaseAttrs<E>;
 
     /** 
-     * For lowercase tag names, C is `(props: P) => JSX.Element`. 
-     * For uppercase, C is the constructor type, 
+     * For lowercase (tag names), BOTH simple and custom, C is `(props: P) => JSX.Element`. 
+     * For uppercase (references), C is the constructor type, 
      * whether that's a class or a function. 
      * 
      * It's useful for accessing static members.
      */
     export type LibraryManagedAttributes<C, P> =
       C extends { new(): infer E extends HTMLElement }
-      ? P & BaseAttrs<E>
+      ? P & IntrinsicAttributes & { ref?: (e: E) => void; }
       : P;
-    /** lowercase tags and function types do not use this. For class types this is the instance type. */
+    /** 
+     * lowercase tags and function types do not use this. 
+     * For class types this is the instance type. 
+     */
     export interface IntrinsicClassAttributes<T extends DOMElement> { }
 
-    export interface HTMLAttributes<E extends HTMLElement> extends htmljsx.HTMLAttributes<E> { }
-    export interface DOMAttributes<E extends HTMLElement> extends htmljsx.DOMAttributes<E> { }
-    export interface SVGAttributes<E extends HTMLElement> extends htmljsx.SVGAttributes<E> { }
+    // export interface HTMLAttributes<E extends HTMLElement> extends htmljsx.HTMLAttributes<E> { }
+    // export interface DOMAttributes<E extends HTMLElement> extends htmljsx.DOMAttributes<E> { }
+    // export interface SVGAttributes<E extends HTMLElement> extends htmljsx.SVGAttributes<E> { }
 
 
 
@@ -114,7 +124,7 @@ declare global {
      * 
      * `webjsx-watch-${keyof T}` and `webjsx-attr-${string}` are added automatically
      * 
-     * types set for `"style"`, `"class"`, `"className"`, `"children"`, `"key"`, and `"xmlns"` are ignored
+     * types set for `"style"`, `"class"`, `"className"`, `"children"`, `"key"`, `"xmlns"`, `"slot"`, and `"id"` are ignored
      * 
      * type set for `"ref"` will be used for `Ref<T>`
      * 
@@ -122,59 +132,66 @@ declare global {
      * 
      */
 
-    export interface IntrinsicElements extends CustomElements { }
-    export interface IntrinsicElements extends ElementsModified<htmljsx.IntrinsicElements> { }
-    export interface IntrinsicElements extends IconElements { }
+    export interface IntrinsicElements extends MyCustomElements { }
+    export interface IntrinsicElements extends Internal.ElementsModified<htmljsx.IntrinsicElements> { }
+    export interface IntrinsicElements extends Internal.IconElements { }
 
 
-    type IgnoredProperties = "style" | "class" | "className" | "children" | "key" | "ref" | "xmlns" | `on${string}`;
-
-
-
-    /**
-     * T extends { [tagName: string]: { [attributeName: string]: string; }}
-     */
-    type ElementsModified<T> = {
-      [K in keyof T]:
-      T[K] extends htmljsx.DOMAttributes<infer E extends DOMElement> ? SimpleAttrs<T[K], E> :
-      T[K] extends { ref?: (e: infer E extends DOMElement) => any } ? SimpleAttrs<T[K], E> :
-      K extends keyof HTMLElementTagNameMap ? SimpleAttrs<T[K], HTMLElementTagNameMap[K]> :
-      SimpleAttrs<T[K], DOMElement>;
-    }
+    namespace Internal {
 
 
 
+      type IgnoredProperties = "slot" | "id" | "style" | "class" | "className" | "children" | "key" | "ref" | "xmlns" | `on${string}`;
 
-    type WebjsxAttrString = { [K in `webjsx-attr-${string}`]?: string };
 
-    type AddWatched<T> = T
-      & {
-      [K in `webjsx-watch-${string & keyof T}`]?:
-      K extends `webjsx-watch-${infer U extends string & keyof T}`
-      ? { get?(): T[U]; set?(value: T[U]): void; }
-      : never;
-    }
 
-    type ToAttr<T> = {
-      [P in `webjsx-attr-${string & keyof T} ` as P extends `webjsx-attr-on${string} ` ? never : P]?:
-      Primitive;
-    } & {
-      [P in `webjsx-attr-${string & keyof T} ` as P extends `webjsx-attr-on${string} ` ? P : never]?:
-      T[P extends `webjsx-attr-${infer U extends string & keyof T} ` ? U : never];
-    }
+      /**
+       * T extends { [tagName: string]: { [attributeName: string]: string; }}
+       */
+      type ElementsModified<T> = {
+        [K in keyof T]:
+        T[K] extends htmljsx.DOMAttributes<infer E extends DOMElement> ? SimpleAttrs<T[K], E> :
+        T[K] extends { ref?: (e: infer E extends DOMElement) => any } ? SimpleAttrs<T[K], E> :
+        K extends keyof HTMLElementTagNameMap ? SimpleAttrs<T[K], HTMLElementTagNameMap[K]> :
+        SimpleAttrs<T[K], DOMElement>;
+      }
 
-    type IconElements = {
-      [K in keyof HTMLElementTagNameMap as K extends `mdui-icon-${string}` ? K : never]:
-      htmljsx.HTMLAttributes<HTMLElementTagNameMap[K]>
-    };
 
-    type GlobalEventsMap<T extends DOMElement> = {
-      [K in keyof GlobalEventHandlers]?:
-      GlobalEventHandlers[K] extends ((ev: infer E extends Event) => any) | null ? EventHandler<T, E> : never;
+
+
+      type WebjsxAttrString = { [K in `webjsx-attr-${string}`]?: string };
+
+      type AddWatched<T> = T
+        & {
+        [K in `webjsx-watch-${string & keyof T}`]?:
+        K extends `webjsx-watch-${infer U extends string & keyof T}`
+        ? { get?(): T[U]; set?(value: T[U]): void; }
+        : never;
+      }
+
+      type ToAttr<T> = {
+        [P in `webjsx-attr-${string & keyof T} ` as P extends `webjsx-attr-on${string} ` ? never : P]?:
+        Primitive;
+      } & {
+        [P in `webjsx-attr-${string & keyof T} ` as P extends `webjsx-attr-on${string} ` ? P : never]?:
+        T[P extends `webjsx-attr-${infer U extends string & keyof T} ` ? U : never];
+      }
+
+      type IconElements = {
+        [K in keyof HTMLElementTagNameMap as K extends `mdui-icon-${string}` ? K : never]:
+        htmljsx.HTMLAttributes<HTMLElementTagNameMap[K]>
+      };
+
+      type JSXEventsMap<EV extends object, T extends DOMElement> = {
+        [K in `on${string & keyof EV}`]?:
+        EventHandler<T, Extract<EV[K extends `on${infer E extends string & keyof EV}` ? E : never], Event>>;
+      }
+
     }
 
   }
 }
+
 
 
 /**

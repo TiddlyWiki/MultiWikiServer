@@ -58,7 +58,9 @@ export function updateElement(
   if (jsx.props) {
     if (typeof jsx.type === "function") {
       (el as any).props = jsx.props;
-      updateAttributes(jsx.props, el, (key) => ["className", "class", "style"].includes(key) || key.startsWith("webjsx-"));
+      updateAttributes(jsx.props, el, (key) => [
+        "className", "class", "style", "slot", "id"
+      ].includes(key) || key.startsWith("webjsx-"));
     } else {
       updateAttributes(jsx.props, el);
     }
@@ -115,7 +117,8 @@ function updateAttributes(
       el.removeAttribute(key);
     } else if (["string", "number", "boolean"].includes(typeof value)) {
       el.setAttribute(key, value === true ? "" : String(value));
-    } else if (key.startsWith("on") && typeof value === "function") {
+    } else if (key.startsWith("on") && typeof value === "function"
+      || key.startsWith("webjsx-on-") && typeof value === "function") {
       if (oldProps[key] === value) continue;
       const eventName = key.slice(2).toLowerCase();
       el.removeEventListener(eventName, oldProps[key] as EventListener);
