@@ -1,20 +1,20 @@
-import { FormState, ItemStorePage } from '../utils/forms';
+import { FormMaker, FormState, ItemStorePage } from '../utils/forms';
 import { dataService, Bag } from '../services/data.service';
 import { createHybridRef } from "@tiddlywiki/jsx-runtime/jsx-utils";
 
 export function createBagsFormState(this: ItemStorePage<Bag, {}>) {
-  return new FormState({
-    name: FormState.TextField({
+  return new FormState((F: FormMaker<Bag>) => ({
+    name: F.TextField({
       label: 'Bag Name',
       required: true,
       default: '',
       valid: (v) => !v?.trim() ? 'Bag name is required' : undefined,
     }),
-    description: FormState.TextArea({
+    description: F.TextArea({
       label: 'Description',
       default: '',
     }),
-  }, {
+  }), {
     store: dataService.bags,
     idKey: 'name',
     onCancel: () => this.closePopup(),
@@ -40,3 +40,4 @@ export function createBagsFormState(this: ItemStorePage<Bag, {}>) {
     }
   });
 }
+createBagsFormState.tabTitle = "Bags";

@@ -54,9 +54,9 @@ window.addEventListener("drop", (e) => {
   console.log("Prevented the default browser behavior of doing stuff with dropped stuff. If you have a use case for this, please open an issue.");
 });
 
-console.log(buttonStyle);
+
 (buttonStyle as any).cssText += `
-:host([variant=filled]){
+:host([variant=filled]), :host([variant=elevated]) {
   color: rgb(var(--mdui-color-on-primary-container));
   background-color: rgb(var(--mdui-color-primary-container));
 }`;

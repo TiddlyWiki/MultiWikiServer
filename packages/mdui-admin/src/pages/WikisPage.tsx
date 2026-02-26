@@ -1,36 +1,36 @@
 import { customElement } from "lit/decorators.js";
 import { map } from 'rxjs';
-import { FormState, ItemStorePage } from '../utils/forms';
+import { FormMaker, FormState, ItemStorePage } from '../utils/forms';
 import { dataService, DataStore, Wiki } from '../services/data.service';
 import { createHybridRef } from "@tiddlywiki/jsx-runtime/jsx-utils";
 
 export function createWikisFormState(this: ItemStorePage<Wiki, {}>) {
-  return new FormState({
-    name: FormState.TextField({
+  return new FormState((F: FormMaker<Wiki>) => ({
+    name: F.TextField({
       label: 'Wiki Name',
       required: true,
       default: '',
-      valid: (v) => !v?.trim() ? 'Wiki name is required' : undefined,
+      valid: (v: string | undefined) => !v?.trim() ? 'Wiki name is required' : undefined,
     }),
-    description: FormState.TextArea({
+    description: F.TextArea({
       label: 'Description',
       default: '',
     }),
-    template: FormState.Select({
+    template: F.Select({
       label: 'Template',
       default: '',
       options: dataService.templates.changes$.pipe(
         map(templates => templates.map(t => ({ value: t.name, label: t.name })))
       ),
     }),
-    writableBag: FormState.Select({
+    writableBag: F.Select({
       label: 'Writable Bag',
       default: '',
       options: dataService.bags.changes$.pipe(
         map(bags => bags.map(b => ({ value: b.name, label: b.name })))
       ),
     }),
-  }, {
+  }), {
     store: dataService.wikis,
     idKey: 'name',
     onInit: async (item?: Wiki) => {
@@ -62,3 +62,4 @@ export function createWikisFormState(this: ItemStorePage<Wiki, {}>) {
     }
   });
 }
+createWikisFormState.tabTitle = "Wikis";

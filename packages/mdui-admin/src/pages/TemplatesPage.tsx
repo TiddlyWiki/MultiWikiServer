@@ -3,28 +3,22 @@ import { map, Subscription } from 'rxjs';
 import { JSXElement } from '../utils/JSXElement';
 import { PopupContainer } from '../components/mdui-popup';
 import { createHybridRef, HybridRef } from "@tiddlywiki/jsx-runtime/jsx-utils";
-import { FormState, FormsComp, ItemStorePage } from '../utils/forms';
+import { FormMaker, FormState, FormsComp, ItemStorePage } from '../utils/forms';
 import { dataService, DataStore, Template } from '../services/data.service';
 
-// declare global {
-//   interface MyCustomElements {
-//     'mws-templates-page': JSX.SimpleAttrs<{}, TemplatesPage>;
-//   }
-// }
-
 export function createTemplatesFormState(this: ItemStorePage<Template, { isCreatingNew: boolean }>) {
-  return new FormState({
-    name: FormState.TextField({
+  return new FormState((F: FormMaker<Template>) => ({
+    name: F.TextField({
       label: 'Template Name',
       required: true,
       default: '',
       valid: (v) => !v?.trim() ? 'Template name is required' : undefined,
     }),
-    description: FormState.TextArea({
+    description: F.TextArea({
       label: 'Description',
       default: '',
     }),
-    type: FormState.RadioGroup({
+    type: F.RadioGroup({
       label: 'Template Type',
       options: [
         { value: 'basic', label: 'Basic' },
@@ -33,7 +27,7 @@ export function createTemplatesFormState(this: ItemStorePage<Template, { isCreat
       default: 'basic',
       active: () => this.state.isCreatingNew,
     }),
-    modeExplanation: FormState.CustomRender(
+    modeExplanation: F.CustomRender(
       (values) => (
         <div style="padding: 16px; background-color: var(--mdui-color-surface-container); border-radius: 8px; color: var(--mdui-color-on-surface-variant); font-size: 14px; line-height: 20px;">
           {values.type === 'basic' ? (
@@ -51,57 +45,60 @@ export function createTemplatesFormState(this: ItemStorePage<Template, { isCreat
       ),
       { active: () => this.state.isCreatingNew }
     ),
-    bags: FormState.MultiSelect({
+    bags: F.MultiSelect({
       label: 'Bags',
-      suggestions: dataService.bags.changes$.pipe(map(bags => bags.map(b => b.name))),
+      suggestions: dataService.bags.changes$.pipe(
+        map(bags => bags.map(b => ({ value: b.name, label: b.name })))),
       default: [],
       active: () => !this.state.isCreatingNew,
       valid: (v) => undefined, //!v?.length ? 'At least one bag is required' : undefined,
     }),
-    plugins: FormState.MultiSelect({
+    plugins: F.MultiSelect({
       label: 'Client Plugins',
-      suggestions: dataService.plugins.changes$.pipe(map(plugins => plugins.map(p => p.path))),
+      suggestions: dataService.plugins.changes$.pipe(map(plugins =>
+        plugins.map(p => ({ value: p.path, label: p.path }))
+      )),
       default: [],
-      active: (values) => !this.state.isCreatingNew && values.type === 'basic',
+      active: (values: Template) => !this.state.isCreatingNew && values.type === 'basic',
     }),
-    requiredPluginsEnabled: FormState.Switch({
+    requiredPluginsEnabled: F.Switch({
       label: 'Required Plugins',
       description: 'Core plugins enable wiki sync functionality. Disable for vanilla wikis or custom sync implementations.',
       default: true,
-      active: (values) => !this.state.isCreatingNew && values.type === 'basic',
+      active: (values: Template) => !this.state.isCreatingNew && values.type === 'basic',
     }),
-    htmlFile: FormState.FileUpload({
+    htmlFile: F.FileUpload({
       label: 'Custom HTML File',
       accept: '.html,.htm',
       helperText: 'Upload a static HTML file to use as the wiki base. This allows you to completely replace the wiki page with a custom one, including raw markup, old versions of core, or even a completely different wiki.',
       default: null,
-      active: (values) => !this.state.isCreatingNew && values.type === 'advanced',
+      active: (values: Template) => !this.state.isCreatingNew && values.type === 'advanced',
       onFileChange: async (file) => {
         if (file) this.forms.setValue('htmlContent', await file.text());
       },
     }),
-    htmlContent: FormState.TextField({
+    htmlContent: F.TextField({
       label: '',
       default: '',
       active: () => false,
     }),
-    injectionArray: FormState.TextField({
+    injectionArray: F.TextField({
       label: 'Injection Array',
       required: true,
       default: '$tw.preloadTiddlers',
       helperText: 'Name of the JavaScript array to push tiddlers onto (e.g., $tw.preloadTiddlers)',
-      active: (values) => !this.state.isCreatingNew && values.type === 'advanced',
+      active: (values: Template) => !this.state.isCreatingNew && values.type === 'advanced',
       valid: (v) => !v?.trim() ? 'Injection array is required' : undefined,
     }),
-    injectionLocation: FormState.TextField({
+    injectionLocation: F.TextField({
       label: 'Injection Location',
       required: true,
       default: '',
       helperText: 'Inject the tiddlers BEFORE this string in the HTML file. MUST NOT be inside a script tag! (e.g., <!-- INJECT STORE TIDDLERS HERE -->)',
-      active: (values) => !this.state.isCreatingNew && values.type === 'advanced',
+      active: (values: Template) => !this.state.isCreatingNew && values.type === 'advanced',
       valid: (v) => !v?.trim() ? 'Injection location is required' : undefined,
     }),
-    advancedNote: FormState.CustomRender(
+    advancedNote: F.CustomRender(
       () => (
         <div style="color: var(--mdui-color-on-surface-variant); font-size: 14px; line-height: 20px;">
           All HTTP endpoints will still work, and the store tiddlers and recipe plugins will be
@@ -109,9 +106,9 @@ export function createTemplatesFormState(this: ItemStorePage<Template, { isCreat
           from store and must be included in the HTML manually.
         </div>
       ),
-      { active: (values) => !this.state.isCreatingNew && values.type === 'advanced' }
+      { active: (values: Template) => !this.state.isCreatingNew && values.type === 'advanced' }
     ),
-  }, {
+  }), {
     store: dataService.templates,
     idKey: 'name',
     onInit: (item?: Template) => {
@@ -155,10 +152,4 @@ export function createTemplatesFormState(this: ItemStorePage<Template, { isCreat
     }
   });
 }
-
-// @customElement("mws-templates-page")
-// export class TemplatesPage extends ItemStorePage<Template, ART<typeof createFormState>> {
-
-//   forms = createFormState.call(this);
-//   @state() accessor isCreatingNew = true;
-// }
+createTemplatesFormState.tabTitle = "Templates";

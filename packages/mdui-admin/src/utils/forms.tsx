@@ -17,16 +17,18 @@ import { DataStore } from "../services/data.service";
 // Field descriptor types
 // ────────────────────────────────────────────────────────────────────────────
 
-export interface FieldCallbacks {
+export interface FieldCallbacks<T, A> {
   /** If provided, field is only shown/validated when this returns true */
-  active?: (values: Record<string, any>) => boolean;
+  active?: (values: A) => boolean;
   /** Returns an error string if invalid, undefined if valid */
-  valid?: (value: any, values: Record<string, any>) => string | undefined;
+  valid?: (value: T, values: A) => string | undefined;
   /** Default/reset value for this field */
   default?: any;
 }
 
-export interface TextFieldDescriptor extends FieldCallbacks {
+type Row = { id: string; }
+
+export interface TextFieldDescriptor<T extends Row> extends FieldCallbacks<string, T> {
   _type: 'text';
   label: string;
   required?: boolean;
@@ -42,36 +44,35 @@ export interface TextFieldDescriptor extends FieldCallbacks {
   pattern?: string;
 }
 
-export interface SelectOption { value: string; label: string; disabled?: boolean; }
-export interface RadioOption { value: string; label: string; disabled?: boolean; }
+export interface Option { value: string; label: string; disabled?: boolean; }
 
-export interface SelectDescriptor extends FieldCallbacks {
+export interface SelectDescriptor<T extends Row> extends FieldCallbacks<string, T> {
   _type: 'select';
   label: string;
-  options: SelectOption[] | Observable<SelectOption[]>;
+  options: Option[] | Observable<Option[]>;
   required?: boolean;
   disabled?: boolean;
   helperText?: string;
   style?: string;
 }
 
-export interface CheckboxDescriptor extends FieldCallbacks {
+export interface CheckboxDescriptor<T extends Row> extends FieldCallbacks<boolean, T> {
   _type: 'checkbox';
   label: string;
   description?: string;
   disabled?: boolean;
 }
 
-export interface RadioGroupDescriptor extends FieldCallbacks {
+export interface RadioGroupDescriptor<T extends Row> extends FieldCallbacks<string, T> {
   _type: 'radio';
   label: string;
-  options: RadioOption[] | Observable<RadioOption[]>;
+  options: Option[] | Observable<Option[]>;
   disabled?: boolean;
   helperText?: string;
   style?: string;
 }
 
-export interface SwitchDescriptor extends FieldCallbacks {
+export interface SwitchDescriptor<T extends Row> extends FieldCallbacks<boolean, T> {
   _type: 'switch';
   label: string;
   description?: string;
@@ -79,7 +80,7 @@ export interface SwitchDescriptor extends FieldCallbacks {
   style?: string;
 }
 
-export interface FileUploadDescriptor extends FieldCallbacks {
+export interface FileUploadDescriptor<T extends Row> extends FieldCallbacks<File | null, T> {
   _type: 'file';
   id: string;
   label: string;
@@ -91,53 +92,53 @@ export interface FileUploadDescriptor extends FieldCallbacks {
   onFileChange?: (file: File | null) => void | Promise<void>;
 }
 
-export interface MultiSelectDescriptor extends FieldCallbacks {
+export interface MultiSelectDescriptor<T extends Row> extends FieldCallbacks<string[], T> {
   _type: 'multiselect';
   label: string;
-  suggestions: string[] | Observable<string[]>;
+  suggestions: Option[] | Observable<Option[]>;
   placeholder?: string;
   style?: string;
 }
 
-export interface CustomRenderDescriptor extends FieldCallbacks {
+export interface CustomRenderDescriptor<T extends Row> extends FieldCallbacks<any, T> {
   _type: 'custom';
   render: (values: Record<string, any>) => JSX.Element;
   style?: string;
 }
 
-export interface DividerDescriptor extends FieldCallbacks {
+export interface DividerDescriptor<T extends Row> extends FieldCallbacks<never, T> {
   _type: 'divider';
   style?: string;
 }
 
-export interface SectionHeaderDescriptor extends FieldCallbacks {
+export interface SectionHeaderDescriptor<T extends Row> extends FieldCallbacks<never, T> {
   _type: 'sectionheader';
   title: string;
   description?: string;
 }
 
-export type FieldDescriptor =
-  | TextFieldDescriptor
-  | SelectDescriptor
-  | CheckboxDescriptor
-  | RadioGroupDescriptor
-  | SwitchDescriptor
-  | FileUploadDescriptor
-  | MultiSelectDescriptor
-  | CustomRenderDescriptor
-  | DividerDescriptor
-  | SectionHeaderDescriptor;
+export type FieldDescriptor<T extends Row> =
+  | TextFieldDescriptor<T>
+  | SelectDescriptor<T>
+  | CheckboxDescriptor<T>
+  | RadioGroupDescriptor<T>
+  | SwitchDescriptor<T>
+  | FileUploadDescriptor<T>
+  | MultiSelectDescriptor<T>
+  | CustomRenderDescriptor<T>
+  | DividerDescriptor<T>
+  | SectionHeaderDescriptor<T>;
 
 // ────────────────────────────────────────────────────────────────────────────
 // FormStateOptions
 // ────────────────────────────────────────────────────────────────────────────
 
-export interface FormStateOptions {
-  store: DataStore<any>,
+export interface FormStateOptions<V extends Row> {
+  store: DataStore<V>,
   idKey: string;
-  onInit?: (item: any | undefined) => void | Promise<void>;
+  onInit?: (item: V | undefined) => void | Promise<void>;
   onCancel?: () => void;
-  onSubmit?: (values: any) => void | Promise<void>;
+  onSubmit?: (values: V) => void | Promise<void>;
   /** String or callback returning a string */
   submitLabel?: string | (() => string);
   /** String or callback returning a string */
@@ -148,7 +149,7 @@ export interface FormStateOptions {
   listDescription?: JSX.Node;
   listEmptyText?: JSX.Node;
   createItemLabel?: JSX.Node;
-  renderListItem(item: any): JSX.Element;
+  renderListItem(item: V): JSX.Element;
 }
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -158,21 +159,86 @@ type FormValues = Record<string, any>;
 type FormErrors = Partial<Record<string, string | undefined>>;
 type SKey<T> = Extract<keyof T, string>;
 
-export class FormState<T extends Record<string, FieldDescriptor>> {
-  private _values: FormValues;
+export class FormMaker<T extends Row> {
+
+  TextField(opts: Omit<TextFieldDescriptor<T>, '_type'>): TextFieldDescriptor<T> {
+    return { _type: 'text', ...opts };
+  }
+
+  TextArea(opts: Omit<TextFieldDescriptor<T>, '_type' | 'type'>): TextFieldDescriptor<T> {
+    return { _type: 'text', rows: 3, ...opts };
+  }
+
+  Select(opts: Omit<SelectDescriptor<T>, '_type'>): SelectDescriptor<T> {
+    return { _type: 'select', ...opts };
+  }
+
+  Checkbox(opts: Omit<CheckboxDescriptor<T>, '_type'>): CheckboxDescriptor<T> {
+    return { _type: 'checkbox', ...opts };
+  }
+
+  RadioGroup(opts: Omit<RadioGroupDescriptor<T>, '_type'>): RadioGroupDescriptor<T> {
+    return { _type: 'radio', ...opts };
+  }
+
+  Switch(opts: Omit<SwitchDescriptor<T>, '_type'>): SwitchDescriptor<T> {
+    return { _type: 'switch', ...opts };
+  }
+
+  FileUpload(opts: Omit<FileUploadDescriptor<T>, '_type' | 'id'>): FileUploadDescriptor<T> {
+    return { _type: 'file', id: `file-${Math.random().toString(36).slice(2, 9)}`, ...opts };
+  }
+
+  MultiSelect(opts: Omit<MultiSelectDescriptor<T>, '_type'>): MultiSelectDescriptor<T> {
+    return { _type: 'multiselect', ...opts };
+  }
+
+  CustomRender(
+    render: (values: Record<string, any>) => JSX.Element,
+    opts: Omit<CustomRenderDescriptor<T>, '_type' | 'render'> = {}
+  ): CustomRenderDescriptor<T> {
+    return { _type: 'custom', render, ...opts };
+  }
+
+  Divider(opts: Omit<DividerDescriptor<T>, '_type'> = {}): DividerDescriptor<T> {
+    return { _type: 'divider', ...opts };
+  }
+
+  SectionHeader(opts: Omit<SectionHeaderDescriptor<T>, '_type'>): SectionHeaderDescriptor<T> {
+    return { _type: 'sectionheader', ...opts };
+  }
+}
+
+/**
+ * FormState manages form values, errors, and validation logic.
+ * 
+ * @example
+ * new FormState((F: FormMaker<Plugin>) => ({
+ *   // fields
+ * }), {
+ *   // options
+ * });
+ */
+export class FormState<
+  T extends Record<string, FieldDescriptor<any>>,
+  V extends Row
+> {
+  private _values: V;
   private _errors: FormErrors = {};
 
   public events = new EventEmitter<{
     change: [];
   }>();
+  public readonly fields: T;
 
   constructor(
-    public readonly fields: T,
-    public readonly options: FormStateOptions
+    fielder: (x: FormMaker<V>) => T,
+    public readonly options: FormStateOptions<V>
   ) {
-    const defaults = {} as FormValues;
-    for (const [key, field] of Object.entries(fields)) {
-      if (field.default !== undefined) defaults[key] = field.default;
+    this.fields = fielder(new FormMaker()) as T;
+    const defaults = {} as V;
+    for (const [key, field] of Object.entries(this.fields)) {
+      if (field.default !== undefined) defaults[key as keyof V] = field.default;
     }
     this._values = defaults;
   }
@@ -180,19 +246,19 @@ export class FormState<T extends Record<string, FieldDescriptor>> {
   get values() { return this._values; }
   get errors() { return this._errors; }
 
-  getValue(key: string): any { return this._values[key]; }
+  getValue(key: keyof V): V[keyof V] { return this._values[key]; }
 
-  setValue(key: string, value: any) {
+  setValue(key: keyof V, value: V[keyof V]) {
     this._values = { ...this._values, [key]: value };
-    if (this._errors[key]) {
+    if (this._errors[key as string]) {
       const next = { ...this._errors };
-      delete next[key];
+      delete next[key as string];
       this._errors = next;
     }
     this.events.emit('change');
   }
 
-  setValues(partial: FormValues) {
+  setValues(partial: Partial<V>) {
     this._values = { ...this._values, ...partial };
     this.events.emit('change');
   }
@@ -203,9 +269,9 @@ export class FormState<T extends Record<string, FieldDescriptor>> {
   }
 
   resetValues() {
-    const defaults = {} as FormValues;
+    const defaults = {} as V;
     for (const [key, field] of Object.entries(this.fields)) {
-      defaults[key] = field.default !== undefined ? field.default : undefined;
+      defaults[key as keyof V] = field.default !== undefined ? field.default : undefined;
     }
     this._values = defaults;
     this._errors = {};
@@ -217,8 +283,10 @@ export class FormState<T extends Record<string, FieldDescriptor>> {
     for (const [key, field] of Object.entries(this.fields)) {
       if (field.active && !field.active(this._values)) continue;
       if (field.valid) {
-        const error = field.valid(this._values[key], this._values);
-        if (error) newErrors[key] = error;
+        const value = this._values[key as keyof V];
+        // this is never because functions use & instead of |
+        const error = field.valid(value as never, this._values);
+        if (error) newErrors[key as string] = error;
       }
     }
     this._errors = newErrors;
@@ -285,61 +353,11 @@ export class FormState<T extends Record<string, FieldDescriptor>> {
       .filter(([, field]) => field._type === 'custom' && (!field.active || field.active(this._values)))
       .map(([key, field]) => (
         <div slot={`custom-${key}`} style="display:contents;">
-          {(field as CustomRenderDescriptor).render(this._values)}
+          {(field as CustomRenderDescriptor<any>).render(this._values)}
         </div>
       ))}</>;
   }
 
-  // ──────────────────────────────────────────────────────────────────────────
-  // Static field factory methods
-  // ──────────────────────────────────────────────────────────────────────────
-
-  static TextField(opts: Omit<TextFieldDescriptor, '_type'>): TextFieldDescriptor {
-    return { _type: 'text', ...opts };
-  }
-
-  static TextArea(opts: Omit<TextFieldDescriptor, '_type' | 'type'>): TextFieldDescriptor {
-    return { _type: 'text', rows: 3, ...opts };
-  }
-
-  static Select(opts: Omit<SelectDescriptor, '_type'>): SelectDescriptor {
-    return { _type: 'select', ...opts };
-  }
-
-  static Checkbox(opts: Omit<CheckboxDescriptor, '_type'>): CheckboxDescriptor {
-    return { _type: 'checkbox', ...opts };
-  }
-
-  static RadioGroup(opts: Omit<RadioGroupDescriptor, '_type'>): RadioGroupDescriptor {
-    return { _type: 'radio', ...opts };
-  }
-
-  static Switch(opts: Omit<SwitchDescriptor, '_type'>): SwitchDescriptor {
-    return { _type: 'switch', ...opts };
-  }
-
-  static FileUpload(opts: Omit<FileUploadDescriptor, '_type' | 'id'>): FileUploadDescriptor {
-    return { _type: 'file', id: `file-${Math.random().toString(36).slice(2, 9)}`, ...opts };
-  }
-
-  static MultiSelect(opts: Omit<MultiSelectDescriptor, '_type'>): MultiSelectDescriptor {
-    return { _type: 'multiselect', ...opts };
-  }
-
-  static CustomRender(
-    render: (values: Record<string, any>) => JSX.Element,
-    opts: Omit<CustomRenderDescriptor, '_type' | 'render'> = {}
-  ): CustomRenderDescriptor {
-    return { _type: 'custom', render, ...opts };
-  }
-
-  static Divider(opts: Omit<DividerDescriptor, '_type'> = {}): DividerDescriptor {
-    return { _type: 'divider', ...opts };
-  }
-
-  static SectionHeader(opts: Omit<SectionHeaderDescriptor, '_type'>): SectionHeaderDescriptor {
-    return { _type: 'sectionheader', ...opts };
-  }
 }
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -354,26 +372,16 @@ declare global {
 
 @addstyles(forms_inline_css)
 @customElement('mws-forms-comp')
-export class FormsComp<T extends Record<string, FieldDescriptor>> extends JSXElement {
+export class FormsComp<T extends Record<string, FieldDescriptor<any>>> extends JSXElement {
   @state() accessor props!: {
-    state: FormState<T>;
+    state: FormState<T, any>;
   };
-
-  private _obsListSubs = new Map<string, Subscription>();
-  private _obsListMemo = new Map<string, SelectOption[]>();
 
   connectedCallback() {
     super.connectedCallback();
-    this._obsListSubs.clear();
     // Subscriptions are created lazily in _renderSelect on first render.
     // Re-subscribe any that were cleaned up on disconnect.
     this.requestUpdate();
-  }
-
-  disconnectedCallback() {
-    super.disconnectedCallback();
-    this._obsListSubs.forEach(sub => sub.unsubscribe());
-    this._obsListSubs.clear();
   }
 
   protected render(): JSX.Node {
@@ -392,7 +400,7 @@ export class FormsComp<T extends Record<string, FieldDescriptor>> extends JSXEle
   // Field renderers
   // ──────────────────────────────────────────────────────────────────────────
 
-  private _renderField(key: SKey<T>, field: FieldDescriptor): JSX.Element {
+  private _renderField(key: SKey<T>, field: FieldDescriptor<any>): JSX.Element {
     const value = this.props.state.values[key];
     const error = this.props.state.errors[key];
     const onChange = (v: any) => this.props.state.setValue(key, v);
@@ -425,11 +433,16 @@ export class FormsComp<T extends Record<string, FieldDescriptor>> extends JSXEle
     }
   }
 
-  isFieldActive(field: FieldDescriptor) {
+  isFieldActive(field: FieldDescriptor<any>) {
     return !field.active || !!field.active(this.props.state.values);
   }
 
-  private _renderTextField(field: TextFieldDescriptor, value: any, error: string | undefined, onChange: (v: any) => void): JSX.Element {
+  private _renderTextField(
+    field: TextFieldDescriptor<any>,
+    value: any,
+    error: string | undefined,
+    onChange: (v: any) => void
+  ): JSX.Element {
     if (!this.isFieldActive(field)) return <></>;
     return (
       <mdui-text-field
@@ -454,7 +467,7 @@ export class FormsComp<T extends Record<string, FieldDescriptor>> extends JSXEle
     );
   }
 
-  private _renderSelect(field: SelectDescriptor, key: string, value: any, error: string | undefined, onChange: (v: any) => void): JSX.Element {
+  private _renderSelect(field: SelectDescriptor<any>, key: string, value: any, error: string | undefined, onChange: (v: any) => void): JSX.Element {
     if (!this.isFieldActive(field)) return <></>;
 
     const options = this.useObservableListMemo(field.options, key);
@@ -482,7 +495,7 @@ export class FormsComp<T extends Record<string, FieldDescriptor>> extends JSXEle
     );
   }
 
-  private _renderCheckbox(field: CheckboxDescriptor, value: any, onChange: (v: any) => void): JSX.Element {
+  private _renderCheckbox(field: CheckboxDescriptor<any>, value: any, onChange: (v: any) => void): JSX.Element {
     if (!this.isFieldActive(field)) return <></>;
     return (
       <div>
@@ -500,7 +513,7 @@ export class FormsComp<T extends Record<string, FieldDescriptor>> extends JSXEle
     );
   }
 
-  private _renderRadio(field: RadioGroupDescriptor, key: string, value: any, error: string | undefined, onChange: (v: any) => void): JSX.Element {
+  private _renderRadio(field: RadioGroupDescriptor<any>, key: string, value: any, error: string | undefined, onChange: (v: any) => void): JSX.Element {
     if (!this.isFieldActive(field)) return <></>;
     const options = this.useObservableListMemo(field.options, key); // Use label as key for options list memoization
     return (
@@ -523,7 +536,7 @@ export class FormsComp<T extends Record<string, FieldDescriptor>> extends JSXEle
     );
   }
 
-  private _renderSwitch(field: SwitchDescriptor, value: any, onChange: (v: any) => void): JSX.Element {
+  private _renderSwitch(field: SwitchDescriptor<any>, value: any, onChange: (v: any) => void): JSX.Element {
     if (!this.isFieldActive(field)) return <></>;
     return (
       <div class="field-switch-wrapper" style={field.style}>
@@ -553,7 +566,7 @@ export class FormsComp<T extends Record<string, FieldDescriptor>> extends JSXEle
     );
   }
 
-  private _renderFile(field: FileUploadDescriptor, value: any, error: string | undefined, onChange: (v: any) => void): JSX.Element {
+  private _renderFile(field: FileUploadDescriptor<any>, value: any, error: string | undefined, onChange: (v: any) => void): JSX.Element {
     if (!this.isFieldActive(field)) return <></>;
     const handleChange = async (file: File | null) => {
       onChange(file);
@@ -586,7 +599,7 @@ export class FormsComp<T extends Record<string, FieldDescriptor>> extends JSXEle
     </mdui-field>
   }
 
-  private _renderMultiSelect(field: MultiSelectDescriptor, key: string, value: any, error: string | undefined, onChange: (v: any) => void): JSX.Element {
+  private _renderMultiSelect(field: MultiSelectDescriptor<any>, key: string, value: any, error: string | undefined, onChange: (v: any) => void): JSX.Element {
     if (!this.isFieldActive(field)) return <></>;
     const items: string[] = Array.isArray(value) ? value : [];
     const suggestions = this.useObservableListMemo(field.suggestions, key); // Use label as key for suggestions list memoization
@@ -600,7 +613,7 @@ export class FormsComp<T extends Record<string, FieldDescriptor>> extends JSXEle
           onchange={(e) => onChange((e.target as any).value as string[])}
         >
           {suggestions.map(s => (
-            <mdui-menu-item value={s}>{s}</mdui-menu-item>
+            <mdui-menu-item value={s.value}>{s.label}</mdui-menu-item>
           ))}
         </mdui-select>
         {error && <div class="field-multiselect-error">{error}</div>}
@@ -608,7 +621,7 @@ export class FormsComp<T extends Record<string, FieldDescriptor>> extends JSXEle
     );
   }
 
-  private _renderSectionHeader(field: SectionHeaderDescriptor): JSX.Element {
+  private _renderSectionHeader(field: SectionHeaderDescriptor<any>): JSX.Element {
     if (!this.isFieldActive(field)) return <></>;
     return (
       <div>
@@ -801,10 +814,10 @@ export class ItemStorePage<T extends { id: string }, S> extends JSXElement {
   @state() accessor state!: S;
 
   @state() accessor props!: {
-    create: () => FormState<any>;
+    create: () => FormState<any, any>;
   }
 
-  forms!: FormState<any>;
+  forms!: FormState<any, any>;
 
   get store() { return this.forms.options.store; }
 
@@ -889,7 +902,7 @@ export class ItemStorePage<T extends { id: string }, S> extends JSXElement {
 
             <mdui-button
               ref={this.newItemButton}
-              variant="filled"
+              variant="elevated"
               style="margin-top: 16px;"
               icon="add"
               onclick={() => { this.loadItemForCreate(); }}

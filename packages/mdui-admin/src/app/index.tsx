@@ -1,7 +1,7 @@
 
 import { customElement, property, state } from "lit/decorators.js";
 import { JSXElement } from '../utils/JSXElement';
-import { createBagsFormState, createPluginsFormState, createTemplatesFormState, createWikisFormState } from '../pages';
+import { pages } from '../pages';
 import "../pages";
 import { Tabs } from "mdui";
 import { ItemStorePage } from "../utils/forms";
@@ -11,7 +11,6 @@ declare global {
     'mws-app': JSX.SimpleAttrs<{}, App>;
   }
 }
-
 
 
 @customElement("mws-app")
@@ -27,13 +26,7 @@ export class App extends JSXElement {
     console.log("Rendering App with activeTab:", activeTab);
 
     const createFormState = this.useMemo(() => {
-      switch (activeTab) {
-        case 'wikis': return createWikisFormState;
-        case 'templates': return createTemplatesFormState;
-        case 'bags': return createBagsFormState;
-        case 'plugins': return createPluginsFormState;
-        default: throw new Error(`Unknown tab: ${activeTab}`);
-      }
+      return pages[activeTab as keyof typeof pages];
     }, [activeTab]);
 
     return (
@@ -47,10 +40,9 @@ export class App extends JSXElement {
 
         <div style="flex: 1;">
           <mdui-tabs value={activeTab} onchange={handleTabChange}>
-            <mdui-tab value="wikis">Wikis</mdui-tab>
-            <mdui-tab value="templates">Templates</mdui-tab>
-            <mdui-tab value="bags">Bags</mdui-tab>
-            <mdui-tab value="plugins">Plugins</mdui-tab>
+            {Object.entries(pages).map(([key, { tabTitle }]) => (
+              <mdui-tab value={key} key={key}>{tabTitle}</mdui-tab>
+            ))}
           </mdui-tabs>
           <ItemStorePage key={activeTab} create={createFormState}></ItemStorePage>
         </div>

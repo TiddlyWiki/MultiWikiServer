@@ -1,6 +1,6 @@
 
 
-import { BehaviorSubject } from 'rxjs';
+import { BehaviorSubject, map } from 'rxjs';
 import { createKVStore } from '../utils/indexeddb';
 
 // ── Entity types ─────────────────────────────────────────────────────────────
@@ -49,6 +49,20 @@ export interface Plugin {
   enabled: boolean;
 }
 
+export interface Role {
+  id: string;
+  name: string;
+  description: string;
+}
+
+export interface User {
+  id: string;
+  username: string;
+  email: string;
+  role_ids: string[];
+  password: string;
+}
+
 export class DataStore<T extends { id: string }> {
   private _store;
   readonly changes$ = new BehaviorSubject<T[]>([]);
@@ -91,7 +105,7 @@ export class DataStore<T extends { id: string }> {
 
 class DataService {
   static dbName = 'mws';
-  static version = 2;
+  static version = 3;
   static onupgrade = (event: IDBVersionChangeEvent, db: IDBDatabase) => {
     for (const storeName of ['bags', 'wikis', 'templates', 'plugins']) {
       if (!db.objectStoreNames.contains(storeName)) {
@@ -104,6 +118,8 @@ class DataService {
   wikis = new DataStore<Wiki>('wikis');
   templates = new DataStore<Template>('templates');
   plugins = new DataStore<Plugin>('plugins');
+  roles = new DataStore<Role>('roles');
+  users = new DataStore<User>('users');
 }
 
 export const dataService = new DataService();

@@ -1,11 +1,11 @@
 import { customElement } from "lit/decorators.js";
-import { FormState, ItemStorePage } from '../utils/forms';
+import { FormMaker, FormState, ItemStorePage } from '../utils/forms';
 import { dataService, DataStore, Plugin } from '../services/data.service';
 import { createHybridRef } from "@tiddlywiki/jsx-runtime/jsx-utils";
 
 export function createPluginsFormState(this: ItemStorePage<Plugin, {}>) {
-  return new FormState({
-    path: FormState.TextField({
+  return new FormState((F: FormMaker<Plugin>) => ({
+    path: F.TextField({
       label: 'Plugin Path',
       required: true,
       default: '',
@@ -13,16 +13,12 @@ export function createPluginsFormState(this: ItemStorePage<Plugin, {}>) {
       helperText: 'The TiddlyWiki plugin path (e.g. $:/plugins/tiddlywiki/markdown)',
       valid: (v) => !v?.trim() ? 'Plugin path is required' : undefined,
     }),
-    description: FormState.TextArea({
+    description: F.TextArea({
       label: 'Description',
       default: '',
     }),
-    enabled: FormState.Switch({
-      label: 'Enabled',
-      description: 'Enable this plugin immediately after installation.',
-      default: true,
-    }),
-  }, {
+    
+  }), {
     store: dataService.plugins,
     idKey: 'path',
     onCancel: () => this.closePopup(),
@@ -50,4 +46,4 @@ export function createPluginsFormState(this: ItemStorePage<Plugin, {}>) {
     }
   });
 }
-
+createPluginsFormState.tabTitle = "Plugins";
