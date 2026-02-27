@@ -65,8 +65,8 @@ export class PopupContainer extends JSXElement {
   get source() { return this.props.source; }
 
   protected render(): JSX.Node {
-    this.useEventListener(this, "cancel", this.props.oncancel);
-    this.useEventListener(this, "popup-layout", (e) => {
+    this.useEventListener(this)("cancel", this.props.oncancel);
+    this.useEventListener(this)("popup-layout", (e) => {
 
       const detail = card.current;
       if (!is<HTMLDivElement>(detail, detail?.nodeName === "DIV")) return;
@@ -87,10 +87,10 @@ export class PopupContainer extends JSXElement {
 
     });
 
-    this.useEventListener(this, "pointerdown", this.onClickBackground);
-    this.useEventListener(this, "pointerup", this.onClickBackground);
+    this.useEventListener(this)("pointerdown", this.onClickBackground);
+    this.useEventListener(this)("pointerup", this.onClickBackground);
     (["click", "pointerdown", "pointerup", "input", "change", "cancel", "focus", "blur"] as const).forEach(e => {
-      this.useEventListener(this.shadowRoot!, e, this.stopPropagation);
+      this.useEventListener(this.shadowRoot!)(e, this.stopPropagation);
     });
     const card = createHybridRef<HTMLElement>();
 
