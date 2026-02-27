@@ -1,24 +1,25 @@
 import EventEmitter from 'events';
-import { CSSResultGroup, PropertyValues, ReactiveElement } from 'lit';
-import { render } from "@tiddlywiki/jsx-runtime";
+import { LitElement, PropertyDeclaration, PropertyValues, ReactiveElement } from 'lit';
+import { render } from '@tiddlywiki/jsx-runtime';
 import { Subscription } from 'rxjs';
 import { observeResize, unobserveResize } from './resizeObserver';
 import { Dispatch, SetStateAction } from 'react';
 
 ReactiveElement.enableWarning?.('async-perform-update');
 
-/**
+interface EventMapTarget {
+  addEventListener(type: string, listener: EventListenerOrEventListenerObject, options?: boolean | AddEventListenerOptions): void;
+  removeEventListener(type: string, listener: EventListenerOrEventListenerObject, options?: boolean | EventListenerOptions): void;
+}
 
-```ts
-declare global { namespace JSX { interface CustomElements { 'mdui-popup': PopupComp; } } }
-\@customElement("mdui-popup")
-\@addstyles(mdui_popup_inline_css)
-export class BottomSheet extends JSXElement<{
-  cancel: Event
-}> 
-```
+export interface JSXElement {
+  addEventListener<K extends keyof MyCustomEvents>(type: K, listener: (this: JSXElement, ev: MyCustomEvents[K]) => any, options?: boolean | AddEventListenerOptions): void;
+  addEventListener(type: string, listener: EventListenerOrEventListenerObject, options?: boolean | AddEventListenerOptions): void;
+  removeEventListener<K extends keyof MyCustomEvents>(type: K, listener: (this: JSXElement, ev: MyCustomEvents[K]) => any, options?: boolean | EventListenerOptions): void;
+  removeEventListener(type: string, listener: EventListenerOrEventListenerObject, options?: boolean | EventListenerOptions): void;
+}
 
- */
+
 export class JSXElement extends ReactiveElement {
 
   protected events = new EventEmitter<{
@@ -69,20 +70,20 @@ export class JSXElement extends ReactiveElement {
     return this.useEventListener(this.events, "firstUpdated", cb.bind(this));
   }
 
-  protected useEventListener<T extends EventTarget, K extends string & keyof EventTargetType<T>>(
-    target: T | null | undefined, type: K, listener: (this: T, ev: EventTargetType<T>[K]) => any
-  ): void;
-  protected useEventListener<T extends Record<keyof T, any[]>, K extends string & keyof T>(
-    target: EventEmitter<T> | null | undefined,
-    type: K,
-    listener: (...ev: T[K]) => any
-  ): void;
-  protected useEventListener(target: EventTarget | EventEmitter | null | undefined, type: string, listener: EventListener): void {
 
+  protected useEventListener<T extends EventMapTarget>(
+    target: T
+  ): T["addEventListener"];
+  protected useEventListener<T extends Record<string, any[]>, K extends keyof T>(
+    target: EventEmitter<T>, type: K, listener: (...ev: T[K]) => any
+  ): void;
+  protected useEventListener(...args: any[]): any {
+    const target = args[0] as (EventMapTarget | EventEmitter<any>);
+    const inner = (type: string, listener: (...args: any[]) => void) => {
     const state = this.protectHook<{
-      target?: EventTarget | EventEmitter,
+        target?: EventMapTarget | EventEmitter,
       type?: string,
-      listener?: EventListener,
+        listener?: (...args: any[]) => void,
       teardown?: () => void
       inited: boolean
     }>(this.useEventListener, () => ({ inited: false } as any));
@@ -127,6 +128,12 @@ export class JSXElement extends ReactiveElement {
 
 
     this.useArraySubs.add(state.teardown);
+    }
+    if (args.length === 1) {
+      return inner;
+    } else {
+      return inner(args[1], args[2]);
+    }
   }
   protected useObserveResize(element: HTMLElement, caller: { requestUpdate(): void } = this) {
 
@@ -313,27 +320,4 @@ function checkDeps(oldDeps: any[] | undefined, newDeps: any[] | undefined): bool
   return false;
 }
 
-type EventTargetType<T extends EventTarget> =
-  T extends Window ? WindowEventMap :
-  T extends Document ? DocumentEventMap :
-  T extends ShadowRoot ? ShadowRootEventMap :
-  T extends HTMLElement ? HTMLElementEventMap :
-  JSXElementEventMap;
-
-declare module '@mdui/shared/base/mdui-element.js' {
-  interface MduiElement<E> {
-    /** Virtual element that isn't actually defined. */
-    __jsx_events__: E;
-  }
-}
-
-
-declare global {
-  interface JSXElementEventMap {
-
-  }
-
-  interface ShadowRootEventMap extends JSXElementEventMap, HTMLElementEventMap { }
-  interface HTMLElementEventMap extends JSXElementEventMap { }
-}
 
