@@ -2,7 +2,7 @@ import { customElement } from "lit/decorators.js";
 import { map } from 'rxjs';
 import { FormMaker, FormState, ItemStorePage } from '../utils/forms';
 import { dataService, DataStore, Wiki } from '../services/data.service';
-import { createHybridRef } from "@tiddlywiki/jsx-runtime/jsx-utils";
+import { createHybridRef } from "@tiddlywiki/jsx-runtime";
 
 export function createWikisFormState(this: ItemStorePage<Wiki, {}>) {
   return new FormState((F: FormMaker<Wiki>) => ({

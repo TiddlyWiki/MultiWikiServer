@@ -1,0 +1,16 @@
+{
+  "name": "@tiddlywiki/jsx-lit",
+  "private": true,
+  "module": "src/index.ts",
+  "main": "src/index.ts",
+  "exports": {
+    ".": {
+      "import": "./src/index.ts",
+      "require": "./src/index.ts"
+    }
+  },
+  "dependencies": {
+    "html-jsx": "^1.0.0",
+    "lit": "3.3.2"
+  }
+}

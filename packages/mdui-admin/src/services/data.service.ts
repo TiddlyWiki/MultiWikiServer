@@ -1,7 +1,7 @@
 
 
 import { BehaviorSubject, map } from 'rxjs';
-import { createKVStore } from '../utils/indexeddb';
+import { createKVStore } from '@tiddlywiki/jsx-lit';
 
 // ── Entity types ─────────────────────────────────────────────────────────────
 

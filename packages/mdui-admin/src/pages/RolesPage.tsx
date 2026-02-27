@@ -1,6 +1,6 @@
 import { FormMaker, FormState, ItemStorePage } from '../utils/forms';
 import { dataService, Bag, Role } from '../services/data.service';
-import { createHybridRef } from "@tiddlywiki/jsx-runtime/jsx-utils";
+import { createHybridRef } from "@tiddlywiki/jsx-runtime";
 
 export function createRolesFormState(this: ItemStorePage<Role, {}>) {
   return new FormState((F: FormMaker<Role>) => ({

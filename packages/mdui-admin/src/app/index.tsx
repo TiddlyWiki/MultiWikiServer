@@ -1,6 +1,6 @@
 
 import { customElement, property, state } from "lit/decorators.js";
-import { JSXElement } from '../utils/JSXElement';
+import { JSXElement } from '@tiddlywiki/jsx-lit';
 import { pages } from '../pages';
 import "../pages";
 import { Tabs } from "mdui";

@@ -1,6 +1,5 @@
-import { customElement } from "lit/decorators.js";
-import { addstyles } from "./utils/addstyles";
-import { JSXElement } from "./utils/JSXElement";
+import { addstyles, customElement, JSXElement } from "@tiddlywiki/jsx-lit";
+
 
 
 declare global {

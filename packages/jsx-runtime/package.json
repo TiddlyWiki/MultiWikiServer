@@ -1,5 +1,13 @@
 {
   "name": "@tiddlywiki/jsx-runtime",
+  "private": true,
+  "module": "index.ts",
+  "exports": {
+    ".": {
+      "import": "./index.ts",
+      "require": "./index.ts"
+    }
+  },
   "dependencies": {
     "html-jsx": "^1.0.0"
   }

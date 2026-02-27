@@ -1,6 +1,6 @@
 import { FormMaker, FormState, ItemStorePage } from '../utils/forms';
 import { dataService, Bag } from '../services/data.service';
-import { createHybridRef } from "@tiddlywiki/jsx-runtime/jsx-utils";
+import { createHybridRef } from "@tiddlywiki/jsx-runtime";
 
 export function createBagsFormState(this: ItemStorePage<Bag, {}>) {
   return new FormState((F: FormMaker<Bag>) => ({

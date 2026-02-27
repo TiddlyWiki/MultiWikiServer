@@ -1,11 +1,9 @@
 import { customElement, state } from "lit/decorators.js";
-import { JSXElement } from "../utils/JSXElement";
+import { JSXElement, addstyles } from "@tiddlywiki/jsx-lit";
 
-import { addstyles } from "../utils/addstyles";
 import mdui_popup_inline_css from "./mdui-popup.inline.css";
-import { is, preventDefault, stopPropagation } from "../utils/utils";
-import { EventHandler } from "html-jsx";
-import { createHybridRef } from "@tiddlywiki/jsx-runtime/jsx-utils";
+import { is } from "../utils/utils";
+import { createHybridRef } from "@tiddlywiki/jsx-runtime";
 
 
 export interface PopupChild {

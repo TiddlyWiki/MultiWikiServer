@@ -1,7 +1,6 @@
-import { customElement } from "lit/decorators.js";
 import { FormMaker, FormState, ItemStorePage } from '../utils/forms';
-import { dataService, DataStore, Plugin } from '../services/data.service';
-import { createHybridRef } from "@tiddlywiki/jsx-runtime/jsx-utils";
+import { dataService, Plugin } from '../services/data.service';
+import { createHybridRef } from "@tiddlywiki/jsx-runtime";
 
 export function createPluginsFormState(this: ItemStorePage<Plugin, {}>) {
   return new FormState((F: FormMaker<Plugin>) => ({

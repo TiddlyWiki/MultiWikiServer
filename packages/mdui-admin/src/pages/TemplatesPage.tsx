@@ -1,10 +1,7 @@
-import { customElement, state } from "lit/decorators.js";
-import { map, Subscription } from 'rxjs';
-import { JSXElement } from '../utils/JSXElement';
-import { PopupContainer } from '../components/mdui-popup';
-import { createHybridRef, HybridRef } from "@tiddlywiki/jsx-runtime/jsx-utils";
-import { FormMaker, FormState, FormsComp, ItemStorePage } from '../utils/forms';
-import { dataService, DataStore, Template } from '../services/data.service';
+import { map } from 'rxjs';
+import { createHybridRef } from "@tiddlywiki/jsx-runtime";
+import { FormMaker, FormState, ItemStorePage } from '../utils/forms';
+import { dataService, Template } from '../services/data.service';
 
 export function createTemplatesFormState(this: ItemStorePage<Template, { isCreatingNew: boolean }>) {
   return new FormState((F: FormMaker<Template>) => ({

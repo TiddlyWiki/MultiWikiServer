@@ -3,13 +3,13 @@
  * Class-based FormState + FormsComp web component
  */
 import { customElement, property, state } from "lit/decorators.js";
-import { JSXElement } from './JSXElement';
+import { JSXElement } from '@tiddlywiki/jsx-lit';
 import EventEmitter from "events";
 import forms_inline_css from "./forms.inline.css";
-import { addstyles } from "./addstyles";
+import { addstyles } from "@tiddlywiki/jsx-lit";
 import { style as textFieldStyle } from "mdui/components/text-field/style";
 // import Dropzone from "dropzone";
-import { createHybridRef, HybridRef } from "@tiddlywiki/jsx-runtime/jsx-utils";
+import { createHybridRef, HybridRef } from "@tiddlywiki/jsx-runtime";
 import { Observable, Subscription, isObservable } from "rxjs";
 import { PopupContainer } from "../components/mdui-popup";
 import { DataStore } from "../services/data.service";
