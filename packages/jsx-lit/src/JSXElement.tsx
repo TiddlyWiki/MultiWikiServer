@@ -295,7 +295,7 @@ export class JSXElement extends ReactiveElement {
     this.events.emit("firstUpdated", _changedProperties);
   }
 
-  protected subs = new Subscription();
+  subs = new Subscription();
 
   connectedCallback(): void {
     super.connectedCallback();

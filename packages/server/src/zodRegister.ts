@@ -104,10 +104,10 @@ export function checkData<
   const inputCheck = Z2.any().pipe(zodRequestBody(Z2)).safeParse(state.data);
   if (!inputCheck.success) {
     console.log(`${inputCheck.error}\nfor\n${registerError.stack?.split("\n").slice(1).join("\n")}`);
-    throw state.sendString(400, {
-      "content-type": "text/plain; charset=utf-8",
-      "x-reason": "zod-request"
-    }, Z2.prettifyError(inputCheck.error).toString(), "utf8");
+    throw state.sendError(400, "INVALID_REQUEST_BODY", {
+      prettyErrors: Z2.prettifyError(inputCheck.error).toString(),
+      flattenedErrors: Z2.flattenError(inputCheck.error),
+    });
   }
   state.data = inputCheck.data;
 }
@@ -122,10 +122,10 @@ export function checkQuery<
   const queryCheck = Z2.strictObject(zodQueryParams(Z2)).safeParse(state.queryParams);
   if (!queryCheck.success) {
     console.log(`${queryCheck.error}\nfor\n${registerError.stack?.split("\n").slice(1).join("\n")}`);
-    throw state.sendString(400, {
-      "content-type": "text/plain; charset=utf-8",
-      "x-reason": "zod-query"
-    }, Z2.prettifyError(queryCheck.error).toString(), "utf8");
+    throw state.sendError(400, "INVALID_REQUEST_QUERY", {
+      prettyErrors: Z2.prettifyError(queryCheck.error).toString(),
+      flattenedErrors: Z2.flattenError(queryCheck.error),
+    });
   }
   state.queryParams = queryCheck.data as any;
 }
@@ -140,10 +140,10 @@ export function checkPath<
   const pathCheck = Z2.strictObject(zodPathParams(Z2)).safeParse(state.pathParams);
   if (!pathCheck.success) {
     console.log(`${pathCheck.error}\nfor\n${registerError.stack?.split("\n").slice(1).join("\n")}`);
-    throw state.sendString(400, {
-      "content-type": "text/plain; charset=utf-8",
-      "x-reason": "zod-path"
-    }, Z2.prettifyError(pathCheck.error).toString(), "utf8");
+    throw state.sendError(400, "INVALID_REQUEST_PATH", {
+      prettyErrors: Z2.prettifyError(pathCheck.error).toString(),
+      flattenedErrors: Z2.flattenError(pathCheck.error),
+    });
   }
   state.pathParams = pathCheck.data as any;
 }

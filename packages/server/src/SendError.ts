@@ -4,6 +4,11 @@ export interface SendErrorItem<STATUS extends number, DETAIL extends (object & {
   details: DETAIL;
 }
 
+export interface ZodFlattenedError {
+  formErrors: string[]
+  fieldErrors: { [P in string]?: string[]; }
+}
+
 export interface SendErrorReasonData {
   /** Check the server logs for this one */
   "INTERNAL_SERVER_ERROR":
@@ -20,6 +25,18 @@ export interface SendErrorReasonData {
   // resource they thought they were requesting and whether or not it exists.
   "NO_ROUTE_MATCHED":
   SendErrorItem<400, null>;
+
+  // return 400 rather than 404 to protect the semantic meaning of 404 NOT FOUND,
+  // an invalid path format is still garbage input rather than a non-existent resource.
+  "INVALID_REQUEST_PATH":
+  SendErrorItem<400, { prettyErrors: string; flattenedErrors: ZodFlattenedError; }>;
+
+  "INVALID_REQUEST_QUERY":
+  SendErrorItem<400, { prettyErrors: string; flattenedErrors: ZodFlattenedError; }>;
+
+  "INVALID_REQUEST_BODY":
+  SendErrorItem<400, { prettyErrors: string; flattenedErrors: ZodFlattenedError; }>;
+
 
   "METHOD_NOT_ALLOWED":
   SendErrorItem<405, { allowedMethods: string[] }>;

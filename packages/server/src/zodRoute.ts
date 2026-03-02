@@ -168,7 +168,7 @@ export interface ZodState<
 export type RouterRouteMap<T> = {
   [K in keyof T as T[K] extends ZodRoute<any, any, any, any, any, any> ? K : never]:
   T[K] extends ZodRoute<any, any, any, any, infer REQ, infer RES>
-  ? ((data: z.input<REQ>) => Promise<jsonify<RES>>)
+  ? ((data: RemoveNever<z.input<REQ>>) => Promise<jsonify<RES>>)
   : `${K & string} does not extend`;
 }
 
@@ -181,8 +181,10 @@ export type jsonify<T> =
   T extends string | number | boolean | null | undefined ? T :
   T extends [...any[]] ? number extends T["length"] ? jsonify<T[number]>[] : [...jsonifyTuple<T>] :
   T extends Array<infer U> ? jsonify<U>[] :
-  T extends object ? { [K in keyof T]: jsonify<T[K]> } :
+  T extends object ? { [K in keyof T as T[K] extends never ? never : K]: jsonify<T[K]> } :
   unknown;
+
+export type RemoveNever<T> = { [K in keyof T as T[K] extends never ? never : K]: T[K] };
 
 export type jsonifyTuple<T> = T extends [infer A, ...infer B] ? [jsonify<A>, ...jsonifyTuple<B>] : T extends [infer A] ? [jsonify<A>] : [];
 
