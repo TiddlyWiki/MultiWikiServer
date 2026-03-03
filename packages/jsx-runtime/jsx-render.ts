@@ -113,7 +113,16 @@ function updateAttributes(
           && typeof descriptor.set === "function") descriptor.set?.(el.getAttribute(key));
       });
     }
-    if ([undefined, null, false].includes(value as any)) {
+    if (key === "style" && typeof value === "object" && value !== null && el instanceof HTMLElement) {
+      el.style.cssText = "";
+      for (const [styleKey, styleValue] of Object.entries(value as Record<string, string>)) {
+        if (Object.prototype.hasOwnProperty.call(el.style, styleKey)) {
+          el.style[styleKey as any] = styleValue;
+        } else {
+          el.style.setProperty(styleKey, styleValue);
+        }
+      }
+    } else if ([undefined, null, false].includes(value as any)) {
       el.removeAttribute(key);
     } else if (["string", "number", "boolean"].includes(typeof value)) {
       el.setAttribute(key, value === true ? "" : String(value));

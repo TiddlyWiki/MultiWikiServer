@@ -64,7 +64,7 @@ declare global {
     export interface IntrinsicAttributes {
       key?: KeyPrimitive;
       children?: MaybeArrayDeep<JSX.Node>;
-      style?: string;
+      style?: string | CSSStyleDeclaration | Record<string, string>;
       className?: string;
       class?: string;
       slot?: string;
