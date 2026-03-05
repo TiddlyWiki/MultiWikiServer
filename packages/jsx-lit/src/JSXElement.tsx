@@ -3,7 +3,7 @@ import { LitElement, PropertyDeclaration, PropertyValues, ReactiveElement } from
 import { render } from '@tiddlywiki/jsx-runtime';
 import { Subscription } from 'rxjs';
 import { observeResize, unobserveResize } from './resizeObserver';
-import { Dispatch, SetStateAction } from 'react';
+import type { Dispatch, SetStateAction } from 'react';
 
 ReactiveElement.enableWarning?.('async-perform-update');
 
