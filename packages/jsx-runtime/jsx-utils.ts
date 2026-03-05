@@ -43,24 +43,27 @@ export interface HybridRef<T> {
 }
 
 export const createHybridRef = <T>(init?: T): HybridRef<T> => {
-  const action = (target: HybridRef<T>, value: T) => {
-    target.current = value;
-    target.callbacks.forEach(cb => { try { cb(value) } catch (e) { console.error(e); } });
-    target.next.resolve(value);
-    (target as MutableForced<typeof target>).next = new PromiseSubject();
-    if (value != null) {
-      (target as MutableForced<typeof target>).current_ = new PromiseSubject();
-      target.current_.resolve(value);
+
+  return new Proxy<HybridRef<T>>((() => {
+    function target(value: T) {
+      target.current = value;
+      target.callbacks.forEach(cb => { try { cb(value) } catch (e) { console.error(e); } });
+      target.next.resolve(value);
+      (target as MutableForced<typeof target>).next = new PromiseSubject();
+      if (value != null) {
+        (target as MutableForced<typeof target>).current_ = new PromiseSubject();
+        target.current_.resolve(value);
+      }
     }
-  }
-  return new Proxy<HybridRef<T>>(Object.seal({
-    current: init,
-    next: new PromiseSubject<T>(),
-    current_: new PromiseSubject<T>(),
-    callbacks: [],
-  }) as any, {
+    target.current = init;
+    target.next = new PromiseSubject<T>();
+    target.current_ = new PromiseSubject<T>();
+    target.callbacks = [] as ((value: T) => void)[];
+    Object.seal(target);
+    return target as any;
+  })(), {
     apply(target, _thisArg, [value]) {
-      action(target, value);
+      target(value);
     },
     get(target, prop, _receiver) {
       if (prop === "current" || prop === "value") {
@@ -79,7 +82,7 @@ export const createHybridRef = <T>(init?: T): HybridRef<T> => {
     },
     set(target, prop, value, _receiver) {
       if (prop === "current" || prop === "value") {
-        action(target, value);
+        target(value);
         return true;
       }
       return false;
