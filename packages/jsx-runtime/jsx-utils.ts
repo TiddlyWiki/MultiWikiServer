@@ -42,7 +42,7 @@ export interface HybridRef<T> {
   readonly current_: PromiseSubject<T>;
 }
 
-export const createHybridRef = <T>(): HybridRef<T> => {
+export const createHybridRef = <T>(init: T): HybridRef<T> => {
   const action = (target: HybridRef<T>, value: T) => {
     target.current = value;
     target.callbacks.forEach(cb => { try { cb(value) } catch (e) { console.error(e); } });
@@ -54,7 +54,7 @@ export const createHybridRef = <T>(): HybridRef<T> => {
     }
   }
   return new Proxy<HybridRef<T>>(Object.seal({
-    current: undefined,
+    current: init,
     next: new PromiseSubject<T>(),
     current_: new PromiseSubject<T>(),
     callbacks: [],
