@@ -87,7 +87,11 @@ export interface ZodRoute<
    *
    * The default is `undefined` for those types.
    */
-  zodRequestBody?: (z: B extends "www-form-urlencoded" ? Z2<"STRING"> : B extends "json" ? Z2<"JSON"> : Z2<any>) => T;
+  zodRequestBody?: (z:
+    B extends "www-form-urlencoded" ? Z2<"STRING"> :
+    B extends "json" ? Z2<"JSON"> :
+    Z2<any>
+  ) => T;
 
   securityChecks?: RouteDef["securityChecks"];
   method: M[];

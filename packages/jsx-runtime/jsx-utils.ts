@@ -36,18 +36,20 @@ export class PromiseSubject<T> implements Promise<T> {
 export interface HybridRef<T> {
   (value: T): void;
   current: T | undefined;
-  next: PromiseSubject<T>;
-  current_: PromiseSubject<T>;
+  value: T | undefined;
+  readonly callbacks: ((value: T) => void)[];
+  readonly next: PromiseSubject<T>;
+  readonly current_: PromiseSubject<T>;
 }
 
-export const createHybridRef = <T>(callback?: (e: T) => void): HybridRef<T> => {
+export const createHybridRef = <T>(): HybridRef<T> => {
   const action = (target: HybridRef<T>, value: T) => {
     target.current = value;
-    callback?.(value);
+    target.callbacks.forEach(cb => { try { cb(value) } catch (e) { console.error(e); } });
     target.next.resolve(value);
-    target.next = new PromiseSubject();
+    (target as MutableForced<typeof target>).next = new PromiseSubject();
     if (value != null) {
-      target.current_ = new PromiseSubject();
+      (target as MutableForced<typeof target>).current_ = new PromiseSubject();
       target.current_.resolve(value);
     }
   }
@@ -55,12 +57,13 @@ export const createHybridRef = <T>(callback?: (e: T) => void): HybridRef<T> => {
     current: undefined,
     next: new PromiseSubject<T>(),
     current_: new PromiseSubject<T>(),
+    callbacks: [],
   }) as any, {
     apply(target, _thisArg, [value]) {
       action(target, value);
     },
     get(target, prop, _receiver) {
-      if (prop === "current") {
+      if (prop === "current" || prop === "value") {
         return target.current;
       }
       if (prop === "next") {
@@ -69,10 +72,13 @@ export const createHybridRef = <T>(callback?: (e: T) => void): HybridRef<T> => {
       if (prop === "current_") {
         return target.current_;
       }
+      if (prop === "callbacks") {
+        return target.callbacks;
+      }
       return undefined;
     },
     set(target, prop, value, _receiver) {
-      if (prop === "current") {
+      if (prop === "current" || prop === "value") {
         action(target, value);
         return true;
       }
@@ -88,3 +94,6 @@ export function truthy<T>(value: T | null | undefined | "" | 0 | false | void): 
 
 export type MaybeArray<T> = T | T[];
 export type MaybeArrayDeep<T> = T | MaybeArrayDeep<T>[];
+
+export type MutableForced<T> = T extends null | boolean | string | number | undefined ? T : MutableForcedObject<T>;
+export type MutableForcedObject<T> = { -readonly [K in keyof T]: MutableForced<T[K]>; };
