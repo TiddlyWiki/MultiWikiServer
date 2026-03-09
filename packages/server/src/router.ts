@@ -70,24 +70,24 @@ export class Router {
     res: GenericResponse,
     options: ListenOptions
   ) {
-
+    // const conID = req.socket.
     const timekey = `request ${(req as Http2ServerRequest)?.stream?.id} ${req.method} ${req.url}`;
     if (Debug.enabled("server:timing:handle")) console.time(timekey);
     // the sole purpose of this method is to catch errors
     this.handleRequest(req, res, options).catch(err2 => {
       if (err2 === STREAM_ENDED) return;
-      console.log(timekey, err2);
+      if (!err2.skiplog)
+        console.log(timekey, err2);
       if (!(err2 instanceof SendError)) {
         err2 = new SendError("INTERNAL_SERVER_ERROR", 500, {
           message: "Internal Server Error. Details have been logged."
         });
       }
-      const err3 = err2 as SendError<any>;
       if (res.headersSent) return;
-      res.writeHead(err3.status, {
+      res.writeHead(err2.status, {
         "content-type": "application/json",
-        "x-reason": err3.reason,
-      }).end(JSON.stringify(err3));
+        "x-reason": err2.reason,
+      }).end(JSON.stringify(err2));
 
     }).finally(() => {
       if (Debug.enabled("server:timing:handle")) console.timeEnd(timekey);

@@ -74,6 +74,8 @@ export class SendError<REASON extends SendErrorReason> extends Error {
     return Function.prototype[Symbol.hasInstance].call(this, instance);
   }
 
+  skiplog?: boolean;
+
   constructor(
     public reason: REASON,
     public status: SendErrorReasonData[REASON]["status"],
