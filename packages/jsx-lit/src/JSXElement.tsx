@@ -19,6 +19,19 @@ export interface JSXElement {
   removeEventListener(type: string, listener: EventListenerOrEventListenerObject, options?: boolean | EventListenerOptions): void;
 }
 
+/** Can be added to the &commat;state or &commat;props options of  */
+export function hasChangedJSXProps(n: any, o: any) {
+  if (!n || !o) return true;
+  for (const key in o) {
+    if (!(key in n)) return true;
+  }
+  for (const key in n) {
+    if (!(key in o)) return true;
+    if (!hasChangedJSXProps.ignoreList.includes(key) && !Object.is(n[key], o[key])) return true;
+  }
+  return false;
+}
+hasChangedJSXProps.ignoreList = ["ref", "key", "children", "style", "class", "className", "id"];
 
 export class JSXElement extends ReactiveElement {
 
@@ -80,54 +93,54 @@ export class JSXElement extends ReactiveElement {
   protected useEventListener(...args: any[]): any {
     const target = args[0] as (EventMapTarget | EventEmitter<any>);
     const inner = (type: string, listener: (...args: any[]) => void) => {
-    const state = this.protectHook<{
+      const state = this.protectHook<{
         target?: EventMapTarget | EventEmitter,
-      type?: string,
+        type?: string,
         listener?: (...args: any[]) => void,
-      teardown?: () => void
-      inited: boolean
-    }>(this.useEventListener, () => ({ inited: false } as any));
+        teardown?: () => void
+        inited: boolean
+      }>(this.useEventListener, () => ({ inited: false } as any));
 
 
-    if (state.inited
-      && Object.is(state.target, target)
-      && Object.is(state.type, type)
-      && Object.is(state.listener, listener)
-    ) {
-      return;
-    }
-    if (state.inited) {
-      state.teardown!();
-      this.useArraySubs.remove(state.teardown!);
-      state.inited = false;
+      if (state.inited
+        && Object.is(state.target, target)
+        && Object.is(state.type, type)
+        && Object.is(state.listener, listener)
+      ) {
+        return;
+      }
+      if (state.inited) {
+        state.teardown!();
+        this.useArraySubs.remove(state.teardown!);
+        state.inited = false;
 
-      state.target = undefined;
-      state.type = undefined;
-      state.listener = undefined;
-      state.teardown = undefined;
+        state.target = undefined;
+        state.type = undefined;
+        state.listener = undefined;
+        state.teardown = undefined;
 
-    }
-    // hook order can't change, so this allows targets to be removed.
-    if (!target) return;
+      }
+      // hook order can't change, so this allows targets to be removed.
+      if (!target) return;
 
-    state.inited = true;
-    state.target = target;
-    state.type = type;
-    state.listener = listener;
-    state.teardown = () => {
-      if ("removeEventListener" in state.target!)
-        state.target!.removeEventListener(state.type!, state.listener!);
+      state.inited = true;
+      state.target = target;
+      state.type = type;
+      state.listener = listener;
+      state.teardown = () => {
+        if ("removeEventListener" in state.target!)
+          state.target!.removeEventListener(state.type!, state.listener!);
+        else
+          state.target?.off(state.type!, state.listener!);
+      }
+
+      if ("addEventListener" in target!)
+        target.addEventListener(type, listener);
       else
-        state.target?.off(state.type!, state.listener!);
-    }
-
-    if ("addEventListener" in target!)
-      target.addEventListener(type, listener);
-    else
-      target.on(type, listener);
+        target.on(type, listener);
 
 
-    this.useArraySubs.add(state.teardown);
+      this.useArraySubs.add(state.teardown);
     }
     if (args.length === 1) {
       return inner;

@@ -1,4 +1,3 @@
-import { fromError } from "zod-validation-error";
 import Debug from "debug";
 import { ZodRoute } from "./zodRoute";
 import { Z2 } from "./Z2";
