@@ -91,15 +91,17 @@ declare global {
      * 
      * It's useful for accessing static members.
      */
-    export type LibraryManagedAttributes<C, P> =
-      C extends { new(): infer E extends HTMLElement }
-      ? P & IntrinsicAttributes & { ref?: (e: E) => void; }
-      : P;
+    export type LibraryManagedAttributes<C, P> = P;
+      // C extends { new(): infer E extends HTMLElement }
+      // ? P & IntrinsicAttributes & { ref?: (e: E) => void; }
+      // : P;
     /** 
      * lowercase tags and function types do not use this. 
      * For class types this is the instance type. 
      */
-    export interface IntrinsicClassAttributes<T extends DOMElement> { }
+    export interface IntrinsicClassAttributes<T extends DOMElement> {
+      ref?: (e: T) => void;
+    }
 
     // export interface HTMLAttributes<E extends HTMLElement> extends htmljsx.HTMLAttributes<E> { }
     // export interface DOMAttributes<E extends HTMLElement> extends htmljsx.DOMAttributes<E> { }
