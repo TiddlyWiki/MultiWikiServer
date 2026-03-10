@@ -256,7 +256,7 @@ export class JSXElement extends ReactiveElement {
 
     return { value: state.value, loading: state.loading, error: state.error };
   }
-
+  /** Clear the use hook state when the key changes, but NOT the rendered children. */
   protected useKey(key: JSX.KeyPrimitive): boolean {
     if (this.useArrayIndex)
       throw new Error("useKey must be called first");
