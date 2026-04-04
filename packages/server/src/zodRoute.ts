@@ -1,9 +1,10 @@
 
-import { JsonValue } from "./utils";
+import { jsonify, JsonValue, RemoveNever } from "./utils";
 import { BodyFormat, ServerRequest } from "./router";
 import { RouteDef } from "./router";
 import { FieldTypeGroups, Z2, zod as z } from "./Z2";
 import * as core from "zod/v4/core";
+import { URLSearchParamsTyped } from "./URLSearchParamsTyped";
 
 
 export function zodRoute<
@@ -11,16 +12,17 @@ export function zodRoute<
   B extends "GET" | "HEAD" extends M ? "ignore" : BodyFormat,
   P extends Record<string, z.ZodType<any, string | undefined>>,
   Q extends Record<string, z.ZodType<any, string[] | undefined>>,
+  Q2 extends string[],
   T extends z.ZodTypeAny,
   R
->(route: Omit<ZodRoute<M, B, P, Q, T, R>, "registerError">): ZodRoute<M, B, P, Q, T, R> {
+>(route: Omit<ZodRoute<M, B, P, Q, Q2, T, R>, "registerError">): ZodRoute<M, B, P, Q, Q2, T, R> {
   (route as any).registerError = new Error();
   (route as any)[zodRoute.symbol] = true;
-  return route as ZodRoute<M, B, P, Q, T, R>;
+  return route as ZodRoute<M, B, P, Q, Q2, T, R>;
 }
 {
   zodRoute.symbol = Symbol("zodRoute");
-  const t2 = (instance: any): instance is ZodRoute<any, any, any, any, any, any> =>
+  const t2 = (instance: any): instance is ZodRoute<any, any, any, any, any, any, any> =>
     typeof instance === "object" && instance && instance[zodRoute.symbol] === true;
 
   if (false as any as true) {
@@ -48,6 +50,7 @@ export interface ZodRoute<
   B extends BodyFormat,
   P extends Record<string, z.ZodType<any, string | undefined>>,
   Q extends Record<string, z.ZodType<any, string[] | undefined>>,
+  Q2 extends string[],
   T extends z.ZodTypeAny,
   R
 > {
@@ -70,6 +73,7 @@ export interface ZodRoute<
    * The default behavior is to remove all query params.
    */
   zodQueryParams?: (z: Z2<"STRING">) => Q;
+  zodQueryKeys?: Q2;
   // this was a good idea, but separate routes can have the same path but different methods, 
   // so we have to handle it differently.
   // /** 
@@ -143,57 +147,34 @@ export interface ZodRoute<
   keyReplacer?: string
   bodyFormat: B;
   registerError: Error;
-  inner: (state: { [K in M]: ZodState<K, B, P, Q, T> }[M]) => Promise<R>;
+  inner: (state: { [K in M]: ZodState<K, B, P, Q, Q2[number], T> }[M]) => Promise<R>;
 }
 
-// export interface ZodRouteDef<
-//   M extends AllowedMethod,
-//   B extends BodyFormat,
-//   P extends Record<string, z.ZodTypeAny>,
-//   Q extends Record<string, z.ZodTypeAny>,
-//   T extends z.ZodTypeAny,
-//   R extends JsonValue
-// > {
-//   zodRequestBody?: B extends "string" | "json" | "www-form-urlencoded" ? (z: Z2) => T : undefined;
-// }
+// type output<T> = string extends keyof T ? any : z.output<T>;
+// 0 extends 1 & P[keyof P] ? any : 
 
 export interface ZodState<
   M extends string,
   B extends BodyFormat,
-  P extends Record<string, z.ZodType<any, string | undefined>>,
-  Q extends Record<string, z.ZodType<any, string[] | undefined>>,
+  P extends Record<never, z.ZodType<any, string | undefined>>,
+  Q extends Record<never, z.ZodType<any, string>>,
+  Q2 extends string,
   T extends z.ZodType
 > extends ServerRequest<B, M, z.output<T>> {
-  pathParams: z.output<z.ZodObject<P, core.$strict>> & Record<string, any>;
-  queryParams: z.output<z.ZodObject<Q, core.$strict>> & Record<string, any>;
+  pathParams: z.output<z.ZodObject<P, core.$strict>> & Record<string, never>;
+  queryParams: z.output<z.ZodObject<Q, core.$strict>> & Record<string, never>;
+  query: URLSearchParamsTyped<Record<Q2, string>>;
 }
 
 
 export type RouterRouteMap<T> = {
-  [K in keyof T as T[K] extends ZodRoute<any, any, any, any, any, any> ? K : never]:
-  T[K] extends ZodRoute<any, any, any, any, infer REQ, infer RES>
+  [K in keyof T as T[K] extends ZodRoute<any, any, any, any, any, any, any> ? K : never]:
+  T[K] extends ZodRoute<any, any, any, any, any, infer REQ, infer RES>
   ? ((data: RemoveNever<z.input<REQ>>) => Promise<jsonify<RES>>)
   : `${K & string} does not extend`;
 }
 
-export type jsonify<T> =
-  T extends void ? undefined :
-  T extends Promise<any> ? unknown :
-  T extends Date ? string :
-  // T extends Map<infer K, infer V> ? [jsonify<K>, jsonify<V>][] :
-  // T extends Set<infer U> ? jsonify<U>[] :
-  T extends string | number | boolean | null | undefined ? T :
-  T extends [...any[]] ? number extends T["length"] ? jsonify<T[number]>[] : [...jsonifyTuple<T>] :
-  T extends Array<infer U> ? jsonify<U>[] :
-  T extends object ? { [K in keyof T as T[K] extends never ? never : K]: jsonify<T[K]> } :
-  unknown;
-
-export type RemoveNever<T> = { [K in keyof T as T[K] extends never ? never : K]: T[K] };
-
-export type jsonifyTuple<T> = T extends [infer A, ...infer B] ? [jsonify<A>, ...jsonifyTuple<B>] : T extends [infer A] ? [jsonify<A>] : [];
-
-
 
 export type RouterKeyMap<T, V> = {
-  [K in keyof T as T[K] extends ZodRoute<any, any, any, any, any, any> ? K : never]: V;
+  [K in keyof T as T[K] extends ZodRoute<any, any, any, any, any, any, any> ? K : never]: V;
 }

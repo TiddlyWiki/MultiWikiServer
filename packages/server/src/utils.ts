@@ -4,7 +4,7 @@ import { fileURLToPath } from "node:url";
 import { zod } from "./Z2";
 import { Subject } from "rxjs";
 
-export function is<T>(a: any, b: boolean): a is T { return b; }
+export * from "./utils-cross-platform";
 
 /** Initiates a timer that must get cancelled before the current turn of the event loop ends */
 export class SyncCheck {
@@ -75,14 +75,6 @@ export function createStrictAwaitProxy<T extends object>(instance: T): T {
       return value;
     }
   });
-}
-
-export function tryParseJSON<T>(json: string): T | undefined {
-  try {
-    return JSON.parse(json);
-  } catch {
-    return undefined;
-  }
 }
 
 

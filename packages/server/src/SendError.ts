@@ -37,7 +37,6 @@ export interface SendErrorReasonData {
   "INVALID_REQUEST_BODY":
   SendErrorItem<400, { prettyErrors: string; flattenedErrors: ZodFlattenedError; }>;
 
-
   "METHOD_NOT_ALLOWED":
   SendErrorItem<405, { allowedMethods: string[] }>;
 

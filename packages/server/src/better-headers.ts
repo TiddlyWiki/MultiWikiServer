@@ -87,7 +87,7 @@ export class BetterHeaders {
   }
   get<T extends string & keyof BetterHeadersData>(key: T): BetterHeadersData[T];
   get(key: string): string | undefined;
-  get(key: string) { return this.headers[key as keyof BetterHeadersData]; }
+  get(key: string) { return this.headers[key.toLowerCase() as keyof BetterHeadersData]; }
   * entries(): IterableIterator<[string, string | string[] | undefined]> {
     for (const [key, value] of Object.entries(this.headers)) {
       if (value === undefined) continue;

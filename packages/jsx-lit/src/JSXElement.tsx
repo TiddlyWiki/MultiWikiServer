@@ -293,6 +293,7 @@ export class JSXElement extends ReactiveElement {
     return <slot></slot>;
   }
 
+
   protected updated(_changedProperties: PropertyValues): void {
     super.updated(_changedProperties);
     this.events.emit("updated", _changedProperties);

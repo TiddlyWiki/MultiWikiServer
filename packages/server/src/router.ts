@@ -49,6 +49,9 @@ export interface ServerRequest<
   B extends "ignore" ? undefined :
   D;
 
+  // pathParams: unknown;
+  // queryParams: unknown;
+
 }
 
 
@@ -70,7 +73,7 @@ export class Router {
     res: GenericResponse,
     options: ListenOptions
   ) {
-    // const conID = req.socket.
+
     const timekey = `request ${(req as Http2ServerRequest)?.stream?.id} ${req.method} ${req.url}`;
     if (Debug.enabled("server:timing:handle")) console.time(timekey);
     // the sole purpose of this method is to catch errors
@@ -92,7 +95,6 @@ export class Router {
     }).finally(() => {
       if (Debug.enabled("server:timing:handle")) console.timeEnd(timekey);
     });
-
   }
 
   private async handleRequest(
@@ -100,8 +102,6 @@ export class Router {
     res: GenericResponse,
     options: ListenOptions
   ) {
-
-
     await serverEvents.emitAsync("request.middleware", this, req, res, options);
     const secure = !!(options.key && options.cert || options.secure);
     const request = Streamer.parseRequest(req, res, options.prefix ?? "", secure);
@@ -121,6 +121,8 @@ export class Router {
     console.log("No handler sent headers before the promise resolved.", state.url);
     throw new SendError("REQUEST_DROPPED", 500, null);
   }
+
+
 
   private async handleStateBody(state: ServerRequestTypes, routePath: RouteMatch[]) {
 
@@ -166,7 +168,7 @@ export class Router {
    * This is for overriding the server request that gets created. 
    */
   async createServerRequest<B extends BodyFormat>(
-    stream: ParsedRequest,
+    stream: ParsedRequest & { res: {} },
     /** The array of Route tree nodes the request matched. */
     routePath: RouteMatch[],
     /** The bodyformat that ended up taking precedence. This should be correctly typed. */

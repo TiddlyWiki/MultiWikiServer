@@ -15,6 +15,7 @@ import { getMultipartBoundary, isMultipartRequestHeader, MultipartPart, parseNod
 import { SendError, SendErrorReason, SendErrorReasonData } from './SendError';
 import { } from '@remix-run/headers';
 import { BetterCookie, BetterHeaders, BetterHeadersData } from './better-headers';
+import { URLSearchParamsTyped } from './URLSearchParamsTyped';
 
 declare module 'node:net' {
   interface Socket {
@@ -62,67 +63,16 @@ class IterableHeaders implements Iterable<[string, string]> {
     for (let i = 0; i < this.headers.length; i += 2) {
       yield [this.headers[i], this.headers[i + 1]] as [string, string];
     }
-
   }
 }
 
 
 type S1 = ReturnType<typeof Streamer["parseRequest"]>;
-export interface ParsedRequest extends S1 { }
-/**
- * The HTTP2 shims used in the request handler are only used for HTTP2 requests. 
- * The NodeJS HTTP2 server actually calls the HTTP1 parser for all HTTP1 requests. 
- */
-export class Streamer {
-  static parseRequest(req: GenericRequest, res: GenericResponse, pathPrefix: string, assumeHTTPS: boolean) {
+export interface ParsedRequest<R extends GenericResponse | undefined = GenericResponse | undefined> extends S1 { 
+  res: R;
+}
 
-    let url = req.url as string;
-
-    if (!url.startsWith("/")) throw new Error("This should never happen");
-
-    if (pathPrefix) {
-      if (url === pathPrefix) {
-        res.writeHead(302, { "location": req.url + "/" }).end();
-        throw STREAM_ENDED;
-      } else if (url.startsWith(pathPrefix)) {
-        url = url.slice(pathPrefix.length);
-      } else {
-        res.writeHead(500, {}).end("The server is setup with a path prefix " + pathPrefix + ", but this request is outside of that prefix.", "utf8");
-        throw STREAM_ENDED;
-      }
-    }
-
-    if (is2(req)) req.headers.host = req.headers[":authority"] as string;
-    if (!req.headers.host) throw new Error("This should never happen");
-    if (!req.method) throw new Error("This should never happen");
-    // I assume Node would do this, but just in case. Now all headers are strings. 
-    if (req.headers['set-cookie']?.length) delete req.headers['set-cookie'];
-
-    const method = req.method as string;
-    const host = req.headers.host!;
-    
-    const urlInfo = new URL(`https://${req.headers.host}${url}`);
-    
-    const headers = new BetterHeaders(req.headers);
-
-    return { req, res, url, urlInfo, pathPrefix, assumeHTTPS, method, host, cookies: headers.get("cookie"), headers }
-  }
-
-  static parseCookieString(cookieString: string) {
-    const cookies = new URLSearchParams();
-    if (typeof cookieString !== 'string') throw new Error('cookieString must be a string');
-    cookieString.split(';').forEach(cookie => {
-      const parts = cookie.split('=');
-      if (parts.length >= 2) {
-        const key = parts[0]!.trim();
-        const value = parts.slice(1).join('=').trim();
-        cookies.append(key, decodeURIComponent(value));
-      }
-    });
-    return cookies;
-  }
-
-
+export class StreamerRequest {
 
   readonly host: string;
   readonly method: string;
@@ -166,9 +116,10 @@ export class Streamer {
    */
   public queryParams: Record<string, string[] | undefined>;
 
+  public query: URLSearchParamsTyped<any>;
 
-  #req: GenericRequest;
-  #res: GenericResponse;
+  protected _req: GenericRequest;
+
   constructor(
     request: ParsedRequest,
     /** The array of Route tree nodes the request matched. */
@@ -177,8 +128,7 @@ export class Streamer {
     public bodyFormat: BodyFormat,
   ) {
 
-    this.#req = request.req;
-    this.#res = request.res;
+    this._req = request.req;
 
     this.url = request.url;
     this.urlInfo = request.urlInfo;
@@ -188,16 +138,6 @@ export class Streamer {
     this.host = request.host;
     this.headers = request.headers;
     this.cookies = request.cookies;
-
-
-    // this.compressor = new Compressor(request.req, request.res, {
-    //   identity: {
-    //     allowHalfOpen: false,
-    //     autoDestroy: true,
-    //     emitClose: true,
-    //   }
-    // });
-
 
     this.pathParams = routePath.reduce((n, e) => Object.assign(n, e.groups), {});
 
@@ -212,18 +152,18 @@ export class Streamer {
     if (!queryParamsZodCheck.success) console.log("BUG: Query params zod error", queryParamsZodCheck.error, this.queryParams);
     else this.queryParams = queryParamsZodCheck.data;
 
-
+    this.query = new URLSearchParams(this.urlInfo.searchParams);
 
   }
 
 
-  get remoteFamily() { return this.#req.socket.remoteFamily; }
-  get remoteAddress() { return this.#req.socket.remoteAddress; }
-  get remotePort() { return this.#req.socket.remotePort; }
+  get remoteFamily() { return this._req.socket.remoteFamily; }
+  get remoteAddress() { return this._req.socket.remoteAddress; }
+  get remotePort() { return this._req.socket.remotePort; }
 
-  get localFamily() { return this.#req.socket.localFamily; }
-  get localAddress() { return this.#req.socket.localAddress; }
-  get localPort() { return this.#req.socket.localPort; }
+  get localFamily() { return this._req.socket.localFamily; }
+  get localAddress() { return this._req.socket.localAddress; }
+  get localPort() { return this._req.socket.localPort; }
 
   /** type-narrowing helper function. This affects anywhere T is used. */
   isBodyFormat(format: BodyFormat): boolean {
@@ -267,54 +207,98 @@ export class Streamer {
   }
 
 
-  // RIP Push Stream. it was a great idea.
-  // async pushStream(path: string) {
-  //   return new Promise<Streamer>((resolve, reject) => {
-  //     const req2: http2.Http2ServerRequest = this.req as any;
-  //     if (!req2.stream || !req2.stream.pushAllowed) return reject();
-  //     req2.stream.write
-  //     const newRawHeaders = this.req.rawHeaders.slice();
-  //     for (let i = 0; i < newRawHeaders.length; i += 2) {
-  //       if (newRawHeaders[i] === ":method") newRawHeaders[i + 1] = "GET";
-  //       if (newRawHeaders[i] === ":path") newRawHeaders[i + 1] = path;
-  //     }
-  //     req2.stream.pushStream({ ":method": "GET", ":path": path }, (err, pushStream, headers) => {
-  //       if (err) return reject(err);
-  //       const preq = new http2.Http2ServerRequest(pushStream, req2.headers, {}, newRawHeaders);
-  //       const pres = new http2.Http2ServerResponse(pushStream);
-  //       const pushStreamer = new Streamer(preq, pres, this.router);
-  //       resolve(pushStreamer);
-  //     });
-  //   }).then(async streamer => {
-  //     await this.router.handle(streamer);
-  //     return streamer;
-  //   }, (err) => { if (err) throw err; });
-  // }
 
+  get reader(): Readable { return this._req; }
 
-  private parseCookieString(cookieString: string) {
-    const cookies = new URLSearchParams();
-    if (typeof cookieString !== 'string') throw new Error('cookieString must be a string');
-    cookieString.split(';').forEach(cookie => {
-      const parts = cookie.split('=');
-      if (parts.length >= 2) {
-        const key = parts[0]!.trim();
-        const value = parts.slice(1).join('=').trim();
-        cookies.append(key, decodeURIComponent(value));
-      }
-    });
-    return cookies;
+  /** 
+   * Checks the request and response headers and calculates the appropriate 
+   * encoding to use for the response. This may be checked early if you 
+   * can only support a subset of normal encodings or have precompressed data.
+   */
+  acceptsEncoding(encoding: ('br' | 'gzip' | 'deflate' | 'identity')[]) {
+    if(this.compressor) return this.compressor.getEncodingMethod(encoding);
+    const header = this.headers.get("accept-encoding");
+    if(header) return encoding.map(e => header.accepts(e));
+    return "";
   }
 
-  get reader(): Readable { return this.#req; }
+  /** End the compression stream, flushing the rest of the compressed data, then begin a brand new stream to concatenate. */
+  async splitCompressionStream() {
+    await this.compressor?.splitStream();
+  }
+
+  STREAM_ENDED: typeof STREAM_ENDED = STREAM_ENDED;
+
+}
+
+/**
+ * The HTTP2 shims used in the request handler are only used for HTTP2 requests. 
+ * The NodeJS HTTP2 server actually calls the HTTP1 parser for all HTTP1 requests. 
+ */
+export class Streamer extends StreamerRequest {
+  static parseRequest<R extends GenericResponse | undefined>(req: GenericRequest, res: R, pathPrefix: string, assumeHTTPS: boolean) {
+
+    let url = req.url as string;
+
+    if (!url.startsWith("/")) throw new Error("This should never happen");
+
+    if (pathPrefix) {
+      if (url === pathPrefix) {
+        if (res) {
+          res.writeHead(302, { "location": req.url + "/" }).end();
+          throw STREAM_ENDED;
+        } else {
+          throw new Error("A path prefix request must redirect to add a trailing slash.");
+        }
+      } else if (url.startsWith(pathPrefix)) {
+        url = url.slice(pathPrefix.length);
+      } else {
+        const error = "The server is setup with a path prefix " + pathPrefix + ", but this request is outside of that prefix.";
+        if (res) {
+          res.writeHead(500, {}).end(error, "utf8");
+          throw STREAM_ENDED;
+        } else {
+          throw new Error(error);
+        }
+      }
+    }
+
+    if (is2(req)) req.headers.host = req.headers[":authority"] as string;
+    if (!req.headers.host) throw new Error("This should never happen");
+    if (!req.method) throw new Error("This should never happen");
+    // I assume Node would do this, but just in case. Now all headers are strings. 
+    if (req.headers['set-cookie']?.length) delete req.headers['set-cookie'];
+
+    const method = req.method as string;
+    const host = req.headers.host!;
+
+    const urlInfo = new URL(`https://${req.headers.host}${url}`);
+
+    const headers = new BetterHeaders(req.headers);
+
+    return { req, res, url, urlInfo, pathPrefix, assumeHTTPS, method, host, cookies: headers.get("cookie"), headers }
+  }
+
+  protected _res: GenericResponse;
+
+  constructor(
+    request: ParsedRequest & { res: {} },
+    /** The array of Route tree nodes the request matched. */
+    routePath: RouteMatch[],
+    /** The bodyformat that ended up taking precedence. This should be correctly typed. */
+    bodyFormat: BodyFormat,
+  ) {
+    super(request, routePath, bodyFormat);
+    this._res = request.res;
+  }
+
   get writer(): Writable {
     // don't overwrite it here if it's already set because this could just be for sending the body.
     if (!this.headersSent && !this.headersSentBy)
       this.headersSentBy = new Error("Possible culprit was given access to the response object here.");
 
-    return this.compressor?.stream ?? this.#res;
+    return this.compressor?.stream ?? this._res;
   }
-
 
 
   private checkHeadersSentBy(setError: boolean) {
@@ -322,7 +306,7 @@ export class Streamer {
       console.log(this.headersSentBy);
       console.log(new Error("This is the second attempt to send headers. Was it supposed to happen?"));
     }
-    else if (this.#res.headersSent) console.log("Headers were sent by an unknown source.");
+    else if (this._res.headersSent) console.log("Headers were sent by an unknown source.");
     // queue up the error in case there is a second attempt.
     else this.headersSentBy = new Error("You appear to be sending headers more than once. The first attempt was here. Does it need to throw or return?")
   }
@@ -402,7 +386,7 @@ export class Streamer {
       end: length && length - 1,
       autoClose: false,
     });
-    stream.pipe(this.#res);
+    stream.pipe(this._res);
     return STREAM_ENDED;
   }
   /** 
@@ -429,8 +413,8 @@ export class Streamer {
   sendFile(status: number, headers: http.OutgoingHttpHeaders, options: SendFileOptions) {
 
     // the headers and status have to be set on the response object before piping the stream
-    this.#res.statusCode = status;
-    this.toHeadersMap(headers).forEach((v, k) => { this.#res.appendHeader(k, v); });
+    this._res.statusCode = status;
+    this.toHeadersMap(headers).forEach((v, k) => { this._res.appendHeader(k, v); });
 
     const {
       root, reqpath, offset, length, prefix, suffix, on404, onDir, index = false,
@@ -444,7 +428,7 @@ export class Streamer {
       console.error("sendFile", root, reqpath, status, headers);
     }
 
-    const sender = send(this.#req, reqpath, {
+    const sender = send(this._req, reqpath, {
       dotfiles: "ignore",
       index,
       root,
@@ -488,9 +472,9 @@ export class Streamer {
         fileStream.pipe = () => orig_pipe.call(fileStream, this.writer);
       });
 
-      this.#res.on("end", () => { console.log("ended"); resolve(STREAM_ENDED); });
+      this._res.on("end", () => { console.log("ended"); resolve(STREAM_ENDED); });
       this.checkHeadersSentBy(true);
-      sender.pipe(this.#res);
+      sender.pipe(this._res);
     });
   }
 
@@ -530,12 +514,14 @@ export class Streamer {
       if (this.writer.writableEnded)
         throw new Error("Cannot emit event after the stream has ended");
 
-      this.writer.write([
+      const draining = this.writer.write([
         eventName && `event: ${eventName}`,
         `data: ${JSON.stringify(eventData)}`,
         eventId && `id: ${eventId}`,
         retryMilliseconds && `retry: ${retryMilliseconds}`,
       ].filter(truthy).join("\n") + "\n\n");
+      if (!draining) return new Promise(r => this.writer.once("drain", r));
+      else return;
     }
     const emitComment = (comment: string) => {
       this.writer.write(`: ${comment}\n\n`);
@@ -587,6 +573,33 @@ export class Streamer {
     }, JSON.stringify(obj), "utf8");
   }
 
+  
+  // RIP Push Stream. it was a great idea.
+  // async pushStream(path: string) {
+  //   return new Promise<Streamer>((resolve, reject) => {
+  //     const req2: http2.Http2ServerRequest = this.req as any;
+  //     if (!req2.stream || !req2.stream.pushAllowed) return reject();
+  //     req2.stream.write
+  //     const newRawHeaders = this.req.rawHeaders.slice();
+  //     for (let i = 0; i < newRawHeaders.length; i += 2) {
+  //       if (newRawHeaders[i] === ":method") newRawHeaders[i + 1] = "GET";
+  //       if (newRawHeaders[i] === ":path") newRawHeaders[i + 1] = path;
+  //     }
+  //     req2.stream.pushStream({ ":method": "GET", ":path": path }, (err, pushStream, headers) => {
+  //       if (err) return reject(err);
+  //       const preq = new http2.Http2ServerRequest(pushStream, req2.headers, {}, newRawHeaders);
+  //       const pres = new http2.Http2ServerResponse(pushStream);
+  //       const pushStreamer = new Streamer(preq, pres, this.router);
+  //       resolve(pushStreamer);
+  //     });
+  //   }).then(async streamer => {
+  //     await this.router.handle(streamer);
+  //     return streamer;
+  //   }, (err) => { if (err) throw err; });
+  // }
+
+
+
   sendError<REASON extends SendErrorReason>(
     status: SendErrorReasonData[REASON]["status"],
     reason: REASON,
@@ -611,22 +624,6 @@ export class Streamer {
     return this.sendEmpty(302, { 'Location': this.pathPrefix + location });
   }
 
-  /** 
-   * Checks the request and response headers and calculates the appropriate 
-   * encoding to use for the response. This may be checked early if you 
-   * can only support a subset of normal encodings or have precompressed data.
-   */
-  acceptsEncoding(encoding: ('br' | 'gzip' | 'deflate' | 'identity')[]) {
-    return this.compressor?.getEncodingMethod(encoding);
-  }
-
-
-  /** End the compression stream, flushing the rest of the compressed data, then begin a brand new stream to concatenate. */
-  async splitCompressionStream() {
-    await this.compressor?.splitStream();
-  }
-
-  STREAM_ENDED: typeof STREAM_ENDED = STREAM_ENDED;
 
   setCookie(name: string, value: string, options: {
     /**
@@ -703,8 +700,8 @@ export class Streamer {
   }
 
   appendHeader(name: string, value: string): void {
-    const current = this.#res.getHeader(name);
-    this.#res.setHeader(name,
+    const current = this._res.getHeader(name);
+    this._res.setHeader(name,
       current
         ? Array.isArray(current)
           ? [...current as string[], value]
@@ -725,7 +722,7 @@ export class Streamer {
    * 
    */
   setHeader(name: string, value: string): void {
-    this.#res.setHeader(name, value);
+    this._res.setHeader(name, value);
   }
   writeHead(status: number, headers: http.OutgoingHttpHeaders = {}): void {
     if (Debug.enabled("send"))
@@ -738,7 +735,7 @@ export class Streamer {
     });
 
     this.compressor?.beforeWriteHead();
-    this.#res.writeHead(status, headers);
+    this._res.writeHead(status, headers);
   }
   /**
    * Write early hints using 103 Early Hints, 
@@ -760,8 +757,8 @@ export class Streamer {
    * @returns 
    */
   writeEarlyHints(hints: Record<string, string | string[]>) {
-    if (this.#req.httpVersionMajor > 1)
-      this.#res.writeEarlyHints(hints);
+    if (this._req.httpVersionMajor > 1)
+      this._res.writeEarlyHints(hints);
   }
   /*
   No handler sent headers before the promise resolved.
@@ -807,14 +804,15 @@ export class Streamer {
 
   /** Destroy the transport stream and possibly the entire connection. */
   private destroy() {
-    this.#res.destroy();
+    this._res.destroy();
   }
 
   get headersSent() {
-    return this.#res.headersSent;
+    return this._res.headersSent;
   }
 
   private headersSentBy: Error | undefined;
+
 }
 
 

@@ -4,6 +4,7 @@ import { Z2 } from "./Z2";
 import { ServerRequest, ServerRoute } from "./router";
 import { zod } from "@tiddlywiki/server";
 import * as core from "zod/v4/core";
+import { URLSearchParamsTyped } from "./URLSearchParamsTyped";
 const debugCORS = Debug("mws:cors");
 
 
@@ -37,12 +38,13 @@ function buildPathRegex(path: string, key: string, keyReplacer: string) {
 export function defineZodRoute(
   parent: ServerRoute,
   key: string,
-  route: ZodRoute<any, any, any, any, any, any>
+  route: ZodRoute<any, any, any, any, any, any, any>
 ) {
   const {
     method, path, bodyFormat, registerError, keyReplacer,
     zodPathParams,
-    zodQueryParams = (z => ({}) as any),
+    zodQueryParams = () => ({}),
+    zodQueryKeys = [],
     zodRequestBody = ["string", "json", "www-form-urlencoded"].includes(bodyFormat)
       ? z => z.undefined() : (z => z.any() as any),
     inner,
@@ -53,44 +55,50 @@ export function defineZodRoute(
     throw new Error(key + " includes OPTIONS. Use corsRequest instead.");
 
   const pathregex = typeof path === "string" ? buildPathRegex(path, key, keyReplacer ?? "") : path;
+  try {
+    return parent.defineRoute({
+      method,
+      path: new RegExp(pathregex),
+      bodyFormat,
+      denyFinal: false,
+      securityChecks,
+    }, async state => {
 
-  return parent.defineRoute({
-    method,
-    path: new RegExp(pathregex),
-    bodyFormat,
-    denyFinal: false,
-    securityChecks,
-  }, async state => {
+      checkPath(state, zodPathParams, registerError);
 
-    checkPath(state, zodPathParams, registerError);
+      checkQuery(state, zodQueryParams, registerError);
 
-    checkQuery(state, zodQueryParams, registerError);
+      checkQueryKeys(state, zodQueryKeys, registerError);
 
-    checkData(state, zodRequestBody, registerError);
+      checkData(state, zodRequestBody, registerError);
 
-    const timekey = `handler ${state.bodyFormat} ${state.method} ${state.urlInfo.pathname}`;
-    if (Debug.enabled("server:handler:timing")) console.time(timekey);
-    const [good, error, res] = await inner(state)
-      .then(e => [true, undefined, e] as const, e => [false, e, undefined] as const);
-    if (Debug.enabled("server:handler:timing")) console.timeEnd(timekey);
+      const timekey = `handler ${state.bodyFormat} ${state.method} ${state.urlInfo.pathname}`;
+      if (Debug.enabled("server:handler:timing")) console.time(timekey);
+      const [good, error, res] = await inner(state as any) // type doesn't matter here
+        .then((e: any) => [true, undefined, e] as const, (e: any) => [false, e, undefined] as const);
+      if (Debug.enabled("server:handler:timing")) console.timeEnd(timekey);
 
-    if (!good) {
-      if (error === STREAM_ENDED) {
-        return error;
-      } else if (typeof error === "string") {
-        return state.sendString(400, { "x-reason": "zod-handler" }, error, "utf8");
-      } else if (error instanceof Error && error.name === "UserError") {
-        return state.sendString(400, { "x-reason": "user-error" }, error.message, "utf8");
-      } else {
-        throw error;
+      if (!good) {
+        if (error === STREAM_ENDED) {
+          return error;
+        } else if (typeof error === "string") {
+          return state.sendString(400, { "x-reason": "zod-handler" }, error, "utf8");
+        } else if (error instanceof Error && error.name === "UserError") {
+          return state.sendString(400, { "x-reason": "user-error" }, error.message, "utf8");
+        } else {
+          throw error;
+        }
       }
-    }
-    if (res === undefined) {
-      return state.sendEmpty(204, { "content-type": "application/json" });
-    } else {
-      return state.sendJSON(200, res);
-    }
-  });
+      if (res === undefined) {
+        return state.sendEmpty(204, { "content-type": "application/json" });
+      } else {
+        return state.sendJSON(200, res);
+      }
+    });
+  } catch (e) {
+    console.log(registerError);
+    throw e;
+  }
 }
 
 export function checkData<
@@ -127,6 +135,24 @@ export function checkQuery<
     });
   }
   state.queryParams = queryCheck.data as any;
+}
+
+export function checkQueryKeys<
+  T extends string[]
+>(
+  state: ServerRequest,
+  zodQueryKeys: T,
+  registerError: Error
+): asserts state is ServerRequest & { query: URLSearchParamsTyped<Record<T[number], string>> } {
+  const badKeys = [...state.query.keys()].filter(k => !zodQueryKeys.includes(k));
+  if (badKeys.length) {
+    const error = `Unexpected query keys: ${badKeys.join(", ")}`;
+    console.log(`${error}\nfor\n${registerError.stack?.split("\n").slice(1).join("\n")}`);
+    throw state.sendError(400, "INVALID_REQUEST_QUERY", {
+      prettyErrors: error,
+      flattenedErrors: { formErrors: [error], fieldErrors: {} },
+    });
+  }
 }
 
 export function checkPath<

@@ -16,6 +16,7 @@ type ERROR_CustomElements_MUST_NEVER_EXIST = JSX.CustomElements;
 declare global {
   export interface MyCustomElements { }
   export interface MyCustomEvents extends HTMLElementEventMap { }
+
   /**
    * The JSX namespace defines the types for JSX elements, attributes, and event handlers.
    * 
@@ -43,6 +44,9 @@ declare global {
       key?: KeyPrimitive;
     }
 
+
+
+
     export interface EventHandler<T extends DOMElement, E extends Event> extends htmljsx.EventHandler<T, E> { }
     /** 
      * Restricts what element types are allowed. 
@@ -69,6 +73,8 @@ declare global {
       class?: string;
       slot?: string;
       id?: string;
+      /** Tells JSX not to reconcile the non-shadow children of this element which it would normally reconcile. */
+      "webjsx-donotdescend"?: boolean;
     }
 
     export interface BaseAttrs<E extends DOMElement> extends
@@ -78,10 +84,13 @@ declare global {
       Omit<htmljsx.HTMLAttributes<E>, Internal.IgnoredProperties>,
       Internal.WebjsxAttrString {
       ref?: (e: E) => void;
+      "contenteditable"?: "true" | "false" | boolean;
     }
 
     export type SimpleAttrs<T, E extends DOMElement> =
-      & Internal.AddWatched<{ [P in keyof T as P extends Internal.IgnoredProperties ? never : P]?: Extract<T[P], Primitive> }>
+      & Internal.AddWatched<{ 
+        [P in keyof T as P extends Internal.IgnoredProperties ? never : P]?: Extract<T[P], Primitive> 
+      }>
       & BaseAttrs<E>;
 
     /** 
@@ -92,9 +101,9 @@ declare global {
      * It's useful for accessing static members.
      */
     export type LibraryManagedAttributes<C, P> = P;
-      // C extends { new(): infer E extends HTMLElement }
-      // ? P & IntrinsicAttributes & { ref?: (e: E) => void; }
-      // : P;
+    // C extends { new(): infer E extends HTMLElement }
+    // ? P & IntrinsicAttributes & { ref?: (e: E) => void; }
+    // : P;
     /** 
      * lowercase tags and function types do not use this. 
      * For class types this is the instance type. 
@@ -141,9 +150,10 @@ declare global {
 
     namespace Internal {
 
+    
 
 
-      type IgnoredProperties = "slot" | "id" | "style" | "class" | "className" | "children" | "key" | "ref" | "xmlns" | `on${string}`;
+      type IgnoredProperties = "slot" | "id" | "style" | "class" | "className" | "children" | "key" | "ref" | "xmlns" | "contenteditable" | `on${string}`;
 
 
 
