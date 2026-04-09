@@ -212,7 +212,7 @@ export class JSXElement extends ReactiveElement {
       deps?: any[]
     }>(this.useMemo, () => ({
       value: fn(),
-      deps: undefined
+      deps: deps
     }));
 
     if (checkDeps(state.deps, deps)) {
