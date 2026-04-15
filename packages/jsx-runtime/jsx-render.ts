@@ -35,6 +35,7 @@ export function updateElement(
     [OwnKeySymbol]?: JSX.KeyPrimitive;
     [KeyChildren]?: Map<string, Element>;
     [DOMElementSymbol]?: boolean;
+    "webjsx-donotdescend"?: boolean;
   }) | null,
   parentNamespaceURI: string | null
 ): Element {
@@ -78,7 +79,7 @@ export function updateElement(
       (ref as { current: Element | null; }).current = el;
     }
   }
-  if (!jsx.props["webjsx-donotdescend"])
+  if (!jsx.props["webjsx-donotdescend"] && !el["webjsx-donotdescend"])
     updateChildren(el, jsx.props.children);
 
   return el;

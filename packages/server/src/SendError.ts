@@ -69,6 +69,8 @@ export type SendErrorTypes = {
 
 export class SendError<REASON extends SendErrorReason> extends Error {
 
+  static oninstance: ((e: SendErrorTypes) => void)[] = [];
+
   static [Symbol.hasInstance](instance: any): instance is SendErrorTypes {
     return Function.prototype[Symbol.hasInstance].call(this, instance);
   }
@@ -82,6 +84,7 @@ export class SendError<REASON extends SendErrorReason> extends Error {
   ) {
     super();
     this.name = SendError.name;
+    SendError.oninstance.forEach(e => e(this as SendErrorTypes));
   }
 
   override get message() {

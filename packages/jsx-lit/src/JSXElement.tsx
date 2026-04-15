@@ -1,6 +1,6 @@
 import EventEmitter from 'events';
-import { LitElement, PropertyDeclaration, PropertyValues, ReactiveElement } from 'lit';
-import { render } from '@tiddlywiki/jsx-runtime';
+import { adoptStyles, CSSResult, LitElement, PropertyDeclaration, PropertyValues, ReactiveElement } from 'lit';
+import { is, render } from '@tiddlywiki/jsx-runtime';
 import { Subscription } from 'rxjs';
 import { observeResize, unobserveResize } from './resizeObserver';
 import type { Dispatch, SetStateAction } from 'react';
@@ -32,8 +32,11 @@ export function hasChangedJSXProps(n: any, o: any) {
   return false;
 }
 hasChangedJSXProps.ignoreList = ["ref", "key", "children", "style", "class", "className", "id"];
-
+const DO_NOT_RENDER = new class JSXElement_DO_NOT_RENDER { name = "JSXElement_DO_NOT_RENDER" };
 export class JSXElement extends ReactiveElement {
+  static DO_NOT_RENDER = DO_NOT_RENDER;
+
+  useLightDOM = false;
 
   protected events = new EventEmitter<{
     "willUpdate": [PropertyValues];
@@ -278,20 +281,7 @@ export class JSXElement extends ReactiveElement {
 
   }
 
-  protected update(changedProperties: any) {
-    this.useArrayIndex = 0;
-    const tree = this.render();
 
-    if (this.useArrayIndex !== this.useArray.size) {
-      throw new Error(`Expected use hooks to be called ${this.useArray.size} times, but found ${this.useArrayIndex} calls.`);
-    }
-
-    super.update(changedProperties);
-    render(this.shadowRoot!, tree);
-  }
-  protected render(): JSX.Node {
-    return <slot></slot>;
-  }
 
 
   protected updated(_changedProperties: PropertyValues): void {
@@ -311,6 +301,8 @@ export class JSXElement extends ReactiveElement {
 
   subs = new Subscription();
 
+
+
   connectedCallback(): void {
     super.connectedCallback();
     this.requestUpdate();
@@ -322,6 +314,59 @@ export class JSXElement extends ReactiveElement {
     this.subs = new Subscription();
     this.useArrayIndex = 0;
     this.resetHooks();
+  }
+
+  protected update(changedProperties: any) {
+    this.useArrayIndex = 0;
+    const tree = this.render();
+
+    if (this.useArrayIndex !== this.useArray.size) {
+      throw new Error(`Expected use hooks to be called ${this.useArray.size} times, but found ${this.useArrayIndex} calls.`);
+    }
+
+    super.update(changedProperties);
+
+    if (tree !== JSXElement.DO_NOT_RENDER) {
+      render(
+        this.useLightDOM ? this : this.shadowRoot!,
+        tree as Exclude<typeof tree, typeof JSXElement.DO_NOT_RENDER>
+      );
+    }
+  }
+  protected render(): JSX.Node | typeof JSXElement.DO_NOT_RENDER {
+    return <slot></slot>;
+  }
+
+  createRenderRoot() {
+    if (!this.useLightDOM)
+      return super.createRenderRoot();
+
+    const styles = (this.constructor as typeof JSXElement).elementStyles;
+
+    const setstyle = (cssText: string) => {
+      const style = document.createElement('style');
+      style.textContent = cssText;
+      const nonce = (window as any).styleNonce;
+      if (nonce !== undefined) {
+        style.setAttribute('nonce', nonce);
+      }
+      document.head.appendChild(style);
+      this.subs.add(() => {
+        document.head.removeChild(style);
+      });
+    }
+    for (const s of styles) {
+      if (is<CSSResult>(s, (s as any)['_$cssResult$'] === true)) {
+        setstyle(s.cssText);
+      } else {
+        let cssText = '';
+        for (const rule of s.cssRules) {
+          cssText += rule.cssText;
+        }
+        setstyle(cssText);
+      }
+    }
+    return this;
   }
 }
 

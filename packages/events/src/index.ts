@@ -17,14 +17,14 @@ export interface ServerEventsMap {
 export class ServerEvents extends EventEmitter<ServerEventsMap> {
   /** Use emitAsync instead */
   override emit!: never;
-
+  /** Call all listeners in sequence sync'ly */
   emitSync<K>(
     eventName: keyof ServerEventsMap | K,
     ...args: K extends keyof ServerEventsMap ? ServerEventsMap[K] : never
-  ): any[] {
-    return this.listeners(eventName).map(e => e(...args));
+  ) {
+    this.listeners(eventName).map(e => e(...args));
   }
-
+  /** Call all listeners via Promise.all. */
   async emitAsync<K>(
     eventName: keyof ServerEventsMap | K,
     ...args: K extends keyof ServerEventsMap ? ServerEventsMap[K] : never

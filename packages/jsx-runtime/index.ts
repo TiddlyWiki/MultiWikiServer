@@ -10,8 +10,10 @@ export const Fragment = () => {
 
 type DOMElement = Element;
 
-//@ts-expect-error - CustomElements must not be declared inside the JSX namespace.
-type ERROR_CustomElements_MUST_NEVER_EXIST = JSX.CustomElements;
+//@ts-expect-error - MyCustomElements must not be declared inside the JSX namespace.
+type ERROR_CustomElements_MUST_NEVER_EXIST = JSX.MyCustomElements;
+//@ts-expect-error - MyCustomElement (singular) is a typo.
+type ERROR_CustomElement_MUST_NEVER_EXIST = MyCustomElement;
 
 declare global {
   export interface MyCustomElements { }
@@ -87,6 +89,7 @@ declare global {
       "contenteditable"?: "true" | "false" | boolean;
     }
 
+    /** Used alongside `MyCustomElements` */
     export type SimpleAttrs<T, E extends DOMElement> =
       & Internal.AddWatched<{ 
         [P in keyof T as P extends Internal.IgnoredProperties ? never : P]?: Extract<T[P], Primitive> 
