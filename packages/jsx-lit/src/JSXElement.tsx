@@ -191,11 +191,11 @@ export class JSXElement extends ReactiveElement {
     return [state.value, state.setValue] as const;
   }
 
-  protected useCallback(fn: () => () => void, deps: any[] = []) {
+  protected useEffect(fn: () => () => void, deps: any[] = []) {
     const state = this.protectHook<{
       callback: () => void,
       deps?: any[]
-    }>(this.useCallback, () => ({
+    }>(this.useEffect, () => ({
       callback: fn(),
       deps: deps
     }));
