@@ -127,10 +127,14 @@ function updateAttributes(
       el.removeAttribute(key);
     } else if (["string", "number", "boolean"].includes(typeof value)) {
       el.setAttribute(key, value === true ? "" : String(value));
-    } else if (key.startsWith("on") && typeof value === "function"
-      || key.startsWith("webjsx-on-") && typeof value === "function") {
+    } else if (key.startsWith("on") && typeof value === "function") {
       if (oldProps[key] === value) continue;
       const eventName = key.slice(2).toLowerCase();
+      el.removeEventListener(eventName, oldProps[key] as EventListener);
+      el.addEventListener(eventName, value as EventListener);
+    } else if (key.startsWith("webjsx-on-") && typeof value === "function") {
+      if (oldProps[key] === value) continue;
+      const eventName = key.slice("webjsx-on-".length).toLowerCase();
       el.removeEventListener(eventName, oldProps[key] as EventListener);
       el.addEventListener(eventName, value as EventListener);
     } else {

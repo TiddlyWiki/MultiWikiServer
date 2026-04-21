@@ -82,7 +82,7 @@ declare global {
     export interface BaseAttrs<E extends DOMElement> extends
       IntrinsicWatchAttributes,
       IntrinsicAttributes,
-      Internal.JSXEventsMap<MyCustomEvents, E>,
+      Internal.JSXEventsMap<MyCustomEvents, "on", E>,
       Omit<htmljsx.HTMLAttributes<E>, Internal.IgnoredProperties>,
       Internal.WebjsxAttrString {
       ref?: (e: E) => void;
@@ -91,8 +91,8 @@ declare global {
 
     /** Used alongside `MyCustomElements` */
     export type SimpleAttrs<T, E extends DOMElement> =
-      & Internal.AddWatched<{ 
-        [P in keyof T as P extends Internal.IgnoredProperties ? never : P]?: Extract<T[P], Primitive> 
+      & Internal.AddWatched<{
+        [P in keyof T as P extends Internal.IgnoredProperties ? never : P]?: Extract<T[P], Primitive>
       }>
       & BaseAttrs<E>;
 
@@ -111,7 +111,8 @@ declare global {
      * lowercase tags and function types do not use this. 
      * For class types this is the instance type. 
      */
-    export interface IntrinsicClassAttributes<T extends DOMElement> {
+    export interface IntrinsicClassAttributes<T extends DOMElement>
+      extends Internal.JSXEventsMap<MyCustomEvents, "webjsx-on-", T> {
       ref?: (e: T) => void;
     }
 
@@ -153,7 +154,7 @@ declare global {
 
     namespace Internal {
 
-    
+
 
 
       type IgnoredProperties = "slot" | "id" | "style" | "class" | "className" | "children" | "key" | "ref" | "xmlns" | "contenteditable" | `on${string}`;
@@ -197,10 +198,12 @@ declare global {
         htmljsx.HTMLAttributes<HTMLElementTagNameMap[K]>
       };
 
-      type JSXEventsMap<EV extends object, T extends DOMElement> = {
-        [K in `on${string & keyof EV}`]?:
-        EventHandler<T, Extract<EV[K extends `on${infer E extends string & keyof EV}` ? E : never], Event>>;
+      type JSXEventsMap<EV extends object, PREFIX extends string, T extends DOMElement> = {
+        [K in string & keyof EV as `${PREFIX}${K}`]?:
+        EventHandler<T, Extract<EV[K], Event>>;
       }
+
+
 
     }
 
