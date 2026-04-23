@@ -191,21 +191,24 @@ export class JSXElement extends ReactiveElement {
     return [state.value, state.setValue] as const;
   }
 
-  protected useEffect(fn: () => () => void, deps: any[] = []) {
+  protected useEffect(fn: () => (Subscription | (() => void) | void | false), deps?: any[]) {
     const state = this.protectHook<{
-      callback: () => void,
+      callback?: Subscription | (() => void) | void | false,
       deps?: any[]
-    }>(this.useEffect, () => ({
-      callback: fn(),
-      deps: deps
-    }));
+    }>(this.useEffect, () => ({}));
 
     if (checkDeps(state.deps, deps)) {
-      state.callback();
-      this.useArraySubs.remove(state.callback);
-      state.callback = fn();
+      if (state.callback) {
+        this.useArraySubs.remove(state.callback);
+        if (state.callback instanceof Subscription)
+          state.callback.unsubscribe();
+        else
+          state.callback();
+      }
+      state.callback = fn() ?? undefined;
       state.deps = deps;
-      this.useArraySubs.add(state.callback);
+      if (state.callback)
+        this.useArraySubs.add(state.callback);
     }
   }
 
