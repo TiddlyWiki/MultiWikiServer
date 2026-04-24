@@ -340,7 +340,7 @@ export class JSXElement extends ReactiveElement {
   protected render(): JSX.Node | typeof JSXElement.DO_NOT_RENDER {
     return <slot></slot>;
   }
-
+  static lightStyles = new Map<string, HTMLStyleElement & { lightStyleSubs: number }>();
   createRenderRoot() {
     if (!this.useLightDOM)
       return super.createRenderRoot();
@@ -348,16 +348,28 @@ export class JSXElement extends ReactiveElement {
     const styles = (this.constructor as typeof JSXElement).elementStyles;
 
     const setstyle = (cssText: string) => {
-      const style = document.createElement('style');
-      style.textContent = cssText;
-      const nonce = (window as any).styleNonce;
-      if (nonce !== undefined) {
-        style.setAttribute('nonce', nonce);
+      if (!JSXElement.lightStyles.has(cssText)) {
+        const style = document.createElement('style');
+        style.textContent = cssText;
+        const nonce = (window as any).styleNonce;
+        if (nonce !== undefined) {
+          style.setAttribute('nonce', nonce);
+        }
+        document.head.appendChild(style);
+        (style as any).lightStyleSubs = 0;
+        JSXElement.lightStyles.set(cssText, (style as any));
       }
-      document.head.appendChild(style);
+
+      const el = JSXElement.lightStyles.get(cssText)!;
+      el.lightStyleSubs++;
       this.subs.add(() => {
-        document.head.removeChild(style);
+        el.lightStyleSubs--;
+        if (el.lightStyleSubs <= 0) {
+          document.head.removeChild(el);
+          JSXElement.lightStyles.delete(cssText);
+        }
       });
+
     }
     for (const s of styles) {
       if (is<CSSResult>(s, (s as any)['_$cssResult$'] === true)) {
