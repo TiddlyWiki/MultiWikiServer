@@ -11,7 +11,6 @@ import {
   Range,
   SetCookie,
   Vary,
-  IfRange,
 } from "@remix-run/headers";
 
 
@@ -85,6 +84,7 @@ export class BetterHeaders {
       (this.headers as any)[key] = value;
     }
   }
+  get<T extends string & keyof BetterHeadersData & "set-cookie">(key: T): BetterHeadersData[T][];
   get<T extends string & keyof BetterHeadersData>(key: T): BetterHeadersData[T];
   get(key: string): string | undefined;
   get(key: string) { return this.headers[key.toLowerCase() as keyof BetterHeadersData]; }
@@ -237,3 +237,4 @@ const superHeaderClasses: { [K in keyof SuperHeadersMap]-?: { new(value: string)
   "set-cookie": SetCookie,
   "vary": Vary,
 }
+

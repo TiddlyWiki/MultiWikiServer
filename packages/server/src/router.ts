@@ -1,16 +1,25 @@
 import { zod } from "./Z2";
-import { GenericRequest, GenericResponse, Streamer, ParsedRequest, IncomingHttpHeaders } from "./streamer";
+import { GenericRequest, GenericResponse, Streamer } from "./streamer";
 import Debug from "debug";
 import { Http2ServerRequest } from "node:http2";
-import { ListenOptions } from "./listeners";
-import { serverEvents } from "@tiddlywiki/events";
-import { SendError } from "./SendError";
-import { zodTransformJSON } from "./utils";
-import { Compressor } from "./compression";
+import { SendError, SendErrorTypes } from "./SendError";
+import { is, zodTransformJSON } from "./utils";
 import { MultipartPart } from "@mjackson/multipart-parser";
-import { BetterHeaders } from "./better-headers";
+import { Context, Hono, HonoRequest } from "hono";
+import { Result } from "hono/router";
+import { H, RouterRoute } from "hono/types";
+import { createMiddleware } from 'hono/factory';
+import { Http2Bindings, HttpBindings } from "@hono/node-server";
+import { matchedRoutes } from 'hono/route';
+import { serverEvents } from "@tiddlywiki/events";
+import SuperHeaders from "@remix-run/headers";
 
-
+declare module "hono/types" {
+  interface RouterRoute {
+    routePath: RouteMatch[];
+    bodyFormat: BodyFormat;
+  }
+}
 
 const debug = Debug("mws:router:matching");
 const debugnomatch = Debug("mws:router:nomatch");
@@ -55,133 +64,266 @@ export interface ServerRequest<
 }
 
 
-export class Router {
-  static allowedRequestedWithHeaders: Partial<AllowedRequestedWithHeaderKeys> = {
-    fetch: true,
-    XMLHttpRequest: true,
-  };
-  constructor(
-    public rootRoute: ServerRoute
-  ) {
+export interface HonoEnv {
+  Bindings: HonoEnvBindings
+}
+export interface HonoEnvBindings {
+  presumeHTTPS: boolean;
+  pathPrefix: string;
+  bindInfo: string;
+}
 
-  }
+export type ParsedHonoRequest = ART<typeof parseHonoRequest>;
 
-  tag = "";
+const pathReg = /^\/([^/]+)(\/[^?]*)/;
 
-  handle(
-    req: GenericRequest,
-    res: GenericResponse,
-    options: ListenOptions
-  ) {
-
-    const timekey = `request ${(req as Http2ServerRequest)?.stream?.id} ${req.method} ${req.url}`;
-    if (Debug.enabled("server:timing:handle")) console.time(timekey);
-    // the sole purpose of this method is to catch errors
-    this.handleRequest(req, res, options).catch(err2 => {
-      if (err2 === STREAM_ENDED) return;
-      if (!err2.skiplog)
-        console.log(timekey, err2);
-      if (!(err2 instanceof SendError)) {
-        err2 = new SendError("INTERNAL_SERVER_ERROR", 500, {
-          message: "Internal Server Error. Details have been logged."
-        });
-      }
-      if (res.headersSent) return;
-      res.writeHead(err2.status, {
-        "content-type": "application/json",
-        "x-reason": err2.reason,
-      }).end(JSON.stringify(err2));
-
-    }).finally(() => {
-      if (Debug.enabled("server:timing:handle")) console.timeEnd(timekey);
+const catcher = (errorKey: string, err: any) => {
+  if (err === STREAM_ENDED) return;
+  if (!err.skiplog)
+    console.log(errorKey, err);
+  if (!(err instanceof SendError)) {
+    err = new SendError("INTERNAL_SERVER_ERROR", 500, {
+      message: "Internal Server Error. Details have been logged."
     });
   }
+  return err as SendErrorTypes;
+}
 
-  private async handleRequest(
-    req: GenericRequest,
-    res: GenericResponse,
-    options: ListenOptions
+
+export function parseNodeRequest<R extends GenericResponse | undefined>(req: GenericRequest, res: R, pathPrefix: string, assumeHTTPS: boolean): ParsedRequest & { req: typeof req, res: typeof res } {
+
+  let url = req.url as string;
+
+  if (!url.startsWith("/")) throw new Error("This should never happen");
+
+  if (pathPrefix) {
+    if (url === pathPrefix) {
+      if (res) {
+        res.writeHead(302, { "location": req.url + "/" }).end();
+        throw STREAM_ENDED;
+      } else {
+        throw new Error("A path prefix request must redirect to add a trailing slash.");
+      }
+    } else if (url.startsWith(pathPrefix)) {
+      url = url.slice(pathPrefix.length);
+    } else {
+      const error = "The server is setup with a path prefix " + pathPrefix + ", but this request is outside of that prefix.";
+      if (res) {
+        res.writeHead(500, {}).end(error, "utf8");
+        throw STREAM_ENDED;
+      } else {
+        throw new Error(error);
+      }
+    }
+  }
+
+  if (is2(req)) req.headers.host = req.headers[":authority"] as string;
+  if (!req.headers.host) throw new Error("This should never happen");
+  if (!req.method) throw new Error("This should never happen");
+  // I assume Node would do this, but just in case. Now all headers are strings. 
+  if (req.headers['set-cookie']?.length) delete req.headers['set-cookie'];
+
+  const method = req.method as string;
+  const host = req.headers.host!;
+
+  const urlInfo = new URL(`https://${req.headers.host}${url}`);
+
+  const headers = new SuperHeaders({
+    ...req.headers,
+    ":method": undefined,
+    ":authority": undefined,
+    ":path": undefined,
+    ":scheme": undefined,
+  });
+
+  // const pathParams = routePath.reduce((n, e) => Object.assign(n, e.groups), {});
+
+  return { req, res, urlInfo, pathPrefix, secure: assumeHTTPS, method, host, headers, pathParams: {} }
+}
+
+
+
+function parseHonoRequest(req: HonoRequest, pathPrefix: string, assumeHTTPS: boolean): ParsedRequest {
+
+  const urlInfo = new URL(req.url);
+  const method = req.method as string;
+  const headers = new SuperHeaders(req.header());
+  const host = urlInfo.host;
+  if (!host) throw new Error("This should never happen");
+  if (!method) throw new Error("This should never happen");
+  // let [, host, url] = MWSRouter.pathReg.exec(req.url) ?? [];
+
+  if (!urlInfo.pathname.startsWith("/")) throw new Error("This should never happen: " + urlInfo.pathname);
+
+  if (pathPrefix) {
+    if (urlInfo.pathname === pathPrefix) {
+      throw new SendError("REDIRECT", 302, {
+        location: req.url + "/",
+        reason: "A path prefix request must redirect to add a trailing slash."
+      })
+    } else if (urlInfo.pathname.startsWith(pathPrefix)) {
+      urlInfo.pathname = urlInfo.pathname.slice(pathPrefix.length);
+    } else {
+      const error = "The server is setup with a path prefix " + pathPrefix + ", but this request is outside of that prefix.";
+      throw new SendError("INTERNAL_SERVER_ERROR", 500, { message: error });
+    }
+  }
+
+
+
+  return {
+    urlInfo,
+    pathPrefix,
+    secure: assumeHTTPS,
+    method,
+    host,
+    headers,
+    pathParams: req.param(),
+  }
+}
+
+export interface ParsedRequest {
+  urlInfo: URL;
+  pathPrefix: string;
+  secure: boolean;
+  method: string;
+  host: string;
+  headers: SuperHeaders;
+  pathParams: Record<never, string>;
+}
+
+export function is2(req: GenericRequest) {
+  return is<Http2ServerRequest>(req, req.httpVersionMajor > 1);
+}
+
+
+export class Router {
+
+  get fetch() { return this.hono.fetch; }
+  constructor(
+    public rootRoute: ServerRoute,
+    public hono = new Hono<HonoEnv>(),
   ) {
-    await serverEvents.emitAsync("request.middleware", this, req, res, options);
-    const secure = !!(options.key && options.cert || options.secure);
-    const request = Streamer.parseRequest(req, res, options.prefix ?? "", secure);
-    await serverEvents.emitAsync("request.init", this, request);
+    this.hono.router = this.router;
+  }
 
-    // This should always have a length of at least 1 because of the root route.
-    const { routePath, bodyFormat } = this.handleRouteMatching(request);
-    const state = await this.createServerRequest(request, routePath, bodyFormat);
+  routeHandlerMiddleware = createMiddleware<HonoEnv>((c, next) => {
+    let resolve: (res: Response) => void;
+    const prom = new Promise<Response>((r) => { resolve = r; });
+    this.handleHonoRequest(c, resolve!, next).catch(err => {
+      const err2 = catcher(`${c.req.method} ${c.req.url}`, err);
+      if (!err2)
+        return;
+      if (err2.reason === "REDIRECT")
+        return resolve(c.redirect(err2.details.location));
+      return resolve(c.text(JSON.stringify(err2), err2.status, {
+        "content-type": "application/json",
+        "x-reason": err2.reason,
+      }));
+    });
+    return prom;
+  });
+
+  async handleHonoRequest(
+    c: Context<HonoEnv, string, {}>,
+    resolve: (res: Response) => void,
+    next: () => Promise<void>
+  ): Promise<any> {
+    const parsed = parseHonoRequest(c.req, c.env.pathPrefix, c.env.presumeHTTPS);
+    await serverEvents.emitAsync("request.init", this, parsed);
+
+    const { routePath, bodyFormat } = matchedRoutes(c)[c.req.routeIndex];
+    this.securityChecks(parsed, routePath);
+    const state = await this.createServerRequest(parsed, routePath, bodyFormat, c, resolve);
+    await this.handleStateBody(state as ServerRequest);
     await serverEvents.emitAsync("request.state", this, state as ServerRequest);
     if (state.headersSent) return;
 
-    await this.handleStateBody(state as ServerRequestTypes, routePath);
     await this.handleRoute(state as ServerRequest, routePath);
     if (state.headersSent) return;
 
+    console.log("No routes handled the request", c.req.method, c.req.url)
     await serverEvents.emitAsync("request.fallback", this, state as ServerRequest);
-    console.log("No handler sent headers before the promise resolved.", state.url);
-    throw new SendError("REQUEST_DROPPED", 500, null);
+    if (state.headersSent) return;
+
+    await next();
   }
 
+  securityChecks(parsed: ParsedRequest, routePath: RouteMatch[]) {
+    const { method, urlInfo, headers, secure } = parsed;
 
+    // return 400 rather than 404 to protect the semantic meaning of 404 NOT FOUND,
+    // because if the request does not match a route, we have no way of knowing what
+    // resource they thought they were requesting and whether or not it exists.
+    if (!routePath.length || routePath[routePath.length - 1]?.route.denyFinal) {
+      console.log("No route found for", this.tag, method, urlInfo.pathname, routePath.length);
+      routePath.forEach(e => console.log(e.route.method, e.route.path.source, e.route.denyFinal));
+      throw new SendError("NO_ROUTE_MATCHED", 400, null);
+    }
 
-  private async handleStateBody(state: ServerRequestTypes, routePath: RouteMatch[]) {
+    // A basic CSRF prevention so that basic HTML forms and AJAX requests
+    // cannot be submitted unless custom headers can be sent.
+    // Full CSRF protection would look like this:
+    // 1. The server sends a CSRF token in the HTML form or AJAX request.
+    // 2. The client sends the CSRF token back in the request headers.
+    // 3. The server checks the CSRF token against the session.
+    // 4. If the CSRF token is valid, the request is processed.
+    // 5. If the CSRF token is invalid, the request is rejected with a 403 Forbidden.
+    const reqwith = headers.get("x-requested-with") as keyof AllowedRequestedWithHeaderKeys | undefined;
+    // If the route requires a CSRF check,
+    if (routePath.some(e => e.route.securityChecks?.requestedWithHeader))
+      // If the method is not GET, HEAD, or OPTIONS, 
+      if (!["GET", "HEAD", "OPTIONS"].includes(method))
+        // If the x-requested-with header is not set to "fetch", 
+        if (!reqwith || !Router.allowedRequestedWithHeaders[reqwith])
+          // we reject the request with a 403 Forbidden.
+          throw new SendError("INVALID_X_REQUESTED_WITH", 400, null);
 
-    const { method } = state;
-    if (["GET", "HEAD"].includes(method)) state.bodyFormat = "ignore";
+    if (routePath.some(e => e.route.securityChecks?.requireHTTPS))
+      if (!secure)
+        throw new SendError("REQUIRES_HTTPS", 400, null);
+  }
+
+  async handleStateBody(state: Streamer) {
+
+    if (["GET", "HEAD"].includes(state.method)) state.bodyFormat = "ignore";
 
     if (state.bodyFormat === "stream" || state.bodyFormat === "ignore") {
       // this starts dumping bytes early, rather than letting node do it once the res finishes.
       // the only advantage is letting the request end faster.
-      if (state.bodyFormat === "ignore") state.reader.resume();
-      // no further body handling required
-      return;
-    }
-
-    state.dataBuffer = await state.readBuffer();
-
-    if (state.bodyFormat === "string" || state.bodyFormat === "json") {
-      state.data = state.dataBuffer.toString("utf8");
-      if (state.bodyFormat === "json") {
-        // make sure this parses as valid data
-        const { success, data } = zod.string().transform(zodTransformJSON).safeParse(state.data);
-        if (!success) throw new SendError("MALFORMED_JSON", 400, null);
-        state.data = data;
-      }
-    } else if (state.bodyFormat === "www-form-urlencoded-urlsearchparams"
-      || state.bodyFormat === "www-form-urlencoded") {
-      const data = state.data = new URLSearchParams(state.dataBuffer.toString("utf8"));
-      if (state.bodyFormat === "www-form-urlencoded") state.data = Object.fromEntries(data);
-    } else if (state.bodyFormat === "buffer") {
-      state.data = state.dataBuffer;
+      // GET and HEAD return null
+      if (state.bodyFormat === "ignore") state.readStream()?.resume();
     } else {
-      // because it's a union, state becomes never at this point if we matched every route correctly
-      // make sure state is never by assigning it to a never const. This will error if something is missed.
-      const t: never = state;
-      throw new SendError("INVALID_BODY_FORMAT", 500, null);
+      state.dataBuffer = await state.readBuffer();
+
+      if (state.bodyFormat === "string" || state.bodyFormat === "json") {
+        state.data = state.dataBuffer.toString("utf8");
+        if (state.bodyFormat === "json") {
+          // make sure this parses as valid data
+          const { success, data } = zod.string().transform(zodTransformJSON).safeParse(state.data);
+          if (!success) throw new SendError("MALFORMED_JSON", 400, null);
+          state.data = data;
+        }
+      } else if (state.bodyFormat === "www-form-urlencoded-urlsearchparams"
+        || state.bodyFormat === "www-form-urlencoded") {
+        const data = state.data = new URLSearchParams(state.dataBuffer.toString("utf8"));
+        if (state.bodyFormat === "www-form-urlencoded") state.data = Object.fromEntries(data);
+      } else if (state.bodyFormat === "buffer") {
+        state.data = state.dataBuffer;
+      } else {
+        // because it's a union, state becomes never at this point if we matched every route correctly
+        // make sure state is never by assigning it to a never const. This will error if something is missed.
+        const t: never = state.bodyFormat;
+        throw new SendError("INVALID_BODY_FORMAT", 500, null);
+      }
     }
 
-
   }
 
-
-  /** 
-   * This is for overriding the server request that gets created. 
-   */
-  async createServerRequest<B extends BodyFormat>(
-    stream: ParsedRequest & { res: {} },
-    /** The array of Route tree nodes the request matched. */
-    routePath: RouteMatch[],
-    /** The bodyformat that ended up taking precedence. This should be correctly typed. */
-    bodyFormat: B,
-  ) {
-    return new Streamer(stream, routePath, bodyFormat);
-  }
-
-  async handleRoute(state: ServerRequest<BodyFormat>, route: RouteMatch[]) {
-
+  async handleRoute(state: ServerRequest<BodyFormat>, routePath: RouteMatch[]) {
 
     let result: any = state;
-    for (const match of route) {
+    for (const match of routePath) {
       await Promise.resolve().then(() => {
         return match.route.handler(result);
       }).catch(e => {
@@ -194,6 +336,44 @@ export class Router {
       });
       if (state.headersSent) return;
     }
+  }
+
+  static allowedRequestedWithHeaders: Partial<AllowedRequestedWithHeaderKeys> = {
+    fetch: true,
+    XMLHttpRequest: true,
+  };
+
+  /** This is for overriding the server request that gets created. */
+  async createServerRequest(...args: ConstructorParameters<typeof Streamer>) {
+    return new Streamer(...args);
+  }
+
+
+
+  router = {
+    name: "MultiWikiServerRouter",
+    add(method: string, path: string, handler: [H, RouterRoute]): void {
+      throw new Error("Method not implemented.");
+    },
+    match: (method: string, path: string): Result<[H, RouterRoute]> => {
+      const routes = this.findRouteRecursive([this.rootRoute], path, method, false);
+      const routePath = routes.find(e => e.every(f => !f.route.method.length || f.route.method.includes(method))) ?? [];
+      const bodyFormat = routePath.find(e => e.route.bodyFormat)?.route.bodyFormat || "ignore";
+      const pathParams = routePath.reduce((n, e) => Object.assign(n, e.groups), {});
+      const last = routePath[routePath.length - 1];
+      const basePath = routePath.slice(0, -1).map(e => e.route.path.source.slice(1)).join("");
+      return [[
+        [[this.routeHandlerMiddleware, {
+          method,
+          path: last.route.path.source.slice(1),
+          basePath,
+          handler: this.routeHandlerMiddleware,
+          routePath,
+          bodyFormat,
+        }], pathParams]
+      ]];
+    }
+
   }
 
   findRouteRecursive(
@@ -246,60 +426,6 @@ export class Router {
     }
     return results;
   }
-
-  /**
-   *
-   * Top-level function that starts matching from the root routes.
-   * Notice that the pathPrefix is assumed to have been handled beforehand.
-   *
-   * @param streamer
-   * @returns The tree path matched
-   */
-  handleRouteMatching(streamer: ParsedRequest): { routePath: RouteMatch[], bodyFormat: BodyFormat } {
-    const { method, urlInfo, headers } = streamer;
-    let testPath = urlInfo.pathname || "/";
-    const routes = this.findRouteRecursive([this.rootRoute as any], testPath, method, false);
-    const routePath = routes.find(e => e.every(f => !f.route.method.length || f.route.method.includes(method))) ?? [];
-
-    // return 400 rather than 404 to protect the semantic meaning of 404 NOT FOUND,
-    // because if the request does not match a route, we have no way of knowing what
-    // resource they thought they were requesting and whether or not it exists.
-    if (!routePath.length || routePath[routePath.length - 1]?.route.denyFinal) {
-      console.log("No route found for", this.tag, method, urlInfo.pathname, routePath.length);
-      routePath.forEach(e => console.log(e.route.method, e.route.path.source, e.route.denyFinal));
-      throw new SendError("NO_ROUTE_MATCHED", 400, null);
-    }
-
-    // A basic CSRF prevention so that basic HTML forms and AJAX requests
-    // cannot be submitted unless custom headers can be sent.
-    // Full CSRF protection would look like this:
-    // 1. The server sends a CSRF token in the HTML form or AJAX request.
-    // 2. The client sends the CSRF token back in the request headers.
-    // 3. The server checks the CSRF token against the session.
-    // 4. If the CSRF token is valid, the request is processed.
-    // 5. If the CSRF token is invalid, the request is rejected with a 403 Forbidden.
-    const reqwith = headers.get("x-requested-with") as keyof AllowedRequestedWithHeaderKeys | undefined;
-    // If the route requires a CSRF check,
-    if (routePath.some(e => e.route.securityChecks?.requestedWithHeader))
-      // If the method is not GET, HEAD, or OPTIONS, 
-      if (!["GET", "HEAD", "OPTIONS"].includes(method))
-        // If the x-requested-with header is not set to "fetch", 
-        if (!reqwith || !Router.allowedRequestedWithHeaders[reqwith])
-          // we reject the request with a 403 Forbidden.
-          throw new SendError("INVALID_X_REQUESTED_WITH", 400, null);
-
-    if (routePath.some(e => e.route.securityChecks?.requireHTTPS))
-      if (!streamer.assumeHTTPS)
-        throw new SendError("REQUIRES_HTTPS", 400, null);
-
-
-    // if no bodyFormat is specified, we default to ignore
-    const bodyFormat = routePath.find(e => e.route.bodyFormat)?.route.bodyFormat || "ignore";
-
-    return { routePath, bodyFormat };
-
-  }
-
 }
 
 export interface RouteMatch {
@@ -383,6 +509,8 @@ export interface ServerRoute extends RouteDef {
 
   registerError: Error;
 
+  childRoutes?: ServerRoute[];
+
   /**
    * ### ROUTING
    *
@@ -427,7 +555,7 @@ function defineRoute(
 
   if (parent !== ROOT_ROUTE) {
     // the typing is too complicated if we add childRoutes
-    if (!(parent as any).childRoutes) (parent as any).childRoutes = [];
+    (parent as any).childRoutes ??= [];
     (parent as any).childRoutes.push(route);
   }
 

@@ -90,7 +90,7 @@ export function defineZodRoute(
         }
       }
       if (res === undefined) {
-        return state.sendEmpty(204, { "content-type": "application/json" });
+        return state.sendEmpty(204, { contentType: "application/json" });
       } else {
         return state.sendJSON(200, res);
       }

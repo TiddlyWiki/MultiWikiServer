@@ -1,8 +1,7 @@
 import { readStream } from './read-stream.ts'
 import type { SearchFunction, PartialTailSearchFunction } from './buffer-search.ts'
 import { createSearch, createPartialTailSearch } from './buffer-search.ts'
-import { parse as parseRawHeaders } from '@remix-run/headers'
-import { BetterHeaders } from '@tiddlywiki/server'
+import SuperHeaders, { parse as parseRawHeaders } from '@remix-run/headers'
 
 
 // function parseRawHeaders(raw: string): [string, string][] {
@@ -359,7 +358,7 @@ const decoder = new TextDecoder('utf-8', { fatal: true })
 export class MultipartPart {
 
   #header: Uint8Array
-  #headers?: BetterHeaders
+  #headers?: SuperHeaders
 
   constructor(header: Uint8Array) {
     this.#header = header
@@ -373,9 +372,9 @@ export class MultipartPart {
   /**
    * The headers associated with this part.
    */
-  get headers(): BetterHeaders {
+  get headers(): SuperHeaders {
     if (!this.#headers) {
-      this.#headers = new BetterHeaders(parseRawHeaders(decoder.decode(this.#header)))
+      this.#headers = new SuperHeaders(parseRawHeaders(decoder.decode(this.#header)))
     }
 
     return this.#headers
@@ -399,21 +398,21 @@ export class MultipartPart {
    * The filename of the part, if it is a file upload.
    */
   get filename(): string | undefined {
-    return this.headers.get('content-disposition')?.preferredFilename
+    return this.headers.contentDisposition.preferredFilename
   }
 
   /**
    * The media type of the part.
    */
   get mediaType(): string | undefined {
-    return this.headers.get('content-type')?.mediaType
+    return this.headers.contentType.mediaType
   }
 
   /**
    * The name of the part, usually the `name` of the field in the `<form>` that submitted the request.
    */
   get name(): string | undefined {
-    return this.headers.get('content-disposition')?.name
+    return this.headers.contentDisposition.name
   }
 
 }

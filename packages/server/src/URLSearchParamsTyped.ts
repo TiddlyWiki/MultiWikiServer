@@ -1,13 +1,5 @@
-// export interface ZodRouteDef<
-//   M extends AllowedMethod,
-//   B extends BodyFormat,
-//   P extends Record<string, z.ZodTypeAny>,
-//   Q extends Record<string, z.ZodTypeAny>,
-//   T extends z.ZodTypeAny,
-//   R extends JsonValue
-// > {
-//   zodRequestBody?: B extends "string" | "json" | "www-form-urlencoded" ? (z: Z2) => T : undefined;
-// }
+import { URLSearchParamsIterator } from "node:url";
+
 /**
  * The **`URLSearchParams`** interface defines utility methods to work with the query string of a URL.
  *

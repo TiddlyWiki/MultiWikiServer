@@ -60,6 +60,9 @@ export interface SendErrorReasonData {
 
   "HOST_NOT_RECOGNIZED":
   SendErrorItem<400, null>;
+
+  "REDIRECT":
+  SendErrorItem<302, { reason?: string; location: string; }>
 };
 
 

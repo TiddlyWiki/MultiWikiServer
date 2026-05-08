@@ -1,10 +1,11 @@
 import { serverEvents } from "@tiddlywiki/events";
 import { Router } from "./router";
-import { ListenerHTTP, ListenerHTTPS, ListenerRouter, ListenOptions } from "./listeners";
-import type { GenericRequest, GenericResponse, ParsedRequest } from "./streamer";
-import type { ServerRequest } from "./router";
+import { NodeListenerHTTP, NodeListenerHTTPS, ListenOptions } from "./listeners";
+import type { GenericRequest, GenericResponse } from "./streamer";
+import type { HonoEnv, ParsedHonoRequest, ServerRequest } from "./router";
 import { Z2, zod as z } from "./Z2";
 import { caughtPromise } from "./utils";
+import { Hono } from "hono";
 
 export * from "./listeners";
 export * from "./router";
@@ -15,13 +16,12 @@ export * from "./Z2";
 export * from "./zodRegister";
 export * from "./zodRoute";
 export * from "./better-headers";
+export * from "@remix-run/headers";
 
 /**
  * A startup function which currently does nothing but might eventually do something.
  */
-export async function startup() {
-
-}
+export async function startup() {}
 
 let exiting = false;
 export const exiter = caughtPromise(async (signal: any) => {
@@ -67,7 +67,7 @@ const listenOptionsCheck = z.object({
 }).strict().array();
 
 export async function startListening(
-  router: ListenerRouter,
+  app: Hono<HonoEnv>["fetch"],
   options: Partial<ListenOptions>[] = []
 ) {
 
@@ -99,8 +99,8 @@ export async function startListening(
     }
 
     return (e.secureServerOptions || e.key && e.cert)
-      ? new ListenerHTTPS(router, options2)
-      : new ListenerHTTP(router, options2);
+      ? new NodeListenerHTTPS(app, options2)
+      : new NodeListenerHTTP(app, options2);
 
   });
 
@@ -112,7 +112,7 @@ declare module "@tiddlywiki/events" {
   interface ServerEventsMap {
     "zod.make": [zod: Z2<any>]
     "request.middleware": [router: Router, req: GenericRequest, res: GenericResponse, options: ListenOptions]
-    "request.init": [router: Router, options: ParsedRequest]
+    "request.init": [router: Router, options: ParsedHonoRequest]
     "request.state": [router: Router, state: ServerRequest]
     "request.fallback": [router: Router, state: ServerRequest]
     "exit": []
