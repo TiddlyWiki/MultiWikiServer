@@ -83,8 +83,6 @@ type StreamerHeadersInput = SuperHeadersPropertyInit & { [P in `x-${string}` | "
 
 export class StreamerRequest {
 
-  tag: string = "default";
-
   readonly host: string;
   readonly method: string;
   readonly urlInfo: URL;

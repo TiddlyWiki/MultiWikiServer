@@ -198,6 +198,8 @@ export function is2(req: GenericRequest) {
 
 
 export class Router {
+  
+  tag: string = "default";
 
   get fetch() { return this.hono.fetch; }
   constructor(
