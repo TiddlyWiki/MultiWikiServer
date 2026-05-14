@@ -123,18 +123,19 @@ export class BetterHeaders {
   }
 }
 
-export class BetterCookie extends URLSearchParams {
-  constructor(cookieString?: string) {
+
+
+/**
+ * Initializer for a {@link Cookie} header value.
+ */
+export type BetterCookieInit = Iterable<[string, string]> | Record<string, string>
+
+export class BetterCookie extends URLSearchParams implements Iterable<[string, string]> {
+  constructor(cookieString?: string | BetterCookieInit) {
     super();
+
     if (cookieString) {
-      const pairs = cookieString.split(/;\s*/);
-      for (const pair of pairs) {
-        const eqIdx = pair.indexOf("=");
-        if (eqIdx === -1) continue;
-        const name = pair.slice(0, eqIdx).trim();
-        const value = pair.slice(eqIdx + 1).trim();
-        this.append(name, value);
-      }
+      BetterCookie.from(cookieString, this)
     }
   }
   /**
@@ -157,8 +158,10 @@ export class BetterCookie extends URLSearchParams {
    * @param value The header value (string, init object, or null)
    * @returns A Cookie instance (empty if null)
    */
-  static from(value: string | Iterable<[string, string]> | Record<string, string> | null): BetterCookie {
-    let header = new BetterCookie()
+  static from(
+    value: string | Iterable<[string, string]> | Record<string, string> | null,
+    header: BetterCookie = new BetterCookie
+  ): BetterCookie {
 
     if (value !== null) {
       if (typeof value === 'string') {
@@ -188,8 +191,8 @@ export class BetterCookie extends URLSearchParams {
     // like `filename="the\\ filename.txt"`.
     let parser =
       delimiter === ';'
-        ? /(?:^|;)\s*([^=;\s]+)(\s*=\s*(?:"((?:[^"\\]|\\.)*)"|((?:[^;]|\\\;)+))?)?/g
-        : /(?:^|,)\s*([^=,\s]+)(\s*=\s*(?:"((?:[^"\\]|\\.)*)"|((?:[^,]|\\\,)+))?)?/g
+        ? /(?:^|;)\s*([^=;\s]+)(\s*=\s*(?:"((?:[^"\\]|\\.)*)"|((?:[^;]|\\;)+))?)?/g
+        : /(?:^|,)\s*([^=,\s]+)(\s*=\s*(?:"((?:[^"\\]|\\.)*)"|((?:[^,]|\\,)+))?)?/g
 
     let params: [string, string | undefined][] = []
 
@@ -207,7 +210,9 @@ export class BetterCookie extends URLSearchParams {
 
     return params
   }
+
 }
+
 
 function quote(value: string): string {
   if (value.includes('"') || value.includes(';') || value.includes(' ')) {

@@ -2,7 +2,7 @@ import { serverEvents } from "@tiddlywiki/events";
 import { Router } from "./router";
 import { NodeListenerHTTP, NodeListenerHTTPS, ListenOptions } from "./listeners";
 import type { GenericRequest, GenericResponse } from "./streamer";
-import type { HonoEnv, ParsedHonoRequest, ServerRequest } from "./router";
+import type { HonoEnv, ParsedHonoRequest, RouterFetch, ServerRequest } from "./router";
 import { Z2, zod as z } from "./Z2";
 import { caughtPromise } from "./utils";
 import { Hono } from "hono";
@@ -67,7 +67,7 @@ const listenOptionsCheck = z.object({
 }).strict().array();
 
 export async function startListening(
-  app: Hono<HonoEnv>["fetch"],
+  app: RouterFetch,
   options: Partial<ListenOptions>[] = []
 ) {
 

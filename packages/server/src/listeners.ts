@@ -2,7 +2,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { ok } from "node:assert";
 import { createServer, IncomingMessage, ServerResponse } from "node:http";
 import { createSecureServer, Http2ServerRequest, Http2ServerResponse, Http2Session, SecureServerOptions } from "node:http2";
-import { HonoEnv } from "./router";
+import { HonoEnv, RouterFetch } from "./router";
 import { serverEvents } from '@tiddlywiki/events';
 import { ServerType as HonoNodeServer, createAdaptorServer } from '@hono/node-server';
 import { Hono } from 'hono';
@@ -36,7 +36,7 @@ export class NodeListenerBase {
 }
 
 export class NodeListenerHTTPS extends NodeListenerBase {
-  constructor(appfetch: Hono<HonoEnv>["fetch"], config: ListenOptions) {
+  constructor(appfetch: RouterFetch, config: ListenOptions) {
     const { port, host, prefix } = config;
     const bindInfo = `HTTPS ${host} ${port} ${prefix}`;
     const serverOptions = config.secureServerOptions ?? (() => {
@@ -63,7 +63,7 @@ export class NodeListenerHTTPS extends NodeListenerBase {
 
 export class NodeListenerHTTP extends NodeListenerBase {
   /** Create an http1 server */
-  constructor(appfetch: Hono<HonoEnv>["fetch"], config: ListenOptions) {
+  constructor(appfetch: RouterFetch, config: ListenOptions) {
     const { port, host, prefix, secure } = config;
     const bindInfo = `HTTP ${host} ${port} ${prefix}`;
     super(createAdaptorServer({

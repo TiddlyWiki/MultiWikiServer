@@ -8,7 +8,7 @@ import { PassThrough, Writable } from 'node:stream';
 import { Compressor } from "./compression";
 import { serverEvents } from '@tiddlywiki/events';
 import { truthy } from './utils';
-import { BodyFormat, HonoEnv, ParsedHonoRequest, RouteMatch } from './router';
+import { BodyFormat, HonoEnv, ParsedHonoRequest, ParsedRequest, RouteMatch, ROUTER_PROMISE, ServerRequest } from './router';
 import { zod } from './Z2';
 import { MultipartPart, parseNodeMultipartStream } from '@mjackson/multipart-parser';
 import { SendError, SendErrorReason, SendErrorReasonData } from './SendError';
@@ -19,6 +19,7 @@ import { Context } from 'hono';
 import { getConnInfo } from 'hono/cloudflare-workers';
 import { contentType } from 'mime-types';
 import { extname } from 'node:path';
+import { BetterCookie } from './better-headers';
 
 declare module 'node:net' {
   interface Socket {
@@ -37,8 +38,17 @@ let isOldBunVersion = (): boolean => {
   if (version === undefined) { return false }
   const result = version.startsWith('1.1') || version.startsWith('1.0') || version.startsWith('0.')
   // Avoid running this check on every call
-  isOldBunVersion = () => result
+  isOldBunVersion = result ? () => true : () => false;
   return result
+}
+
+if (typeof Headers.prototype.getSetCookie !== "function") {
+  const headers = new Headers();
+  headers.append("set-cookie", "test");
+  headers.append("set-cookie", "test");
+  const test = [...headers];
+  if (test.length === 1)
+    throw new Error("This runtime has an incompatible implementation of Headers which collapses Set-Cookie and cannot be used on the server.");
 }
 
 export interface IncomingHttpHeaders extends http.IncomingHttpHeaders {
@@ -48,16 +58,16 @@ export interface IncomingHttpHeaders extends http.IncomingHttpHeaders {
 export interface SendFileOptions extends Omit<SendOptions, "root" | "dotfiles" | "index" | "start" | "end"> {
   root: string;
   reqpath: string;
-  offset?: number;
-  length?: number;
-  on404?: () => Promise<typeof STREAM_ENDED>;
-  onDir?: () => Promise<typeof STREAM_ENDED>;
-  /** Index file to send, defaults to false. */
-  index?: SendOptions["index"];
-  /** @deprecated not implemented */
-  prefix?: Buffer;
-  /** @deprecated not implemented */
-  suffix?: Buffer;
+  // offset?: number;
+  // length?: number;
+  // prefix?: Buffer;
+  // suffix?: Buffer;
+  /** Called if the file is not found, or if it's a directory and the index is not found. */
+  on404?: (path: string, state: ServerRequest) => void | Promise<void>;
+  /** Index file to send, defaults to `index.html`. */
+  index?: ServeStaticOptions<HonoEnv>["index"];
+  /** If there are precompressed files and the browser supports the encoding, send the compressed version. */
+  precompressed?: ServeStaticOptions<HonoEnv>["precompressed"];
 }
 
 export type StreamerChunk = { data: string, encoding: NodeJS.BufferEncoding } | NodeJS.ReadableStream | Readable | Buffer;
@@ -79,7 +89,7 @@ class IterableHeaders implements Iterable<[string, string]> {
   }
 }
 
-type StreamerHeadersInput = SuperHeadersPropertyInit & { [P in `x-${string}` | "Location"]?: string };
+type StreamerHeadersInput = SuperHeadersPropertyInit & { [P in `x-${string}`]?: string };
 
 export class StreamerRequest {
 
@@ -90,7 +100,7 @@ export class StreamerRequest {
   readonly url: string;
   /** The request headers. Never includes the four http2 headers, besides `:authority` as `host`. */
   readonly headers: SuperHeaders;
-  // readonly cookies: Cookie;
+  readonly cookies: BetterCookie;
   protected readonly compressor: Compressor | undefined;
   /** 
    * The path prefix is a essentially folder mount point. 
@@ -130,7 +140,7 @@ export class StreamerRequest {
   // protected _req: GenericRequest;
 
   constructor(
-    request: Omit<ParsedHonoRequest, "req">,
+    request: ParsedRequest,
     /** The array of Route tree nodes the request matched. */
     public routePath: RouteMatch[],
     /** The bodyformat that ended up taking precedence. This should be correctly typed. */
@@ -144,6 +154,7 @@ export class StreamerRequest {
     this.method = request.method;
     this.host = request.host;
     this.headers = request.headers;
+    this.cookies = request.cookies;
 
     this.pathParams = request.pathParams;
 
@@ -161,8 +172,6 @@ export class StreamerRequest {
     this.query = new URLSearchParams(this.urlInfo.searchParams);
 
   }
-
-  get cookies() { return this.headers.cookie; }
 
 
   // get remoteFamily() { return this._req.socket.remoteFamily; }
@@ -191,8 +200,9 @@ export class StreamerRequest {
  */
 export class Streamer extends StreamerRequest {
   static responseContexts = new WeakMap();
+  [ROUTER_PROMISE]?: Promise<void>;
   constructor(
-    request: ParsedHonoRequest,
+    request: ParsedRequest,
     /** The array of Route tree nodes the request matched. */
     routePath: RouteMatch[],
     /** The bodyformat that ended up taking precedence. This should be correctly typed. */
@@ -208,8 +218,9 @@ export class Streamer extends StreamerRequest {
 
     class StreamerResponse {
       statusCode = 200
-      headers = new SuperHeaders()
-      setCookies: SetCookie[] = [];
+      // clone the middleware headers from hono
+      headers = new SuperHeaders(context.res.headers)
+      setCookie: SetCookie[] = [];
       stream = new PassThrough();
       headersSent = false;
       constructor() {
@@ -231,7 +242,7 @@ export class Streamer extends StreamerRequest {
       private checkHeadersSentBy() {
         if (this.headersSent && this.headersSentBy) {
           console.log(this.headersSentBy);
-          console.log(new Error("This is the second attempt to send headers. Was it supposed to happen?"));
+          console.log(new Error("This is the second attempt to send headers. Only the first attempt succeeds. Was this supposed to happen?"));
         } else if (this.headersSent) {
           console.log("Headers were already sent by an unknown source.");
         } else {
@@ -252,13 +263,15 @@ export class Streamer extends StreamerRequest {
        * - unknown headers must start with x- and will only be lowercased. The value will be coerced to a string.
        */
       setHeaders = (status: number, headers: StreamerHeadersInput) => {
-        this.statusCode = status
+        this.statusCode = status;
+        // pick up the headers from hono middleware
+        const resHeaders = this.headers;
         function isHeaderProperty(key: string): key is string & keyof SuperHeadersPropertyInit {
           const descriptor = Object.getOwnPropertyDescriptor(SuperHeaders.prototype, key)
           return descriptor !== undefined && 'get' in descriptor && 'set' in descriptor
         }
         function isCustomHeader(key: string): key is string & `x-${string}` {
-          return key.startsWith("x-" as const);
+          return key.toLowerCase().startsWith("x-" as const);
         }
         function asArray<T>(a: T): Array<T extends readonly any[] ? T[number] : T> {
           return Array.isArray(a) ? a : [a] as any;
@@ -267,24 +280,30 @@ export class Streamer extends StreamerRequest {
           if (name === "setCookie") {
             const value = asArray(headers.setCookie).filter(truthy)
               .map(e => typeof e === "string" ? SetCookie.from(e) : e)
-            this.headers.setCookie.push(...value);
+            resHeaders.setCookie.push(...value);
           } else if (isHeaderProperty(name)) {
-            (this.headers as any)[name] = headers[name];
-          } else if (isCustomHeader(name) || name === "Location") {
+            (resHeaders as any)[name] = headers[name];
+            const newvalue = resHeaders.get(name);
+            if (newvalue) context.res.headers.set(name, newvalue)
+          } else if (isCustomHeader(name)) {
             if (headers[name])
-              this.headers.set(name, `${headers[name]}`);
-            else
-              this.headers.delete(name);
+              resHeaders.set(name, `${headers[name]}`);
+            else if (headers[name] === "")
+              resHeaders.delete(name);
           } else {
             throw new Error("Unrecognized header name. Must be either recognized or start with x-");
           }
         }
+        
       }
       sendWriter = () => {
         this.finalResponse = new Response(Readable.toWeb(this.stream) as any, {
           status: this.statusCode,
           headers: this.headers,
         });
+      }
+      sendResponse = (res: Response) => {
+        this.finalResponse = res;
       }
       sendFile = async (
         status: number,
@@ -314,6 +333,8 @@ export class Streamer extends StreamerRequest {
         // get the file response
         this.finalResponse = await serveStatic(options)(context, async () => { }) || await context.notFound();
       }
+
+      honoNotFound = async () => await context.notFound();
     }
     this.res = new StreamerResponse();
 
@@ -412,6 +433,11 @@ export class Streamer extends StreamerRequest {
     return STREAM_ENDED;
   }
 
+  sendGlobalNotFound() {
+    this[ROUTER_PROMISE] = this.res.honoNotFound().then(e => this.res.sendResponse(e));
+    return STREAM_ENDED;
+  }
+
 
   // I'm not sure if there's a use case for this
   private sendFD(status: number, headers: StreamerHeadersInput, options: {
@@ -452,10 +478,14 @@ export class Streamer extends StreamerRequest {
    * @returns STREAM_ENDED
    */
   sendFile(status: number, headers: StreamerHeadersInput, options: SendFileOptions): typeof STREAM_ENDED {
-    this.res.sendFile(status, headers, {
+    this[ROUTER_PROMISE] = this.res.sendFile(status, headers, {
       path: options.reqpath,
       root: options.root,
-      onNotFound: options.on404 ? () => { options.on404!(); } : undefined,
+      index: options.index,
+      precompressed: options.precompressed,
+      onNotFound: options.on404 ? async (path) => { 
+        await options.on404!(path, this as unknown as ServerRequest) 
+      } : undefined,
     });
     return STREAM_ENDED;
   }
@@ -603,7 +633,7 @@ export class Streamer extends StreamerRequest {
    * - **308 Permanent Redirect:** The resource has permanently moved; the client should use the new URL in future requests.
    */
   redirect(location: string): typeof STREAM_ENDED {
-    return this.sendEmpty(302, { 'Location': this.pathPrefix + location });
+    return this.sendEmpty(302, { location: this.pathPrefix + location });
   }
 
 
@@ -680,20 +710,20 @@ export class Streamer extends StreamerRequest {
     // if (options.secure) cookie += `; Secure`;
     // if (options.httpOnly) cookie += `; HttpOnly`;
     // if (options.sameSite) cookie += `; SameSite=${options.sameSite}`;
-    this.res.headers.setCookie.push(new SetCookie(options));
+    this.res.setCookie.push(new SetCookie(options));
   }
 
-  /**
-   * 
-   * Sets a single header value. If the header already exists in the to-be-sent
-   * headers, its value will be replaced.
-   * 
-   */
-  setHeader(name: string, value: string): void {
-    this.res.headers.set(name, value);
-  }
+  // /**
+  //  * 
+  //  * Sets a single header value. If the header already exists in the to-be-sent
+  //  * headers, its value will be replaced.
+  //  * 
+  //  */
+  // setHeader(name: string, value: string): void {
+  //   this.res.headers.set(name, value);
+  // }
+
   writeHead(status: number, headers: StreamerHeadersInput = {}): void {
-
     this.res.setHeaders(status, headers);
     this.res.sendWriter();
   }

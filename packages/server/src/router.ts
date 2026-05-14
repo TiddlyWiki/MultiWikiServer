@@ -5,7 +5,7 @@ import { Http2ServerRequest } from "node:http2";
 import { SendError, SendErrorTypes } from "./SendError";
 import { is, zodTransformJSON } from "./utils";
 import { MultipartPart } from "@mjackson/multipart-parser";
-import { Context, Hono, HonoRequest } from "hono";
+import { Context, ExecutionContext, Hono, HonoRequest } from "hono";
 import { Result } from "hono/router";
 import { H, RouterRoute } from "hono/types";
 import { createMiddleware } from 'hono/factory';
@@ -13,6 +13,7 @@ import { Http2Bindings, HttpBindings } from "@hono/node-server";
 import { matchedRoutes } from 'hono/route';
 import { serverEvents } from "@tiddlywiki/events";
 import SuperHeaders from "@remix-run/headers";
+import { BetterCookie } from "./better-headers";
 
 declare module "hono/types" {
   interface RouterRoute {
@@ -135,10 +136,11 @@ export function parseNodeRequest<R extends GenericResponse | undefined>(req: Gen
     ":path": undefined,
     ":scheme": undefined,
   });
+  const cookies = BetterCookie.from(req.headers.cookie ?? null);
 
   // const pathParams = routePath.reduce((n, e) => Object.assign(n, e.groups), {});
 
-  return { req, res, urlInfo, pathPrefix, secure: assumeHTTPS, method, host, headers, pathParams: {} }
+  return { req, res, urlInfo, pathPrefix, secure: assumeHTTPS, method, host, headers, cookies, pathParams: {} }
 }
 
 
@@ -148,6 +150,7 @@ function parseHonoRequest(req: HonoRequest, pathPrefix: string, assumeHTTPS: boo
   const urlInfo = new URL(req.url);
   const method = req.method as string;
   const headers = new SuperHeaders(req.header());
+  const cookies = BetterCookie.from(req.header("Cookie") ?? null)
   const host = urlInfo.host;
   if (!host) throw new Error("This should never happen");
   if (!method) throw new Error("This should never happen");
@@ -178,6 +181,7 @@ function parseHonoRequest(req: HonoRequest, pathPrefix: string, assumeHTTPS: boo
     method,
     host,
     headers,
+    cookies,
     pathParams: req.param(),
   }
 }
@@ -189,6 +193,7 @@ export interface ParsedRequest {
   method: string;
   host: string;
   headers: SuperHeaders;
+  cookies: BetterCookie;
   pathParams: Record<never, string>;
 }
 
@@ -196,12 +201,13 @@ export function is2(req: GenericRequest) {
   return is<Http2ServerRequest>(req, req.httpVersionMajor > 1);
 }
 
-
+export type RouterFetch = (req: Request, env: HonoEnvBindings, executionCtx?: ExecutionContext) => Response | Promise<Response>;
+export const ROUTER_PROMISE = Symbol("Router Promise");
 export class Router {
-  
+
   tag: string = "default";
 
-  get fetch() { return this.hono.fetch; }
+  get fetch(): RouterFetch { return this.hono.fetch; }
   constructor(
     public rootRoute: ServerRoute,
     public hono = new Hono<HonoEnv>(),
@@ -324,14 +330,15 @@ export class Router {
 
   async handleRoute(state: ServerRequest<BodyFormat>, routePath: RouteMatch[]) {
 
-    let result: any = state;
+
     for (const match of routePath) {
-      await Promise.resolve().then(() => {
-        return match.route.handler(result);
+      await Promise.resolve().then(async () => {
+        await match.route.handler(state as any);
+        await state[ROUTER_PROMISE];
       }).catch(e => {
         if (e === STREAM_ENDED) throw e;
         if (match.route.catchHandler) {
-          return match.route.catchHandler(result, e);
+          return match.route.catchHandler(state as any, e);
         } else {
           throw e;
         }
@@ -353,9 +360,14 @@ export class Router {
 
 
   router = {
+    middleware: [] as [H, RouterRoute][],
     name: "MultiWikiServerRouter",
     add(method: string, path: string, handler: [H, RouterRoute]): void {
-      throw new Error("Method not implemented.");
+      if (method === "ALL" && path === "/*") {
+        this.middleware.push(handler)
+      } else {
+        throw new Error(`The custom router only supports middleware that applies to everything`);
+      }
     },
     match: (method: string, path: string): Result<[H, RouterRoute]> => {
       const routes = this.findRouteRecursive([this.rootRoute], path, method, false);
@@ -365,6 +377,7 @@ export class Router {
       const last = routePath[routePath.length - 1];
       const basePath = routePath.slice(0, -1).map(e => e.route.path.source.slice(1)).join("");
       return [[
+        ...this.router.middleware.map(e => [e, {}] as [[H, RouterRoute], {}]),
         [[this.routeHandlerMiddleware, {
           method,
           path: last.route.path.source.slice(1),
