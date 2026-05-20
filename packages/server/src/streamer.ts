@@ -250,7 +250,7 @@ export class Streamer extends StreamerRequest {
         }
       }
 
-      set finalResponse(res: Response) {
+      private set finalResponse(res: Response) {
         this.checkHeadersSentBy();
         this.headersSent = true;
         onResponse(res);
@@ -294,7 +294,7 @@ export class Streamer extends StreamerRequest {
             throw new Error("Unrecognized header name. Must be either recognized or start with x-");
           }
         }
-        
+
       }
       sendWriter = () => {
         this.finalResponse = new Response(Readable.toWeb(this.stream) as any, {
@@ -308,7 +308,7 @@ export class Streamer extends StreamerRequest {
       sendFile = async (
         status: number,
         headers: StreamerHeadersInput,
-        options: ServeStaticOptions<HonoEnv>
+        options: ServeStaticOptions<HonoEnv> & { onNotFound: {} }
       ) => {
         // set the user headers
         this.setHeaders(status, headers);
@@ -330,8 +330,9 @@ export class Streamer extends StreamerRequest {
             headers: this.headers
           }) as ReturnType<typeof context.body>;
         }
+        const res = await serveStatic(options)(context, async () => { });
         // get the file response
-        this.finalResponse = await serveStatic(options)(context, async () => { }) || await context.notFound();
+        if (res) this.finalResponse = res;
       }
 
       honoNotFound = async () => await context.notFound();
@@ -483,9 +484,12 @@ export class Streamer extends StreamerRequest {
       root: options.root,
       index: options.index,
       precompressed: options.precompressed,
-      onNotFound: options.on404 ? async (path) => { 
-        await options.on404!(path, this as unknown as ServerRequest) 
-      } : undefined,
+      onNotFound: async (path, c) => {
+        if (options.on404)
+          await options.on404(path, this as unknown as ServerRequest)
+        else 
+          this.res.sendResponse(await c.notFound());
+      },
     });
     return STREAM_ENDED;
   }
