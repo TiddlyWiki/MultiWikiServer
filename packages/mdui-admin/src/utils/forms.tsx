@@ -8,7 +8,6 @@ import EventEmitter from "events";
 import forms_inline_css from "./forms.inline.css";
 import { addstyles } from "@tiddlywiki/jsx-lit";
 import { style as textFieldStyle } from "mdui/components/text-field/style";
-// import Dropzone from "dropzone";
 import { createHybridRef, HybridRef } from "@tiddlywiki/jsx-runtime";
 import { Observable, Subscription, isObservable } from "rxjs";
 import { PopupContainer } from "../components/mdui-popup";

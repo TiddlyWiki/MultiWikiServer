@@ -10,21 +10,29 @@
     "moduleResolution": "bundler",
     "checkJs": true,
     "allowJs": true,
-    "jsx": "preserve",
     "allowImportingTsExtensions": true,
     "forceConsistentCasingInFileNames": true,
     "noEmit": true,
     "alwaysStrict": true,
     "strict": true,
     "strictNullChecks": true,
+    "noImplicitAny": true,
     "noImplicitThis": true,
     "noImplicitReturns": true,
     "noFallthroughCasesInSwitch": true,
     "noUncheckedIndexedAccess": false,
+    // "paths": {
+    //   "@tiddlywiki/mws-prisma": [
+    //     "./prisma/client"
+    //   ]
+    // },
+    // "jsx": "preserve",
+    "jsx": "react-jsx",
+    "jsxImportSource": "@tiddlywiki",
     "paths": {
-      "@tiddlywiki/mws-prisma": [
-        "./prisma/client"
-      ]
+      "@/server": [
+        "./packages/mws/browser.ts"
+      ],
     }
   },
   "include": [

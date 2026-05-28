@@ -1,9 +1,7 @@
-import { customElement, state } from "lit/decorators.js";
-import { JSXElement, addstyles } from "@tiddlywiki/jsx-lit";
-
 import mdui_popup_inline_css from "./mdui-popup.inline.css";
 import { is } from "../utils/utils";
 import { createHybridRef } from "@tiddlywiki/jsx-runtime";
+import { addstyles, customElement, JSXElement, state } from "@tiddlywiki/jsx-lit";
 
 
 export interface PopupChild {
@@ -35,14 +33,22 @@ export class PopupContainer extends JSXElement {
     source?: HTMLElement | null | undefined;
     cardStyle?: string;
   }
-
-  close(cb?: () => void) {
+  closetimeout: any;
+  opentimeout: any;
+  close(cb?: () => void): any {
+    if (this.opentimeout) return;
+    console.log("closing");
     this.setAttribute("closing", "true");
-    if (cb) setTimeout(cb, 300);
-  }
-  closepending?: boolean = false;
+    if (cb) this.closetimeout = setTimeout(() => {
+      if (this.isConnected) cb();
+    }, 300);
 
+  }
+
+  closepending?: boolean = false;
   private onClickBackground = (e: MouseEvent) => {
+    if (this.opentimeout) { this.closepending = false; return; }
+    // console.log(e.type, e.button, this.closepending, e.target, e.currentTarget);
     if (e.button > 0) return;
     if (e.type === "pointerdown" && e.target === this) {
       this.closepending = true;
@@ -50,13 +56,17 @@ export class PopupContainer extends JSXElement {
       e.preventDefault();
       e.stopPropagation();
       this.closepending = false;
-      this.props.oncancel();
+      // timeout to get past other events for touch
+      setTimeout(() => {
+        if (this.isConnected)
+          this.props.oncancel();
+      }, 10);
     } else {
       this.closepending = false;
     }
   };
   stopPropagation = (e: Event) => {
-    // console.log("stopPropagation", e.type, e.target, e.srcElement, e.currentTarget);
+    // console.log("stopPropagation", e.type);
     e.stopPropagation();
     this.closepending = false;
   }
@@ -65,6 +75,9 @@ export class PopupContainer extends JSXElement {
   get source() { return this.props.source; }
 
   protected render(): JSX.Node {
+    this.useMemo(() => {
+      this.opentimeout = setTimeout(() => { this.opentimeout = undefined; }, 300);
+    }, []);
     this.useEventListener(this)("cancel", this.props.oncancel);
     this.useEventListener(this)("popup-layout", (e) => {
 

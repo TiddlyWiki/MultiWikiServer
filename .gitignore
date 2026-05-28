@@ -6,6 +6,7 @@ localhost.*
 /dist
 TiddlyWiki5
 *.tgz
+!/packages/mdui-admin/mdui-*.tgz
 /.vscode/settings.json
 editions/mws-docs/tiddlers/$__StoryList.tid
 /tests

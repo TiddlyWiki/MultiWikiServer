@@ -103,5 +103,9 @@
 
 :host([closing])>.card {
   opacity: 0;
-  animation: close var(--anim-speed) var(--mdui-motion-easing-standard);
+  transform: scale(0);
+  /* animation: close var(--anim-speed) var(--mdui-motion-easing-standard); */
+  transition:
+    opacity var(--anim-speed) var(--mdui-motion-easing-standard),
+    transform var(--anim-speed) var(--mdui-motion-easing-standard);
 }
