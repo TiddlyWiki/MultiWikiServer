@@ -42,5 +42,6 @@
     "packages/react-admin/src",
     "packages/mws/src/managers",
     "packages/mws/src/drizzle",
+    "packages/mdui-admin"
   ]
 }

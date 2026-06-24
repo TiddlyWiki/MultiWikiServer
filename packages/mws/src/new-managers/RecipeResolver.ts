@@ -90,7 +90,13 @@ interface UserV1TemplateType {
 }
 
 interface RecipeDefinition {
-
+  /** List of readonly bags for the writable bags to sit on top of */
+  readonlyBags: PrismaField<"Bag", "id">[];
+  /** 
+   * write to separate bags based on the prefix of the title. 
+   * name collisions favor longest matching prefix. 
+   * the empty string marks the default bag. */
+  writablePrefixBags: Record<string, PrismaField<"Bag", "id">>;
 }
 
 // ---------------------------------------------------------------------------

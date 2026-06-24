@@ -36,8 +36,11 @@ declare module "@tiddlywiki/server" {
 Router.allowedRequestedWithHeaders.TiddlyWiki = true;
 
 export const clientBuildDef: ClientBuildDefinition = {
-  rootdir: dist_resolve("../packages/mdui-admin"),
-  publicdir: dist_resolve("../public/mdui-admin"),
+  // rootdir: dist_resolve("../packages/mdui-admin"),
+  // publicdir: dist_resolve("../public/mdui-admin"),
+  // title: "MWS Admin",
+  rootdir: dist_resolve("../packages/admin-vanilla"),
+  publicdir: dist_resolve("../public/admin-vanilla"),
   title: "MWS Admin",
 };
 
@@ -72,6 +75,19 @@ serverEvents.on("listen.router.init", async (listen, router) => {
   });
   await serverEvents.emitAsync("mws.routes.fallback", router.rootRoute, router.config);
 });
+
+serverEvents.on("mws.routes.fallback", (root, config) => {
+
+  root.defineRoute({
+    method: ['GET'],
+    path: /^\/.*/,
+    bodyFormat: "stream",
+  }, async state => {
+    await state.sendAdmin();
+    return STREAM_ENDED;
+  });
+});
+
 serverEvents.on("request.middleware", async (router, req, res, options) => {
   await new Promise<void>((resolve, reject) =>
     router.helmet(

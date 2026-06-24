@@ -1,0 +1,152 @@
+<tabbed-page>
+	<tab id="wikis" label="Wikis">
+		<list-view>
+			<item-type>wiki</item-type>
+			<column key="slug" />
+			<column key="displayName" />
+			<column key="templateName" />
+			<column key="defaultWritableBag" />
+			<column key="readonlyBagCount" />
+			<column key="prefixRuleCount" />
+			<column key="pluginCount" />
+			<column key="lastCompiledAt" />
+			<column key="statusFlags" multi="true" />
+		</list-view>
+		<popup-form>
+			<field key="slug" mode="create edit" type="string" />
+			<field key="displayName" mode="create edit" type="string" />
+			<field key="description" mode="create edit" type="text" />
+			<field key="templateId" mode="create edit" type="autocomplete" />
+			<field key="parameters" mode="create edit" type="json-editor">
+				<architecture>This field writes to the wiki record's parameters JSON. It only contains values for parameters that the selected template does not bind in its own definition. Those values are merged with the template definition during compilation and become part of the derived routing and plugin rows used at request time.</architecture>
+			</field>
+			<field key="effectiveRoutingPreview" type="structured-preview">
+				<architecture>This is a read-only explanation built from the compiled wiki state, not an authored field. It shows how the merged template definition and wiki parameters resolve into routing rules: which bags are always readable, which writable prefixes exist, that longest matching prefix wins, and that the empty string prefix is the default write target when no longer prefix matches.</architecture>
+			</field>
+			<field key="effectiveBagOrder" type="table">
+				<architecture>This is a read-only projection of the compiled recipe-bag rows for the wiki. It comes from the merged template definition and wiki parameters after validation and compilation, and it is shown in the same top-to-bottom read order that the resolver uses to compute visible tiddlers.</architecture>
+			</field>
+			<field key="effectivePluginSet" type="table">
+				<architecture>This is a read-only projection of the resolved plugin rows for the wiki. It comes from plugin references declared by template and wiki configuration, after those references are validated and compiled to concrete plugin versions that the wiki HTML endpoint and preload logic actually use.</architecture>
+			</field>
+			<field key="recipePermissions" mode="create edit" type="permission-table">
+				<architecture>This field edits permission rows attached to the wiki definition itself, separate from bag permissions. These role-to-level assignments control whether a principal may access the wiki surface at all, while bag-level permissions still control read and write access to the underlying stored tiddlers.</architecture>
+			</field>
+			<field key="compileValidation" type="validation-report">
+				<architecture>This is a read-only result of validating and compiling the wiki's authored inputs. It is produced by checking the selected template, wiki parameters, referenced bags, referenced plugins, and routing invariants, then reporting whether the system can produce the derived rows required for request-time reads, writes, list views, and HTML rendering.</architecture>
+			</field>
+			<field key="titleResolutionPreview" mode="edit" type="resolver-preview">
+				<architecture>This is a diagnostic tool over the resolver logic, not stored data. The user supplies a title, and the UI asks the same routing rules that runtime requests use to show the computed write target, the current readable source if the title exists, the bags containing that title in visible order, and whether the current principal can write the resolved target.</architecture>
+			</field>
+		</popup-form>
+	</tab>
+
+	<tab id="templates" label="Templates">
+		<list-view>
+			<item-type>template</item-type>
+			<column key="name" />
+			<column key="description" />
+			<column key="readonlyBagsSummary" />
+			<column key="writablePrefixSummary" />
+			<column key="openParameterSummary" />
+			<column key="dependentWikiCount" />
+			<column key="lastUpdatedAt" />
+			<column key="validationStatus" />
+		</list-view>
+		<popup-form>
+			<field key="name" mode="create edit" type="string" />
+			<field key="description" mode="create edit" type="text" />
+			<field key="definition" mode="create edit" type="json-editor">
+				<architecture>This field writes the template record's definition JSON. That JSON is the template-side source of truth for the single recipe shape: a readonly bag list plus a writable prefix-to-bag mapping. Wikis using the template inherit these bound values and merge them with their own parameters before compilation produces derived routing rows.</architecture>
+			</field>
+			<field key="readonlyBags" mode="create edit" type="search-multiselect" />
+			<field key="writablePrefixBags" mode="create edit" type="key-value-table">
+				<architecture>This field edits the writable portion of the template definition as a prefix-to-bag table. During compilation, each prefix becomes writable routing metadata in the derived recipe-bag rows. At request time, the resolver chooses the write target by longest matching prefix, and the row with the empty string prefix acts as the fallback target when no more specific prefix matches.</architecture>
+			</field>
+			<field key="defaultWritableBag" type="reference">
+				<architecture>This is a read-only convenience projection, not a separate stored field. It is derived by reading the writablePrefixBags entry whose prefix is the empty string, because that entry defines the default write target used when no more specific prefix rule matches a title.</architecture>
+			</field>
+			<field key="openParameters" type="parameter-list">
+				<architecture>This is a read-only description of which parts of the overall recipe definition are not fixed by the template. It is derived by comparing the template's definition shape to the parameter surface expected by the editor, and it tells the wiki form which values must be provided per wiki in that wiki's parameters JSON.</architecture>
+			</field>
+			<field key="dependentWikis" type="relationship-table">
+				<architecture>This is a read-only relationship view showing every wiki that references this template. The information comes from wiki records pointing at the template, and it matters because saving the template definition requires those wikis to be revalidated and have their derived routing and plugin rows regenerated.</architecture>
+			</field>
+			<field key="recompileAffectedWikis" mode="edit" type="action">
+				<architecture>This is an action field rather than stored data. It triggers recompilation for the set of dependent wikis by taking the current template definition plus each wiki's parameters, revalidating them, and replacing the derived rows that request-time routing and plugin resolution depend on.</architecture>
+			</field>
+			<field key="validationResult" type="validation-report">
+				<architecture>This is a read-only validation summary for the template definition. It reports whether the definition is structurally usable with the current bag and plugin references and whether it can be compiled into valid derived rows for dependent wikis, including failures that block saving or recompilation.</architecture>
+			</field>
+		</popup-form>
+		<list-item-detail key="writablePrefixBags">
+			<column key="prefix" />
+			<column key="targetBag" />
+			<column key="isDefault" />
+		</list-item-detail>
+	</tab>
+
+	<tab id="bags" label="Bags">
+		<list-view>
+			<item-type>bag</item-type>
+			<column key="name" />
+			<column key="description" />
+			<column key="usedByCount" />
+			<column key="readonlyUsageCount" />
+			<column key="writableUsageCount" />
+			<column key="defaultUsageCount" />
+			<column key="permissionSummary" />
+			<column key="tiddlerCount" />
+			<column key="lastActivityAt" />
+		</list-view>
+		<popup-form>
+			<field key="name" mode="create edit" type="string" />
+			<field key="description" mode="create edit" type="text" />
+			<field key="permissions" mode="create edit" type="permission-table">
+				<architecture>This field edits the bag permission rows. Those rows map roles to access levels on the storage container itself and are used by the resolver to decide who may read tiddlers from the bag, write to it as a target, or administer it regardless of which wiki currently references the bag.</architecture>
+			</field>
+			<field key="referencedByTemplates" type="relationship-table">
+				<architecture>This is a read-only relationship view listing template definitions that mention this bag either in readonlyBags or in writablePrefixBags. The source is the authored template definition JSON, so this view explains where future wiki compilations may pull this bag into their effective routing.</architecture>
+			</field>
+			<field key="referencedByWikis" type="relationship-table">
+				<architecture>This is a read-only relationship view listing wikis whose compiled routing currently includes this bag. The source is the derived recipe-bag rows, not just template authorship, so it reflects the actual effective read and write topology that runtime requests will use today.</architecture>
+			</field>
+			<field key="routingRoles" type="summary-list">
+				<architecture>This is a derived routing summary for the bag across compiled wiki state. It classifies how the bag is used in practice, such as readonly layer, writable prefix target, or default writable target, by reading the compiled recipe-bag rows and their routing metadata rather than by inspecting tiddler contents.</architecture>
+			</field>
+			<field key="tiddlerCount" type="number" />
+			<field key="recentActivity" type="activity-feed">
+				<architecture>This is a read-only operational summary generated from recent tiddler event rows for this bag. It should surface recent saves and deletes in an admin-friendly form without pretending to be the authoritative full audit or sync log.</architecture>
+			</field>
+		</popup-form>
+	</tab>
+
+	<tab id="plugins" label="Plugins">
+		<list-view>
+			<item-type>plugin</item-type>
+			<column key="name" />
+			<column key="version" />
+			<column key="status" />
+			<column key="usageCount" />
+			<column key="updatedAt" />
+		</list-view>
+		<popup-form>
+			<field key="name" mode="create edit" type="string" />
+			<field key="version" mode="create edit" type="version" />
+			<field key="status" mode="create edit" type="select" />
+			<field key="description" mode="create edit" type="text" />
+			<field key="assetsMetadata" type="metadata-table">
+				<architecture>This is a read-only metadata projection for the stored plugin version. It comes from the plugin record and any derived inspection of its packaged payload, and it is meant to show the concrete assets and identity facts that the wiki renderer or plugin cache will consume rather than user-authored wiki routing data.</architecture>
+			</field>
+			<field key="usedByWikis" type="relationship-table">
+				<architecture>This is a read-only relationship view showing which wikis currently resolve to this exact plugin version. The source is the derived recipe-plugin rows, so it reflects compiled effective usage rather than looser references from drafts, names, or template intent.</architecture>
+			</field>
+			<field key="draftOf" type="reference">
+				<architecture>This is a read-only lineage field for draft plugins. It points from a draft record to the published version it was branched from or is intended to replace, so the editor can show where the draft came from and what publication target relationship it will affect.</architecture>
+			</field>
+			<field key="publishFromDraft" mode="edit" type="action">
+				<architecture>This is an action field rather than stored data. It takes a draft plugin state and creates or promotes a concrete version that can be referenced by compiled wiki plugin rows, making that version available for stable use in rendered wikis.</architecture>
+			</field>
+		</popup-form>
+	</tab>
+</tabbed-page>
