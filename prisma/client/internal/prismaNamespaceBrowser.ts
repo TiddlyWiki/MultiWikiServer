@@ -51,14 +51,17 @@ export const AnyNull = runtime.AnyNull
 
 
 export const ModelName = {
+  Bag: 'Bag',
+  BagPermission: 'BagPermission',
+  Tiddler: 'Tiddler',
+  TiddlerEvent: 'TiddlerEvent',
+  Template: 'Template',
+  Recipe: 'Recipe',
+  RecipePermission: 'RecipePermission',
+  RecipeBag: 'RecipeBag',
   Settings: 'Settings',
-  Recipes: 'Recipes',
-  RecipeAcl: 'RecipeAcl',
-  Recipe_bags: 'Recipe_bags',
-  Bags: 'Bags',
-  BagAcl: 'BagAcl',
-  Tiddlers: 'Tiddlers',
-  Fields: 'Fields',
+  Plugin: 'Plugin',
+  RecipePlugin: 'RecipePlugin',
   Roles: 'Roles',
   Users: 'Users',
   Sessions: 'Sessions'
@@ -77,6 +80,84 @@ export const TransactionIsolationLevel = {
 export type TransactionIsolationLevel = (typeof TransactionIsolationLevel)[keyof typeof TransactionIsolationLevel]
 
 
+export const BagScalarFieldEnum = {
+  id: 'id',
+  name: 'name',
+  description: 'description'
+} as const
+
+export type BagScalarFieldEnum = (typeof BagScalarFieldEnum)[keyof typeof BagScalarFieldEnum]
+
+
+export const BagPermissionScalarFieldEnum = {
+  bag_id: 'bag_id',
+  role_id: 'role_id',
+  level: 'level'
+} as const
+
+export type BagPermissionScalarFieldEnum = (typeof BagPermissionScalarFieldEnum)[keyof typeof BagPermissionScalarFieldEnum]
+
+
+export const TiddlerScalarFieldEnum = {
+  bag_id: 'bag_id',
+  title: 'title',
+  revision: 'revision',
+  fields: 'fields'
+} as const
+
+export type TiddlerScalarFieldEnum = (typeof TiddlerScalarFieldEnum)[keyof typeof TiddlerScalarFieldEnum]
+
+
+export const TiddlerEventScalarFieldEnum = {
+  seq: 'seq',
+  bag_id: 'bag_id',
+  title: 'title',
+  type: 'type'
+} as const
+
+export type TiddlerEventScalarFieldEnum = (typeof TiddlerEventScalarFieldEnum)[keyof typeof TiddlerEventScalarFieldEnum]
+
+
+export const TemplateScalarFieldEnum = {
+  id: 'id',
+  type: 'type',
+  definition: 'definition'
+} as const
+
+export type TemplateScalarFieldEnum = (typeof TemplateScalarFieldEnum)[keyof typeof TemplateScalarFieldEnum]
+
+
+export const RecipeScalarFieldEnum = {
+  id: 'id',
+  slug: 'slug',
+  description: 'description',
+  template_id: 'template_id',
+  parameters: 'parameters'
+} as const
+
+export type RecipeScalarFieldEnum = (typeof RecipeScalarFieldEnum)[keyof typeof RecipeScalarFieldEnum]
+
+
+export const RecipePermissionScalarFieldEnum = {
+  recipe_id: 'recipe_id',
+  role_id: 'role_id',
+  level: 'level'
+} as const
+
+export type RecipePermissionScalarFieldEnum = (typeof RecipePermissionScalarFieldEnum)[keyof typeof RecipePermissionScalarFieldEnum]
+
+
+export const RecipeBagScalarFieldEnum = {
+  recipe_id: 'recipe_id',
+  bag_id: 'bag_id',
+  priority: 'priority',
+  is_writable: 'is_writable',
+  info: 'info'
+} as const
+
+export type RecipeBagScalarFieldEnum = (typeof RecipeBagScalarFieldEnum)[keyof typeof RecipeBagScalarFieldEnum]
+
+
 export const SettingsScalarFieldEnum = {
   key: 'key',
   value: 'value'
@@ -85,80 +166,24 @@ export const SettingsScalarFieldEnum = {
 export type SettingsScalarFieldEnum = (typeof SettingsScalarFieldEnum)[keyof typeof SettingsScalarFieldEnum]
 
 
-export const RecipesScalarFieldEnum = {
+export const PluginScalarFieldEnum = {
+  id: 'id',
+  name: 'name',
+  version: 'version',
+  is_draft: 'is_draft',
+  draft_of: 'draft_of'
+} as const
+
+export type PluginScalarFieldEnum = (typeof PluginScalarFieldEnum)[keyof typeof PluginScalarFieldEnum]
+
+
+export const RecipePluginScalarFieldEnum = {
   recipe_id: 'recipe_id',
-  recipe_name: 'recipe_name',
-  description: 'description',
-  owner_id: 'owner_id',
-  plugin_names: 'plugin_names',
-  skip_required_plugins: 'skip_required_plugins',
-  skip_core: 'skip_core',
-  preload_store: 'preload_store',
-  custom_wiki: 'custom_wiki'
+  plugin_id: 'plugin_id',
+  resolved_version: 'resolved_version'
 } as const
 
-export type RecipesScalarFieldEnum = (typeof RecipesScalarFieldEnum)[keyof typeof RecipesScalarFieldEnum]
-
-
-export const RecipeAclScalarFieldEnum = {
-  acl_id: 'acl_id',
-  role_id: 'role_id',
-  permission: 'permission',
-  recipe_id: 'recipe_id'
-} as const
-
-export type RecipeAclScalarFieldEnum = (typeof RecipeAclScalarFieldEnum)[keyof typeof RecipeAclScalarFieldEnum]
-
-
-export const Recipe_bagsScalarFieldEnum = {
-  recipe_id: 'recipe_id',
-  bag_id: 'bag_id',
-  position: 'position',
-  with_acl: 'with_acl',
-  load_modules: 'load_modules'
-} as const
-
-export type Recipe_bagsScalarFieldEnum = (typeof Recipe_bagsScalarFieldEnum)[keyof typeof Recipe_bagsScalarFieldEnum]
-
-
-export const BagsScalarFieldEnum = {
-  bag_id: 'bag_id',
-  bag_name: 'bag_name',
-  description: 'description',
-  owner_id: 'owner_id'
-} as const
-
-export type BagsScalarFieldEnum = (typeof BagsScalarFieldEnum)[keyof typeof BagsScalarFieldEnum]
-
-
-export const BagAclScalarFieldEnum = {
-  acl_id: 'acl_id',
-  bag_id: 'bag_id',
-  role_id: 'role_id',
-  permission: 'permission'
-} as const
-
-export type BagAclScalarFieldEnum = (typeof BagAclScalarFieldEnum)[keyof typeof BagAclScalarFieldEnum]
-
-
-export const TiddlersScalarFieldEnum = {
-  revision_id: 'revision_id',
-  bag_id: 'bag_id',
-  title: 'title',
-  is_deleted: 'is_deleted',
-  attachment_hash: 'attachment_hash'
-} as const
-
-export type TiddlersScalarFieldEnum = (typeof TiddlersScalarFieldEnum)[keyof typeof TiddlersScalarFieldEnum]
-
-
-export const FieldsScalarFieldEnum = {
-  revision_id: 'revision_id',
-  field_name: 'field_name',
-  field_value: 'field_value'
-} as const
-
-export type FieldsScalarFieldEnum = (typeof FieldsScalarFieldEnum)[keyof typeof FieldsScalarFieldEnum]
+export type RecipePluginScalarFieldEnum = (typeof RecipePluginScalarFieldEnum)[keyof typeof RecipePluginScalarFieldEnum]
 
 
 export const RolesScalarFieldEnum = {
@@ -206,6 +231,14 @@ export const JsonNullValueInput = {
 } as const
 
 export type JsonNullValueInput = (typeof JsonNullValueInput)[keyof typeof JsonNullValueInput]
+
+
+export const NullableJsonNullValueInput = {
+  DbNull: 'DbNull',
+  JsonNull: 'JsonNull'
+} as const
+
+export type NullableJsonNullValueInput = (typeof NullableJsonNullValueInput)[keyof typeof NullableJsonNullValueInput]
 
 
 export const JsonNullValueFilter = {

@@ -131,7 +131,7 @@ export class Command extends BaseCommand<[], {
     // listeners on here setup all the request handling
     await serverEvents.emitAsync("listen.router.init", this, router);
     // tell the server to start listeners for this router
-    await startListening(router, listenerCheck.data);
+    await startListening((r, e) => router.fetch(r, e), listenerCheck.data);
 
   }
 }

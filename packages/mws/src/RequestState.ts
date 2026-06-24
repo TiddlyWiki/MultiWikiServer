@@ -1,7 +1,7 @@
 import { Prisma } from '@tiddlywiki/mws-prisma';
 import { Types } from '@tiddlywiki/mws-prisma';
 import { ServerState } from "./ServerState";
-import { BodyFormat, ParsedRequest, RouteMatch, Router, ServerRequest, Streamer, truthy } from "@tiddlywiki/server";
+import { BodyFormat, ParsedRequest, RouteMatch, Router, ServerRequest, Streamer, StreamerHeadersInput, SuperHeadersInit, SuperHeadersPropertyInit, truthy } from "@tiddlywiki/server";
 import { SendError, SendErrorReasonData } from "@tiddlywiki/server";
 import { ServerToReactAdmin } from './services/setupDevServer';
 import { AuthUser } from './services/sessions';
@@ -41,8 +41,8 @@ export class StateObject<
   PasswordService;
   pluginCache;
 
-  constructor(streamer: ParsedRequest, routePath: RouteMatch[], bodyFormat: B, user: AuthUser, router: Router) {
-    super(streamer, routePath, bodyFormat);
+  constructor(user: AuthUser, router: Router, ...parts: ConstructorParameters<typeof Streamer>) {
+    super(...parts);
 
     this.user = user;
     this.config = router.config;
@@ -56,6 +56,14 @@ export class StateObject<
 
     if (this.compressor)
       this.compressor.enabled = router.config.enableGzip;
+  }
+
+  setHeader<K extends string & keyof StreamerHeadersInput>(name: K, value: StreamerHeadersInput[K]) {
+    this.res.setHeaders(this.res.statusCode, { [name]: value } as any);
+  }
+
+  applyResponseHeaders(opt: SuperHeadersInit) {
+    this.res.headers.apply(opt);
   }
 
   okUser() {
@@ -87,35 +95,6 @@ export class StateObject<
     }
   }
 
-  async getRecipeACL(
-    recipe_name: PrismaField<"Recipes", "recipe_name">,
-    needWrite: boolean
-  ) {
-    const { user_id, isAdmin, roles } = this.user;
-
-    const prisma = this.engine;
-    const read = this.getBagWhereACL({ permission: "READ", user_id, role_ids: roles.map(e => e.role_id) });
-    const write = this.getBagWhereACL({ permission: "WRITE", user_id, role_ids: roles.map(e => e.role_id) });
-    const referer = this.getRefererRecipe();
-
-    const [recipe, canRead, canWrite] = await prisma.$transaction([
-      prisma.recipes.findUnique({
-        select: { recipe_id: true },
-        where: { recipe_name }
-      }),
-      isAdmin ? prisma.$queryRaw`SELECT 1` : prisma.recipes.findUnique({
-        select: { recipe_id: true },
-        where: { recipe_name, recipe_bags: { every: { bag: { OR: read } } } }
-      }),
-      isAdmin ? prisma.$queryRaw`SELECT 1` : needWrite ? prisma.recipes.findUnique({
-        select: { recipe_id: true },
-        where: { recipe_name, recipe_bags: { some: { position: 0, bag: { OR: write } } } }
-      }) : prisma.$queryRaw`SELECT 2`,
-    ]);
-
-    return { recipe, canRead, canWrite, referer };
-
-  }
 
   getRefererRecipe() {
     const state = this;
@@ -128,140 +107,7 @@ export class StateObject<
       return; // keep going
     // we now get the recipe name from the referer
     const recipe_name = referer.pathname.substring(state.pathPrefix.length + "/wiki/".length);
-    return decodeURIComponent(recipe_name) as PrismaField<"Recipes", "recipe_name">;
-  }
-
-  async assertRecipeAccess(
-    recipe_name: PrismaField<"Recipes", "recipe_name">,
-    needWrite: boolean
-  ) {
-
-    // if (this.headers.referer) this.setHeader("x-found-referer", "true");
-
-    const { recipe, canRead, canWrite, referer } = await this.getRecipeACL(recipe_name, needWrite);
-
-    if (referer && referer !== recipe_name)
-      throw new SendError("PAGE_NOT_AUTHORIZED_FOR_ENDPOINT", 403, null);
-
-    if (!recipe) throw new SendError("RECIPE_NOT_FOUND", 404, { recipeName: recipe_name });
-    if (!canRead) throw new SendError("RECIPE_NO_READ_PERMISSION", 403, { recipeName: recipe_name });
-    if (!canWrite) throw new SendError("RECIPE_NO_WRITE_PERMISSION", 403, { recipeName: recipe_name });
-
-    this.asserted = true;
-
-    return recipe;
-
-  }
-
-
-  async assertBagAccess(
-    bag_name: PrismaField<"Bags", "bag_name">,
-    needWrite: boolean
-  ) {
-
-    // if (this.headers.referer) this.setHeader("x-found-referer", "true");
-
-    const { bag, canRead, canWrite } = await this.getBagACL(bag_name, needWrite);
-
-    if (!bag) throw new SendError("BAG_NOT_FOUND", 404, { bagName: bag_name });
-    if (!canRead) throw new SendError("BAG_NO_READ_PERMISSION", 403, { bagName: bag_name });
-    if (!canWrite) throw new SendError("BAG_NO_WRITE_PERMISSION", 403, { bagName: bag_name });
-
-    this.asserted = true;
-
-    return bag;
-
-  }
-
-  async getBagACL(
-    bag_name: PrismaField<"Bags", "bag_name">,
-    needWrite: boolean
-  ) {
-    const { user_id, isAdmin, roles } = this.user;
-    const prisma = this.engine;
-    const read = this.getBagWhereACL({ permission: "READ", user_id, role_ids: roles.map(e => e.role_id) });
-    const write = this.getBagWhereACL({ permission: "WRITE", user_id, role_ids: roles.map(e => e.role_id) });
-    const [bag, canRead, canWrite] = await prisma.$transaction([
-      prisma.bags.findUnique({
-        select: { bag_id: true, owner_id: true },
-        where: { bag_name }
-      }),
-      isAdmin ? prisma.$queryRaw`SELECT 1` : prisma.bags.findUnique({
-        select: { bag_id: true },
-        where: { bag_name, OR: read }
-      }),
-      isAdmin ? prisma.$queryRaw`SELECT 1` : needWrite ? prisma.bags.findUnique({
-        select: { bag_id: true },
-        where: { bag_name, OR: write }
-      }) : prisma.$queryRaw`SELECT 2`,
-    ]);
-    return { bag, canRead, canWrite };
-  }
-
-
-
-
-
-  /** If the user isn't logged in, user_id is 0. */
-  getBagWhereACL({ recipe_id, permission, user_id, role_ids }: {
-    /** Recipe ID can be provided as an extra restriction */
-    recipe_id?: string,
-    permission: ACLPermissionName,
-    user_id: string,
-    role_ids: string[],
-  }) {
-
-    const OR = this.getWhereACL({ permission, user_id, role_ids });
-
-    return ([
-      ...OR,
-      // admin permission doesn't get inherited 
-      permission === "ADMIN" ? undefined : {
-        recipe_bags: {
-          some: {
-            // check if we're in position 0 (for write) or any position (for read)
-            position: permission === "WRITE" ? 0 : undefined,
-            // of a recipe that the user has this permission on
-            recipe: { OR },
-            // if the connection was created with admin permissions
-            with_acl: true,
-            // for the specific recipe, if provided
-            recipe_id,
-          }
-        }
-      }
-    ] satisfies (Prisma.BagsWhereInput | undefined | null | false)[]).filter(truthy)
-
-  }
-  getWhereACL({ permission, user_id, role_ids }: {
-    permission: ACLPermissionName,
-    user_id?: string,
-    role_ids?: string[],
-  }) {
-    // const { allowAnonReads, allowAnonWrites } = this;
-    // const anonRead = allowAnonReads && permission === "READ";
-    // const anonWrite = allowAnonWrites && permission === "WRITE";
-    // const allowAnon = anonRead || anonWrite;
-    const allperms = ["READ", "WRITE", "ADMIN"] as const;
-    const index = allperms.indexOf(permission);
-    if (index === -1) throw new Error("Invalid permission");
-    const checkPerms = allperms.slice(index);
-
-    return ([
-      // allow owner for user 
-      user_id && { owner_id: { equals: user_id, not: null } },
-      // allow acl for user 
-      user_id && role_ids?.length && {
-        acl: {
-          some: {
-            permission: { in: checkPerms },
-            role_id: { in: role_ids },
-          }
-        }
-      },
-      { owner_id: { equals: null, not: null } } // dud to make sure that at least one condition exists
-    ] satisfies ((Prisma.RecipesWhereInput & Prisma.BagsWhereInput) | undefined | null | false | 0 | "")[]
-    ).filter(truthy)
+    return decodeURIComponent(recipe_name) as PrismaField<"Recipe", "id">;
   }
 
 

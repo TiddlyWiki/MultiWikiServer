@@ -639,7 +639,7 @@ export class FormsComp<T extends Record<string, FieldDescriptor<any>>> extends J
       list: T[];
     }>(), []);
 
-    this.useCallback(() => {
+    this.useEffect(() => {
       state.current = { subs: [], list: [] }
       if (isObservable(options)) {
         const sub = options.subscribe(list => {

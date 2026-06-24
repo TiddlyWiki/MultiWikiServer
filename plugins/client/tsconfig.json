@@ -12,6 +12,10 @@
     "alwaysStrict": true,
     "rootDir": "./src",
     "esModuleInterop": true,
+    "allowImportingTsExtensions": false,
+    "inlineSourceMap": true,
+    "inlineSources": true,
+    // "sourceRoot": ""
     // "noUnusedLocals": false,
     // "noUnusedParameters": false,
     // "noFallthroughCasesInSwitch": true,
@@ -21,6 +25,6 @@
   
   },
   "files": [
-    "src/multiwikiclientadaptor.ts"
+    "src/new-multiwikiclientadaptor.ts"
   ],
 }

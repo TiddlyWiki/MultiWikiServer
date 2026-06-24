@@ -45,5 +45,23 @@ declare module "@tiddlywiki/server" {
 
     "INCORRECT_SERVER_RESPONSE_SENT":
     SendErrorItem<500, { found: any }>
+
+    "INSTANCE_NOT_FOUND":
+    SendErrorItem<404, { recipeID: string }>;
+
+    "INSTANCE_NO_READ_PERMISSION":
+    SendErrorItem<403, { recipeID: string }>;
+
+    "INSTANCE_NO_WRITE_PERMISSION":
+    SendErrorItem<403, { recipeID: string }>;
+
+    "INSTANCE_NOT_WRITABLE":
+    SendErrorItem<403, { recipeID: string }>;
+
+    "WRITE_NOT_PERMITTED":
+    SendErrorItem<403, { recipe_id: string, title: string }>;
+
+    "ARGUMENT_REQUIRED":
+    SendErrorItem<400, { name: string }>;
   }
 }

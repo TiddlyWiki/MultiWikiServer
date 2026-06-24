@@ -20,7 +20,7 @@ const config: runtime.GetPrismaClientConfig = {
   "clientVersion": "7.2.0",
   "engineVersion": "0c8ef2ce45c83248ab3df073180d5eda9e8be7a3",
   "activeProvider": "sqlite",
-  "inlineSchema": "datasource db {\n  provider = \"sqlite\"\n}\n\ngenerator client {\n  provider = \"prisma-client\"\n  output   = \"client\"\n}\n\ngenerator json {\n  provider  = \"prisma-json-types-generator\"\n  namespace = \"PrismaJson\"\n}\n\nenum Permission {\n  READ\n  WRITE\n  ADMIN\n}\n\n// The `packages/mws/src/managers/` folder is the primary place this schema is used. \n// SQLite initialization is done in `packages/mws/src/db/sqlite-adapter.ts`.\n\nmodel Settings {\n  key   String @id\n  value String\n\n  @@map(\"settings\")\n}\n\nmodel Recipes {\n  recipe_id             String        @id @default(uuid(7))\n  recipe_name           String        @unique\n  description           String\n  owner_id              String?\n  /// [Recipes_plugin_names]\n  plugin_names          Json\n  skip_required_plugins Boolean       @default(false)\n  skip_core             Boolean       @default(false)\n  preload_store         Boolean       @default(false)\n  custom_wiki           String?\n  recipe_bags           Recipe_bags[]\n  acl                   RecipeAcl[]\n\n  @@map(\"recipes\")\n}\n\nmodel RecipeAcl {\n  acl_id     Int        @id @default(autoincrement())\n  role_id    String\n  permission Permission\n  recipe     Recipes    @relation(fields: [recipe_id], references: [recipe_id], onDelete: Cascade)\n  recipe_id  String\n\n  @@map(\"recipe_acl\")\n}\n\nmodel Recipe_bags {\n  recipe_id    String\n  bag_id       String\n  position     Int\n  with_acl     Boolean @default(false)\n  load_modules Boolean @default(false)\n\n  bag    Bags    @relation(fields: [bag_id], references: [bag_id], onDelete: Cascade)\n  recipe Recipes @relation(fields: [recipe_id], references: [recipe_id], onDelete: Cascade)\n\n  @@unique([recipe_id, bag_id])\n  @@index([recipe_id])\n  @@map(\"recipe_bags\")\n}\n\nmodel Bags {\n  bag_id      String        @id @default(uuid(7))\n  bag_name    String        @unique\n  description String\n  owner_id    String?\n  recipe_bags Recipe_bags[]\n  tiddlers    Tiddlers[]\n  acl         BagAcl[]\n\n  @@map(\"bags\")\n}\n\nmodel BagAcl {\n  acl_id     Int        @id @default(autoincrement())\n  bag_id     String\n  bag        Bags       @relation(fields: [bag_id], references: [bag_id], onDelete: Cascade)\n  role_id    String\n  permission Permission\n\n  @@map(\"bag_acl\")\n}\n\nmodel Tiddlers {\n  revision_id     String   @id @default(uuid(7))\n  bag_id          String\n  title           String\n  is_deleted      Boolean\n  attachment_hash String?\n  fields          Fields[]\n  // Deleting a referenced record (bag) will trigger the deletion of referencing record (tiddler).\n  bag             Bags     @relation(fields: [bag_id], references: [bag_id], onDelete: Cascade)\n\n  @@unique([bag_id, title])\n  @@index([bag_id])\n  @@map(\"tiddlers\")\n}\n\nmodel Fields {\n  revision_id String\n  field_name  String\n  field_value String\n  // Deleting a referenced record (tiddler) will trigger the deletion of referencing record (field).\n  tiddler     Tiddlers @relation(fields: [revision_id], references: [revision_id], onDelete: Cascade)\n\n  @@id([revision_id, field_name])\n  @@index([revision_id])\n  @@map(\"fields\")\n}\n\nmodel Roles {\n  role_id     String  @id @default(uuid(7))\n  role_name   String  @unique()\n  description String?\n  users       Users[]\n\n  @@map(\"roles\")\n}\n\nmodel Users {\n  user_id    String     @id @default(uuid(7))\n  username   String     @unique\n  email      String     @unique\n  password   String\n  created_at DateTime   @default(now())\n  last_login DateTime?\n  sessions   Sessions[]\n  roles      Roles[]\n\n  @@map(\"users\")\n}\n\nmodel Sessions {\n  session_id    String   @id\n  created_at    DateTime @default(now())\n  last_accessed DateTime\n  session_key   String?\n  user_id       String\n  user          Users    @relation(fields: [user_id], references: [user_id], onDelete: NoAction, onUpdate: NoAction)\n\n  @@map(\"sessions\")\n}\n",
+  "inlineSchema": "datasource db {\n  provider = \"sqlite\"\n}\n\ngenerator client {\n  provider = \"prisma-client\"\n  output   = \"client\"\n}\n\ngenerator json {\n  provider  = \"prisma-json-types-generator\"\n  namespace = \"PrismaJson\"\n}\n\n// ---------------------------------------------------------------------------\n// Tiddler storage\n// ---------------------------------------------------------------------------\n\nmodel Bag {\n  id             String          @id @default(uuid(7))\n  name           String          @unique\n  description    String\n  permissions    BagPermission[]\n  tiddlers       Tiddler[]\n  recipe_bags    RecipeBag[]\n  tiddler_events TiddlerEvent[]\n\n  @@map(\"bag\")\n}\n\n// role_id references the auth module's roles table; no FK declared here —\n// permission and auth tables are owned by separate modules.\nmodel BagPermission {\n  bag_id  String\n  role_id String\n  level   BagPermissionLevel\n  bag     Bag                @relation(fields: [bag_id], references: [id], onDelete: Cascade)\n\n  @@id([bag_id, role_id])\n  @@map(\"bag_permission\")\n}\n\nmodel Tiddler {\n  bag_id   String\n  title    String\n  revision BigInt @default(0)\n  // partition_key String @default(\"\")\n  /// [Tiddler_fields]\n  fields   Json\n  bag      Bag    @relation(fields: [bag_id], references: [id], onDelete: Cascade)\n\n  @@id([bag_id, title])\n  @@index([title])\n  @@map(\"tiddler\")\n}\n\nmodel TiddlerEvent {\n  seq    Int              @id @default(autoincrement())\n  bag_id String\n  title  String\n  type   TiddlerEventType\n\n  bag Bag @relation(fields: [bag_id], references: [id], onDelete: Cascade)\n\n  @@index([bag_id, seq])\n  @@map(\"tiddler_event\")\n}\n\nenum TiddlerEventType {\n  save\n  delete\n}\n\nmodel Template {\n  id         String   @id @default(uuid(7))\n  type       String\n  definition Json\n  recipes    Recipe[]\n\n  @@map(\"template\")\n}\n\nmodel Recipe {\n  id          String             @id @default(uuid(7))\n  slug        String             @unique\n  description String\n  template_id String\n  /// [Recipe_parameters]\n  parameters  Json\n  template    Template           @relation(fields: [template_id], references: [id], onDelete: Restrict)\n  recipe_bags RecipeBag[]\n  permissions RecipePermission[]\n  plugins     RecipePlugin[]\n\n  @@map(\"recipe\")\n}\n\nmodel RecipePermission {\n  recipe_id String\n  role_id   String\n  level     RecipePermissionLevel\n  recipe    Recipe                @relation(fields: [recipe_id], references: [id], onDelete: Cascade)\n\n  @@id([recipe_id, role_id])\n  @@map(\"recipe_permission\")\n}\n\nmodel RecipeBag {\n  recipe_id   String\n  bag_id      String\n  priority    Int\n  is_writable Boolean\n  /// [RecipeBag_info]\n  info        Json?\n  recipe      Recipe  @relation(fields: [recipe_id], references: [id], onDelete: Cascade)\n  bag         Bag     @relation(fields: [bag_id], references: [id], onDelete: Restrict)\n\n  @@id([recipe_id, bag_id])\n  @@map(\"recipe_bag\")\n}\n\nmodel Settings {\n  key   String @id\n  value String\n\n  @@map(\"settings\")\n}\n\n// ---------------------------------------------------------------------------\n// Plugin system\n// ---------------------------------------------------------------------------\n\nmodel Plugin {\n  id             String         @id @default(uuid(7))\n  name           String\n  version        String\n  is_draft       Boolean        @default(false)\n  draft_of       String?\n  recipe_plugins RecipePlugin[]\n\n  @@unique([name, version])\n  @@map(\"plugin\")\n}\n\nmodel RecipePlugin {\n  recipe_id        String\n  plugin_id        String\n  resolved_version String\n  recipe           Recipe @relation(fields: [recipe_id], references: [id], onDelete: Cascade)\n  plugin           Plugin @relation(fields: [plugin_id], references: [id], onDelete: Restrict)\n\n  @@id([recipe_id, plugin_id])\n  @@map(\"recipe_plugin\")\n}\n\n// ---------------------------------------------------------------------------\n// Auth — managed by the auth module, separate from tiddler storage.\n// No FK references cross from auth into tiddler/recipe/bag tables.\n// ---------------------------------------------------------------------------\n\nmodel Roles {\n  role_id     String  @id @default(uuid(7))\n  role_name   String  @unique()\n  description String?\n  users       Users[]\n\n  @@map(\"roles\")\n}\n\nmodel Users {\n  user_id    String     @id @default(uuid(7))\n  username   String     @unique\n  email      String     @unique\n  password   String\n  created_at DateTime   @default(now())\n  last_login DateTime?\n  sessions   Sessions[]\n  roles      Roles[]\n\n  @@map(\"users\")\n}\n\nmodel Sessions {\n  session_id    String   @id\n  created_at    DateTime @default(now())\n  last_accessed DateTime\n  session_key   String?\n  user_id       String\n  user          Users    @relation(fields: [user_id], references: [user_id], onDelete: NoAction, onUpdate: NoAction)\n\n  @@map(\"sessions\")\n}\n\n// ---------------------------------------------------------------------------\n// Enums\n// ---------------------------------------------------------------------------\n\nenum BagPermissionLevel {\n  A_read\n  B_write\n  C_admin\n}\n\nenum RecipePermissionLevel {\n  A_read\n  B_write\n}\n",
   "runtimeDataModel": {
     "models": {},
     "enums": {},
@@ -28,7 +28,7 @@ const config: runtime.GetPrismaClientConfig = {
   }
 }
 
-config.runtimeDataModel = JSON.parse("{\"models\":{\"Settings\":{\"fields\":[{\"name\":\"key\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"value\",\"kind\":\"scalar\",\"type\":\"String\"}],\"dbName\":\"settings\"},\"Recipes\":{\"fields\":[{\"name\":\"recipe_id\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"recipe_name\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"description\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"owner_id\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"plugin_names\",\"kind\":\"scalar\",\"type\":\"Json\"},{\"name\":\"skip_required_plugins\",\"kind\":\"scalar\",\"type\":\"Boolean\"},{\"name\":\"skip_core\",\"kind\":\"scalar\",\"type\":\"Boolean\"},{\"name\":\"preload_store\",\"kind\":\"scalar\",\"type\":\"Boolean\"},{\"name\":\"custom_wiki\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"recipe_bags\",\"kind\":\"object\",\"type\":\"Recipe_bags\",\"relationName\":\"Recipe_bagsToRecipes\"},{\"name\":\"acl\",\"kind\":\"object\",\"type\":\"RecipeAcl\",\"relationName\":\"RecipeAclToRecipes\"}],\"dbName\":\"recipes\"},\"RecipeAcl\":{\"fields\":[{\"name\":\"acl_id\",\"kind\":\"scalar\",\"type\":\"Int\"},{\"name\":\"role_id\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"permission\",\"kind\":\"enum\",\"type\":\"Permission\"},{\"name\":\"recipe\",\"kind\":\"object\",\"type\":\"Recipes\",\"relationName\":\"RecipeAclToRecipes\"},{\"name\":\"recipe_id\",\"kind\":\"scalar\",\"type\":\"String\"}],\"dbName\":\"recipe_acl\"},\"Recipe_bags\":{\"fields\":[{\"name\":\"recipe_id\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"bag_id\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"position\",\"kind\":\"scalar\",\"type\":\"Int\"},{\"name\":\"with_acl\",\"kind\":\"scalar\",\"type\":\"Boolean\"},{\"name\":\"load_modules\",\"kind\":\"scalar\",\"type\":\"Boolean\"},{\"name\":\"bag\",\"kind\":\"object\",\"type\":\"Bags\",\"relationName\":\"BagsToRecipe_bags\"},{\"name\":\"recipe\",\"kind\":\"object\",\"type\":\"Recipes\",\"relationName\":\"Recipe_bagsToRecipes\"}],\"dbName\":\"recipe_bags\"},\"Bags\":{\"fields\":[{\"name\":\"bag_id\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"bag_name\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"description\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"owner_id\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"recipe_bags\",\"kind\":\"object\",\"type\":\"Recipe_bags\",\"relationName\":\"BagsToRecipe_bags\"},{\"name\":\"tiddlers\",\"kind\":\"object\",\"type\":\"Tiddlers\",\"relationName\":\"BagsToTiddlers\"},{\"name\":\"acl\",\"kind\":\"object\",\"type\":\"BagAcl\",\"relationName\":\"BagAclToBags\"}],\"dbName\":\"bags\"},\"BagAcl\":{\"fields\":[{\"name\":\"acl_id\",\"kind\":\"scalar\",\"type\":\"Int\"},{\"name\":\"bag_id\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"bag\",\"kind\":\"object\",\"type\":\"Bags\",\"relationName\":\"BagAclToBags\"},{\"name\":\"role_id\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"permission\",\"kind\":\"enum\",\"type\":\"Permission\"}],\"dbName\":\"bag_acl\"},\"Tiddlers\":{\"fields\":[{\"name\":\"revision_id\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"bag_id\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"title\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"is_deleted\",\"kind\":\"scalar\",\"type\":\"Boolean\"},{\"name\":\"attachment_hash\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"fields\",\"kind\":\"object\",\"type\":\"Fields\",\"relationName\":\"FieldsToTiddlers\"},{\"name\":\"bag\",\"kind\":\"object\",\"type\":\"Bags\",\"relationName\":\"BagsToTiddlers\"}],\"dbName\":\"tiddlers\"},\"Fields\":{\"fields\":[{\"name\":\"revision_id\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"field_name\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"field_value\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"tiddler\",\"kind\":\"object\",\"type\":\"Tiddlers\",\"relationName\":\"FieldsToTiddlers\"}],\"dbName\":\"fields\"},\"Roles\":{\"fields\":[{\"name\":\"role_id\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"role_name\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"description\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"users\",\"kind\":\"object\",\"type\":\"Users\",\"relationName\":\"RolesToUsers\"}],\"dbName\":\"roles\"},\"Users\":{\"fields\":[{\"name\":\"user_id\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"username\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"email\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"password\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"created_at\",\"kind\":\"scalar\",\"type\":\"DateTime\"},{\"name\":\"last_login\",\"kind\":\"scalar\",\"type\":\"DateTime\"},{\"name\":\"sessions\",\"kind\":\"object\",\"type\":\"Sessions\",\"relationName\":\"SessionsToUsers\"},{\"name\":\"roles\",\"kind\":\"object\",\"type\":\"Roles\",\"relationName\":\"RolesToUsers\"}],\"dbName\":\"users\"},\"Sessions\":{\"fields\":[{\"name\":\"session_id\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"created_at\",\"kind\":\"scalar\",\"type\":\"DateTime\"},{\"name\":\"last_accessed\",\"kind\":\"scalar\",\"type\":\"DateTime\"},{\"name\":\"session_key\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"user_id\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"user\",\"kind\":\"object\",\"type\":\"Users\",\"relationName\":\"SessionsToUsers\"}],\"dbName\":\"sessions\"}},\"enums\":{},\"types\":{}}")
+config.runtimeDataModel = JSON.parse("{\"models\":{\"Bag\":{\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"name\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"description\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"permissions\",\"kind\":\"object\",\"type\":\"BagPermission\",\"relationName\":\"BagToBagPermission\"},{\"name\":\"tiddlers\",\"kind\":\"object\",\"type\":\"Tiddler\",\"relationName\":\"BagToTiddler\"},{\"name\":\"recipe_bags\",\"kind\":\"object\",\"type\":\"RecipeBag\",\"relationName\":\"BagToRecipeBag\"},{\"name\":\"tiddler_events\",\"kind\":\"object\",\"type\":\"TiddlerEvent\",\"relationName\":\"BagToTiddlerEvent\"}],\"dbName\":\"bag\"},\"BagPermission\":{\"fields\":[{\"name\":\"bag_id\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"role_id\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"level\",\"kind\":\"enum\",\"type\":\"BagPermissionLevel\"},{\"name\":\"bag\",\"kind\":\"object\",\"type\":\"Bag\",\"relationName\":\"BagToBagPermission\"}],\"dbName\":\"bag_permission\"},\"Tiddler\":{\"fields\":[{\"name\":\"bag_id\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"title\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"revision\",\"kind\":\"scalar\",\"type\":\"BigInt\"},{\"name\":\"fields\",\"kind\":\"scalar\",\"type\":\"Json\"},{\"name\":\"bag\",\"kind\":\"object\",\"type\":\"Bag\",\"relationName\":\"BagToTiddler\"}],\"dbName\":\"tiddler\"},\"TiddlerEvent\":{\"fields\":[{\"name\":\"seq\",\"kind\":\"scalar\",\"type\":\"Int\"},{\"name\":\"bag_id\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"title\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"type\",\"kind\":\"enum\",\"type\":\"TiddlerEventType\"},{\"name\":\"bag\",\"kind\":\"object\",\"type\":\"Bag\",\"relationName\":\"BagToTiddlerEvent\"}],\"dbName\":\"tiddler_event\"},\"Template\":{\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"type\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"definition\",\"kind\":\"scalar\",\"type\":\"Json\"},{\"name\":\"recipes\",\"kind\":\"object\",\"type\":\"Recipe\",\"relationName\":\"RecipeToTemplate\"}],\"dbName\":\"template\"},\"Recipe\":{\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"slug\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"description\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"template_id\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"parameters\",\"kind\":\"scalar\",\"type\":\"Json\"},{\"name\":\"template\",\"kind\":\"object\",\"type\":\"Template\",\"relationName\":\"RecipeToTemplate\"},{\"name\":\"recipe_bags\",\"kind\":\"object\",\"type\":\"RecipeBag\",\"relationName\":\"RecipeToRecipeBag\"},{\"name\":\"permissions\",\"kind\":\"object\",\"type\":\"RecipePermission\",\"relationName\":\"RecipeToRecipePermission\"},{\"name\":\"plugins\",\"kind\":\"object\",\"type\":\"RecipePlugin\",\"relationName\":\"RecipeToRecipePlugin\"}],\"dbName\":\"recipe\"},\"RecipePermission\":{\"fields\":[{\"name\":\"recipe_id\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"role_id\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"level\",\"kind\":\"enum\",\"type\":\"RecipePermissionLevel\"},{\"name\":\"recipe\",\"kind\":\"object\",\"type\":\"Recipe\",\"relationName\":\"RecipeToRecipePermission\"}],\"dbName\":\"recipe_permission\"},\"RecipeBag\":{\"fields\":[{\"name\":\"recipe_id\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"bag_id\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"priority\",\"kind\":\"scalar\",\"type\":\"Int\"},{\"name\":\"is_writable\",\"kind\":\"scalar\",\"type\":\"Boolean\"},{\"name\":\"info\",\"kind\":\"scalar\",\"type\":\"Json\"},{\"name\":\"recipe\",\"kind\":\"object\",\"type\":\"Recipe\",\"relationName\":\"RecipeToRecipeBag\"},{\"name\":\"bag\",\"kind\":\"object\",\"type\":\"Bag\",\"relationName\":\"BagToRecipeBag\"}],\"dbName\":\"recipe_bag\"},\"Settings\":{\"fields\":[{\"name\":\"key\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"value\",\"kind\":\"scalar\",\"type\":\"String\"}],\"dbName\":\"settings\"},\"Plugin\":{\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"name\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"version\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"is_draft\",\"kind\":\"scalar\",\"type\":\"Boolean\"},{\"name\":\"draft_of\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"recipe_plugins\",\"kind\":\"object\",\"type\":\"RecipePlugin\",\"relationName\":\"PluginToRecipePlugin\"}],\"dbName\":\"plugin\"},\"RecipePlugin\":{\"fields\":[{\"name\":\"recipe_id\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"plugin_id\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"resolved_version\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"recipe\",\"kind\":\"object\",\"type\":\"Recipe\",\"relationName\":\"RecipeToRecipePlugin\"},{\"name\":\"plugin\",\"kind\":\"object\",\"type\":\"Plugin\",\"relationName\":\"PluginToRecipePlugin\"}],\"dbName\":\"recipe_plugin\"},\"Roles\":{\"fields\":[{\"name\":\"role_id\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"role_name\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"description\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"users\",\"kind\":\"object\",\"type\":\"Users\",\"relationName\":\"RolesToUsers\"}],\"dbName\":\"roles\"},\"Users\":{\"fields\":[{\"name\":\"user_id\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"username\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"email\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"password\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"created_at\",\"kind\":\"scalar\",\"type\":\"DateTime\"},{\"name\":\"last_login\",\"kind\":\"scalar\",\"type\":\"DateTime\"},{\"name\":\"sessions\",\"kind\":\"object\",\"type\":\"Sessions\",\"relationName\":\"SessionsToUsers\"},{\"name\":\"roles\",\"kind\":\"object\",\"type\":\"Roles\",\"relationName\":\"RolesToUsers\"}],\"dbName\":\"users\"},\"Sessions\":{\"fields\":[{\"name\":\"session_id\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"created_at\",\"kind\":\"scalar\",\"type\":\"DateTime\"},{\"name\":\"last_accessed\",\"kind\":\"scalar\",\"type\":\"DateTime\"},{\"name\":\"session_key\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"user_id\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"user\",\"kind\":\"object\",\"type\":\"Users\",\"relationName\":\"SessionsToUsers\"}],\"dbName\":\"sessions\"}},\"enums\":{},\"types\":{}}")
 
 async function decodeBase64AsWasm(wasmBase64: string): Promise<WebAssembly.Module> {
   const { Buffer } = await import('node:buffer')
@@ -58,8 +58,8 @@ export interface PrismaClientConstructor {
    * @example
    * ```
    * const prisma = new PrismaClient()
-   * // Fetch zero or more Settings
-   * const settings = await prisma.settings.findMany()
+   * // Fetch zero or more Bags
+   * const bags = await prisma.bag.findMany()
    * ```
    * 
    * Read more in our [docs](https://pris.ly/d/client).
@@ -80,8 +80,8 @@ export interface PrismaClientConstructor {
  * @example
  * ```
  * const prisma = new PrismaClient()
- * // Fetch zero or more Settings
- * const settings = await prisma.settings.findMany()
+ * // Fetch zero or more Bags
+ * const bags = await prisma.bag.findMany()
  * ```
  * 
  * Read more in our [docs](https://pris.ly/d/client).
@@ -175,6 +175,86 @@ export interface PrismaClient<
   }>>
 
       /**
+   * `prisma.bag`: Exposes CRUD operations for the **Bag** model.
+    * Example usage:
+    * ```ts
+    * // Fetch zero or more Bags
+    * const bags = await prisma.bag.findMany()
+    * ```
+    */
+  get bag(): Prisma.BagDelegate<ExtArgs, { omit: OmitOpts }>;
+
+  /**
+   * `prisma.bagPermission`: Exposes CRUD operations for the **BagPermission** model.
+    * Example usage:
+    * ```ts
+    * // Fetch zero or more BagPermissions
+    * const bagPermissions = await prisma.bagPermission.findMany()
+    * ```
+    */
+  get bagPermission(): Prisma.BagPermissionDelegate<ExtArgs, { omit: OmitOpts }>;
+
+  /**
+   * `prisma.tiddler`: Exposes CRUD operations for the **Tiddler** model.
+    * Example usage:
+    * ```ts
+    * // Fetch zero or more Tiddlers
+    * const tiddlers = await prisma.tiddler.findMany()
+    * ```
+    */
+  get tiddler(): Prisma.TiddlerDelegate<ExtArgs, { omit: OmitOpts }>;
+
+  /**
+   * `prisma.tiddlerEvent`: Exposes CRUD operations for the **TiddlerEvent** model.
+    * Example usage:
+    * ```ts
+    * // Fetch zero or more TiddlerEvents
+    * const tiddlerEvents = await prisma.tiddlerEvent.findMany()
+    * ```
+    */
+  get tiddlerEvent(): Prisma.TiddlerEventDelegate<ExtArgs, { omit: OmitOpts }>;
+
+  /**
+   * `prisma.template`: Exposes CRUD operations for the **Template** model.
+    * Example usage:
+    * ```ts
+    * // Fetch zero or more Templates
+    * const templates = await prisma.template.findMany()
+    * ```
+    */
+  get template(): Prisma.TemplateDelegate<ExtArgs, { omit: OmitOpts }>;
+
+  /**
+   * `prisma.recipe`: Exposes CRUD operations for the **Recipe** model.
+    * Example usage:
+    * ```ts
+    * // Fetch zero or more Recipes
+    * const recipes = await prisma.recipe.findMany()
+    * ```
+    */
+  get recipe(): Prisma.RecipeDelegate<ExtArgs, { omit: OmitOpts }>;
+
+  /**
+   * `prisma.recipePermission`: Exposes CRUD operations for the **RecipePermission** model.
+    * Example usage:
+    * ```ts
+    * // Fetch zero or more RecipePermissions
+    * const recipePermissions = await prisma.recipePermission.findMany()
+    * ```
+    */
+  get recipePermission(): Prisma.RecipePermissionDelegate<ExtArgs, { omit: OmitOpts }>;
+
+  /**
+   * `prisma.recipeBag`: Exposes CRUD operations for the **RecipeBag** model.
+    * Example usage:
+    * ```ts
+    * // Fetch zero or more RecipeBags
+    * const recipeBags = await prisma.recipeBag.findMany()
+    * ```
+    */
+  get recipeBag(): Prisma.RecipeBagDelegate<ExtArgs, { omit: OmitOpts }>;
+
+  /**
    * `prisma.settings`: Exposes CRUD operations for the **Settings** model.
     * Example usage:
     * ```ts
@@ -185,74 +265,24 @@ export interface PrismaClient<
   get settings(): Prisma.SettingsDelegate<ExtArgs, { omit: OmitOpts }>;
 
   /**
-   * `prisma.recipes`: Exposes CRUD operations for the **Recipes** model.
+   * `prisma.plugin`: Exposes CRUD operations for the **Plugin** model.
     * Example usage:
     * ```ts
-    * // Fetch zero or more Recipes
-    * const recipes = await prisma.recipes.findMany()
+    * // Fetch zero or more Plugins
+    * const plugins = await prisma.plugin.findMany()
     * ```
     */
-  get recipes(): Prisma.RecipesDelegate<ExtArgs, { omit: OmitOpts }>;
+  get plugin(): Prisma.PluginDelegate<ExtArgs, { omit: OmitOpts }>;
 
   /**
-   * `prisma.recipeAcl`: Exposes CRUD operations for the **RecipeAcl** model.
+   * `prisma.recipePlugin`: Exposes CRUD operations for the **RecipePlugin** model.
     * Example usage:
     * ```ts
-    * // Fetch zero or more RecipeAcls
-    * const recipeAcls = await prisma.recipeAcl.findMany()
+    * // Fetch zero or more RecipePlugins
+    * const recipePlugins = await prisma.recipePlugin.findMany()
     * ```
     */
-  get recipeAcl(): Prisma.RecipeAclDelegate<ExtArgs, { omit: OmitOpts }>;
-
-  /**
-   * `prisma.recipe_bags`: Exposes CRUD operations for the **Recipe_bags** model.
-    * Example usage:
-    * ```ts
-    * // Fetch zero or more Recipe_bags
-    * const recipe_bags = await prisma.recipe_bags.findMany()
-    * ```
-    */
-  get recipe_bags(): Prisma.Recipe_bagsDelegate<ExtArgs, { omit: OmitOpts }>;
-
-  /**
-   * `prisma.bags`: Exposes CRUD operations for the **Bags** model.
-    * Example usage:
-    * ```ts
-    * // Fetch zero or more Bags
-    * const bags = await prisma.bags.findMany()
-    * ```
-    */
-  get bags(): Prisma.BagsDelegate<ExtArgs, { omit: OmitOpts }>;
-
-  /**
-   * `prisma.bagAcl`: Exposes CRUD operations for the **BagAcl** model.
-    * Example usage:
-    * ```ts
-    * // Fetch zero or more BagAcls
-    * const bagAcls = await prisma.bagAcl.findMany()
-    * ```
-    */
-  get bagAcl(): Prisma.BagAclDelegate<ExtArgs, { omit: OmitOpts }>;
-
-  /**
-   * `prisma.tiddlers`: Exposes CRUD operations for the **Tiddlers** model.
-    * Example usage:
-    * ```ts
-    * // Fetch zero or more Tiddlers
-    * const tiddlers = await prisma.tiddlers.findMany()
-    * ```
-    */
-  get tiddlers(): Prisma.TiddlersDelegate<ExtArgs, { omit: OmitOpts }>;
-
-  /**
-   * `prisma.fields`: Exposes CRUD operations for the **Fields** model.
-    * Example usage:
-    * ```ts
-    * // Fetch zero or more Fields
-    * const fields = await prisma.fields.findMany()
-    * ```
-    */
-  get fields(): Prisma.FieldsDelegate<ExtArgs, { omit: OmitOpts }>;
+  get recipePlugin(): Prisma.RecipePluginDelegate<ExtArgs, { omit: OmitOpts }>;
 
   /**
    * `prisma.roles`: Exposes CRUD operations for the **Roles** model.

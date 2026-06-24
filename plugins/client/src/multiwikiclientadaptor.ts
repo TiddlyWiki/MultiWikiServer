@@ -19,29 +19,14 @@ previous operation to complete before sending a new one.
 // the blank line is important, and so is the following use strict
 "use strict";
 
-import type { ServerEventsMap } from '@tiddlywiki/events';
-import type { ZodRoute, WikiStatusRoutes, WikiRecipeRoutes } from '@tiddlywiki/mws';
-import type { zod } from '@tiddlywiki/server';
+// import type { ServerEventsMap } from '@tiddlywiki/events';
+// import type { ZodRoute, WikiStatusRoutes, WikiRecipeRoutes } from '@tiddlywiki/mws';
+// import type { zod } from '@tiddlywiki/server';
 import type { Syncer, Tiddler, TiddlerFields, Wiki } from 'tiddlywiki';
+
+import {} from "@tiddlywiki/mws-prisma";
 declare global { const fflate: typeof import("./fflate"); }
 declare const self: never;
-
-// registerZodRoutes(parent, new WikiStatusRoutes(), Object.keys({
-// 	handleGetAllBagStates: true,
-// 	handleGetBagState: true,
-// 	handleGetRecipeStatus: true,
-// 	handleGetRecipeEvents: true,
-// 	handleGetBags: true,
-// } satisfies RouterKeyMap<WikiStatusRoutes, true>));
-
-// registerZodRoutes(parent, new WikiRecipeRoutes(), Object.keys({
-// 	handleDeleteRecipeTiddler: true,
-// 	handleLoadRecipeTiddler: true,
-// 	handleSaveRecipeTiddler: true,
-// 	rpcDeleteRecipeTiddlerList: true,
-// 	rpcLoadRecipeTiddlerList: true,
-// 	rpcSaveRecipeTiddlerList: true,
-// } satisfies RouterKeyMap<WikiRecipeRoutes, true>));
 
 declare class Logger {
 	constructor(componentName: any, options: any);
@@ -59,19 +44,6 @@ declare class Logger {
 	table(value: any): void;
 	alert(...args: any[]): void;
 	clearAlerts(): void;
-}
-
-type WikiStatusTypes = {
-	[K in keyof WikiStatusRoutes]: WikiStatusRoutes[K] extends ZodRoute<infer M, infer B, infer P, infer Q, infer T, infer R>
-	? { M: M, B: B, P: P, Q: Q, T: T, R: R }
-	: never
-}
-type WikiRecipeTypes = {
-	[K in keyof WikiRecipeRoutes]: WikiRecipeRoutes[K] extends ZodRoute<infer M, infer B, infer P, infer Q, infer T, infer R>
-	? { M: M, B: B, P: P, Q: Q, T: T, R: R }
-	: never
-}
-interface RouteTypes extends WikiStatusTypes, WikiRecipeTypes {
 }
 
 declare module 'tiddlywiki' {
@@ -402,7 +374,7 @@ class MultiWikiClientAdaptor implements SyncAdaptor<MWSAdaptorInfo> {
 	connectRecipeEvents() {
 		const event = new EventSource(this.host + "recipe/" + encodeURIComponent(this.recipe) + "/events?first-event-id=" + encodeURIComponent(this.last_known_revision_id));
 		this.setConnectionStatus(SERVER_CONNECTING_SSE);
-		let syncTimeout: NodeJS.Timeout | null = null;
+		let syncTimeout: number | null = null;
 		const debounceSyncFromServer = () => {
 			if (syncTimeout) {
 				clearTimeout(syncTimeout);

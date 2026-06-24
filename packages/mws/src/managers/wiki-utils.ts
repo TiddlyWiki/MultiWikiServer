@@ -13,9 +13,10 @@ export interface WikiRoute<
   B extends BodyFormat,
   P extends Record<string, zod.ZodType<any, string | undefined>>,
   Q extends Record<string, zod.ZodType<any, string[] | undefined>>,
+  Q2 extends string[],
   T extends zod.ZodTypeAny,
   R extends JsonValue
-> extends ZodRoute<M, B, P, Q, T, R> {
+> extends ZodRoute<M, B, P, Q, Q2, T, R> {
   routeType: "wiki" | "recipe" | "bag";
   routeName: string;
 }
@@ -51,7 +52,7 @@ export function parseTiddlerFields(input: string, ctype: string | undefined) {
 }
 
 
-export async function recieveTiddlerMultipartUpload(state: ZodState<"POST", "stream", any, any, zod.ZodTypeAny>) {
+export async function recieveTiddlerMultipartUpload(state: ZodState<"POST", "stream", any, {}, never, zod.ZodTypeAny>) {
 
   // Process the incoming data
   const inboxName = new Date().toISOString().replace(/:/g, "-");
@@ -97,7 +98,7 @@ export async function recieveTiddlerMultipartUpload(state: ZodState<"POST", "str
           part2.fileStream!.write(chunk) ? res() : part2.fileStream!.once("drain", () => res());
         });
       } else {
-        const encoding = part.headers.get("content-type")?.charset || "utf8";
+        const encoding = part.headers.contentType.charset || "utf8";
         if (!Buffer.isEncoding(encoding)) {
           throw new SendError("MULTIPART_INVALID_PART_ENCODING", 400, {
             partIndex: parts.length,
@@ -129,7 +130,7 @@ export async function recieveTiddlerMultipartUpload(state: ZodState<"POST", "str
 
   const missingfilename = "File uploaded " + new Date().toISOString();
 
-  const type = partFile.headers.get("content-type")?.mediaType;
+  const type = partFile.headers.contentType.mediaType;
   const tiddlerFields: TiddlerFields = { title: partFile.filename ?? missingfilename, type, };
 
   for (const part of parts) {

@@ -8,6 +8,7 @@ import { dirname } from "path";
 
 const INIT_0_0 = "20250406213424_init";
 const INIT_0_1 = "20250606001949_init";
+const INIT_0_2 = "20260624161601_init";
 
 export class SqliteAdapter {
   constructor(private databasePath: string, private isDevMode: boolean) {
@@ -27,6 +28,10 @@ export class SqliteAdapter {
     } else if (process.env.RUN_FIRST_MWS_DB_SETUP_FOR_TESTING_0_1) {
       await libsql.executeScript(await readFile(dist_resolve(
         "../prisma/migrations/" + INIT_0_1 + "/migration.sql"
+      ), "utf8"));
+    } else if (process.env.RUN_FIRST_MWS_DB_SETUP_FOR_TESTING_0_2) {
+      await libsql.executeScript(await readFile(dist_resolve(
+        "../prisma/migrations/" + INIT_0_2 + "/migration.sql"
       ), "utf8"));
     }
 
@@ -77,8 +82,10 @@ export class SqliteAdapter {
       console.log("This database is for a previous version of MWS. We will now exit to prevent data loss.");
       console.log("=======================================================================================");
       process.exit(1);
-    } else if (!applied_migrations.size || applied_migrations.has(INIT_0_1)) {
-      await this.checkMigrationsTable(libsql, hasExisting && !hasMigrationsTable, applied_migrations, "prisma", INIT_0_1);
+    // } else if (!applied_migrations.size || applied_migrations.has(INIT_0_1)) {
+    //   await this.checkMigrationsTable(libsql, hasExisting && !hasMigrationsTable, applied_migrations, "prisma", INIT_0_1);
+    } else if (!applied_migrations.size || applied_migrations.has(INIT_0_2)) {
+      await this.checkMigrationsTable(libsql, hasExisting && !hasMigrationsTable, applied_migrations, "prisma", INIT_0_2);
     } else if (this.isDevMode) {
       console.log([
         "===============================================================",

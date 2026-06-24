@@ -4,8 +4,8 @@ import { StateObject } from "./RequestState";
 import { ServerState } from "./ServerState";
 import { AuthUser, SessionManager } from "./services/sessions";
 import helmet from "helmet";
-import { IncomingMessage, ServerResponse } from "http";
-import { registerStatsRoute, SendAdmin, setupClientBuild } from "./services/setupDevServer";
+import { IncomingMessage, request, ServerResponse } from "http";
+import { ClientBuildDefinition, registerStatsRoute, SendAdmin, setupClientBuild } from "./services/setupDevServer";
 
 declare module "@tiddlywiki/events" {
   /**
@@ -35,6 +35,12 @@ declare module "@tiddlywiki/server" {
 
 Router.allowedRequestedWithHeaders.TiddlyWiki = true;
 
+export const clientBuildDef: ClientBuildDefinition = {
+  rootdir: dist_resolve("../packages/mdui-admin"),
+  publicdir: dist_resolve("../public/mdui-admin"),
+  title: "MWS Admin",
+};
+
 serverEvents.on("listen.router.init", async (listen, router) => {
 
   router.config = listen.config;
@@ -44,13 +50,10 @@ serverEvents.on("listen.router.init", async (listen, router) => {
   //   rootdir: dist_resolve("../packages/react-admin"),
   //   publicdir: dist_resolve("../public/react-admin")
   // });
-  router.sendAdmin = await setupClientBuild({
-    rootdir: dist_resolve("../packages/mdui-admin"),
-    publicdir: dist_resolve("../public/mdui-admin")
-  });
-  router.createServerRequest = async (request, routePath, bodyFormat) => {
+  router.sendAdmin = await setupClientBuild(clientBuildDef);
+  router.createServerRequest = async (request, ...args) => {
     const user = await SessionManager.parseIncomingRequest(request.cookies, router.config);
-    return new StateObject(request, routePath, bodyFormat, user, router);
+    return new StateObject(user, router, request, ...args);
   }
 
   router.helmet = helmet({

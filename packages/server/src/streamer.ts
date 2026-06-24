@@ -89,7 +89,7 @@ class IterableHeaders implements Iterable<[string, string]> {
   }
 }
 
-type StreamerHeadersInput = SuperHeadersPropertyInit & { [P in `x-${string}`]?: string };
+export type StreamerHeadersInput = SuperHeadersPropertyInit & { [P in `x-${string}`]?: string };
 
 export class StreamerRequest {
 
@@ -124,7 +124,7 @@ export class StreamerRequest {
    * 
    * pathParams are parsed with `decodeURIComponent` one time.
    */
-  public pathParams: Record<string, string | undefined>;
+  public pathParams: unknown;
 
   /** 
    * The query params. Because these aren't checked anywhere, 
@@ -133,7 +133,7 @@ export class StreamerRequest {
    * 
    * This will always satisfy the zod schema: `z.record(z.string(), z.array(z.string()))`
    */
-  public queryParams: Record<string, string[] | undefined>;
+  public queryParams: unknown;
 
   public query: URLSearchParamsTyped<any>;
 
@@ -156,7 +156,7 @@ export class StreamerRequest {
     this.headers = request.headers;
     this.cookies = request.cookies;
 
-    this.pathParams = request.pathParams;
+    this.pathParams = routePath.reduce((n, e) => Object.assign(n, e.groups), {});
 
     const pathParamsZodCheck = zod.record(zod.string(), zod.string().transform(zodDecodeURIComponent).optional()).safeParse(this.pathParams);
     if (!pathParamsZodCheck.success) console.log("BUG: Path params zod error", pathParamsZodCheck.error, this.pathParams);
@@ -256,11 +256,17 @@ export class Streamer extends StreamerRequest {
         onResponse(res);
       }
       /** 
-       * Set status code and response headers using a super headers init object.  
+       * Set status code and response headers using a super headers init object.
+       * 
+       * The headers are saved in this.res.headers and each call to this function 
+       * will set the specified headers on that SuperHeaders instance. 
        * 
        * - `set-cookie` headers are always appended to the array.
        * - known headers will be assigned the value directly and processed by SuperHeaders.
        * - unknown headers must start with x- and will only be lowercased. The value will be coerced to a string.
+       * 
+       * Setting status code is a convenience. No action is performed and you 
+       * can just pass in the current this.res.statusCode.
        */
       setHeaders = (status: number, headers: StreamerHeadersInput) => {
         this.statusCode = status;
@@ -372,7 +378,7 @@ export class Streamer extends StreamerRequest {
     }
   }
 
-  res;
+  protected res;
 
   get writer(): Writable { return this.res.stream; }
 

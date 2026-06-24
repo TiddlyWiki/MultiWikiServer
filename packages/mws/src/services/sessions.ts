@@ -42,7 +42,7 @@ export const SessionKeyMap: RouterKeyMap<SessionManager, true> = {
 export function zodSession<P extends string, T extends zod.ZodTypeAny, R extends JsonValue>(
   path: P,
   zodRequest: (z: Z2<"JSON">) => T,
-  inner: (state: ZodState<"POST", "json", {}, {}, T>, prisma: PrismaTxnClient) => Promise<R>
+  inner: (state: ZodState<"POST", "json", {}, {}, never, T>, prisma: PrismaTxnClient) => Promise<R>
 ): ZodSessionRoute<P, T, R> {
   return {
     ...zodRoute({
@@ -51,6 +51,7 @@ export function zodSession<P extends string, T extends zod.ZodTypeAny, R extends
       bodyFormat: "json",
       zodPathParams: z => ({}),
       zodQueryParams: z => ({}),
+      zodQueryKeys: [],
       zodRequestBody: zodRequest,
       securityChecks: { requestedWithHeader: true },
       inner: async (state) => {
@@ -66,7 +67,7 @@ export interface ZodSessionRoute<
   PATH extends string,
   T extends zod.ZodTypeAny,
   R extends JsonValue
-> extends ZodRoute<"POST", "json", {}, {}, T, R> {
+> extends ZodRoute<"POST", "json", {}, {}, [], T, R> {
   path: PATH;
 }
 
@@ -171,7 +172,9 @@ export class SessionManager {
 
     if (!skipCookie) {
       // the client can ask to skip the cookie for things like password change
-      state.setCookie("session", session_id, {
+      state.setCookie({
+        name: "session",
+        value: session_id,
         httpOnly: true,
         path: state.pathPrefix + "/",
         secure: state.assumeHTTPS,
@@ -206,10 +209,12 @@ export class SessionManager {
     if (state.user.isLoggedIn) {
       await prisma.sessions.delete({ where: { session_id: state.user.sessionId } });
     }
-    
-    state.headers.get("cookie")?.forEach((cookie) => {
+
+    state.cookies.forEach((cookie) => {
       if (!cookie) return;
-      state.setCookie(cookie, "", {
+      state.setCookie({
+        name: cookie,
+        value: "",
         httpOnly: true,
         path: state.pathPrefix + "/",
         expires: new Date(0),

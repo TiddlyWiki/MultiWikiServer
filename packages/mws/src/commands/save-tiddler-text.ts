@@ -1,5 +1,5 @@
 import { BaseCommand, CommandInfo } from "@tiddlywiki/commander";
-import { TiddlerStore_PrismaBase } from "../managers/TiddlerStore";
+// import { TiddlerStore_PrismaBase } from "../managers/TiddlerStore";
 
 
 export const info: CommandInfo = {

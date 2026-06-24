@@ -10,6 +10,7 @@ import { startupCache } from "./services/cache";
 import { createPasswordService } from "./services/PasswordService";
 import { bootTiddlyWiki } from "./services/tiddlywiki";
 import * as opaque from "@serenity-kit/opaque";
+import { createSampleWiki } from "./new-managers/RecipeResolver";
 
 declare module "@tiddlywiki/events" {
   interface ServerEventsMap {
@@ -69,6 +70,9 @@ serverEvents.on("cli.execute.before", async (name, params, options, instance) =>
   await serverEvents.emitAsync("mws.config.init.before", config, $tw);
   await config.init();
   await serverEvents.emitAsync("mws.config.init.after", config, $tw);
+
+  await createSampleWiki(engine);
+  
 
   instance.config = config;
   instance.$tw = $tw;

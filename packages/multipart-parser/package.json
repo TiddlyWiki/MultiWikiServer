@@ -15,6 +15,6 @@
   "types": "./src/index.ts",
   "module": "./src/index.ts",
   "dependencies": {
-    "@remix-run/headers": "file:../server/remix-run-headers-0.19.1.tgz"
+    "@remix-run/headers": "0.21.0"
   }
 }

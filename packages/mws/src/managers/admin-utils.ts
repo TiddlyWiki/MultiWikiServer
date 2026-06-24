@@ -6,7 +6,7 @@ const debug = Debug("mws:cors:admin")
 
 export function admin<T extends zod.ZodTypeAny, R extends JsonValue>(
   zodRequest: (z: Z2<"JSON">) => T,
-  inner: (state: ZodState<"POST", "json", {}, {}, T>, prisma: PrismaTxnClient) => Promise<R>
+  inner: (state: ZodState<"POST", "json", {}, {}, never, T>, prisma: PrismaTxnClient) => Promise<R>
 ) {
   return zodRoute({
     method: ["POST"],

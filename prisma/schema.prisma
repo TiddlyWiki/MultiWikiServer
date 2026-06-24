@@ -12,14 +12,112 @@ generator json {
   namespace = "PrismaJson"
 }
 
-enum Permission {
-  READ
-  WRITE
-  ADMIN
+// ---------------------------------------------------------------------------
+// Tiddler storage
+// ---------------------------------------------------------------------------
+
+model Bag {
+  id             String          @id @default(uuid(7))
+  name           String          @unique
+  description    String
+  permissions    BagPermission[]
+  tiddlers       Tiddler[]
+  recipe_bags    RecipeBag[]
+  tiddler_events TiddlerEvent[]
+
+  @@map("bag")
 }
 
-// The `packages/mws/src/managers/` folder is the primary place this schema is used. 
-// SQLite initialization is done in `packages/mws/src/db/sqlite-adapter.ts`.
+// role_id references the auth module's roles table; no FK declared here —
+// permission and auth tables are owned by separate modules.
+model BagPermission {
+  bag_id  String
+  role_id String
+  level   BagPermissionLevel
+  bag     Bag                @relation(fields: [bag_id], references: [id], onDelete: Cascade)
+
+  @@id([bag_id, role_id])
+  @@map("bag_permission")
+}
+
+model Tiddler {
+  bag_id   String
+  title    String
+  revision BigInt @default(0)
+  // partition_key String @default("")
+  /// [Tiddler_fields]
+  fields   Json
+  bag      Bag    @relation(fields: [bag_id], references: [id], onDelete: Cascade)
+
+  @@id([bag_id, title])
+  @@index([title])
+  @@map("tiddler")
+}
+
+model TiddlerEvent {
+  seq    Int              @id @default(autoincrement())
+  bag_id String
+  title  String
+  type   TiddlerEventType
+
+  bag Bag @relation(fields: [bag_id], references: [id], onDelete: Cascade)
+
+  @@index([bag_id, seq])
+  @@map("tiddler_event")
+}
+
+enum TiddlerEventType {
+  save
+  delete
+}
+
+model Template {
+  id         String   @id @default(uuid(7))
+  type       String
+  definition Json
+  recipes    Recipe[]
+
+  @@map("template")
+}
+
+model Recipe {
+  id          String             @id @default(uuid(7))
+  slug        String             @unique
+  description String
+  template_id String
+  /// [Recipe_parameters]
+  parameters  Json
+  template    Template           @relation(fields: [template_id], references: [id], onDelete: Restrict)
+  recipe_bags RecipeBag[]
+  permissions RecipePermission[]
+  plugins     RecipePlugin[]
+
+  @@map("recipe")
+}
+
+model RecipePermission {
+  recipe_id String
+  role_id   String
+  level     RecipePermissionLevel
+  recipe    Recipe                @relation(fields: [recipe_id], references: [id], onDelete: Cascade)
+
+  @@id([recipe_id, role_id])
+  @@map("recipe_permission")
+}
+
+model RecipeBag {
+  recipe_id   String
+  bag_id      String
+  priority    Int
+  is_writable Boolean
+  /// [RecipeBag_info]
+  info        Json?
+  recipe      Recipe  @relation(fields: [recipe_id], references: [id], onDelete: Cascade)
+  bag         Bag     @relation(fields: [bag_id], references: [id], onDelete: Restrict)
+
+  @@id([recipe_id, bag_id])
+  @@map("recipe_bag")
+}
 
 model Settings {
   key   String @id
@@ -28,96 +126,37 @@ model Settings {
   @@map("settings")
 }
 
-model Recipes {
-  recipe_id             String        @id @default(uuid(7))
-  recipe_name           String        @unique
-  description           String
-  owner_id              String?
-  /// [Recipes_plugin_names]
-  plugin_names          Json
-  skip_required_plugins Boolean       @default(false)
-  skip_core             Boolean       @default(false)
-  preload_store         Boolean       @default(false)
-  custom_wiki           String?
-  recipe_bags           Recipe_bags[]
-  acl                   RecipeAcl[]
+// ---------------------------------------------------------------------------
+// Plugin system
+// ---------------------------------------------------------------------------
 
-  @@map("recipes")
+model Plugin {
+  id             String         @id @default(uuid(7))
+  name           String
+  version        String
+  is_draft       Boolean        @default(false)
+  draft_of       String?
+  recipe_plugins RecipePlugin[]
+
+  @@unique([name, version])
+  @@map("plugin")
 }
 
-model RecipeAcl {
-  acl_id     Int        @id @default(autoincrement())
-  role_id    String
-  permission Permission
-  recipe     Recipes    @relation(fields: [recipe_id], references: [recipe_id], onDelete: Cascade)
-  recipe_id  String
+model RecipePlugin {
+  recipe_id        String
+  plugin_id        String
+  resolved_version String
+  recipe           Recipe @relation(fields: [recipe_id], references: [id], onDelete: Cascade)
+  plugin           Plugin @relation(fields: [plugin_id], references: [id], onDelete: Restrict)
 
-  @@map("recipe_acl")
+  @@id([recipe_id, plugin_id])
+  @@map("recipe_plugin")
 }
 
-model Recipe_bags {
-  recipe_id    String
-  bag_id       String
-  position     Int
-  with_acl     Boolean @default(false)
-  load_modules Boolean @default(false)
-
-  bag    Bags    @relation(fields: [bag_id], references: [bag_id], onDelete: Cascade)
-  recipe Recipes @relation(fields: [recipe_id], references: [recipe_id], onDelete: Cascade)
-
-  @@unique([recipe_id, bag_id])
-  @@index([recipe_id])
-  @@map("recipe_bags")
-}
-
-model Bags {
-  bag_id      String        @id @default(uuid(7))
-  bag_name    String        @unique
-  description String
-  owner_id    String?
-  recipe_bags Recipe_bags[]
-  tiddlers    Tiddlers[]
-  acl         BagAcl[]
-
-  @@map("bags")
-}
-
-model BagAcl {
-  acl_id     Int        @id @default(autoincrement())
-  bag_id     String
-  bag        Bags       @relation(fields: [bag_id], references: [bag_id], onDelete: Cascade)
-  role_id    String
-  permission Permission
-
-  @@map("bag_acl")
-}
-
-model Tiddlers {
-  revision_id     String   @id @default(uuid(7))
-  bag_id          String
-  title           String
-  is_deleted      Boolean
-  attachment_hash String?
-  fields          Fields[]
-  // Deleting a referenced record (bag) will trigger the deletion of referencing record (tiddler).
-  bag             Bags     @relation(fields: [bag_id], references: [bag_id], onDelete: Cascade)
-
-  @@unique([bag_id, title])
-  @@index([bag_id])
-  @@map("tiddlers")
-}
-
-model Fields {
-  revision_id String
-  field_name  String
-  field_value String
-  // Deleting a referenced record (tiddler) will trigger the deletion of referencing record (field).
-  tiddler     Tiddlers @relation(fields: [revision_id], references: [revision_id], onDelete: Cascade)
-
-  @@id([revision_id, field_name])
-  @@index([revision_id])
-  @@map("fields")
-}
+// ---------------------------------------------------------------------------
+// Auth — managed by the auth module, separate from tiddler storage.
+// No FK references cross from auth into tiddler/recipe/bag tables.
+// ---------------------------------------------------------------------------
 
 model Roles {
   role_id     String  @id @default(uuid(7))
@@ -150,4 +189,19 @@ model Sessions {
   user          Users    @relation(fields: [user_id], references: [user_id], onDelete: NoAction, onUpdate: NoAction)
 
   @@map("sessions")
+}
+
+// ---------------------------------------------------------------------------
+// Enums
+// ---------------------------------------------------------------------------
+
+enum BagPermissionLevel {
+  A_read
+  B_write
+  C_admin
+}
+
+enum RecipePermissionLevel {
+  A_read
+  B_write
 }

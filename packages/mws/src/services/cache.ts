@@ -59,21 +59,21 @@ serverEvents.on("mws.routes", (root, config) => {
     const plugin = state.pluginCache.filePlugins.get(state.pathParams.plugin);
     if (!plugin) throw state.sendEmpty(404, { "x-reason": "Plugin not found" });
 
-    state.setHeader("Content-Type", "application/javascript");
+    state.setHeader("contentType", "application/javascript");
     // state.setHeader("Cache-Control", "public, max-age=60");
-    state.setHeader("Cache-Control", "public, max-age=6, stale-while-revalidate=86400");
+    state.setHeader("cacheControl", "public, max-age=6, stale-while-revalidate=86400");
 
     const etag = `"${state.pluginCache.pluginHashes.get(plugin)}"`;
-    state.setHeader("Etag", etag);
+    state.setHeader("etag", etag);
 
-    const match = state.headers.get("if-none-match")?.has(etag);
+    const match = state.headers.ifNoneMatch.has(etag);
     if (match) throw state.sendEmpty(304, { "x-reason": "Etag Match" });
 
-    const accepts = state.acceptsEncoding(["gzip", "identity"]);
+    const accepts = ["gzip", "identity"].find(enc => state.headers.acceptEncoding.accepts(enc));
 
     // setting this will disable the server gzip streaming so we save CPU cycles
     if (accepts === "gzip") {
-      state.setHeader("Content-Encoding", "gzip");
+      state.setHeader("contentEncoding", "gzip");
       return state.sendFile(200, {}, {
         root: path.join(config.wikiPath, "cache"),
         reqpath: state.pathParams.plugin + "/plugin.js.gz",

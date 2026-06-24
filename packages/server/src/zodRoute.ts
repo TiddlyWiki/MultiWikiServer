@@ -161,8 +161,8 @@ export interface ZodState<
   Q2 extends string,
   T extends z.ZodType
 > extends ServerRequest<B, M, z.output<T>> {
-  pathParams: z.output<z.ZodObject<P, core.$strict>> & Record<string, never>;
-  queryParams: z.output<z.ZodObject<Q, core.$strict>> & Record<string, never>;
+  pathParams: z.output<z.ZodObject<P, core.$strict>>;
+  queryParams: z.output<z.ZodObject<Q, core.$strict>>;
   query: URLSearchParamsTyped<Record<Q2, string>>;
 }
 

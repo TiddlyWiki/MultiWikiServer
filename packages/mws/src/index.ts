@@ -1,4 +1,6 @@
-import "./globals";
+// import "./globals";
+// const originalconsole = console.log.bind(console);
+// console.log = (...args) => { originalconsole(new Error("console stack").stack); return originalconsole(...args) };
 import { install } from "source-map-support";
 install();
 import { serverEvents } from "@tiddlywiki/events";
@@ -9,7 +11,7 @@ import "@tiddlywiki/server";
 import "./registerRequest";
 import "./registerStartup";
 import "./commands";
-import "./managers";
+import "./new-managers";
 import "./zodAssert";
 import "./RequestState";
 import "./ServerState";
@@ -23,10 +25,11 @@ import * as opaque from "@serenity-kit/opaque";
 import { dist_resolve, startup } from "@tiddlywiki/server";
 import runCLI from "@tiddlywiki/commander";
 import { runBuildOnce } from "./services/setupDevServer";
+import { clientBuildDef } from "./registerRequest";
 
 // exports
 export { ZodRoute } from "@tiddlywiki/server";
-export * from "./managers";
+// export * from "./managers";
 
 export default async function runMWS(oldOptions?: any) {
   // detect version 0.0 and exit
@@ -51,10 +54,7 @@ export default async function runMWS(oldOptions?: any) {
   }
   await opaque.ready;
   if (process.env.CLIENT_BUILD) {
-    await runBuildOnce({
-      rootdir: dist_resolve("../packages/react-admin"),
-      publicdir: dist_resolve("../public/react-admin")
-    });
+    await runBuildOnce(clientBuildDef);
   } else {
     await startup();
     await runCLI();

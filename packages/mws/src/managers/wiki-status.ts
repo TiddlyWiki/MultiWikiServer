@@ -185,7 +185,7 @@ export class WikiStatusRoutes {
         if (etag < t.revision_id) etag = t.revision_id;
       }
       const newEtag = `"${etag}"`;
-      const match = state.headers.get("if-none-match")?.has(newEtag);
+      const match = state.headers.ifNoneMatch.has(newEtag);
       state.setHeader("etag", newEtag);
 
       if (match) throw state.sendEmpty(304, {});
@@ -216,7 +216,7 @@ export class WikiStatusRoutes {
       const
         last_known_revision_id = state.queryParams.last_known_revision_id?.[0],
         include_deleted = state.queryParams.include_deleted?.[0] === "yes",
-        gzip_stream = state.queryParams.gzip_stream?.[0] === "yes";
+        gzip_stream = false; //state.queryParams.gzip_stream?.[0] === "yes";
 
       const result = await state.$transaction(async (prisma) => {
         const server = new WikiStateStore(state, prisma);
@@ -248,25 +248,25 @@ export class WikiStatusRoutes {
         }
       }
       const newEtag = `"${etag}${gzip_stream}"`;
-      const match = state.headers.get("if-none-match")?.has(newEtag);
+      const match = state.headers.ifNoneMatch.has(newEtag);
       // 304 has to return the same headers if they're to be useful, 
       // so we'll also put them in the etag in case it ignores the query
       state.writeHead(match ? 304 : 200, gzip_stream ? {
-        "content-type": "application/gzip",
-        "content-encoding": "identity",
+        contentType: "application/gzip",
+        contentEncoding: "identity",
         "x-gzip-stream": "yes",
         "etag": newEtag,
       } : {
-        "content-type": "application/json",
-        "content-encoding": "identity",
-        "etag": newEtag,
+        contentType: "application/json",
+        contentEncoding: "identity",
+        etag: newEtag,
       });
       if (match) throw state.end();
 
       state.writeFast("[");
       for (let i = 0; i < result.length; i++) {
         await state.write((i > 0 ? "," : "") + JSON.stringify(result[i]));
-        if (gzip_stream) await state.splitCompressionStream();
+        // if (gzip_stream) await state.splitCompressionStream();
       }
       state.writeFast("]");
       throw state.end();

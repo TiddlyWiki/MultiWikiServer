@@ -1,22 +1,25 @@
 import { BaseCommand, CommandInfo } from "@tiddlywiki/commander";
-import { TiddlerStore_PrismaBase } from "../managers/TiddlerStore";
 import { CacheState } from "../services/cache";
 import { TiddlerFields, TW } from "tiddlywiki";
 import * as fs from "fs";
 import * as path from "path";
-import { truthy } from "@tiddlywiki/server";
 
+interface ImportedPlugin {
+	title: string;
+	version: string;
+	sourcePath: string;
+}
 
 export const info: CommandInfo = {
 	name: "load-wiki-folder",
-	description: "Load a TiddlyWiki folder into a bag",
+	description: "Load a TiddlyWiki folder into a bag and create a recipe if needed",
 	arguments: [
 		["path", "Path to the folder containing a tiddlywiki.info file"],
 	],
 	options: [
 		["bag-name <string>", "Name of the bag to load tiddlers into"],
 		["bag-description <string>", "Description of the bag"],
-		["recipe-name <string>", "Name of the recipe to create"],
+		["recipe-name <string>", "Recipe slug to create for /wiki/<slug>"],
 		["recipe-description <string>", "Description of the recipe"],
 		["overwrite", "Confirm that you want to overwrite existing content"]
 	],
@@ -49,34 +52,50 @@ export class Command extends BaseCommand<[string], {
 
 		const overwrite = !!this.options["overwrite"];
 
+		const bagName = this.options["bag-name"][0] as PrismaField<"Bag", "name">;
+		const bagDescription = this.options["bag-description"][0]!;
+		const recipeSlug = this.options["recipe-name"][0]!;
+		const recipeDescription = this.options["recipe-description"][0]!;
 
-		const bagName = this.options["bag-name"][0] as PrismaField<"Bags", "bag_name">;
-		const bagDescription = this.options["bag-description"][0] as PrismaField<"Bags", "description">;
-		const recipeName = this.options["recipe-name"][0] as PrismaField<"Recipes", "recipe_name">;
-		const recipeDescription = this.options["recipe-description"][0] as PrismaField<"Recipes", "description">;
+		const existingRecipe = await this.config.engine.recipe.findFirst({
+			where: { slug: recipeSlug },
+			select: {
+				id: true,
+				recipe_bags: {
+					select: {
+						is_writable: true,
+					},
+				},
+			},
+		});
 
-		if (!overwrite && await this.config.engine.recipes.findUnique({
-			where: { recipe_name: recipeName }
-		})) {
-			console.log(`Recipe with name ${recipeName} already exists. Use --overwrite to overwrite it. Skipping.`);
+		if (!overwrite && existingRecipe) {
+			console.log(`Recipe with slug ${recipeSlug} already exists. Use --overwrite to reset it and reload the bag contents. Skipping.`);
 			return;
 		}
 
-		const store = new TiddlerStore_PrismaBase(this.config.engine);
+		const bag = await this.config.engine.bag.upsert({
+			where: { name: bagName },
+			update: { description: bagDescription },
+			create: { name: bagName, description: bagDescription },
+			select: { id: true, name: true },
+		});
 
-		const bag = await store.upsertBag_PrismaPromise(bagName, bagDescription);
+		const savedRecipeId = await this.config.$transaction(async (prisma) => {
+			return await loadWikiFolder({
+				prisma,
+				wikiPath: this.params[0],
+				bagId: bag.id,
+				recipeId: existingRecipe?.id,
+				recipeSlug,
+				recipeDescription,
+				createRecipe: !existingRecipe,
+				$tw: this.$tw,
+				cache: this.config.pluginCache,
+			});
+		});
 
-		await this.config.engine.$transaction(loadWikiFolder({
-			wikiPath: this.params[0],
-			bag_id: bag.bag_id,
-			recipeName,
-			recipeDescription,
-			overwrite,
-			store,
-			$tw: this.$tw,
-			cache: this.config.pluginCache
-		}))
-
+		console.log(`Recipe slug ${recipeSlug} is stored with recipe id ${savedRecipeId}.`);
 		console.log(info.name, "complete:", this.params[0])
 		return null;
 	}
@@ -86,55 +105,128 @@ export class Command extends BaseCommand<[string], {
 
 
 // Copy TiddlyWiki core editions
-function loadWikiFolder({ $tw, store, cache, ...options }: {
+async function loadWikiFolder({ prisma, $tw, cache, ...options }: {
+	prisma: PrismaTxnClient,
 	wikiPath: string,
-	bag_id: PrismaField<"Bags", "bag_id">,
-	recipeName: PrismaField<"Recipes", "recipe_name">,
-	recipeDescription: PrismaField<"Recipes", "description">,
-	overwrite: boolean;
-	store: TiddlerStore_PrismaBase,
+	bagId: PrismaField<"Bag", "id">,
+	recipeId?: PrismaField<"Recipe", "id">,
+	recipeSlug: string,
+	recipeDescription: string,
+	createRecipe: boolean,
 	$tw: TW,
 	cache: CacheState,
 }) {
-	const pluginNamesTW5: string[] = [];
-	const tiddlersFromPath = loadWikiTiddlers($tw, options.wikiPath, [], pluginNamesTW5);
-	// Add plugins to the recipe list
-	const recipeList = [];
-	// Create the recipe
-	recipeList.push({
-		bag_id: options.bag_id,
-		with_acl: true as PrismaField<"Recipe_bags", "with_acl">,
-	});
-	recipeList.reverse();
-
-
-	const plugins = pluginNamesTW5.map(e => ({
-		plugin: cache.filePlugins.get(path.join("tiddlywiki", $tw.version, e)),
-		folder: e,
-	}));
-
-	plugins.forEach(e => {
-		if (!e.plugin) console.log(`Folder ${options.wikiPath} missing ${e.folder}.`)
+	const importedPlugins: ImportedPlugin[] = [];
+	const tiddlersFromPath = loadWikiTiddlers($tw, options.wikiPath, [], importedPlugins);
+	const tiddlers = dedupeTiddlersByTitle(tiddlersFromPath.map(e => e.tiddlers).flat());
+	const plugins = dedupePlugins(importedPlugins).filter((plugin) => {
+		if (cache.pluginFiles.has(plugin.title)) return true;
+		console.log(`Folder ${options.wikiPath} missing ${plugin.sourcePath}.`);
+		return false;
 	});
 
+	const template = await prisma.template.create({
+		data: {
+			type: "prefixV1",
+			definition: {
+				readonlyBags: [],
+				writablePrefixBags: {
+					"": options.bagId,
+				},
+			},
+		},
+		select: { id: true },
+	});
 
+	let recipeId = options.recipeId;
 
-	return [
+	if (options.createRecipe) {
+		const recipe = await prisma.recipe.create({
+			data: {
+				...(recipeId ? { id: recipeId } : {}),
+				slug: options.recipeSlug,
+				description: options.recipeDescription,
+				template_id: template.id,
+				parameters: {},
+			},
+			select: { id: true },
+		});
+		recipeId = recipe.id;
+	} else {
+		if (!recipeId) throw new Error("Existing recipe id is required for overwrite");
+		await prisma.recipe.update({
+			where: { id: recipeId },
+			data: {
+				slug: options.recipeSlug,
+				description: options.recipeDescription,
+				template_id: template.id,
+				parameters: {},
+			},
+		});
+		await prisma.recipeBag.deleteMany({ where: { recipe_id: recipeId } });
+		await prisma.recipePlugin.deleteMany({ where: { recipe_id: recipeId } });
+	}
 
-		// create the recipe and recipe_bags entries
-		...store.upsertRecipe_PrismaArray(
-			options.recipeName,
-			options.recipeDescription,
-			recipeList,
-			plugins.map(e => e.plugin).filter(truthy)
-		),
-		// save the tiddlers (this will skip attachments)
-		...store.saveTiddlersFromPath_PrismaArray(options.bag_id, tiddlersFromPath.map(e => e.tiddlers).flat())
-	];
+	if (!recipeId) throw new Error("Recipe id was not created");
 
+	await prisma.recipeBag.create({
+		data: {
+			recipe_id: recipeId,
+			bag_id: options.bagId,
+			priority: 0,
+			is_writable: true,
+			info: { prefix: "" },
+		},
+	});
+
+	for (const plugin of plugins) {
+			const pluginRow = await prisma.plugin.upsert({
+				where: {
+					name_version: {
+						name: plugin.title,
+						version: plugin.version,
+					},
+				},
+				update: {},
+				create: {
+					name: plugin.title,
+					version: plugin.version,
+				},
+				select: { id: true },
+			});
+
+			await prisma.recipePlugin.upsert({
+				where: {
+					recipe_id_plugin_id: {
+						recipe_id: recipeId,
+						plugin_id: pluginRow.id,
+					},
+				},
+				update: { resolved_version: plugin.title },
+				create: {
+					recipe_id: recipeId,
+					plugin_id: pluginRow.id,
+					resolved_version: plugin.title,
+				},
+			});
+	}
+
+	await prisma.tiddler.deleteMany({ where: { bag_id: options.bagId } });
+	for (const tiddler of tiddlers) {
+		const fields = normalizeTiddlerFields(tiddler);
+		await prisma.tiddler.create({
+			data: {
+				bag_id: options.bagId,
+				title: fields.title,
+				fields,
+			},
+		});
+	}
+
+	return recipeId;
 }
 
-function loadWikiTiddlers($tw: TW, wikiPath: string, parentPaths: string[], pluginNamesTW5: string[]) {
+function loadWikiTiddlers($tw: TW, wikiPath: string, parentPaths: string[], importedPlugins: ImportedPlugin[]) {
 	// Read the tiddlywiki.info file
 	const wikiInfoPath = path.resolve(wikiPath, $tw.config.wikiInfo);
 	let wikiInfo: any;
@@ -154,7 +246,7 @@ function loadWikiTiddlers($tw: TW, wikiPath: string, parentPaths: string[], plug
 			}
 			var resolvedIncludedWikiPath = path.resolve(wikiPath, info.path);
 			if (parentPaths.indexOf(resolvedIncludedWikiPath) === -1) {
-				tiddlersFromPath.push(...loadWikiTiddlers($tw, resolvedIncludedWikiPath, parentPaths, pluginNamesTW5));
+				tiddlersFromPath.push(...loadWikiTiddlers($tw, resolvedIncludedWikiPath, parentPaths, importedPlugins));
 			} else {
 				$tw.utils.error("Cannot recursively include wiki " + resolvedIncludedWikiPath);
 			}
@@ -170,9 +262,15 @@ function loadWikiTiddlers($tw: TW, wikiPath: string, parentPaths: string[], plug
 			const pluginPaths = $tw.getLibraryItemSearchPaths(libraryPath, envVar);
 			const pluginPath = $tw.findLibraryItem(pluginName, pluginPaths);
 			if (!pluginPath) return;
+			const plugin = $tw.loadPluginFolder(pluginPath);
+			if (!plugin?.title) return;
 			const relPath = path.relative(twFolder, pluginPath);
 			if (relPath.startsWith("..")) extraPlugins.push(pluginPath);
-			else pluginNamesTW5.push(relPath);
+			else importedPlugins.push({
+				title: plugin.title,
+				version: typeof plugin.version === "string" && plugin.version ? plugin.version : $tw.version,
+				sourcePath: relPath,
+			});
 		});
 	}
 
@@ -212,5 +310,34 @@ function loadWikiTiddlers($tw: TW, wikiPath: string, parentPaths: string[], plug
 
 	return tiddlersFromPath;
 
+}
+
+function dedupePlugins(plugins: ImportedPlugin[]) {
+	const uniquePlugins = new Map<string, ImportedPlugin>();
+	for (const plugin of plugins) {
+		uniquePlugins.set(`${plugin.title}\u0000${plugin.version}`, plugin);
+	}
+	return Array.from(uniquePlugins.values());
+}
+
+function dedupeTiddlersByTitle(tiddlers: TiddlerFields[]) {
+	const uniqueTiddlers = new Map<string, TiddlerFields>();
+	for (const tiddler of tiddlers) {
+		const title = typeof tiddler.title === "string" ? tiddler.title : "";
+		if (!title) throw new Error("Tiddler must have a title");
+		uniqueTiddlers.set(title, tiddler);
+	}
+	return Array.from(uniqueTiddlers.values());
+}
+
+function normalizeTiddlerFields(tiddler: TiddlerFields) {
+	const normalized = Object.fromEntries(
+		Object.entries(tiddler).flatMap(([fieldName, fieldValue]) => {
+			if (fieldValue === undefined) return [];
+			return [[fieldName, typeof fieldValue === "string" ? fieldValue : `${fieldValue}`] as const];
+		})
+	);
+	if (!normalized.title) throw new Error("Tiddler must have a title");
+	return normalized as Record<string, string> & { title: string };
 }
 

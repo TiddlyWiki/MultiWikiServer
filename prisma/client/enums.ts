@@ -9,10 +9,26 @@
 * 🟢 You can import this file directly.
 */
 
-export const Permission = {
-  READ: 'READ',
-  WRITE: 'WRITE',
-  ADMIN: 'ADMIN'
+export const TiddlerEventType = {
+  save: 'save',
+  delete: 'delete'
 } as const
 
-export type Permission = (typeof Permission)[keyof typeof Permission]
+export type TiddlerEventType = (typeof TiddlerEventType)[keyof typeof TiddlerEventType]
+
+
+export const BagPermissionLevel = {
+  A_read: 'A_read',
+  B_write: 'B_write',
+  C_admin: 'C_admin'
+} as const
+
+export type BagPermissionLevel = (typeof BagPermissionLevel)[keyof typeof BagPermissionLevel]
+
+
+export const RecipePermissionLevel = {
+  A_read: 'A_read',
+  B_write: 'B_write'
+} as const
+
+export type RecipePermissionLevel = (typeof RecipePermissionLevel)[keyof typeof RecipePermissionLevel]

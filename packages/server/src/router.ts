@@ -14,6 +14,7 @@ import { matchedRoutes } from 'hono/route';
 import { serverEvents } from "@tiddlywiki/events";
 import SuperHeaders from "@remix-run/headers";
 import { BetterCookie } from "./better-headers";
+import { PrismaClientKnownRequestError } from "@tiddlywiki/mws-prisma/client/internal/prismaNamespace";
 
 declare module "hono/types" {
   interface RouterRoute {
@@ -82,6 +83,10 @@ const catcher = (errorKey: string, err: any) => {
   if (err === STREAM_ENDED) return;
   if (!err.skiplog)
     console.log(errorKey, err);
+  if(err instanceof PrismaClientKnownRequestError){
+    //@ts-ignore
+    console.log(err.meta?.driverAdapterError?.cause);
+  }
   if (!(err instanceof SendError)) {
     err = new SendError("INTERNAL_SERVER_ERROR", 500, {
       message: "Internal Server Error. Details have been logged."
@@ -140,7 +145,7 @@ export function parseNodeRequest<R extends GenericResponse | undefined>(req: Gen
 
   // const pathParams = routePath.reduce((n, e) => Object.assign(n, e.groups), {});
 
-  return { req, res, urlInfo, pathPrefix, secure: assumeHTTPS, method, host, headers, cookies, pathParams: {} }
+  return { req, res, urlInfo, pathPrefix, secure: assumeHTTPS, method, host, headers, cookies }
 }
 
 
@@ -152,11 +157,11 @@ function parseHonoRequest(req: HonoRequest, pathPrefix: string, assumeHTTPS: boo
   const headers = new SuperHeaders(req.header());
   const cookies = BetterCookie.from(req.header("Cookie") ?? null)
   const host = urlInfo.host;
+
   if (!host) throw new Error("This should never happen");
   if (!method) throw new Error("This should never happen");
-  // let [, host, url] = MWSRouter.pathReg.exec(req.url) ?? [];
-
-  if (!urlInfo.pathname.startsWith("/")) throw new Error("This should never happen: " + urlInfo.pathname);
+  if (!urlInfo.pathname.startsWith("/"))
+    throw new Error("This should never happen: " + urlInfo.pathname);
 
   if (pathPrefix) {
     if (urlInfo.pathname === pathPrefix) {
@@ -182,7 +187,6 @@ function parseHonoRequest(req: HonoRequest, pathPrefix: string, assumeHTTPS: boo
     host,
     headers,
     cookies,
-    pathParams: req.param(),
   }
 }
 
@@ -194,7 +198,6 @@ export interface ParsedRequest {
   host: string;
   headers: SuperHeaders;
   cookies: BetterCookie;
-  pathParams: Record<never, string>;
 }
 
 export function is2(req: GenericRequest) {
@@ -212,7 +215,7 @@ export class Router {
     public rootRoute: ServerRoute,
     public hono = new Hono<HonoEnv>(),
   ) {
-    this.hono.router = this.router;
+    this.hono.use(this.routeHandlerMiddleware);
   }
 
   routeHandlerMiddleware = createMiddleware<HonoEnv>((c, next) => {
@@ -240,8 +243,12 @@ export class Router {
     const parsed = parseHonoRequest(c.req, c.env.pathPrefix, c.env.presumeHTTPS);
     await serverEvents.emitAsync("request.init", this, parsed);
 
-    const { routePath, bodyFormat } = matchedRoutes(c)[c.req.routeIndex];
+    const routes = this.findRouteRecursive([this.rootRoute], parsed.urlInfo.pathname, parsed.method, false);
+    const routePath = routes.find(e => e.every(f => !f.route.method.length || f.route.method.includes(parsed.method))) ?? [];
+    const bodyFormat = routePath.find(e => e.route.bodyFormat)?.route.bodyFormat || "ignore";
+
     this.securityChecks(parsed, routePath);
+
     const state = await this.createServerRequest(parsed, routePath, bodyFormat, c, resolve);
     await this.handleStateBody(state as ServerRequest);
     await serverEvents.emitAsync("request.state", this, state as ServerRequest);
@@ -359,37 +366,20 @@ export class Router {
 
 
 
-  router = {
-    middleware: [] as [H, RouterRoute][],
-    name: "MultiWikiServerRouter",
-    add(method: string, path: string, handler: [H, RouterRoute]): void {
-      if (method === "ALL" && path === "/*") {
-        this.middleware.push(handler)
-      } else {
-        throw new Error(`The custom router only supports middleware that applies to everything`);
-      }
-    },
-    match: (method: string, path: string): Result<[H, RouterRoute]> => {
-      const routes = this.findRouteRecursive([this.rootRoute], path, method, false);
-      const routePath = routes.find(e => e.every(f => !f.route.method.length || f.route.method.includes(method))) ?? [];
-      const bodyFormat = routePath.find(e => e.route.bodyFormat)?.route.bodyFormat || "ignore";
-      const pathParams = routePath.reduce((n, e) => Object.assign(n, e.groups), {});
-      const last = routePath[routePath.length - 1];
-      const basePath = routePath.slice(0, -1).map(e => e.route.path.source.slice(1)).join("");
-      return [[
-        ...this.router.middleware.map(e => [e, {}] as [[H, RouterRoute], {}]),
-        [[this.routeHandlerMiddleware, {
-          method,
-          path: last.route.path.source.slice(1),
-          basePath,
-          handler: this.routeHandlerMiddleware,
-          routePath,
-          bodyFormat,
-        }], pathParams]
-      ]];
-    }
+  // router = {
+  //   middleware: [] as [H, RouterRoute][],
+  //   name: "MultiWikiServerRouter",
+  //   add(method: string, path: string, handler: [H, RouterRoute]): void {
+  //     if (method === "ALL" && path === "/*") {
+  //       this.middleware.push(handler)
+  //     } else {
+  //       throw new Error(`The custom router only supports middleware that applies to everything`);
+  //     }
+  //   },
+  //   match: (method: string, path: string): Result<[H, RouterRoute]> => {
+  //   }
 
-  }
+  // }
 
   findRouteRecursive(
     routes: ServerRoute[],
@@ -543,10 +533,10 @@ export interface ServerRoute extends RouteDef {
    * 
    * Note that GET and HEAD are always bodyFormat: "ignore", regardless of what is set here.
    */
-  defineRoute: (
+  defineRoute: <B extends BodyFormat = BodyFormat>(
     route: RouteDef,
-    handler: (state: ServerRequest) => Promise<symbol | void>,
-    catchHandler?: (state: ServerRequest, error: any) => Promise<symbol | void>
+    handler: (state: ServerRequest<B>) => Promise<symbol | void>,
+    catchHandler?: (state: ServerRequest<B>, error: any) => Promise<symbol | void>
   ) => ServerRoute;
 }
 

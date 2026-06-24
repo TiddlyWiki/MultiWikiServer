@@ -38,13 +38,13 @@ function buildPathRegex(path: string, key: string, keyReplacer: string) {
 export function defineZodRoute(
   parent: ServerRoute,
   key: string,
-  route: ZodRoute<any, any, any, any, any, any, any>
+  route: ZodRoute<any, any, any, any, string[], any, any>
 ) {
   const {
     method, path, bodyFormat, registerError, keyReplacer,
     zodPathParams,
-    zodQueryParams = () => ({}),
-    zodQueryKeys = [],
+    zodQueryParams,
+    zodQueryKeys,
     zodRequestBody = ["string", "json", "www-form-urlencoded"].includes(bodyFormat)
       ? z => z.undefined() : (z => z.any() as any),
     inner,
@@ -66,9 +66,11 @@ export function defineZodRoute(
 
       checkPath(state, zodPathParams, registerError);
 
-      checkQuery(state, zodQueryParams, registerError);
+      if (zodQueryParams)
+        checkQuery(state, zodQueryParams, registerError);
 
-      checkQueryKeys(state, zodQueryKeys, registerError);
+      if (zodQueryKeys)
+        checkQueryKeys(state, zodQueryKeys, registerError);
 
       checkData(state, zodRequestBody, registerError);
 

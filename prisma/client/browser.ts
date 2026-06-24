@@ -18,45 +18,60 @@ export { Prisma }
 export * as $Enums from './enums.ts'
 export * from './enums.ts';
 /**
+ * Model Bag
+ * 
+ */
+export type Bag = Prisma.BagModel
+/**
+ * Model BagPermission
+ * 
+ */
+export type BagPermission = Prisma.BagPermissionModel
+/**
+ * Model Tiddler
+ * 
+ */
+export type Tiddler = Prisma.TiddlerModel
+/**
+ * Model TiddlerEvent
+ * 
+ */
+export type TiddlerEvent = Prisma.TiddlerEventModel
+/**
+ * Model Template
+ * 
+ */
+export type Template = Prisma.TemplateModel
+/**
+ * Model Recipe
+ * 
+ */
+export type Recipe = Prisma.RecipeModel
+/**
+ * Model RecipePermission
+ * 
+ */
+export type RecipePermission = Prisma.RecipePermissionModel
+/**
+ * Model RecipeBag
+ * 
+ */
+export type RecipeBag = Prisma.RecipeBagModel
+/**
  * Model Settings
  * 
  */
 export type Settings = Prisma.SettingsModel
 /**
- * Model Recipes
+ * Model Plugin
  * 
  */
-export type Recipes = Prisma.RecipesModel
+export type Plugin = Prisma.PluginModel
 /**
- * Model RecipeAcl
+ * Model RecipePlugin
  * 
  */
-export type RecipeAcl = Prisma.RecipeAclModel
-/**
- * Model Recipe_bags
- * 
- */
-export type Recipe_bags = Prisma.Recipe_bagsModel
-/**
- * Model Bags
- * 
- */
-export type Bags = Prisma.BagsModel
-/**
- * Model BagAcl
- * 
- */
-export type BagAcl = Prisma.BagAclModel
-/**
- * Model Tiddlers
- * 
- */
-export type Tiddlers = Prisma.TiddlersModel
-/**
- * Model Fields
- * 
- */
-export type Fields = Prisma.FieldsModel
+export type RecipePlugin = Prisma.RecipePluginModel
 /**
  * Model Roles
  * 
