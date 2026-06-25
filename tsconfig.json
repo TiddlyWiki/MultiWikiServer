@@ -21,6 +21,7 @@
     "noImplicitReturns": true,
     "noFallthroughCasesInSwitch": true,
     "noUncheckedIndexedAccess": false,
+    "allowArbitraryExtensions": true,
     // "paths": {
     //   "@tiddlywiki/mws-prisma": [
     //     "./prisma/client"

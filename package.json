@@ -53,6 +53,7 @@
     "prisma:migrate": "node scripts/scripts.mjs prisma:migrate"
   },
   "dependencies": {
+    "@material-symbols/svg-400": "^0.45.3",
     "@serenity-kit/opaque": "^0.8.4",
     "@types/pg": "^8.20.0",
     "source-map-support": "^0.5.21",

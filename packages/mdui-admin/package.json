@@ -1,5 +1,5 @@
 {
-  "name": "@arwc/client",
+  "name": "@mws/client",
   "scripts": {
     "start": "cd .. && npm start",
     "tsc": "tsc --noEmit"

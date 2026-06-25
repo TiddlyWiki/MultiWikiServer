@@ -1,6 +1,4 @@
 /// <reference path="types.d.ts" />
-import 'mdui/mdui.css';
-import 'mdui';
 // global css (not scoped)
 import "./main.css";
 import { App } from "./app";

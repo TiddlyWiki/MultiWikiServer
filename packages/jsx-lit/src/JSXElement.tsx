@@ -37,7 +37,8 @@ export class JSXElement extends ReactiveElement {
   static DO_NOT_RENDER = DO_NOT_RENDER;
 
   useLightDOM = false;
-  "webjsx-donotdescend" = false;
+
+  get "webjsx-donotdescend"() { return this.useLightDOM; }
 
   protected events = new EventEmitter<{
     "willUpdate": [PropertyValues];

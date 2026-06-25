@@ -41,7 +41,7 @@ export default async function({ rootdir, publicdir }) {
     sourcemap: true,
     metafile: true,
     splitting: false,
-    loader: { '.inline.css': 'text' },
+    loader: { '.inline.css': 'text', ".svg": "text" },
     format: "esm",
     minify: prod && !process.env.NOMINIFY,
     external: ['node:crypto'],
