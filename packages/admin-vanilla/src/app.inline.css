@@ -1156,6 +1156,13 @@ h1, h2, h3, h4, h5, h6 {
 	font-weight: 600;
 }
 
+.pill-value-small {
+	padding: 4px 8px;
+	font-size: 0.84rem;
+	line-height: 1.2;
+	vertical-align: middle;
+}
+
 .field-callout {
 	padding: 14px 16px;
 	border-radius: 16px;

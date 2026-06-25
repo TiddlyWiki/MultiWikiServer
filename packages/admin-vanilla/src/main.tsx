@@ -11,6 +11,9 @@ window.addEventListener("drop", (e) => {
   console.log("Prevented the default browser behavior of doing stuff with dropped stuff. If you have a use case for this, please open an issue.");
 });
 
+declare global {
+  const pathPrefix: string;
+}
 
 // Source - https://stackoverflow.com/a/52695341
 // Posted by Gary Vernon Grubb, modified by community. 

@@ -44,7 +44,7 @@ type FieldType =
   | "select"
   | "metadata-table";
 
-type Mode = "create" | "create edit" | "edit" | "";
+type Mode = "create" | "create edit" | "edit" | "edit temp" | "create temp" | "create edit temp" | "";
 type ModalMode = "create" | "edit";
 interface AdminValue {
   __admin_value_string__: string;
@@ -202,8 +202,8 @@ const tabs = [
   {
     id: "wikis",
     label: "Wikis",
-    eyebrow: "Addressable pages",
-    description: "Final wiki instances built from a template plus per-wiki parameters. The list shows the compiled posture; the popup shows authored inputs and derived routing output together.",
+    eyebrow: "Your thoughts",
+    description: "Final wiki instances built from a template plus per-wiki customizations.",
     columns: [
       { key: "slug", label: "Slug" },
       { key: "displayName", label: "Display name" },
@@ -267,7 +267,7 @@ const tabs = [
         label: "Title routing test",
         type: "resolver-preview",
         section: "operations",
-        mode: "edit",
+        mode: "edit temp",
         architecture: "Diagnostic resolver output for a title entered by the user: computed prefix match and authored write target selection only. Read answers and final write permission would require live server state.",
       },
     ],
@@ -275,8 +275,8 @@ const tabs = [
   {
     id: "templates",
     label: "Templates",
-    eyebrow: "Routing blueprints",
-    description: "Reusable recipe definitions that bind part of the routing model and leave the rest for wikis. The popup combines authored definition data with dependency and validation views.",
+    eyebrow: "Wiki Blueprints",
+    description: "Reusable recipe definitions. Changes made to a template apply to every wiki using it.",
     columns: [
       { key: "name", label: "Name" },
       { key: "description", label: "Description" },
@@ -377,8 +377,8 @@ const tabs = [
   {
     id: "bags",
     label: "Bags",
-    eyebrow: "Storage containers",
-    description: "Concrete tiddler storage with role-based access control. The list emphasizes usage footprint; the popup separates bag permissions from routing relationships.",
+    eyebrow: "Tiddler Storage",
+    description: "Concrete tiddler storage with role-based access control.",
     columns: [
       { key: "name", label: "Name" },
       { key: "description", label: "Description" },
@@ -439,8 +439,8 @@ const tabs = [
   {
     id: "plugins",
     label: "Plugins",
-    eyebrow: "Versioned assets",
-    description: "Separately versioned plugins compiled into each wiki’s resolved plugin set. The popup focuses on lineage, metadata, and effective usage.",
+    eyebrow: "Managed Assets",
+    description: "Separately versioned plugins compiled into each wiki’s resolved plugin set. Still work in progress.",
     columns: [
       { key: "name", label: "Name" },
       { key: "version", label: "Version" },
@@ -491,7 +491,7 @@ const tabs = [
     id: "roles",
     label: "Roles",
     eyebrow: "Access profiles",
-    description: "Named access profiles that can be assigned to user accounts. Use them to keep account access readable across the admin surface.",
+    description: "Named access profiles that can be assigned to user accounts.",
     columns: [
       { key: "roleId", label: "Role name" },
       { key: "description", label: "Role description" },
@@ -504,8 +504,8 @@ const tabs = [
   {
     id: "users",
     label: "Users",
-    eyebrow: "Account access",
-    description: "User accounts with assigned roles and local credentials for the mock admin data model.",
+    eyebrow: "Account logins",
+    description: "User accounts with assigned roles.",
     columns: [
       { key: "username", label: "Username" },
       { key: "email", label: "Email" },
@@ -515,7 +515,7 @@ const tabs = [
       { key: "email", label: "Email", type: "string", section: "authored", mode: "create edit" },
       { key: "roleIds", label: "Roles", type: "search-multiselect", section: "authored", mode: "create edit" },
       { key: "password", label: "Password", type: "string", section: "authored", mode: "create edit" },
-      { key: "confirmPassword", label: "Confirm password", type: "string", section: "authored", mode: "create edit" },
+      { key: "confirmPassword", label: "Confirm password", type: "string", section: "authored", mode: "create edit temp" },
     ],
   },
 ] as const satisfies TabDefinition[];
@@ -539,10 +539,15 @@ type t3<T> = T extends [infer F extends FieldDefinition, ...infer R] ? [t3a<F>, 
   : T extends [infer F extends FieldDefinition] ? [t3a<F>] : [];
 
 type t2a<T extends TabDefinition> = { [K in T["id"]]: t3<T["fields"]> };
-type t3a<T extends FieldDefinition> = T["mode"] extends "" ? never : T["key"];
+type t3a<T extends FieldDefinition> =
+  T["mode"] extends "" ? never :
+  T["mode"] extends "create edit temp" ? never :
+  T["mode"] extends "create temp" ? never :
+  T["mode"] extends "edit temp" ? never :
+  T["key"];
 
 function getStoredFieldKeys(tab: TabDefinition): string[] {
-  return tab.fields.filter((field) => Boolean(field.mode)).map((field) => field.key);
+  return tab.fields.filter((field) => ["create", "create edit", "edit"].includes(field.mode)).map((field) => field.key);
 }
 
 function pruneStoredRecord(tabId: TabId, record: AdminRecord, fallbackOrdinal?: number): AdminRecord {
@@ -762,7 +767,6 @@ function getInitialItems(): ItemsByTab {
         plugins: "",
         writablePrefixBags: "Docs/ -> bag-docs\nDrafts/ -> bag-drafts\nUsers/ -> bag-user-space\n(empty) -> bag-engineering-main",
         recipePermissions: "editors:B_write\nviewers:A_read",
-        titleResolutionPreview: "Enter a title to preview resolver output.",
       },
       "1": {
         id: "1",
@@ -774,7 +778,6 @@ function getInitialItems(): ItemsByTab {
         plugins: "",
         writablePrefixBags: "Plugins/ -> bag-plugin-lab\n(empty) -> bag-plugin-lab",
         recipePermissions: "plugin-authors:B_write\nqa:A_read",
-        titleResolutionPreview: "Enter a title to preview resolver output.",
       },
     },
     templates: {
@@ -856,7 +859,6 @@ function getInitialItems(): ItemsByTab {
         email: "alex@example.com",
         roleIds: "admin\neditor",
         password: "",
-        confirmPassword: "",
       },
       "1": {
         id: "1",
@@ -864,7 +866,6 @@ function getInitialItems(): ItemsByTab {
         email: "sam@example.com",
         roleIds: "editor",
         password: "",
-        confirmPassword: "",
       },
     },
   };
@@ -932,7 +933,6 @@ class InMemoryAdminStorage implements AdminStorage {
   }
 }
 
-const adminStorage: AdminStorage = new InMemoryAdminStorage(toDataStore(getInitialItems()));
 
 function getFieldKeys(tab: TabDefinition): string[] {
   return Array.from(new Set([
@@ -962,6 +962,9 @@ function isEditable(field: FieldDefinition, mode: ModalMode): boolean {
   if (field.mode === "create edit") return true;
   if (field.mode === "create") return mode === "create";
   if (field.mode === "edit") return mode === "edit";
+  if (field.mode === "create edit temp") return true;
+  if (field.mode === "create temp") return mode === "create";
+  if (field.mode === "edit temp") return mode === "edit";
   const t: never = field.mode;
   return false;
 }
@@ -1344,103 +1347,168 @@ function syncRecord(tabId: TabId, draft: AdminRecord, itemsByTab: ItemsByTab): A
   return { ...draft };
 }
 
+class LineListCodec {
+  public parse(value: string): string[] {
+    if (!value.trim()) return [];
+    try {
+      const parsed = JSON.parse(value);
+      if (Array.isArray(parsed)) return parsed.map((entry) => String(entry).trim()).filter(Boolean);
+    } catch {
+      // fall back to the legacy newline-delimited format
+    }
+    return value.split("\n").map((entry) => entry.trim()).filter(Boolean);
+  }
+
+  public stringify(lines: string[]): string {
+    return lines.map((line) => line.trim()).filter(Boolean).join("\n");
+  }
+}
+
+class MappingRowsCodec {
+  public parse(value: string): MappingRow[] {
+    return value.split("\n").map((entry) => entry.trim()).filter(Boolean).map((row) => {
+      const [left, right] = row.split("->").map((part) => part?.trim() ?? "");
+      return {
+        left: left === "(empty)" ? "" : left,
+        right,
+      };
+    });
+  }
+
+  public stringify(rows: MappingRow[]): string {
+    return rows
+      .map((row) => ({ left: row.left.trim(), right: row.right.trim() }))
+      .filter((row) => row.left || row.right)
+      .map((row) => `${row.left || "(empty)"} -> ${row.right}`)
+      .join("\n");
+  }
+}
+
+class EditableMappingRowsCodec {
+  public parse(value: string): MappingRow[] {
+    return value.split("\n").map((entry) => {
+      const separatorIndex = entry.indexOf("->");
+      if (separatorIndex === -1) {
+        return {
+          left: entry,
+          right: "",
+        };
+      }
+
+      const left = entry.slice(0, separatorIndex).replace(/ $/, "");
+      const right = entry.slice(separatorIndex + 2).replace(/^ /, "");
+
+      return {
+        left: left === "(empty)" ? "" : left,
+        right: right.trim(),
+      };
+    }).filter((row) => row.left || row.right);
+  }
+
+  public stringify(rows: MappingRow[]): string {
+    return rows
+      .map((row) => ({ left: row.left, right: row.right.trim() }))
+      .filter((row) => row.left || row.right)
+      .map((row) => `${row.left || "(empty)"} -> ${row.right}`)
+      .join("\n");
+  }
+
+  public normalize(value: string): string {
+    return mappingRowsCodec.stringify(this.parse(value));
+  }
+}
+
+class PermissionRowsCodec {
+  public parse(value: string): PermissionRow[] {
+    return value.split("\n").map((entry) => entry.trim()).filter(Boolean).map((row) => {
+      const [role, levelText] = row.split(":").map((part) => part?.trim() ?? "");
+      const allPermissionLevels = [...bagPermissionLevels];
+      const level = allPermissionLevels.includes(levelText as PermissionLevel) ? levelText as PermissionLevel : "A_read";
+      return { role, level };
+    });
+  }
+
+  public stringify(rows: PermissionRow[]): string {
+    return rows
+      .map((row) => ({ role: row.role.trim(), level: row.level }))
+      .filter((row) => row.role)
+      .map((row) => `${row.role}:${row.level}`)
+      .join("\n");
+  }
+}
+
+class JsonObjectRowsCodec {
+  public parse(value: string): KeyValueRow[] {
+    try {
+      const parsed = JSON.parse(value || "{}");
+      if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+        return Object.entries(parsed).map(([key, entryValue]) => ({ key, value: String(entryValue) }));
+      }
+    } catch {
+      // fall back to an empty structured editor if the JSON is not currently parseable
+    }
+    return [];
+  }
+
+  public stringify(rows: KeyValueRow[]): string {
+    const next = rows.reduce<Record<string, string>>((acc, row) => {
+      const key = row.key.trim();
+      if (!key) return acc;
+      acc[key] = row.value;
+      return acc;
+    }, {});
+    return JSON.stringify(next, null, 2);
+  }
+}
+
+const lineListCodec = new LineListCodec();
+const mappingRowsCodec = new MappingRowsCodec();
+const editableMappingRowsCodec = new EditableMappingRowsCodec();
+const permissionRowsCodec = new PermissionRowsCodec();
+const jsonObjectRowsCodec = new JsonObjectRowsCodec();
+
 function parseLineList(value: string): string[] {
-  return JSON.parse(value);
-  return value.split("\n").map((entry) => entry.trim()).filter(Boolean);
+  return lineListCodec.parse(value);
 }
 
 function serializeLineList(lines: string[]): string {
-  return JSON.stringify(lines);
-  return lines.map((line) => line.trim()).filter(Boolean).join("\n");
+  return lineListCodec.stringify(lines);
 }
 
 function parseMappingRows(value: string): MappingRow[] {
-  return value.split("\n").map((entry) => entry.trim()).filter(Boolean).map((row) => {
-    const [left, right] = row.split("->").map((part) => part?.trim() ?? "");
-    return {
-      left: left === "(empty)" ? "" : left,
-      right,
-    };
-  });
+  return mappingRowsCodec.parse(value);
 }
 
 function parseEditableMappingRows(value: string): MappingRow[] {
-  return value.split("\n").map((entry) => {
-    const separatorIndex = entry.indexOf("->");
-    if (separatorIndex === -1) {
-      return {
-        left: entry,
-        right: "",
-      };
-    }
-
-    const left = entry.slice(0, separatorIndex).replace(/ $/, "");
-    const right = entry.slice(separatorIndex + 2).replace(/^ /, "");
-
-    return {
-      left: left === "(empty)" ? "" : left,
-      right: right.trim(),
-    };
-  }).filter((row) => row.left || row.right);
+  return editableMappingRowsCodec.parse(value);
 }
 
 function serializeMappingRows(rows: MappingRow[]): string {
-  return rows
-    .map((row) => ({ left: row.left.trim(), right: row.right.trim() }))
-    .filter((row) => row.left || row.right)
-    .map((row) => `${row.left || "(empty)"} -> ${row.right}`)
-    .join("\n");
+  return mappingRowsCodec.stringify(rows);
 }
 
 function serializeEditableMappingRows(rows: MappingRow[]): string {
-  return rows
-    .map((row) => ({ left: row.left, right: row.right.trim() }))
-    .filter((row) => row.left || row.right)
-    .map((row) => `${row.left || "(empty)"} -> ${row.right}`)
-    .join("\n");
+  return editableMappingRowsCodec.stringify(rows);
 }
 
 function normalizeWritablePrefixBags(value: string): string {
-  return serializeMappingRows(parseEditableMappingRows(value));
+  return editableMappingRowsCodec.normalize(value);
 }
 
 function parsePermissionRows(value: string): PermissionRow[] {
-  return value.split("\n").map((entry) => entry.trim()).filter(Boolean).map((row) => {
-    const [role, levelText] = row.split(":").map((part) => part?.trim() ?? "");
-    const allPermissionLevels = [...bagPermissionLevels];
-    const level = allPermissionLevels.includes(levelText as PermissionLevel) ? levelText as PermissionLevel : "A_read";
-    return { role, level };
-  });
+  return permissionRowsCodec.parse(value);
 }
 
 function serializePermissionRows(rows: PermissionRow[]): string {
-  return rows
-    .map((row) => ({ role: row.role.trim(), level: row.level }))
-    .filter((row) => row.role)
-    .map((row) => `${row.role}:${row.level}`)
-    .join("\n");
+  return permissionRowsCodec.stringify(rows);
 }
 
 function parseJsonObjectRows(value: string): KeyValueRow[] {
-  try {
-    const parsed = JSON.parse(value || "{}");
-    if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
-      return Object.entries(parsed).map(([key, entryValue]) => ({ key, value: String(entryValue) }));
-    }
-  } catch {
-    // fall back to an empty structured editor if the JSON is not currently parseable
-  }
-  return [];
+  return jsonObjectRowsCodec.parse(value);
 }
 
 function serializeJsonObjectRows(rows: KeyValueRow[]): string {
-  const next = rows.reduce<Record<string, string>>((acc, row) => {
-    const key = row.key.trim();
-    if (!key) return acc;
-    acc[key] = row.value;
-    return acc;
-  }, {});
-  return JSON.stringify(next, null, 2);
+  return jsonObjectRowsCodec.stringify(rows);
 }
 
 function computeResolverPreview(draft: AdminRecord, title: string) {
@@ -1833,7 +1901,11 @@ function renderKeyValueTableField(ctx: FieldEditorContext) {
         <div class="field-callout">
           <p>Inherited routing</p>
           <ul class="value-list">
-            {inheritedRoutingRows.map((row) => <li>{`${row.left || "(default)"} -> ${row.right}`}</li>)}
+            {inheritedRoutingRows.map((row) => (
+              <li>
+                {row.left ? row.left : <span class="pill-value pill-value-small">default</span>} {"->"} {row.right}
+              </li>
+            ))}
           </ul>
         </div>
       ) : null}
@@ -1987,82 +2059,318 @@ function renderPreField(ctx: ReadonlyFieldContext) {
   );
 }
 
+abstract class FieldTypeHandler {
+  protected constructor(public readonly fieldTypes: readonly FieldType[]) { }
+
+  public renderEditor(ctx: FieldEditorContext) {
+    return renderTextareaField(ctx, 5);
+  }
+
+  public renderReadonly(ctx: ReadonlyFieldContext) {
+    return renderPreField(ctx);
+  }
+}
+
+class TextInputFieldHandler extends FieldTypeHandler {
+  constructor(fieldTypes: readonly FieldType[], private readonly inputType: "text" | "number") {
+    super(fieldTypes);
+  }
+
+  public override renderEditor(ctx: FieldEditorContext) {
+    return renderTextInputField(ctx, this.inputType);
+  }
+}
+
+class TextareaFieldHandler extends FieldTypeHandler {
+  constructor(fieldTypes: readonly FieldType[], private readonly rows: number, private readonly extraClass = "") {
+    super(fieldTypes);
+  }
+
+  public override renderEditor(ctx: FieldEditorContext) {
+    return renderTextareaField(ctx, this.rows, this.extraClass);
+  }
+}
+
+class JsonEditorFieldHandler extends FieldTypeHandler {
+  constructor() {
+    super(["json-editor"]);
+  }
+
+  public parse(value: string) {
+    return jsonObjectRowsCodec.parse(value);
+  }
+
+  public stringify(rows: KeyValueRow[]) {
+    return jsonObjectRowsCodec.stringify(rows);
+  }
+
+  public override renderEditor(ctx: FieldEditorContext) {
+    return ctx.field.key === "parameters" ? renderParametersEditor(ctx) : renderTextareaField(ctx, 8, "is-code");
+  }
+}
+
+class SearchMultiselectFieldHandler extends FieldTypeHandler {
+  constructor() {
+    super(["search-multiselect"]);
+  }
+
+  public parse(value: string) {
+    return lineListCodec.parse(value);
+  }
+
+  public stringify(lines: string[]) {
+    return lineListCodec.stringify(lines);
+  }
+
+  public override renderEditor(ctx: FieldEditorContext) {
+    return renderSearchMultiselectField(ctx);
+  }
+}
+
+class PermissionTableFieldHandler extends FieldTypeHandler {
+  constructor() {
+    super(["permission-table"]);
+  }
+
+  public parse(value: string) {
+    return permissionRowsCodec.parse(value);
+  }
+
+  public stringify(rows: PermissionRow[]) {
+    return permissionRowsCodec.stringify(rows);
+  }
+
+  public override renderEditor(ctx: FieldEditorContext) {
+    return renderPermissionTableField(ctx);
+  }
+}
+
+class KeyValueTableFieldHandler extends FieldTypeHandler {
+  constructor() {
+    super(["key-value-table"]);
+  }
+
+  public parse(value: string) {
+    return editableMappingRowsCodec.parse(value);
+  }
+
+  public stringify(rows: MappingRow[]) {
+    return editableMappingRowsCodec.stringify(rows);
+  }
+
+  public normalize(value: string) {
+    return editableMappingRowsCodec.normalize(value);
+  }
+
+  public override renderEditor(ctx: FieldEditorContext) {
+    return renderKeyValueTableField(ctx);
+  }
+}
+
+class SelectFieldHandler extends FieldTypeHandler {
+  constructor() {
+    super(["select"]);
+  }
+
+  public override renderEditor(ctx: FieldEditorContext) {
+    return renderSelectField(ctx);
+  }
+}
+
+class AutocompleteFieldHandler extends FieldTypeHandler {
+  constructor() {
+    super(["autocomplete"]);
+  }
+
+  public override renderEditor(ctx: FieldEditorContext) {
+    return renderAutocompleteField(ctx);
+  }
+}
+
+class ActionFieldHandler extends FieldTypeHandler {
+  constructor() {
+    super(["action"]);
+  }
+
+  public override renderEditor(ctx: FieldEditorContext) {
+    return renderActionField(ctx);
+  }
+}
+
+class ResolverPreviewFieldHandler extends FieldTypeHandler {
+  constructor() {
+    super(["resolver-preview"]);
+  }
+
+  public override renderEditor(ctx: FieldEditorContext) {
+    return renderResolverPreviewField(ctx);
+  }
+}
+
+class ReferenceFieldHandler extends FieldTypeHandler {
+  constructor() {
+    super(["reference"]);
+  }
+
+  public override renderReadonly(ctx: ReadonlyFieldContext) {
+    return renderReferenceField(ctx);
+  }
+
+  public override renderEditor(ctx: FieldEditorContext) {
+    return renderReferenceField(ctx);
+  }
+}
+
+class ValueListFieldHandler extends FieldTypeHandler {
+  constructor(fieldTypes: readonly FieldType[]) {
+    super(fieldTypes);
+  }
+
+  public parse(value: string) {
+    return lineListCodec.parse(value);
+  }
+
+  public stringify(lines: string[]) {
+    return lineListCodec.stringify(lines);
+  }
+
+  public override renderReadonly(ctx: ReadonlyFieldContext) {
+    return renderValueListField(ctx);
+  }
+
+  public override renderEditor(ctx: FieldEditorContext) {
+    return renderValueListField(ctx);
+  }
+}
+
+class ActivityFeedFieldHandler extends FieldTypeHandler {
+  constructor() {
+    super(["activity-feed"]);
+  }
+
+  public parse(value: string) {
+    return lineListCodec.parse(value);
+  }
+
+  public stringify(lines: string[]) {
+    return lineListCodec.stringify(lines);
+  }
+
+  public override renderReadonly(ctx: ReadonlyFieldContext) {
+    return renderActivityFeedField(ctx);
+  }
+
+  public override renderEditor(ctx: FieldEditorContext) {
+    return renderActivityFeedField(ctx);
+  }
+}
+
+class MetadataTableFieldHandler extends FieldTypeHandler {
+  constructor() {
+    super(["metadata-table"]);
+  }
+
+  public parse(value: string) {
+    return lineListCodec.parse(value);
+  }
+
+  public stringify(lines: string[]) {
+    return lineListCodec.stringify(lines);
+  }
+
+  public override renderReadonly(ctx: ReadonlyFieldContext) {
+    return renderMetadataTableField(ctx);
+  }
+
+  public override renderEditor(ctx: FieldEditorContext) {
+    return renderMetadataTableField(ctx);
+  }
+}
+
+class TableFieldHandler extends FieldTypeHandler {
+  constructor() {
+    super(["table"]);
+  }
+
+  public parse(value: string) {
+    return lineListCodec.parse(value);
+  }
+
+  public stringify(lines: string[]) {
+    return lineListCodec.stringify(lines);
+  }
+
+  public override renderReadonly(ctx: ReadonlyFieldContext) {
+    return renderTableField(ctx);
+  }
+
+  public override renderEditor(ctx: FieldEditorContext) {
+    return renderTableField(ctx);
+  }
+}
+
+class CalloutFieldHandler extends FieldTypeHandler {
+  constructor(fieldTypes: readonly FieldType[]) {
+    super(fieldTypes);
+  }
+
+  public override renderReadonly(ctx: ReadonlyFieldContext) {
+    return renderCalloutField(ctx);
+  }
+
+  public override renderEditor(ctx: FieldEditorContext) {
+    return renderCalloutField(ctx);
+  }
+}
+
+class FallbackFieldHandler extends FieldTypeHandler {
+  constructor() {
+    super([]);
+  }
+}
+
+const fieldTypeHandlers: FieldTypeHandler[] = [
+  new TextInputFieldHandler(["string", "version"], "text"),
+  new TextInputFieldHandler(["number"], "number"),
+  new TextareaFieldHandler(["text"], 4),
+  new JsonEditorFieldHandler(),
+  new SearchMultiselectFieldHandler(),
+  new PermissionTableFieldHandler(),
+  new KeyValueTableFieldHandler(),
+  new SelectFieldHandler(),
+  new AutocompleteFieldHandler(),
+  new ActionFieldHandler(),
+  new ResolverPreviewFieldHandler(),
+  new ReferenceFieldHandler(),
+  new ValueListFieldHandler(["parameter-list", "relationship-table", "summary-list"]),
+  new ActivityFeedFieldHandler(),
+  new MetadataTableFieldHandler(),
+  new TableFieldHandler(),
+  new CalloutFieldHandler(["structured-preview", "validation-report"]),
+];
+
+const fallbackFieldHandler = new FallbackFieldHandler();
+
+const fieldHandlerByType = new Map<FieldType, FieldTypeHandler>(
+  fieldTypeHandlers.flatMap((handler) => handler.fieldTypes.map((fieldType) => [fieldType, handler] as const)),
+);
+
+function getFieldHandler(fieldType: FieldType): FieldTypeHandler {
+  return fieldHandlerByType.get(fieldType) ?? fallbackFieldHandler;
+}
+
 /**
  * Dispatches readonly field types to their renderers. Used both by the
  * ReadonlyFieldElement custom element and (for the duplicated types) by
  * renderFieldEditor.
  */
 function renderReadonlyField(ctx: ReadonlyFieldContext) {
-  switch (ctx.field.type) {
-    case "reference":
-      return renderReferenceField(ctx);
-    case "parameter-list":
-    case "relationship-table":
-    case "summary-list":
-      return renderValueListField(ctx);
-    case "activity-feed":
-      return renderActivityFeedField(ctx);
-    case "metadata-table":
-      return renderMetadataTableField(ctx);
-    case "table":
-      return renderTableField(ctx);
-    case "structured-preview":
-    case "validation-report":
-      return renderCalloutField(ctx);
-    default:
-      return renderPreField(ctx);
-  }
+  return getFieldHandler(ctx.field.type).renderReadonly(ctx);
 }
 
 function renderFieldEditor(input: FieldEditorInput) {
   const ctx: FieldEditorContext = { ...input, inputId: `field-${input.field.key}` };
-  switch (ctx.field.type) {
-    case "string":
-    case "version":
-      return renderTextInputField(ctx, "text");
-    case "number":
-      return renderTextInputField(ctx, "number");
-    case "text":
-      return renderTextareaField(ctx, 4);
-    case "json-editor":
-      return ctx.field.key === "parameters" ? renderParametersEditor(ctx) : renderTextareaField(ctx, 8, "is-code");
-    case "search-multiselect":
-      return renderSearchMultiselectField(ctx);
-    case "permission-table":
-      return renderPermissionTableField(ctx);
-    case "key-value-table":
-      return renderKeyValueTableField(ctx);
-    case "select":
-      return renderSelectField(ctx);
-    case "autocomplete":
-      return renderAutocompleteField(ctx);
-    case "action":
-      return renderActionField(ctx);
-    case "resolver-preview":
-      return renderResolverPreviewField(ctx);
-    // --- Readonly field types, moved from ReadonlyFieldElement ---
-    case "reference":
-      return renderReferenceField(ctx);
-    case "parameter-list":
-    case "relationship-table":
-    case "summary-list":
-      return renderValueListField(ctx);
-    case "activity-feed":
-      return renderActivityFeedField(ctx);
-    case "metadata-table":
-      return renderMetadataTableField(ctx);
-    case "table":
-      return renderTableField(ctx);
-    case "structured-preview":
-    case "validation-report":
-      return renderCalloutField(ctx);
-    // NOTE: ReadonlyFieldElement's `default` rendered a <pre> (renderPreField).
-    // This switch's `default` is a duplicate of that slot but keeps the editor
-    // behavior (textarea). The readonly <pre> fallback is preserved as
-    // renderPreField and reachable via the readonly render path below.
-    default:
-      return renderTextareaField(ctx, 5);
-  }
+  return getFieldHandler(ctx.field.type).renderEditor(ctx);
 }
 
 @customElement("mws-field-block")
@@ -2516,9 +2824,12 @@ export class App extends JSXElement {
       <div class="admin-shell">
         <header class="hero-panel">
           <div>
-            <p class="eyebrow">Multi-wiki administration</p>
-            <h1>Wiki model control room</h1>
-            <p class="hero-copy">A data-first admin surface for wikis, templates, bags, and plugins. Lists expose effective state. Popup forms separate authored inputs from compiled outputs.</p>
+            <p class="eyebrow">Multi-wiki server administration</p>
+            <h1 style="display:flex; gap: 1rem; align-items:center;">
+              {/* <img src={pathPrefix + "/favicon.png"} style="width:2rem;height:2rem;" /> */}
+              <span>MWS</span>
+            </h1>
+            <p class="hero-copy">All your thoughts, in as many places as you need them.</p>
           </div>
           <div class="hero-stats">
             <article>
@@ -2625,3 +2936,5 @@ export class App extends JSXElement {
     );
   }
 }
+
+const adminStorage: AdminStorage = new InMemoryAdminStorage(toDataStore(getInitialItems()));
