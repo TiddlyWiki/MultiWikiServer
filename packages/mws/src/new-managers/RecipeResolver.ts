@@ -749,9 +749,7 @@ export function createSampleWiki(prisma: PrismaEngineClient) {
             readonlyBags: ["bag-shared-specs", "bag-shared-archive", "bag-policy"],
             writablePrefixBags: {
               "Docs/": "bag-docs",
-              "Drafts/": "bag-drafts",
               "Users/": "bag-user-space",
-              "": "bag-engineering-main",
             },
             plugins: [],
             requiredPluginsEnabled: true,
@@ -795,9 +793,7 @@ export function createSampleWiki(prisma: PrismaEngineClient) {
             description: "Shared engineering wiki with namespace routing for specs, drafts, and user notes.",
             readonlyBags: [],
             writablePrefixBags: {
-              "Docs/": "bag-docs",
               "Drafts/": "bag-drafts",
-              "Users/": "bag-user-space",
               "": "bag-engineering-main",
             },
             plugins: [],
@@ -835,9 +831,9 @@ export function createSampleWiki(prisma: PrismaEngineClient) {
     ]);
 
     const compiledRecipeBags = [
-      { recipeId: engineeringHub.id, bagName: "bag-docs", priority: 0, isWritable: true, prefix: "Docs/" },
-      { recipeId: engineeringHub.id, bagName: "bag-drafts", priority: 1, isWritable: true, prefix: "Drafts/" },
-      { recipeId: engineeringHub.id, bagName: "bag-user-space", priority: 2, isWritable: true, prefix: "Users/" },
+      { recipeId: engineeringHub.id, bagName: "bag-drafts", priority: 0, isWritable: true, prefix: "Drafts/" },
+      { recipeId: engineeringHub.id, bagName: "bag-user-space", priority: 1, isWritable: true, prefix: "Users/" },
+      { recipeId: engineeringHub.id, bagName: "bag-docs", priority: 2, isWritable: true, prefix: "Docs/" },
       { recipeId: engineeringHub.id, bagName: "bag-engineering-main", priority: 3, isWritable: true, prefix: "" },
       { recipeId: engineeringHub.id, bagName: "bag-shared-specs", priority: 4, isWritable: false, prefix: "" },
       { recipeId: engineeringHub.id, bagName: "bag-shared-archive", priority: 5, isWritable: false, prefix: "" },

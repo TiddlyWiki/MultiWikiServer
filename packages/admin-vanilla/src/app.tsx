@@ -167,15 +167,17 @@ type PermissionRowsChangeHandler = (fieldKey: string, rows: PermissionRow[]) => 
 type ResolverTitleChangeHandler = (value: string) => void;
 type OperationTriggerHandler = (fieldKey: string, message: string) => void;
 
-interface ReadonlyFieldProps {
+/** The subset of FieldEditorContext that the readonly renderers need. */
+interface ReadonlyFieldContext {
   field: FieldDefinition;
-  value: string;
+  value: unknown;
   itemsByTab?: ItemsByTab;
 }
 
-interface FieldEditorProps {
+
+interface FieldEditorInput {
   field: FieldDefinition;
-  value: string;
+  value: unknown;
   disabled?: boolean;
   modalState: ModalState;
   itemsByTab: ItemsByTab;
@@ -186,14 +188,16 @@ interface FieldEditorProps {
   onTriggerOperation: OperationTriggerHandler;
 }
 
-interface FieldBlockProps extends FieldEditorProps {
+
+interface FieldBlockProps extends FieldEditorInput {
   modalMode: ModalMode;
   useCardTitle?: boolean;
 }
 
-interface SidebarReadonlyFieldProps {
-  field: FieldDefinition;
-  draft: AdminRecord;
+
+/** FieldEditorInput plus the derived inputId, shared by the per-type render functions. */
+interface FieldEditorContext extends FieldEditorInput {
+  inputId: string;
 }
 
 interface MissingDependencyLine {
@@ -208,7 +212,7 @@ interface SidebarSectionProps {
 
 interface ToggleFieldProps {
   field: FieldDefinition;
-  value: string;
+  value: unknown;
   onDraftChange: DraftChangeHandler;
   headerOnly?: boolean;
 }
@@ -375,7 +379,7 @@ function syncWikiRecord(draft: DataStore["wikis"][number], data: DataStore) {
   return {
     ...draft,
     writablePrefixBags: normalizedWritablePrefixBags,
-    templateName: templateRecord?.name ?? draft.templateId ?? "",
+    templateName: templateRecord?.name ?? referenceCodec.name(draft.templateId) ?? "",
     defaultWritableBag,
     readonlyBagCount: String(mergedReadonlyBags.length),
     prefixRuleCount,
@@ -419,7 +423,8 @@ function deriveItems(items: DataStore): ItemsByTab {
   const wikis = items.wikis.map((wiki) => syncWikiRecord(wiki, { ...items, templates: partialTemplates }));
   const dependentWikiMap = new Map<string, string[]>();
   for (const wiki of wikis) {
-    mapGetInit(dependentWikiMap, wiki.templateId, () => []).push(wiki.slug || wiki.displayName);
+    const id = referenceCodec.id(wiki.templateId);
+    mapGetInit(dependentWikiMap, id, () => []).push(wiki.slug || wiki.displayName);
   }
 
   const templates = partialTemplates.map((template) => {
@@ -576,7 +581,7 @@ function getPrimaryValue(tab: TabDefinition, item: AdminRecord): string {
 function getCreateLabel(tab: TabDefinition): string {
   return tab.createLabel;
 }
-
+// TODO: fold into tabs variable
 function getSelectOptions(field: FieldDefinition, itemsByTab: ItemsByTab): string[] {
   if (field.key === "status") return ["draft", "published", "archived"];
   if (field.key === "requiredPluginsEnabled" || field.key === "customHtmlEnabled") return ["enabled", "disabled"];
@@ -590,7 +595,7 @@ function getAutocompleteOptions(field: FieldDefinition, itemsByTab: ItemsByTab):
   if (field.key === "templateId") {
     return Array.from(new Set([
       ...itemsByTab.templates.map((item) => item.name),
-      ...itemsByTab.wikis.map((item) => item.templateId),
+      ...itemsByTab.wikis.map((item) => referenceCodec.name(item.templateId)),
     ].filter(Boolean)));
   }
   return [];
@@ -686,12 +691,9 @@ function getFieldGroups(tab: TabDefinition, section: FieldSection, fields: Field
   return configuredGroups.filter((group) => group.keys.some((key) => fields.some((field) => field.key === key)));
 }
 
-function getSummaryColumns(tab: TabDefinition): ColumnDefinition[] {
-  return tab.columns.slice(0, 6);
-}
-
 function findTemplateRecordForWikiRecord(draft: DataStore["wikis"][number], itemsByTab: DataStore | ItemsByTab) {
-  return itemsByTab.templates.find((template) => draft.templateId === template.id);
+  const id = referenceCodec.id(draft.templateId);
+  return itemsByTab.templates.find((template) => id === template.id);
 }
 
 function uniqueLines(values: string[]): string[] {
@@ -824,11 +826,23 @@ class JsonObjectRowsCodec {
   }
 }
 
+class ReferenceCodec {
+  id(value: string) { return JSON.parse(value).id; }
+  name(value: string) { return JSON.parse(value).name; }
+  public parse(value: string): { id: string; name: string; } {
+    return JSON.parse(value);
+  }
+  public stringify(value: { id: string; name: string; }) {
+    return JSON.stringify(value);
+  }
+}
+
 const lineListCodec = new LineListCodec();
 const mappingRowsCodec = new MappingRowsCodec();
 const editableMappingRowsCodec = new EditableMappingRowsCodec();
 const permissionRowsCodec = new PermissionRowsCodec();
 const jsonObjectRowsCodec = new JsonObjectRowsCodec();
+const referenceCodec = new ReferenceCodec();
 
 function computeResolverPreview(draft: AdminRecord, title: string) {
   const normalizedTitle = title.trim();
@@ -843,9 +857,7 @@ function computeResolverPreview(draft: AdminRecord, title: string) {
   };
 }
 
-function hasTrimMismatch(value: string): boolean {
-  return value.trim() !== value;
-}
+
 
 function formatFieldValue(value: string | undefined): string {
   return value && value.trim() ? value : "—";
@@ -874,7 +886,7 @@ function getSidebarFacts(tabId: TabId, draft: unknown): Array<{ label: string; v
   if (tabId === "wikis") {
     definitely<WikiAdminRecord>(draft);
     return [
-      { label: "Template", value: formatFieldValue(draft.templateName || draft.templateId) },
+      { label: "Template", value: formatFieldValue(draft.templateName || referenceCodec.name(draft.templateId)) },
       { label: "Default bag", value: formatFieldValue(draft.defaultWritableBag) },
       { label: "Compiled", value: formatFieldValue(draft.lastCompiledAt) },
     ];
@@ -936,24 +948,6 @@ function getSidebarFacts(tabId: TabId, draft: unknown): Array<{ label: string; v
 
 }
 
-interface FieldEditorInput {
-  field: FieldDefinition;
-  value: string;
-  disabled?: boolean;
-  modalState: ModalState;
-  itemsByTab: ItemsByTab;
-  onDraftChange: DraftChangeHandler;
-  onPendingRowsChange: PendingRowsChangeHandler;
-  onTransientPermissionRowsChange: PermissionRowsChangeHandler;
-  onResolverTitleChange: ResolverTitleChangeHandler;
-  onTriggerOperation: OperationTriggerHandler;
-}
-
-/** FieldEditorInput plus the derived inputId, shared by the per-type render functions. */
-interface FieldEditorContext extends FieldEditorInput {
-  inputId: string;
-}
-
 function renderSearchableInput(ctx: FieldEditorContext, { id, currentValue, placeholder, options, onInput }: {
   id: string;
   currentValue: string;
@@ -988,6 +982,7 @@ function renderSearchableInput(ctx: FieldEditorContext, { id, currentValue, plac
 
 function renderTextInputField(ctx: FieldEditorContext, type: "text" | "number") {
   const { field, value, disabled, inputId, onDraftChange } = ctx;
+  definitely<string>(value);
   return <input id={inputId} class="field-input" type={type} value={value} ref={(element) => {
     if (element.value !== value) element.value = value;
   }} disabled={disabled} oninput={(event) => onDraftChange(field.key, (event.currentTarget as HTMLInputElement).value)} />;
@@ -995,261 +990,16 @@ function renderTextInputField(ctx: FieldEditorContext, type: "text" | "number") 
 
 function renderTextareaField(ctx: FieldEditorContext, rows: number, extraClass = "") {
   const { field, value, disabled, inputId, onDraftChange } = ctx;
+  definitely<string>(value);
   const className = extraClass ? `field-textarea ${extraClass}` : "field-textarea";
   return <textarea id={inputId} class={className} rows={rows} ref={(element) => {
     if (element.value !== value) element.value = value;
   }} disabled={disabled} oninput={(event) => onDraftChange(field.key, (event.currentTarget as HTMLTextAreaElement).value)} />;
 }
 
-function renderParametersEditor(ctx: FieldEditorContext) {
-  const { field, disabled, modalState, value, onDraftChange, onPendingRowsChange } = ctx;
-  const parameterRows = jsonObjectRowsCodec.parse(value);
-  const pendingRowCount = modalState.pendingRows[field.key] ?? 0;
-  const displayedParameterRows = parameterRows.length
-    ? [...parameterRows, ...Array.from({ length: pendingRowCount }, () => ({ key: "", value: "" }))]
-    : [{ key: "", value: "" }, ...Array.from({ length: pendingRowCount }, () => ({ key: "", value: "" }))];
-  return (
-    <div class="row-editor-stack">
-      <p class="field-helper">Enter only the per-wiki values the selected template leaves open.</p>
-      {displayedParameterRows.map((row, index) => (
-        <div class="row-editor-row row-editor-row-wide">
-          <input class="field-input" type="text" value={row.key} placeholder="Parameter name" disabled={disabled} oninput={(event) => {
-            const element = event.currentTarget as HTMLInputElement;
-            const hadStoredRow = index < parameterRows.length;
-            const nextRows = parameterRows.length ? [...parameterRows] : [{ key: "", value: "" }];
-            nextRows[index] = { ...row, key: element.value };
-            onDraftChange(field.key, jsonObjectRowsCodec.stringify(nextRows));
-            if (!hadStoredRow && (element.value.trim() || row.value.trim())) onPendingRowsChange(field.key, (count) => count - 1);
-          }} ref={(element) => {
-            if (element.value !== row.key) element.value = row.key;
-          }} />
-          <input class="field-input" type="text" value={row.value} placeholder="Value" disabled={disabled} oninput={(event) => {
-            const element = event.currentTarget as HTMLInputElement;
-            const hadStoredRow = index < parameterRows.length;
-            const nextRows = parameterRows.length ? [...parameterRows] : [{ key: "", value: "" }];
-            nextRows[index] = { ...row, value: element.value };
-            onDraftChange(field.key, jsonObjectRowsCodec.stringify(nextRows));
-            if (!hadStoredRow && (row.key.trim() || element.value.trim())) onPendingRowsChange(field.key, (count) => count - 1);
-          }} ref={(element) => {
-            if (element.value !== row.value) element.value = row.value;
-          }} />
-          <button type="button" class="row-action-button" disabled={disabled} onclick={() => {
-            if (index >= parameterRows.length) {
-              onPendingRowsChange(field.key, (count) => count - 1);
-              return;
-            }
-            const nextRows = parameterRows.length ? [...parameterRows] : [];
-            nextRows.splice(index, 1);
-            onDraftChange(field.key, jsonObjectRowsCodec.stringify(nextRows));
-          }}>Remove</button>
-        </div>
-      ))}
-      <button type="button" class="ghost-button" disabled={disabled} onclick={() => onPendingRowsChange(field.key, (count) => count + 1)}>Add parameter</button>
-    </div>
-  );
-}
-
-function renderSearchMultiselectField(ctx: FieldEditorContext) {
-  const { field, value, disabled, modalState, itemsByTab, inputId, onDraftChange, onPendingRowsChange } = ctx;
-  const editableLines = lineListCodec.parse(value);
-  const pendingRowCount = modalState.pendingRows[field.key] ?? 0;
-  const lookupOptions = getLookupOptions(field.key, itemsByTab);
-  const itemLabel = field.key === "plugins"
-    ? "plugin"
-    : field.key === "roleIds"
-      ? "role id"
-      : "bag";
-  const templateRecord = is<WikiAdminRecord>(modalState.draft, modalState.tabId === "wikis")
-    ? findTemplateRecordForWikiRecord(modalState.draft, itemsByTab) : undefined;
-  const templateReadonlyBagLines = field.key === "readonlyBags" && templateRecord
-    ? lineListCodec.parse(templateRecord.readonlyBags ?? "") : [];
-  const templatePluginLines = field.key === "plugins" && templateRecord
-    ? lineListCodec.parse(templateRecord.plugins ?? "") : [];
-  const templateCorePluginsEnabled = templateRecord?.requiredPluginsEnabled !== "disabled";
-
-  const updateLineValueAt = (index: number, nextValue: string) => {
-    const lines = lineListCodec.parse(value);
-    const hadStoredRow = index < lines.length;
-    while (lines.length <= index) lines.push("");
-    lines[index] = nextValue;
-    onDraftChange(field.key, lineListCodec.stringify(lines));
-    if (!hadStoredRow && nextValue.trim()) onPendingRowsChange(field.key, (count) => count - 1);
-  };
-
-  const removeLineValueAt = (index: number) => {
-    const lines = lineListCodec.parse(value);
-    if (index >= lines.length) {
-      onPendingRowsChange(field.key, (count) => count - 1);
-      return;
-    }
-    lines.splice(index, 1);
-    onDraftChange(field.key, lineListCodec.stringify(lines));
-  };
-
-  const displayedLines = editableLines.length
-    ? [...editableLines, ...Array.from({ length: pendingRowCount }, () => "")]
-    : ["", ...Array.from({ length: pendingRowCount }, () => "")];
-  return (
-    <div class="row-editor-stack">
-      {displayedLines.map((line, index) => (
-        <div class="row-editor-row">
-          {renderSearchableInput(ctx, {
-            id: `${inputId}-${index}`,
-            currentValue: line,
-            placeholder: `${itemLabel.charAt(0).toUpperCase()}${itemLabel.slice(1)} name`,
-            options: lookupOptions,
-            onInput: (nextValue) => updateLineValueAt(index, nextValue),
-          })}
-          <button type="button" class="row-action-button" disabled={disabled} onclick={() => removeLineValueAt(index)}>Remove</button>
-        </div>
-      ))}
-      <button type="button" class="ghost-button" disabled={disabled} onclick={() => onPendingRowsChange(field.key, (count) => count + 1)}>{`Add ${itemLabel}`}</button>
-      {field.key === "readonlyBags" && modalState.tabId === "wikis" && templateRecord ? (
-        <div class="field-callout">
-          <p>Readonly bags from template</p>
-          <ul class="value-list">
-            {templateReadonlyBagLines.length ? templateReadonlyBagLines.map((bag) => <li>{bag}</li>) : <li>No template readonly bags</li>}
-          </ul>
-        </div>
-      ) : null}
-      {field.key === "plugins" && modalState.tabId === "wikis" && templateRecord ? (
-        <div class="field-callout">
-          <p>Plugins from template</p>
-          <ul class="value-list">
-            {templatePluginLines.map((plugin) => <li>{plugin}</li>)}
-            {templateCorePluginsEnabled ? <li>core plugins</li> : <li>core plugins disabled</li>}
-          </ul>
-        </div>
-      ) : null}
-    </div>
-  );
-}
-
-function renderPermissionTableField(ctx: FieldEditorContext) {
-  const { field, value, disabled, modalState, itemsByTab, inputId, onDraftChange, onTransientPermissionRowsChange } = ctx;
-  const permissionRows = permissionRowsCodec.parse(value);
-  const lookupOptions = getLookupOptions(field.key, itemsByTab);
-  const availableLevels = getPermissionLevelsForField(field.key);
-  const transientPermissionRows = modalState.transientPermissionRows[field.key] ?? [];
-  const displayedPermissionRows = permissionRows.length || transientPermissionRows.length
-    ? [...permissionRows, ...transientPermissionRows]
-    : [{ role: "", level: availableLevels[0] as PermissionLevel }];
-
-  const persistPermissionRows = (rows: PermissionRow[]) => {
-    const persistedRows = rows.filter((row) => row.role.trim());
-    const nextTransientRows = rows.filter((row) => !row.role.trim());
-    onDraftChange(field.key, permissionRowsCodec.stringify(persistedRows));
-    onTransientPermissionRowsChange(field.key, nextTransientRows);
-  };
-
-  return (
-    <div class="row-editor-stack">
-      {displayedPermissionRows.map((row, index) => (
-        <div key={`${field.key}-permission-${index}`} class="row-editor-row row-editor-row-wide row-editor-row-permission">
-          {renderSearchableInput(ctx, {
-            id: `${inputId}-${index}-role`,
-            currentValue: row.role,
-            placeholder: "Role",
-            options: lookupOptions,
-            onInput: (nextValue) => {
-              const nextRows = [...displayedPermissionRows];
-              nextRows[index] = { ...row, role: nextValue };
-              persistPermissionRows(nextRows);
-            },
-          })}
-          <select class="field-select" onchange={(event) => {
-            if (disabled) return;
-            const nextRows = [...displayedPermissionRows];
-            nextRows[index] = { ...row, level: (event.currentTarget as HTMLSelectElement).value as PermissionLevel };
-            persistPermissionRows(nextRows);
-          }} disabled={disabled}>
-            {availableLevels.map((level) => <option key={`${field.key}-${index}-${level}`} value={level} selected={level === row.level}>{formatPermissionLevel(level)}</option>)}
-          </select>
-          <button type="button" class="row-action-button" disabled={disabled} onclick={() => {
-            const nextRows = [...displayedPermissionRows];
-            nextRows.splice(index, 1);
-            persistPermissionRows(nextRows);
-          }}>Remove</button>
-        </div>
-      ))}
-      <button type="button" class="ghost-button" disabled={disabled} onclick={() => onTransientPermissionRowsChange(field.key, [...transientPermissionRows, { role: "", level: availableLevels[0] as PermissionLevel }])}>Add permission</button>
-    </div>
-  );
-}
-
-function renderKeyValueTableField(ctx: FieldEditorContext) {
-  const { field, value, disabled, modalState, itemsByTab, inputId, onDraftChange, onPendingRowsChange } = ctx;
-  const mappingRows = editableMappingRowsCodec.parse(value);
-  const pendingRowCount = modalState.pendingRows[field.key] ?? 0;
-  const lookupOptions = getLookupOptions(field.key, itemsByTab);
-  const displayedMappingRows = mappingRows.length
-    ? [...mappingRows, ...Array.from({ length: pendingRowCount }, () => ({ left: "", right: "" }))]
-    : [{ left: "", right: "" }, ...Array.from({ length: pendingRowCount }, () => ({ left: "", right: "" }))];
-  const templateRecord = is<WikiAdminRecord>(modalState.draft, modalState.tabId === "wikis")
-    ? findTemplateRecordForWikiRecord(modalState.draft, itemsByTab) : undefined;
-  const inheritedRoutingRows = field.key === "writablePrefixBags" && modalState.tabId === "wikis" && templateRecord
-    ? mappingRowsCodec.parse(templateRecord.writablePrefixBags ?? "")
-    : [];
-  return (
-    <div class="row-editor-stack">
-      {displayedMappingRows.map((row, index) => (
-        <div class="row-editor-row row-editor-row-wide">
-          <div class="prefix-input-shell">
-            <input class={hasTrimMismatch(row.left) ? "field-input is-invalid" : "field-input"} type="text" value={row.left} placeholder="Prefix, leave blank for default" aria-invalid={hasTrimMismatch(row.left) ? "true" : undefined} title={hasTrimMismatch(row.left) ? "Prefix cannot start or end with whitespace." : undefined} disabled={disabled} oninput={(event) => {
-              const element = event.currentTarget as HTMLInputElement;
-              const hadStoredRow = index < mappingRows.length;
-              const nextRows = mappingRows.length ? [...mappingRows] : [{ left: "", right: "" }];
-              nextRows[index] = { ...row, left: element.value };
-              onDraftChange(field.key, editableMappingRowsCodec.stringify(nextRows));
-              if (!hadStoredRow && (element.value.trim() || row.right.trim())) onPendingRowsChange(field.key, (count) => count - 1);
-            }} ref={(element) => {
-              if (element.value !== row.left) element.value = row.left;
-            }} />
-            {hasTrimMismatch(row.left) ? <span class="prefix-input-alert missing-marker" aria-label="Prefix has leading or trailing whitespace" title="Prefix cannot start or end with whitespace."><MaterialSymbol icon={warningIcon} /></span> : null}
-          </div>
-          {renderSearchableInput(ctx, {
-            id: `${inputId}-${index}-target`,
-            currentValue: row.right,
-            placeholder: "Target bag",
-            options: lookupOptions,
-            onInput: (nextValue) => {
-              const hadStoredRow = index < mappingRows.length;
-              const nextRows = mappingRows.length ? [...mappingRows] : [{ left: "", right: "" }];
-              nextRows[index] = { ...row, right: nextValue };
-              onDraftChange(field.key, editableMappingRowsCodec.stringify(nextRows));
-              if (!hadStoredRow && (row.left.trim() || nextValue.trim())) onPendingRowsChange(field.key, (count) => count - 1);
-            },
-          })}
-          <button type="button" class="row-action-button" disabled={disabled} onclick={() => {
-            if (index >= mappingRows.length) {
-              onPendingRowsChange(field.key, (count) => count - 1);
-              return;
-            }
-            const nextRows = mappingRows.length ? [...mappingRows] : [];
-            nextRows.splice(index, 1);
-            onDraftChange(field.key, editableMappingRowsCodec.stringify(nextRows));
-          }}>Remove</button>
-        </div>
-      ))}
-      <button type="button" class="ghost-button" disabled={disabled} onclick={() => onPendingRowsChange(field.key, (count) => count + 1)}>Add prefix rule</button>
-      {inheritedRoutingRows.length ? (
-        <div class="field-callout">
-          <p>Writable bags inherited from template:</p>
-          <ul class="value-list">
-            {inheritedRoutingRows.map((row) => (
-              <li>
-                {row.left ? row.left : <span class="pill-value pill-value-small">default</span>} {"->"} {row.right}
-              </li>
-            ))}
-          </ul>
-        </div>
-      ) : null}
-    </div>
-  );
-}
-
 function renderSelectField(ctx: FieldEditorContext) {
   const { field, value, disabled, itemsByTab, inputId, onDraftChange } = ctx;
+  definitely<string>(value);
   const options = getSelectOptions(field, itemsByTab);
   return (
     <select id={inputId} class="field-select" disabled={disabled} onchange={(event) => onDraftChange(field.key, (event.currentTarget as HTMLSelectElement).value)}>
@@ -1259,87 +1009,25 @@ function renderSelectField(ctx: FieldEditorContext) {
   );
 }
 
-function renderAutocompleteField(ctx: FieldEditorContext) {
-  const { field, value, disabled, itemsByTab, inputId, onDraftChange } = ctx;
-  const datalistId = `${inputId}-options`;
-  const options = getAutocompleteOptions(field, itemsByTab);
-  return (
-    <>
-      <input id={inputId} class="field-input" type="text" value={value} disabled={disabled} ref={(element) => {
-        if (element.value !== value) element.value = value;
-      }} list={datalistId} oninput={(event) => onDraftChange(field.key, (event.currentTarget as HTMLInputElement).value)} />
-      <datalist id={datalistId}>
-        {options.map((option) => <option value={option} />)}
-      </datalist>
-    </>
-  );
-}
-
-function renderActionField(ctx: FieldEditorContext) {
-  const { field, value, modalState, onTriggerOperation } = ctx;
-  return (
-    <div class="tool-panel">
-      <p class="field-helper">{formatFieldValue(value)}</p>
-      <div class="tool-panel-actions">
-        <button type="button" class="primary-button" onclick={() => onTriggerOperation(field.key, `Last run at ${new Date().toLocaleTimeString()}`)}>
-          {field.key === "recompileAffectedWikis" ? "Run recompilation" : field.key === "publishFromDraft" ? "Publish draft" : field.label}
-        </button>
-        {modalState.operationMessages[field.key] ? <span class="tool-status">{modalState.operationMessages[field.key]}</span> : null}
-      </div>
-    </div>
-  );
-}
-
-function renderResolverPreviewField(ctx: FieldEditorContext) {
-  const { modalState, inputId, onResolverTitleChange } = ctx;
-  const preview = computeResolverPreview(modalState.draft, modalState.resolverTitle);
-  return (
-    <div class="tool-panel resolver-tool">
-      <label class="field-label" for={inputId}>Title to test</label>
-      <input id={inputId} class="field-input" type="text" value={modalState.resolverTitle} ref={(element) => {
-        if (element.value !== modalState.resolverTitle) element.value = modalState.resolverTitle;
-      }} oninput={(event) => onResolverTitleChange((event.currentTarget as HTMLInputElement).value)} />
-      <div class="resolver-grid">
-        <div class="resolver-stat">
-          <span>Matched prefix</span>
-          <strong>{preview.matchedPrefix}</strong>
-        </div>
-        <div class="resolver-stat">
-          <span>Write target</span>
-          <strong>{preview.writeTo}</strong>
-        </div>
-      </div>
-      <div class="field-callout">
-        <p>{preview.title ? `Resolver would test the title against the longest matching prefix rule, then fall back to the default target if no explicit prefix matches. Final reads and write permission depend on live server state and are not shown here.` : `Enter a title to preview how this wiki would route it.`}</p>
-      </div>
-    </div>
-  );
-}
-
-// --- Readonly (non-editable) field renderers, moved from ReadonlyFieldElement ---
-
-/** The subset of FieldEditorContext that the readonly renderers need. */
-interface ReadonlyFieldContext {
-  field: FieldDefinition;
-  value: string;
-  itemsByTab?: ItemsByTab;
-}
-
 function renderReferenceField(ctx: ReadonlyFieldContext) {
+  definitely<string>(ctx.value);
   return <div class="pill-value">{formatFieldValue(ctx.value)}</div>;
 }
 
 function renderValueListField(ctx: ReadonlyFieldContext) {
+  definitely<string>(ctx.value);
   const lines = lineListCodec.parse(ctx.value);
   return <ul class="value-list">{lines.map((line) => <li>{line}</li>)}</ul>;
 }
 
 function renderActivityFeedField(ctx: ReadonlyFieldContext) {
+  definitely<string>(ctx.value);
   const lines = lineListCodec.parse(ctx.value);
   return <ul class="timeline-list">{lines.map((line) => <li>{line}</li>)}</ul>;
 }
 
 function renderMetadataTableField(ctx: ReadonlyFieldContext) {
+  definitely<string>(ctx.value);
   const lines = lineListCodec.parse(ctx.value);
   return <dl class="meta-list">{lines.map((line) => {
     const [key, ...rest] = line.split(":");
@@ -1349,6 +1037,7 @@ function renderMetadataTableField(ctx: ReadonlyFieldContext) {
 
 function renderTableField(ctx: ReadonlyFieldContext) {
   const { field, value, itemsByTab } = ctx;
+  definitely<string>(value);
   const lines = lineListCodec.parse(value);
   const missingDependencyLines = getMissingDependencyLines(field, value, itemsByTab);
   if (missingDependencyLines) {
@@ -1383,10 +1072,12 @@ function renderTableField(ctx: ReadonlyFieldContext) {
 }
 
 function renderCalloutField(ctx: ReadonlyFieldContext) {
+  definitely<string>(ctx.value);
   return <div class="field-callout"><p>{formatFieldValue(ctx.value)}</p></div>;
 }
 
 function renderPreField(ctx: ReadonlyFieldContext) {
+  definitely<string>(ctx.value);
   return (
     <div class="field-value">
       <pre>{formatFieldValue(ctx.value)}</pre>
@@ -1456,24 +1147,6 @@ class TextareaFieldHandler extends StringFieldTypeHandler {
   }
 }
 
-class JsonEditorFieldHandler extends FieldTypeHandler<KeyValueRow[]> {
-  constructor() {
-    super(["json-editor"]);
-  }
-
-  public parse(value: string) {
-    return jsonObjectRowsCodec.parse(value);
-  }
-
-  public stringify(rows: KeyValueRow[]) {
-    return jsonObjectRowsCodec.stringify(rows);
-  }
-
-  public override renderEditor(ctx: FieldEditorContext) {
-    return ctx.field.key === "parameters" ? renderParametersEditor(ctx) : renderTextareaField(ctx, 8, "is-code");
-  }
-}
-
 class SearchMultiselectFieldHandler extends FieldTypeHandler<string[]> {
   constructor() {
     super(["search-multiselect"]);
@@ -1488,7 +1161,80 @@ class SearchMultiselectFieldHandler extends FieldTypeHandler<string[]> {
   }
 
   public override renderEditor(ctx: FieldEditorContext) {
-    return renderSearchMultiselectField(ctx);
+    const { field, value, disabled, modalState, itemsByTab, inputId, onDraftChange, onPendingRowsChange } = ctx;
+    definitely<string>(value);
+    const editableLines = lineListCodec.parse(value);
+    const pendingRowCount = modalState.pendingRows[field.key] ?? 0;
+    const lookupOptions = getLookupOptions(field.key, itemsByTab);
+    const itemLabel = field.key === "plugins"
+      ? "plugin"
+      : field.key === "roleIds"
+        ? "role id"
+        : "bag";
+    const templateRecord = is<WikiAdminRecord>(modalState.draft, modalState.tabId === "wikis")
+      ? findTemplateRecordForWikiRecord(modalState.draft, itemsByTab) : undefined;
+    const templateReadonlyBagLines = field.key === "readonlyBags" && templateRecord
+      ? lineListCodec.parse(templateRecord.readonlyBags ?? "") : [];
+    const templatePluginLines = field.key === "plugins" && templateRecord
+      ? lineListCodec.parse(templateRecord.plugins ?? "") : [];
+    const templateCorePluginsEnabled = templateRecord?.requiredPluginsEnabled !== "disabled";
+
+    const updateLineValueAt = (index: number, nextValue: string) => {
+      const lines = lineListCodec.parse(value);
+      const hadStoredRow = index < lines.length;
+      while (lines.length <= index) lines.push("");
+      lines[index] = nextValue;
+      onDraftChange(field.key, lineListCodec.stringify(lines));
+      if (!hadStoredRow && nextValue.trim()) onPendingRowsChange(field.key, (count) => count - 1);
+    };
+
+    const removeLineValueAt = (index: number) => {
+      const lines = lineListCodec.parse(value);
+      if (index >= lines.length) {
+        onPendingRowsChange(field.key, (count) => count - 1);
+        return;
+      }
+      lines.splice(index, 1);
+      onDraftChange(field.key, lineListCodec.stringify(lines));
+    };
+
+    const displayedLines = editableLines.length
+      ? [...editableLines, ...Array.from({ length: pendingRowCount }, () => "")]
+      : ["", ...Array.from({ length: pendingRowCount }, () => "")];
+    return (
+      <div class="row-editor-stack">
+        {displayedLines.map((line, index) => (
+          <div class="row-editor-row">
+            {renderSearchableInput(ctx, {
+              id: `${inputId}-${index}`,
+              currentValue: line,
+              placeholder: `${itemLabel.charAt(0).toUpperCase()}${itemLabel.slice(1)} name`,
+              options: lookupOptions,
+              onInput: (nextValue) => updateLineValueAt(index, nextValue),
+            })}
+            <button type="button" class="row-action-button" disabled={disabled} onclick={() => removeLineValueAt(index)}>Remove</button>
+          </div>
+        ))}
+        <button type="button" class="ghost-button" disabled={disabled} onclick={() => onPendingRowsChange(field.key, (count) => count + 1)}>{`Add ${itemLabel}`}</button>
+        {field.key === "readonlyBags" && modalState.tabId === "wikis" && templateRecord ? (
+          <div class="field-callout">
+            <p>Readonly bags from template</p>
+            <ul class="value-list">
+              {templateReadonlyBagLines.length ? templateReadonlyBagLines.map((bag) => <li>{bag}</li>) : <li>No template readonly bags</li>}
+            </ul>
+          </div>
+        ) : null}
+        {field.key === "plugins" && modalState.tabId === "wikis" && templateRecord ? (
+          <div class="field-callout">
+            <p>Plugins from template</p>
+            <ul class="value-list">
+              {templatePluginLines.map((plugin) => <li>{plugin}</li>)}
+              {templateCorePluginsEnabled ? <li>core plugins</li> : <li>core plugins disabled</li>}
+            </ul>
+          </div>
+        ) : null}
+      </div>
+    );
   }
 }
 
@@ -1506,13 +1252,62 @@ class PermissionTableFieldHandler extends FieldTypeHandler<PermissionRow[]> {
   }
 
   public override renderEditor(ctx: FieldEditorContext) {
-    return renderPermissionTableField(ctx);
+    const { field, value, disabled, modalState, itemsByTab, inputId, onDraftChange, onTransientPermissionRowsChange } = ctx;
+    definitely<string>(value);
+    const permissionRows = permissionRowsCodec.parse(value);
+    const lookupOptions = getLookupOptions(field.key, itemsByTab);
+    const availableLevels = getPermissionLevelsForField(field.key);
+    const transientPermissionRows = modalState.transientPermissionRows[field.key] ?? [];
+    const displayedPermissionRows = permissionRows.length || transientPermissionRows.length
+      ? [...permissionRows, ...transientPermissionRows]
+      : [{ role: "", level: availableLevels[0] as PermissionLevel }];
+
+    const persistPermissionRows = (rows: PermissionRow[]) => {
+      const persistedRows = rows.filter((row) => row.role.trim());
+      const nextTransientRows = rows.filter((row) => !row.role.trim());
+      onDraftChange(field.key, permissionRowsCodec.stringify(persistedRows));
+      onTransientPermissionRowsChange(field.key, nextTransientRows);
+    };
+
+    return (
+      <div class="row-editor-stack">
+        {displayedPermissionRows.map((row, index) => (
+          <div key={`${field.key}-permission-${index}`} class="row-editor-row row-editor-row-wide row-editor-row-permission">
+            {renderSearchableInput(ctx, {
+              id: `${inputId}-${index}-role`,
+              currentValue: row.role,
+              placeholder: "Role",
+              options: lookupOptions,
+              onInput: (nextValue) => {
+                const nextRows = [...displayedPermissionRows];
+                nextRows[index] = { ...row, role: nextValue };
+                persistPermissionRows(nextRows);
+              },
+            })}
+            <select class="field-select" onchange={(event) => {
+              if (disabled) return;
+              const nextRows = [...displayedPermissionRows];
+              nextRows[index] = { ...row, level: (event.currentTarget as HTMLSelectElement).value as PermissionLevel };
+              persistPermissionRows(nextRows);
+            }} disabled={disabled}>
+              {availableLevels.map((level) => <option key={`${field.key}-${index}-${level}`} value={level} selected={level === row.level}>{formatPermissionLevel(level)}</option>)}
+            </select>
+            <button type="button" class="row-action-button" disabled={disabled} onclick={() => {
+              const nextRows = [...displayedPermissionRows];
+              nextRows.splice(index, 1);
+              persistPermissionRows(nextRows);
+            }}>Remove</button>
+          </div>
+        ))}
+        <button type="button" class="ghost-button" disabled={disabled} onclick={() => onTransientPermissionRowsChange(field.key, [...transientPermissionRows, { role: "", level: availableLevels[0] as PermissionLevel }])}>Add permission</button>
+      </div>
+    );
   }
 }
 
-class KeyValueTableFieldHandler extends FieldTypeHandler<MappingRow[]> {
+class PrefixTableFieldHandler extends FieldTypeHandler<MappingRow[]> {
   constructor() {
-    super(["key-value-table"]);
+    super(["prefix-table"]);
   }
 
   public parse(value: string) {
@@ -1528,7 +1323,96 @@ class KeyValueTableFieldHandler extends FieldTypeHandler<MappingRow[]> {
   }
 
   public override renderEditor(ctx: FieldEditorContext) {
-    return renderKeyValueTableField(ctx);
+    const { field, value, disabled, modalState, itemsByTab, inputId, onDraftChange, onPendingRowsChange } = ctx;
+    const forDisplay = field.mode === "server";
+    definitely<string>(value);
+    const mappingRows = editableMappingRowsCodec.parse(value);
+    const pendingRowCount = modalState.pendingRows[field.key] ?? 0;
+    const lookupOptions = getLookupOptions(field.key, itemsByTab);
+    const displayedMappingRows = mappingRows.length
+      ? [...mappingRows, ...Array.from({ length: pendingRowCount }, () => ({ left: "", right: "" }))]
+      : [{ left: "", right: "" }, ...Array.from({ length: pendingRowCount }, () => ({ left: "", right: "" }))];
+    const templateRecord = is<WikiAdminRecord>(modalState.draft, modalState.tabId === "wikis")
+      ? findTemplateRecordForWikiRecord(modalState.draft, itemsByTab) : undefined;
+    const inheritedRoutingRows = modalState.tabId === "wikis" && templateRecord
+      ? mappingRowsCodec.parse(templateRecord.writablePrefixBags ?? "")
+      : [];
+
+    if (forDisplay) {
+      return <ul class="value-list">
+        {displayedMappingRows.map((row) => (
+          <li>
+            {row.left ? row.left : <span class="pill-value pill-value-small">default</span>} {"->"} {row.right}
+          </li>
+        ))}
+      </ul>
+    }
+    return (
+      <div class="row-editor-stack">
+        {displayedMappingRows.map((row, index) => (
+          <div class="row-editor-row row-editor-row-wide">
+            <div class="prefix-input-shell">
+              <input class={this.hasTrimMismatch(row.left) ? "field-input is-invalid" : "field-input"}
+                type="text"
+                value={row.left}
+                placeholder="Prefix, leave blank for default"
+                aria-invalid={this.hasTrimMismatch(row.left) ? "true" : undefined}
+                title={this.hasTrimMismatch(row.left) ? "Prefix cannot start or end with whitespace." : undefined}
+                disabled={disabled}
+                oninput={(event) => {
+                  const element = event.currentTarget as HTMLInputElement;
+                  const hadStoredRow = index < mappingRows.length;
+                  const nextRows = mappingRows.length ? [...mappingRows] : [{ left: "", right: "" }];
+                  nextRows[index] = { ...row, left: element.value };
+                  onDraftChange(field.key, editableMappingRowsCodec.stringify(nextRows));
+                  if (!hadStoredRow && (element.value.trim() || row.right.trim())) onPendingRowsChange(field.key, (count) => count - 1);
+                }} ref={(element) => {
+                  if (element.value !== row.left) element.value = row.left;
+                }} />
+              {this.hasTrimMismatch(row.left) ? <span class="prefix-input-alert missing-marker" aria-label="Prefix has leading or trailing whitespace" title="Prefix cannot start or end with whitespace."><MaterialSymbol icon={warningIcon} /></span> : null}
+            </div>
+            {renderSearchableInput(ctx, {
+              id: `${inputId}-${index}-target`,
+              currentValue: row.right,
+              placeholder: "Target bag",
+              options: lookupOptions,
+              onInput: (nextValue) => {
+                const hadStoredRow = index < mappingRows.length;
+                const nextRows = mappingRows.length ? [...mappingRows] : [{ left: "", right: "" }];
+                nextRows[index] = { ...row, right: nextValue };
+                onDraftChange(field.key, editableMappingRowsCodec.stringify(nextRows));
+                if (!hadStoredRow && (row.left.trim() || nextValue.trim())) onPendingRowsChange(field.key, (count) => count - 1);
+              },
+            })}
+            {<button type="button" class="row-action-button" disabled={disabled} onclick={() => {
+              if (index >= mappingRows.length) {
+                onPendingRowsChange(field.key, (count) => count - 1);
+                return;
+              }
+              const nextRows = mappingRows.length ? [...mappingRows] : [];
+              nextRows.splice(index, 1);
+              onDraftChange(field.key, editableMappingRowsCodec.stringify(nextRows));
+            }}>Remove</button>}
+          </div>
+        ))}
+        {<button type="button" class="ghost-button" disabled={disabled} onclick={() => onPendingRowsChange(field.key, (count) => count + 1)}>Add prefix rule</button>}
+        {inheritedRoutingRows.length ? (
+          <div class="field-callout">
+            <p>Writable bags inherited from template:</p>
+            <ul class="value-list">
+              {inheritedRoutingRows.map((row) => (
+                <li>
+                  {row.left ? row.left : <span class="pill-value pill-value-small">default</span>} {"->"} {row.right}
+                </li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
+      </div>
+    );
+  }
+  private hasTrimMismatch(value: string): boolean {
+    return value.trim() !== value;
   }
 }
 
@@ -1544,21 +1428,24 @@ class SelectFieldHandler extends StringFieldTypeHandler {
 
 class AutocompleteFieldHandler extends StringFieldTypeHandler {
   constructor() {
-    super(["autocomplete"]);
+    super(["search"]);
   }
 
   public override renderEditor(ctx: FieldEditorContext) {
-    return renderAutocompleteField(ctx);
-  }
-}
-
-class ActionFieldHandler extends BaseFieldTypeHandler {
-  constructor() {
-    super(["action"]);
-  }
-
-  public override renderEditor(ctx: FieldEditorContext) {
-    return renderActionField(ctx);
+    const { field, value, disabled, itemsByTab, inputId, onDraftChange } = ctx;
+    definitely<string>(value);
+    const datalistId = `${inputId}-options`;
+    const options = getAutocompleteOptions(field, itemsByTab);
+    return (
+      <>
+        <input id={inputId} class="field-input" type="text" value={value} disabled={disabled} ref={(element) => {
+          if (element.value !== value) element.value = value;
+        }} list={datalistId} oninput={(event) => onDraftChange(field.key, (event.currentTarget as HTMLInputElement).value)} />
+        <datalist id={datalistId}>
+          {options.map((option) => <option value={option} />)}
+        </datalist>
+      </>
+    );
   }
 }
 
@@ -1568,7 +1455,29 @@ class ResolverPreviewFieldHandler extends StringFieldTypeHandler {
   }
 
   public override renderEditor(ctx: FieldEditorContext) {
-    return renderResolverPreviewField(ctx);
+    const { modalState, inputId, onResolverTitleChange } = ctx;
+    const preview = computeResolverPreview(modalState.draft, modalState.resolverTitle);
+    return (
+      <div class="tool-panel resolver-tool">
+        <label class="field-label" for={inputId}>Title to test</label>
+        <input id={inputId} class="field-input" type="text" value={modalState.resolverTitle} ref={(element) => {
+          if (element.value !== modalState.resolverTitle) element.value = modalState.resolverTitle;
+        }} oninput={(event) => onResolverTitleChange((event.currentTarget as HTMLInputElement).value)} />
+        <div class="resolver-grid">
+          <div class="resolver-stat">
+            <span>Matched prefix</span>
+            <strong>{preview.matchedPrefix}</strong>
+          </div>
+          <div class="resolver-stat">
+            <span>Write target</span>
+            <strong>{preview.writeTo}</strong>
+          </div>
+        </div>
+        <div class="field-callout">
+          <p>{preview.title ? `Resolver would test the title against the longest matching prefix rule, then fall back to the default target if no explicit prefix matches. Final reads and write permission depend on live server state and are not shown here.` : `Enter a title to preview how this wiki would route it.`}</p>
+        </div>
+      </div>
+    );
   }
 }
 
@@ -1698,13 +1607,11 @@ const fieldTypeHandlers: BaseFieldTypeHandler[] = [
   new TextInputFieldHandler(["string", "version"], "text"),
   new TextInputFieldHandler(["number"], "number"),
   new TextareaFieldHandler(["text"], 4),
-  new JsonEditorFieldHandler(),
   new SearchMultiselectFieldHandler(),
   new PermissionTableFieldHandler(),
-  new KeyValueTableFieldHandler(),
+  new PrefixTableFieldHandler(),
   new SelectFieldHandler(),
   new AutocompleteFieldHandler(),
-  new ActionFieldHandler(),
   new ResolverPreviewFieldHandler(),
   new ReferenceFieldHandler(),
   new ValueListFieldHandler(["parameter-list", "relationship-table", "summary-list"]),
@@ -1725,10 +1632,10 @@ function getFieldHandler(fieldType: FieldType): BaseFieldTypeHandler {
 }
 
 /**
- * Dispatches readonly field types to their renderers. Used both by the
- * ReadonlyFieldElement custom element and (for the duplicated types) by
- * renderFieldEditor.
- */
+* Dispatches readonly field types to their renderers. Used both by the
+* ReadonlyFieldElement custom element and (for the duplicated types) by
+* renderFieldEditor.
+*/
 function renderFieldSidebar(ctx: ReadonlyFieldContext) {
   return getFieldHandler(ctx.field.type).renderSidebar(ctx);
 }
@@ -1753,10 +1660,10 @@ class FieldBlockElement extends JSXElement {
     return (
       <div class="field-block">
         {/* {!useCardTitle && !editable ? (
-          <div class="field-block-header">
-            <h5>{field.label}</h5>
-          </div>
-        ) : null} */}
+<div class="field-block-header">
+<h5>{field.label}</h5>
+</div>
+) : null} */}
 
         {useToggleEditor ? (
           <ToggleFieldElement field={field} value={value} onDraftChange={this.props.onDraftChange} />
@@ -2057,9 +1964,7 @@ export class App extends JSXElement {
         setIsLoadingData(false);
       });
 
-      return () => {
-        cancelled = true;
-      };
+      return () => { cancelled = true; };
     }, []);
 
     const currentTab = getTab(activeTab);

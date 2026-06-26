@@ -23,7 +23,7 @@ export type FieldSection = "authored" | "runtime" | "operations";
 export type FieldType =
   | "string"
   | "text"
-  | "autocomplete"
+  | "search"
   | "json-editor"
   | "structured-preview"
   | "table"
@@ -31,7 +31,7 @@ export type FieldType =
   | "validation-report"
   | "resolver-preview"
   | "search-multiselect"
-  | "key-value-table"
+  | "prefix-table"
   | "reference"
   | "reference-list"
   | "parameter-list"
@@ -51,8 +51,8 @@ export interface FieldDefinition {
   key: string;
   label: string;
   type: FieldType;
-  section?: FieldSection;
   mode: Mode;
+  section?: FieldSection;
   description?: string;
   architecture?: string;
 }
@@ -96,14 +96,14 @@ const tabs = [
       { key: "slug", label: "Slug", type: "string", section: "authored", mode: "create edit" },
       { key: "displayName", label: "Display name", type: "string", section: "authored", mode: "create edit" },
       { key: "description", label: "Description", type: "text", section: "authored", mode: "create edit" },
-      { key: "templateId", label: "Template", type: "autocomplete", section: "authored", mode: "create" },
+      { key: "templateId", label: "Template", type: "search", section: "authored", mode: "create" },
       { key: "readonlyBags", label: "Readonly bags", type: "search-multiselect", section: "authored", mode: "create edit" },
       { key: "plugins", label: "Plugins", type: "search-multiselect", section: "authored", mode: "create edit" },
       { key: "lastCompiledAt", label: "Compiled", type: "string", section: "runtime", mode: "server" },
       {
         key: "writablePrefixBags",
         label: "Writable prefix bags",
-        type: "key-value-table",
+        type: "prefix-table",
         section: "authored",
         mode: "create edit",
         architecture: "Edits the wiki-level prefix-to-bag routing table that drives write target selection. Longest prefix wins, and the empty string row is the fallback write target.",
@@ -111,7 +111,7 @@ const tabs = [
       {
         key: "effectiveWritableBags",
         label: "Effective writable bags",
-        type: "key-value-table",
+        type: "prefix-table",
         section: "runtime",
         mode: "server",
         architecture: "Read-only projection of compiled recipe-bag rows in the same slice of the pie order the resolver uses for writes.",
@@ -203,7 +203,7 @@ const tabs = [
       {
         key: "writablePrefixBags",
         label: "Writable prefix bags",
-        type: "key-value-table",
+        type: "prefix-table",
         section: "authored",
         mode: "create edit",
         architecture: "Edits the template-level prefix-to-bag routing table that wikis inherit first. Longest prefix wins, and the empty string row is the fallback write target when no wiki-level override matches.",
@@ -360,9 +360,9 @@ const tabs = [
       runtime: [
         { keys: ["referencedByTemplates"], width: halfWidth },
         { keys: ["referencedByWikis"], width: halfWidth },
-        { keys: ["routingRoles"], width: halfWidth },
-        { keys: ["tiddlerCount"], width: halfWidth },
-        { keys: ["recentActivity"], width: fullWidth },
+        // { keys: ["routingRoles"], width: halfWidth },
+        // { keys: ["tiddlerCount"], width: halfWidth },
+        // { keys: ["recentActivity"], width: fullWidth },
       ],
     },
   },
@@ -407,14 +407,6 @@ const tabs = [
         section: "runtime",
         mode: "",
         architecture: "Read-only lineage pointer from a draft plugin to the published version it branched from or intends to replace.",
-      },
-      {
-        key: "publishFromDraft",
-        label: "Publish from draft",
-        type: "action",
-        section: "operations",
-        mode: "edit",
-        architecture: "Action surface that promotes a draft state into a concrete version usable by compiled wiki plugin rows.",
       },
     ],
     fieldGroups: {
