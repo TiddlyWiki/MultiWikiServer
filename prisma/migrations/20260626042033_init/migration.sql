@@ -46,9 +46,9 @@ CREATE TABLE "template" (
 CREATE TABLE "recipe" (
     "id" TEXT NOT NULL PRIMARY KEY,
     "slug" TEXT NOT NULL,
-    "description" TEXT NOT NULL,
     "template_id" TEXT NOT NULL,
-    "parameters" JSONB NOT NULL,
+    "definition" JSONB NOT NULL,
+    "plugins" JSONB NOT NULL,
     CONSTRAINT "recipe_template_id_fkey" FOREIGN KEY ("template_id") REFERENCES "template" ("id") ON DELETE RESTRICT ON UPDATE CASCADE
 );
 
@@ -68,7 +68,7 @@ CREATE TABLE "recipe_bag" (
     "bag_id" TEXT NOT NULL,
     "priority" INTEGER NOT NULL,
     "is_writable" BOOLEAN NOT NULL,
-    "info" JSONB,
+    "info" JSONB NOT NULL,
 
     PRIMARY KEY ("recipe_id", "bag_id"),
     CONSTRAINT "recipe_bag_recipe_id_fkey" FOREIGN KEY ("recipe_id") REFERENCES "recipe" ("id") ON DELETE CASCADE ON UPDATE CASCADE,
@@ -79,26 +79,6 @@ CREATE TABLE "recipe_bag" (
 CREATE TABLE "settings" (
     "key" TEXT NOT NULL PRIMARY KEY,
     "value" TEXT NOT NULL
-);
-
--- CreateTable
-CREATE TABLE "plugin" (
-    "id" TEXT NOT NULL PRIMARY KEY,
-    "name" TEXT NOT NULL,
-    "version" TEXT NOT NULL,
-    "is_draft" BOOLEAN NOT NULL DEFAULT false,
-    "draft_of" TEXT
-);
-
--- CreateTable
-CREATE TABLE "recipe_plugin" (
-    "recipe_id" TEXT NOT NULL,
-    "plugin_id" TEXT NOT NULL,
-    "resolved_version" TEXT NOT NULL,
-
-    PRIMARY KEY ("recipe_id", "plugin_id"),
-    CONSTRAINT "recipe_plugin_recipe_id_fkey" FOREIGN KEY ("recipe_id") REFERENCES "recipe" ("id") ON DELETE CASCADE ON UPDATE CASCADE,
-    CONSTRAINT "recipe_plugin_plugin_id_fkey" FOREIGN KEY ("plugin_id") REFERENCES "plugin" ("id") ON DELETE RESTRICT ON UPDATE CASCADE
 );
 
 -- CreateTable
@@ -140,16 +120,13 @@ CREATE TABLE "_RolesToUsers" (
 CREATE UNIQUE INDEX "bag_name_key" ON "bag"("name");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "recipe_slug_key" ON "recipe"("slug");
-
--- CreateIndex
 CREATE INDEX "tiddler_title_idx" ON "tiddler"("title");
 
 -- CreateIndex
 CREATE INDEX "tiddler_event_bag_id_seq_idx" ON "tiddler_event"("bag_id", "seq");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "plugin_name_version_key" ON "plugin"("name", "version");
+CREATE UNIQUE INDEX "recipe_slug_key" ON "recipe"("slug");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "roles_role_name_key" ON "roles"("role_name");

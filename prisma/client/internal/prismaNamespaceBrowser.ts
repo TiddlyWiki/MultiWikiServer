@@ -60,8 +60,6 @@ export const ModelName = {
   RecipePermission: 'RecipePermission',
   RecipeBag: 'RecipeBag',
   Settings: 'Settings',
-  Plugin: 'Plugin',
-  RecipePlugin: 'RecipePlugin',
   Roles: 'Roles',
   Users: 'Users',
   Sessions: 'Sessions'
@@ -130,9 +128,9 @@ export type TemplateScalarFieldEnum = (typeof TemplateScalarFieldEnum)[keyof typ
 export const RecipeScalarFieldEnum = {
   id: 'id',
   slug: 'slug',
-  description: 'description',
   template_id: 'template_id',
-  parameters: 'parameters'
+  definition: 'definition',
+  plugins: 'plugins'
 } as const
 
 export type RecipeScalarFieldEnum = (typeof RecipeScalarFieldEnum)[keyof typeof RecipeScalarFieldEnum]
@@ -152,7 +150,7 @@ export const RecipeBagScalarFieldEnum = {
   bag_id: 'bag_id',
   priority: 'priority',
   is_writable: 'is_writable',
-  info: 'info'
+  prefix: 'prefix'
 } as const
 
 export type RecipeBagScalarFieldEnum = (typeof RecipeBagScalarFieldEnum)[keyof typeof RecipeBagScalarFieldEnum]
@@ -164,26 +162,6 @@ export const SettingsScalarFieldEnum = {
 } as const
 
 export type SettingsScalarFieldEnum = (typeof SettingsScalarFieldEnum)[keyof typeof SettingsScalarFieldEnum]
-
-
-export const PluginScalarFieldEnum = {
-  id: 'id',
-  name: 'name',
-  version: 'version',
-  is_draft: 'is_draft',
-  draft_of: 'draft_of'
-} as const
-
-export type PluginScalarFieldEnum = (typeof PluginScalarFieldEnum)[keyof typeof PluginScalarFieldEnum]
-
-
-export const RecipePluginScalarFieldEnum = {
-  recipe_id: 'recipe_id',
-  plugin_id: 'plugin_id',
-  resolved_version: 'resolved_version'
-} as const
-
-export type RecipePluginScalarFieldEnum = (typeof RecipePluginScalarFieldEnum)[keyof typeof RecipePluginScalarFieldEnum]
 
 
 export const RolesScalarFieldEnum = {
@@ -231,14 +209,6 @@ export const JsonNullValueInput = {
 } as const
 
 export type JsonNullValueInput = (typeof JsonNullValueInput)[keyof typeof JsonNullValueInput]
-
-
-export const NullableJsonNullValueInput = {
-  DbNull: 'DbNull',
-  JsonNull: 'JsonNull'
-} as const
-
-export type NullableJsonNullValueInput = (typeof NullableJsonNullValueInput)[keyof typeof NullableJsonNullValueInput]
 
 
 export const JsonNullValueFilter = {

@@ -63,16 +63,6 @@ export type RecipeBag = Prisma.RecipeBagModel
  */
 export type Settings = Prisma.SettingsModel
 /**
- * Model Plugin
- * 
- */
-export type Plugin = Prisma.PluginModel
-/**
- * Model RecipePlugin
- * 
- */
-export type RecipePlugin = Prisma.RecipePluginModel
-/**
  * Model Roles
  * 
  */

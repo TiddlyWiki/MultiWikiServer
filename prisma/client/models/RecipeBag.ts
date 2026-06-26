@@ -41,6 +41,7 @@ export type RecipeBagMinAggregateOutputType = {
   bag_id: string | null
   priority: number | null
   is_writable: boolean | null
+  prefix: string | null
 }
 
 export type RecipeBagMaxAggregateOutputType = {
@@ -48,6 +49,7 @@ export type RecipeBagMaxAggregateOutputType = {
   bag_id: string | null
   priority: number | null
   is_writable: boolean | null
+  prefix: string | null
 }
 
 export type RecipeBagCountAggregateOutputType = {
@@ -55,7 +57,7 @@ export type RecipeBagCountAggregateOutputType = {
   bag_id: number
   priority: number
   is_writable: number
-  info:PrismaJson.RecipeBag_info
+  prefix: number
   _all: number
 }
 
@@ -73,6 +75,7 @@ export type RecipeBagMinAggregateInputType = {
   bag_id?: true
   priority?: true
   is_writable?: true
+  prefix?: true
 }
 
 export type RecipeBagMaxAggregateInputType = {
@@ -80,6 +83,7 @@ export type RecipeBagMaxAggregateInputType = {
   bag_id?: true
   priority?: true
   is_writable?: true
+  prefix?: true
 }
 
 export type RecipeBagCountAggregateInputType = {
@@ -87,7 +91,7 @@ export type RecipeBagCountAggregateInputType = {
   bag_id?: true
   priority?: true
   is_writable?: true
-  info?: true
+  prefix?: true
   _all?: true
 }
 
@@ -182,7 +186,7 @@ export type RecipeBagGroupByOutputType = {
   bag_id: string
   priority: number
   is_writable: boolean
-  info:PrismaJson.RecipeBag_info | null
+  prefix: string
   _count: RecipeBagCountAggregateOutputType | null
   _avg: RecipeBagAvgAggregateOutputType | null
   _sum: RecipeBagSumAggregateOutputType | null
@@ -213,7 +217,7 @@ export type RecipeBagWhereInput = {
   bag_id?: Prisma.StringFilter<"RecipeBag"> | string
   priority?: Prisma.IntFilter<"RecipeBag"> | number
   is_writable?: Prisma.BoolFilter<"RecipeBag"> | boolean
-  info?: Prisma.JsonNullableFilter<"RecipeBag">
+  prefix?: Prisma.StringFilter<"RecipeBag"> | string
   recipe?: Prisma.XOR<Prisma.RecipeScalarRelationFilter, Prisma.RecipeWhereInput>
   bag?: Prisma.XOR<Prisma.BagScalarRelationFilter, Prisma.BagWhereInput>
 }
@@ -223,13 +227,13 @@ export type RecipeBagOrderByWithRelationInput = {
   bag_id?: Prisma.SortOrder
   priority?: Prisma.SortOrder
   is_writable?: Prisma.SortOrder
-  info?: Prisma.SortOrderInput | Prisma.SortOrder
+  prefix?: Prisma.SortOrder
   recipe?: Prisma.RecipeOrderByWithRelationInput
   bag?: Prisma.BagOrderByWithRelationInput
 }
 
 export type RecipeBagWhereUniqueInput = Prisma.AtLeast<{
-  recipe_id_bag_id?: Prisma.RecipeBagRecipe_idBag_idCompoundUniqueInput
+  recipe_id_bag_id_prefix?: Prisma.RecipeBagRecipe_idBag_idPrefixCompoundUniqueInput
   AND?: Prisma.RecipeBagWhereInput | Prisma.RecipeBagWhereInput[]
   OR?: Prisma.RecipeBagWhereInput[]
   NOT?: Prisma.RecipeBagWhereInput | Prisma.RecipeBagWhereInput[]
@@ -237,17 +241,17 @@ export type RecipeBagWhereUniqueInput = Prisma.AtLeast<{
   bag_id?: Prisma.StringFilter<"RecipeBag"> | string
   priority?: Prisma.IntFilter<"RecipeBag"> | number
   is_writable?: Prisma.BoolFilter<"RecipeBag"> | boolean
-  info?: Prisma.JsonNullableFilter<"RecipeBag">
+  prefix?: Prisma.StringFilter<"RecipeBag"> | string
   recipe?: Prisma.XOR<Prisma.RecipeScalarRelationFilter, Prisma.RecipeWhereInput>
   bag?: Prisma.XOR<Prisma.BagScalarRelationFilter, Prisma.BagWhereInput>
-}, "recipe_id_bag_id">
+}, "recipe_id_bag_id_prefix">
 
 export type RecipeBagOrderByWithAggregationInput = {
   recipe_id?: Prisma.SortOrder
   bag_id?: Prisma.SortOrder
   priority?: Prisma.SortOrder
   is_writable?: Prisma.SortOrder
-  info?: Prisma.SortOrderInput | Prisma.SortOrder
+  prefix?: Prisma.SortOrder
   _count?: Prisma.RecipeBagCountOrderByAggregateInput
   _avg?: Prisma.RecipeBagAvgOrderByAggregateInput
   _max?: Prisma.RecipeBagMaxOrderByAggregateInput
@@ -263,13 +267,13 @@ export type RecipeBagScalarWhereWithAggregatesInput = {
   bag_id?: Prisma.StringWithAggregatesFilter<"RecipeBag"> | string
   priority?: Prisma.IntWithAggregatesFilter<"RecipeBag"> | number
   is_writable?: Prisma.BoolWithAggregatesFilter<"RecipeBag"> | boolean
-  info?: Prisma.JsonNullableWithAggregatesFilter<"RecipeBag">
+  prefix?: Prisma.StringWithAggregatesFilter<"RecipeBag"> | string
 }
 
 export type RecipeBagCreateInput = {
   priority: number
   is_writable: boolean
-  info?:PrismaJson.RecipeBag_info | Prisma.NullableJsonNullValueInput
+  prefix: string
   recipe: Prisma.RecipeCreateNestedOneWithoutRecipe_bagsInput
   bag: Prisma.BagCreateNestedOneWithoutRecipe_bagsInput
 }
@@ -279,13 +283,13 @@ export type RecipeBagUncheckedCreateInput = {
   bag_id: string
   priority: number
   is_writable: boolean
-  info?:PrismaJson.RecipeBag_info | Prisma.NullableJsonNullValueInput
+  prefix: string
 }
 
 export type RecipeBagUpdateInput = {
   priority?: Prisma.IntFieldUpdateOperationsInput | number
   is_writable?: Prisma.BoolFieldUpdateOperationsInput | boolean
-  info?:PrismaJson.RecipeBag_info | Prisma.NullableJsonNullValueInput
+  prefix?: Prisma.StringFieldUpdateOperationsInput | string
   recipe?: Prisma.RecipeUpdateOneRequiredWithoutRecipe_bagsNestedInput
   bag?: Prisma.BagUpdateOneRequiredWithoutRecipe_bagsNestedInput
 }
@@ -295,7 +299,7 @@ export type RecipeBagUncheckedUpdateInput = {
   bag_id?: Prisma.StringFieldUpdateOperationsInput | string
   priority?: Prisma.IntFieldUpdateOperationsInput | number
   is_writable?: Prisma.BoolFieldUpdateOperationsInput | boolean
-  info?:PrismaJson.RecipeBag_info | Prisma.NullableJsonNullValueInput
+  prefix?: Prisma.StringFieldUpdateOperationsInput | string
 }
 
 export type RecipeBagCreateManyInput = {
@@ -303,13 +307,13 @@ export type RecipeBagCreateManyInput = {
   bag_id: string
   priority: number
   is_writable: boolean
-  info?:PrismaJson.RecipeBag_info | Prisma.NullableJsonNullValueInput
+  prefix: string
 }
 
 export type RecipeBagUpdateManyMutationInput = {
   priority?: Prisma.IntFieldUpdateOperationsInput | number
   is_writable?: Prisma.BoolFieldUpdateOperationsInput | boolean
-  info?:PrismaJson.RecipeBag_info | Prisma.NullableJsonNullValueInput
+  prefix?: Prisma.StringFieldUpdateOperationsInput | string
 }
 
 export type RecipeBagUncheckedUpdateManyInput = {
@@ -317,7 +321,7 @@ export type RecipeBagUncheckedUpdateManyInput = {
   bag_id?: Prisma.StringFieldUpdateOperationsInput | string
   priority?: Prisma.IntFieldUpdateOperationsInput | number
   is_writable?: Prisma.BoolFieldUpdateOperationsInput | boolean
-  info?:PrismaJson.RecipeBag_info | Prisma.NullableJsonNullValueInput
+  prefix?: Prisma.StringFieldUpdateOperationsInput | string
 }
 
 export type RecipeBagListRelationFilter = {
@@ -330,9 +334,10 @@ export type RecipeBagOrderByRelationAggregateInput = {
   _count?: Prisma.SortOrder
 }
 
-export type RecipeBagRecipe_idBag_idCompoundUniqueInput = {
+export type RecipeBagRecipe_idBag_idPrefixCompoundUniqueInput = {
   recipe_id: string
   bag_id: string
+  prefix: string
 }
 
 export type RecipeBagCountOrderByAggregateInput = {
@@ -340,7 +345,7 @@ export type RecipeBagCountOrderByAggregateInput = {
   bag_id?: Prisma.SortOrder
   priority?: Prisma.SortOrder
   is_writable?: Prisma.SortOrder
-  info?: Prisma.SortOrder
+  prefix?: Prisma.SortOrder
 }
 
 export type RecipeBagAvgOrderByAggregateInput = {
@@ -352,6 +357,7 @@ export type RecipeBagMaxOrderByAggregateInput = {
   bag_id?: Prisma.SortOrder
   priority?: Prisma.SortOrder
   is_writable?: Prisma.SortOrder
+  prefix?: Prisma.SortOrder
 }
 
 export type RecipeBagMinOrderByAggregateInput = {
@@ -359,6 +365,7 @@ export type RecipeBagMinOrderByAggregateInput = {
   bag_id?: Prisma.SortOrder
   priority?: Prisma.SortOrder
   is_writable?: Prisma.SortOrder
+  prefix?: Prisma.SortOrder
 }
 
 export type RecipeBagSumOrderByAggregateInput = {
@@ -456,7 +463,7 @@ export type BoolFieldUpdateOperationsInput = {
 export type RecipeBagCreateWithoutBagInput = {
   priority: number
   is_writable: boolean
-  info?:PrismaJson.RecipeBag_info | Prisma.NullableJsonNullValueInput
+  prefix: string
   recipe: Prisma.RecipeCreateNestedOneWithoutRecipe_bagsInput
 }
 
@@ -464,7 +471,7 @@ export type RecipeBagUncheckedCreateWithoutBagInput = {
   recipe_id: string
   priority: number
   is_writable: boolean
-  info?:PrismaJson.RecipeBag_info | Prisma.NullableJsonNullValueInput
+  prefix: string
 }
 
 export type RecipeBagCreateOrConnectWithoutBagInput = {
@@ -500,13 +507,13 @@ export type RecipeBagScalarWhereInput = {
   bag_id?: Prisma.StringFilter<"RecipeBag"> | string
   priority?: Prisma.IntFilter<"RecipeBag"> | number
   is_writable?: Prisma.BoolFilter<"RecipeBag"> | boolean
-  info?: Prisma.JsonNullableFilter<"RecipeBag">
+  prefix?: Prisma.StringFilter<"RecipeBag"> | string
 }
 
 export type RecipeBagCreateWithoutRecipeInput = {
   priority: number
   is_writable: boolean
-  info?:PrismaJson.RecipeBag_info | Prisma.NullableJsonNullValueInput
+  prefix: string
   bag: Prisma.BagCreateNestedOneWithoutRecipe_bagsInput
 }
 
@@ -514,7 +521,7 @@ export type RecipeBagUncheckedCreateWithoutRecipeInput = {
   bag_id: string
   priority: number
   is_writable: boolean
-  info?:PrismaJson.RecipeBag_info | Prisma.NullableJsonNullValueInput
+  prefix: string
 }
 
 export type RecipeBagCreateOrConnectWithoutRecipeInput = {
@@ -546,13 +553,13 @@ export type RecipeBagCreateManyBagInput = {
   recipe_id: string
   priority: number
   is_writable: boolean
-  info?:PrismaJson.RecipeBag_info | Prisma.NullableJsonNullValueInput
+  prefix: string
 }
 
 export type RecipeBagUpdateWithoutBagInput = {
   priority?: Prisma.IntFieldUpdateOperationsInput | number
   is_writable?: Prisma.BoolFieldUpdateOperationsInput | boolean
-  info?:PrismaJson.RecipeBag_info | Prisma.NullableJsonNullValueInput
+  prefix?: Prisma.StringFieldUpdateOperationsInput | string
   recipe?: Prisma.RecipeUpdateOneRequiredWithoutRecipe_bagsNestedInput
 }
 
@@ -560,27 +567,27 @@ export type RecipeBagUncheckedUpdateWithoutBagInput = {
   recipe_id?: Prisma.StringFieldUpdateOperationsInput | string
   priority?: Prisma.IntFieldUpdateOperationsInput | number
   is_writable?: Prisma.BoolFieldUpdateOperationsInput | boolean
-  info?:PrismaJson.RecipeBag_info | Prisma.NullableJsonNullValueInput
+  prefix?: Prisma.StringFieldUpdateOperationsInput | string
 }
 
 export type RecipeBagUncheckedUpdateManyWithoutBagInput = {
   recipe_id?: Prisma.StringFieldUpdateOperationsInput | string
   priority?: Prisma.IntFieldUpdateOperationsInput | number
   is_writable?: Prisma.BoolFieldUpdateOperationsInput | boolean
-  info?:PrismaJson.RecipeBag_info | Prisma.NullableJsonNullValueInput
+  prefix?: Prisma.StringFieldUpdateOperationsInput | string
 }
 
 export type RecipeBagCreateManyRecipeInput = {
   bag_id: string
   priority: number
   is_writable: boolean
-  info?:PrismaJson.RecipeBag_info | Prisma.NullableJsonNullValueInput
+  prefix: string
 }
 
 export type RecipeBagUpdateWithoutRecipeInput = {
   priority?: Prisma.IntFieldUpdateOperationsInput | number
   is_writable?: Prisma.BoolFieldUpdateOperationsInput | boolean
-  info?:PrismaJson.RecipeBag_info | Prisma.NullableJsonNullValueInput
+  prefix?: Prisma.StringFieldUpdateOperationsInput | string
   bag?: Prisma.BagUpdateOneRequiredWithoutRecipe_bagsNestedInput
 }
 
@@ -588,14 +595,14 @@ export type RecipeBagUncheckedUpdateWithoutRecipeInput = {
   bag_id?: Prisma.StringFieldUpdateOperationsInput | string
   priority?: Prisma.IntFieldUpdateOperationsInput | number
   is_writable?: Prisma.BoolFieldUpdateOperationsInput | boolean
-  info?:PrismaJson.RecipeBag_info | Prisma.NullableJsonNullValueInput
+  prefix?: Prisma.StringFieldUpdateOperationsInput | string
 }
 
 export type RecipeBagUncheckedUpdateManyWithoutRecipeInput = {
   bag_id?: Prisma.StringFieldUpdateOperationsInput | string
   priority?: Prisma.IntFieldUpdateOperationsInput | number
   is_writable?: Prisma.BoolFieldUpdateOperationsInput | boolean
-  info?:PrismaJson.RecipeBag_info | Prisma.NullableJsonNullValueInput
+  prefix?: Prisma.StringFieldUpdateOperationsInput | string
 }
 
 
@@ -605,7 +612,7 @@ export type RecipeBagSelect<ExtArgs extends runtime.Types.Extensions.InternalArg
   bag_id?: boolean
   priority?: boolean
   is_writable?: boolean
-  info?: boolean
+  prefix?: boolean
   recipe?: boolean | Prisma.RecipeDefaultArgs<ExtArgs>
   bag?: boolean | Prisma.BagDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["recipeBag"]>
@@ -615,7 +622,7 @@ export type RecipeBagSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Ext
   bag_id?: boolean
   priority?: boolean
   is_writable?: boolean
-  info?: boolean
+  prefix?: boolean
   recipe?: boolean | Prisma.RecipeDefaultArgs<ExtArgs>
   bag?: boolean | Prisma.BagDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["recipeBag"]>
@@ -625,7 +632,7 @@ export type RecipeBagSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Ext
   bag_id?: boolean
   priority?: boolean
   is_writable?: boolean
-  info?: boolean
+  prefix?: boolean
   recipe?: boolean | Prisma.RecipeDefaultArgs<ExtArgs>
   bag?: boolean | Prisma.BagDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["recipeBag"]>
@@ -635,10 +642,10 @@ export type RecipeBagSelectScalar = {
   bag_id?: boolean
   priority?: boolean
   is_writable?: boolean
-  info?: boolean
+  prefix?: boolean
 }
 
-export type RecipeBagOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"recipe_id" | "bag_id" | "priority" | "is_writable" | "info", ExtArgs["result"]["recipeBag"]>
+export type RecipeBagOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"recipe_id" | "bag_id" | "priority" | "is_writable" | "prefix", ExtArgs["result"]["recipeBag"]>
 export type RecipeBagInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   recipe?: boolean | Prisma.RecipeDefaultArgs<ExtArgs>
   bag?: boolean | Prisma.BagDefaultArgs<ExtArgs>
@@ -663,10 +670,7 @@ export type $RecipeBagPayload<ExtArgs extends runtime.Types.Extensions.InternalA
     bag_id: string
     priority: number
     is_writable: boolean
-    /**
-     * [RecipeBag_info]
-     */
-    info:PrismaJson.RecipeBag_info | null
+    prefix: string
   }, ExtArgs["result"]["recipeBag"]>
   composites: {}
 }
@@ -1096,7 +1100,7 @@ export interface RecipeBagFieldRefs {
   readonly bag_id: Prisma.FieldRef<"RecipeBag", 'String'>
   readonly priority: Prisma.FieldRef<"RecipeBag", 'Int'>
   readonly is_writable: Prisma.FieldRef<"RecipeBag", 'Boolean'>
-  readonly info: Prisma.FieldRef<"RecipeBag", 'Json'>
+  readonly prefix: Prisma.FieldRef<"RecipeBag", 'String'>
 }
     
 

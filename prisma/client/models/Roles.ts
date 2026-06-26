@@ -280,6 +280,10 @@ export type RolesOrderByRelationAggregateInput = {
   _count?: Prisma.SortOrder
 }
 
+export type NullableStringFieldUpdateOperationsInput = {
+  set?: string | null
+}
+
 export type RolesCreateNestedManyWithoutUsersInput = {
   create?: Prisma.XOR<Prisma.RolesCreateWithoutUsersInput, Prisma.RolesUncheckedCreateWithoutUsersInput> | Prisma.RolesCreateWithoutUsersInput[] | Prisma.RolesUncheckedCreateWithoutUsersInput[]
   connectOrCreate?: Prisma.RolesCreateOrConnectWithoutUsersInput | Prisma.RolesCreateOrConnectWithoutUsersInput[]

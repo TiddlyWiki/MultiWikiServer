@@ -393,8 +393,6 @@ export const ModelName = {
   RecipePermission: 'RecipePermission',
   RecipeBag: 'RecipeBag',
   Settings: 'Settings',
-  Plugin: 'Plugin',
-  RecipePlugin: 'RecipePlugin',
   Roles: 'Roles',
   Users: 'Users',
   Sessions: 'Sessions'
@@ -413,7 +411,7 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
     omit: GlobalOmitOptions
   }
   meta: {
-    modelProps: "bag" | "bagPermission" | "tiddler" | "tiddlerEvent" | "template" | "recipe" | "recipePermission" | "recipeBag" | "settings" | "plugin" | "recipePlugin" | "roles" | "users" | "sessions"
+    modelProps: "bag" | "bagPermission" | "tiddler" | "tiddlerEvent" | "template" | "recipe" | "recipePermission" | "recipeBag" | "settings" | "roles" | "users" | "sessions"
     txIsolationLevel: TransactionIsolationLevel
   }
   model: {
@@ -1083,154 +1081,6 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
         }
       }
     }
-    Plugin: {
-      payload: Prisma.$PluginPayload<ExtArgs>
-      fields: Prisma.PluginFieldRefs
-      operations: {
-        findUnique: {
-          args: Prisma.PluginFindUniqueArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$PluginPayload> | null
-        }
-        findUniqueOrThrow: {
-          args: Prisma.PluginFindUniqueOrThrowArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$PluginPayload>
-        }
-        findFirst: {
-          args: Prisma.PluginFindFirstArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$PluginPayload> | null
-        }
-        findFirstOrThrow: {
-          args: Prisma.PluginFindFirstOrThrowArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$PluginPayload>
-        }
-        findMany: {
-          args: Prisma.PluginFindManyArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$PluginPayload>[]
-        }
-        create: {
-          args: Prisma.PluginCreateArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$PluginPayload>
-        }
-        createMany: {
-          args: Prisma.PluginCreateManyArgs<ExtArgs>
-          result: BatchPayload
-        }
-        createManyAndReturn: {
-          args: Prisma.PluginCreateManyAndReturnArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$PluginPayload>[]
-        }
-        delete: {
-          args: Prisma.PluginDeleteArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$PluginPayload>
-        }
-        update: {
-          args: Prisma.PluginUpdateArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$PluginPayload>
-        }
-        deleteMany: {
-          args: Prisma.PluginDeleteManyArgs<ExtArgs>
-          result: BatchPayload
-        }
-        updateMany: {
-          args: Prisma.PluginUpdateManyArgs<ExtArgs>
-          result: BatchPayload
-        }
-        updateManyAndReturn: {
-          args: Prisma.PluginUpdateManyAndReturnArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$PluginPayload>[]
-        }
-        upsert: {
-          args: Prisma.PluginUpsertArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$PluginPayload>
-        }
-        aggregate: {
-          args: Prisma.PluginAggregateArgs<ExtArgs>
-          result: runtime.Types.Utils.Optional<Prisma.AggregatePlugin>
-        }
-        groupBy: {
-          args: Prisma.PluginGroupByArgs<ExtArgs>
-          result: runtime.Types.Utils.Optional<Prisma.PluginGroupByOutputType>[]
-        }
-        count: {
-          args: Prisma.PluginCountArgs<ExtArgs>
-          result: runtime.Types.Utils.Optional<Prisma.PluginCountAggregateOutputType> | number
-        }
-      }
-    }
-    RecipePlugin: {
-      payload: Prisma.$RecipePluginPayload<ExtArgs>
-      fields: Prisma.RecipePluginFieldRefs
-      operations: {
-        findUnique: {
-          args: Prisma.RecipePluginFindUniqueArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$RecipePluginPayload> | null
-        }
-        findUniqueOrThrow: {
-          args: Prisma.RecipePluginFindUniqueOrThrowArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$RecipePluginPayload>
-        }
-        findFirst: {
-          args: Prisma.RecipePluginFindFirstArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$RecipePluginPayload> | null
-        }
-        findFirstOrThrow: {
-          args: Prisma.RecipePluginFindFirstOrThrowArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$RecipePluginPayload>
-        }
-        findMany: {
-          args: Prisma.RecipePluginFindManyArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$RecipePluginPayload>[]
-        }
-        create: {
-          args: Prisma.RecipePluginCreateArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$RecipePluginPayload>
-        }
-        createMany: {
-          args: Prisma.RecipePluginCreateManyArgs<ExtArgs>
-          result: BatchPayload
-        }
-        createManyAndReturn: {
-          args: Prisma.RecipePluginCreateManyAndReturnArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$RecipePluginPayload>[]
-        }
-        delete: {
-          args: Prisma.RecipePluginDeleteArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$RecipePluginPayload>
-        }
-        update: {
-          args: Prisma.RecipePluginUpdateArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$RecipePluginPayload>
-        }
-        deleteMany: {
-          args: Prisma.RecipePluginDeleteManyArgs<ExtArgs>
-          result: BatchPayload
-        }
-        updateMany: {
-          args: Prisma.RecipePluginUpdateManyArgs<ExtArgs>
-          result: BatchPayload
-        }
-        updateManyAndReturn: {
-          args: Prisma.RecipePluginUpdateManyAndReturnArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$RecipePluginPayload>[]
-        }
-        upsert: {
-          args: Prisma.RecipePluginUpsertArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$RecipePluginPayload>
-        }
-        aggregate: {
-          args: Prisma.RecipePluginAggregateArgs<ExtArgs>
-          result: runtime.Types.Utils.Optional<Prisma.AggregateRecipePlugin>
-        }
-        groupBy: {
-          args: Prisma.RecipePluginGroupByArgs<ExtArgs>
-          result: runtime.Types.Utils.Optional<Prisma.RecipePluginGroupByOutputType>[]
-        }
-        count: {
-          args: Prisma.RecipePluginCountArgs<ExtArgs>
-          result: runtime.Types.Utils.Optional<Prisma.RecipePluginCountAggregateOutputType> | number
-        }
-      }
-    }
     Roles: {
       payload: Prisma.$RolesPayload<ExtArgs>
       fields: Prisma.RolesFieldRefs
@@ -1539,9 +1389,9 @@ export type TemplateScalarFieldEnum = (typeof TemplateScalarFieldEnum)[keyof typ
 export const RecipeScalarFieldEnum = {
   id: 'id',
   slug: 'slug',
-  description: 'description',
   template_id: 'template_id',
-  parameters: 'parameters'
+  definition: 'definition',
+  plugins: 'plugins'
 } as const
 
 export type RecipeScalarFieldEnum = (typeof RecipeScalarFieldEnum)[keyof typeof RecipeScalarFieldEnum]
@@ -1561,7 +1411,7 @@ export const RecipeBagScalarFieldEnum = {
   bag_id: 'bag_id',
   priority: 'priority',
   is_writable: 'is_writable',
-  info: 'info'
+  prefix: 'prefix'
 } as const
 
 export type RecipeBagScalarFieldEnum = (typeof RecipeBagScalarFieldEnum)[keyof typeof RecipeBagScalarFieldEnum]
@@ -1573,26 +1423,6 @@ export const SettingsScalarFieldEnum = {
 } as const
 
 export type SettingsScalarFieldEnum = (typeof SettingsScalarFieldEnum)[keyof typeof SettingsScalarFieldEnum]
-
-
-export const PluginScalarFieldEnum = {
-  id: 'id',
-  name: 'name',
-  version: 'version',
-  is_draft: 'is_draft',
-  draft_of: 'draft_of'
-} as const
-
-export type PluginScalarFieldEnum = (typeof PluginScalarFieldEnum)[keyof typeof PluginScalarFieldEnum]
-
-
-export const RecipePluginScalarFieldEnum = {
-  recipe_id: 'recipe_id',
-  plugin_id: 'plugin_id',
-  resolved_version: 'resolved_version'
-} as const
-
-export type RecipePluginScalarFieldEnum = (typeof RecipePluginScalarFieldEnum)[keyof typeof RecipePluginScalarFieldEnum]
 
 
 export const RolesScalarFieldEnum = {
@@ -1640,14 +1470,6 @@ export const JsonNullValueInput = {
 } as const
 
 export type JsonNullValueInput = (typeof JsonNullValueInput)[keyof typeof JsonNullValueInput]
-
-
-export const NullableJsonNullValueInput = {
-  DbNull: DbNull,
-  JsonNull: JsonNull
-} as const
-
-export type NullableJsonNullValueInput = (typeof NullableJsonNullValueInput)[keyof typeof NullableJsonNullValueInput]
 
 
 export const JsonNullValueFilter = {
@@ -1861,8 +1683,6 @@ export type GlobalOmitConfig = {
   recipePermission?: Prisma.RecipePermissionOmit
   recipeBag?: Prisma.RecipeBagOmit
   settings?: Prisma.SettingsOmit
-  plugin?: Prisma.PluginOmit
-  recipePlugin?: Prisma.RecipePluginOmit
   roles?: Prisma.RolesOmit
   users?: Prisma.UsersOmit
   sessions?: Prisma.SessionsOmit

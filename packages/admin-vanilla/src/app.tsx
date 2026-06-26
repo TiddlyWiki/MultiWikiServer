@@ -1,6 +1,38 @@
 import { customElement, JSXElement, addstyles, state } from "@tiddlywiki/jsx-lit";
 import css from "./app.inline.css";
 import warningIcon from "@material-symbols/svg-400/outlined/warning.svg";
+import {
+  DataStore,
+  getAllTabs,
+  getTab,
+  TabId,
+  ColumnDefinition,
+  FieldDefinition,
+  FieldGroupDefinition,
+  FieldSection,
+  FieldType,
+  Mode,
+  TabDefinition
+} from "./definition/tabs";
+import { is } from "@tiddlywiki/jsx-runtime";
+
+export function definitely<T>(a: any): asserts a is T { }
+
+export function ok<T>(value: T | null | undefined | "" | 0 | false, message?: string): asserts value is T {
+  if (!value) throw new Error(message ?? `AssertionError: ${value}`);
+}
+
+
+
+function mapGetInit<K, V>(map: Map<K, V>, key: K, init: () => V): V {
+  if (!map.has(key)) {
+    let val = init();
+    map.set(key, val);
+    return val;
+  } else {
+    return map.get(key) as V;
+  }
+}
 
 
 // import icon1 from "@material-symbols/svg-400/{style}/{icon}.svg" // (Unfilled)
@@ -20,41 +52,76 @@ export class MaterialSymbol extends JSXElement {
   }
 }
 
-type TabId = "wikis" | "templates" | "bags" | "plugins" | "roles" | "users";
-type FieldType =
-  | "string"
-  | "text"
-  | "autocomplete"
-  | "json-editor"
-  | "structured-preview"
-  | "table"
-  | "permission-table"
-  | "validation-report"
-  | "resolver-preview"
-  | "search-multiselect"
-  | "key-value-table"
-  | "reference"
-  | "parameter-list"
-  | "relationship-table"
-  | "action"
-  | "summary-list"
-  | "number"
-  | "activity-feed"
-  | "version"
-  | "select"
-  | "metadata-table";
-
-type Mode = "create" | "create edit" | "edit" | "edit temp" | "create temp" | "create edit temp" | "";
 type ModalMode = "create" | "edit";
 interface AdminValue {
   __admin_value_string__: string;
   __admin_value_parsed__: any;
 }
-type AdminRecord = Record<string, string>;
+type AdminRecord = Record<string, string> & { id: string; };
 type ItemsByTab = Record<TabId, AdminRecord[]>;
-type FieldSection = "authored" | "runtime" | "operations";
+
 type PermissionLevel = "A_read" | "B_write" | "C_admin";
 type RecipePermissionLevel = "A_read" | "B_write";
+
+type WikiDataStore = DataStore["wikis"][number];
+type TemplateDataStore = DataStore["templates"][number];
+type BagDataStore = DataStore["bags"][number];
+type PluginDataStore = DataStore["plugins"][number];
+type RoleDataStore = DataStore["roles"][number];
+type UserDataStore = DataStore["users"][number];
+
+interface WikiAdminRecord extends WikiDataStore {
+  templateName: string;
+  defaultWritableBag: string;
+  readonlyBagCount: string;
+  prefixRuleCount: string;
+  pluginCount: string;
+  effectiveBagOrder: string;
+  effectivePluginSet: string;
+  compileValidation: string;
+  lastCompiledAt: string;
+  statusFlags: string;
+}
+
+interface TemplateAdminRecord extends TemplateDataStore {
+  defaultWritableBag: string;
+  readonlyBagsSummary: string;
+  writablePrefixSummary: string;
+  dependentWikis: string;
+  dependentWikiCount: string;
+  lastUpdatedAt: string;
+  validationStatus: string;
+  validationReport: string;
+}
+
+interface BagAdminRecord extends BagDataStore {
+  usedByCount: string;
+  readonlyUsageCount: string;
+  writableUsageCount: string;
+  defaultUsageCount: string;
+  permissionSummary: string;
+  referencedByTemplates: string;
+  referencedByWikis: string;
+  routingRoles: string;
+  // tiddlerCount: string;
+  // lastActivityAt: string;
+  // recentActivity: string;
+}
+
+interface PluginAdminRecord extends PluginDataStore {
+  assetsMetadata: string;
+  usedByWikis: string;
+  usageCount: string;
+  draftOf: string;
+  updatedAt: string;
+}
+
+interface RoleAdminRecord extends RoleDataStore {
+}
+
+interface UserAdminRecord extends UserDataStore {
+  confirmPassword: string;
+}
 
 interface MappingRow {
   left: string;
@@ -71,44 +138,6 @@ interface KeyValueRow {
   value: string;
 }
 
-interface FieldGroupDefinition {
-  title?: string;
-  description?: string;
-  keys: string[];
-  headerFieldKey?: string;
-  disabledWhenHeaderOff?: boolean;
-  footerDescriptionFromHeader?: boolean;
-  width?: "half" | "full";
-  layout?: "grid" | "stack";
-}
-
-const halfWidth = "half" as const;
-const fullWidth = "full" as const;
-const stackLayout = "stack" as const;
-
-interface FieldDefinition {
-  key: string;
-  label: string;
-  type: FieldType;
-  section?: FieldSection;
-  mode: Mode;
-  description?: string;
-  architecture?: string;
-}
-
-interface ColumnDefinition {
-  key: string;
-  label: string;
-}
-
-interface TabDefinition {
-  id: TabId;
-  label: string;
-  eyebrow: string;
-  description: string;
-  columns: ColumnDefinition[];
-  fields: FieldDefinition[];
-}
 
 interface ModalState {
   tabId: TabId;
@@ -198,435 +227,18 @@ interface RecordModalProps {
 const bagPermissionLevels: PermissionLevel[] = ["A_read", "B_write", "C_admin"];
 const recipePermissionLevels: RecipePermissionLevel[] = ["A_read", "B_write"];
 
-const tabs = [
-  {
-    id: "wikis",
-    label: "Wikis",
-    eyebrow: "Your thoughts",
-    description: "Final wiki instances built from a template plus per-wiki customizations.",
-    columns: [
-      { key: "slug", label: "Slug" },
-      { key: "displayName", label: "Display name" },
-      { key: "templateName", label: "Template" },
-      { key: "defaultWritableBag", label: "Default bag" },
-      { key: "readonlyBagCount", label: "Readonly bags" },
-      { key: "prefixRuleCount", label: "Prefix rules" },
-      { key: "pluginCount", label: "Plugins" },
-      { key: "lastCompiledAt", label: "Compiled" },
-      { key: "statusFlags", label: "Status" },
-    ],
-    fields: [
-      { key: "slug", label: "Slug", type: "string", section: "authored", mode: "create edit" },
-      { key: "displayName", label: "Display name", type: "string", section: "authored", mode: "create edit" },
-      { key: "description", label: "Description", type: "text", section: "authored", mode: "create edit" },
-      { key: "templateId", label: "Template", type: "autocomplete", section: "authored", mode: "create" },
-      { key: "readonlyBags", label: "Readonly bags", type: "search-multiselect", section: "authored", mode: "create edit" },
-      { key: "plugins", label: "Plugins", type: "search-multiselect", section: "authored", mode: "create edit" },
-      {
-        key: "writablePrefixBags",
-        label: "Writable prefix bags",
-        type: "key-value-table",
-        section: "authored",
-        mode: "create edit",
-        architecture: "Edits the wiki-level prefix-to-bag routing table that drives write target selection. Longest prefix wins, and the empty string row is the fallback write target.",
-      },
-      {
-        key: "effectiveBagOrder",
-        label: "Effective bags",
-        type: "table",
-        section: "runtime",
-        mode: "",
-        architecture: "Read-only projection of compiled recipe-bag rows in the same top-to-bottom order the resolver uses for reads.",
-      },
-      {
-        key: "effectivePluginSet",
-        label: "Effective plugin set",
-        type: "table",
-        section: "runtime",
-        mode: "",
-        architecture: "Read-only projection of the resolved plugin rows that will actually be used by the wiki page and preload path.",
-      },
-      {
-        key: "recipePermissions",
-        label: "Recipe permissions",
-        type: "permission-table",
-        section: "authored",
-        mode: "create edit",
-        architecture: "Edits permission rows on the wiki definition itself. These govern access to the wiki surface separately from bag-level read and write rights.",
-      },
-      {
-        key: "compileValidation",
-        label: "Compile validation",
-        type: "validation-report",
-        section: "runtime",
-        mode: "",
-        architecture: "Read-only validation and compilation result across template, parameters, bag references, plugin references, and routing invariants.",
-      },
-      {
-        key: "titleResolutionPreview",
-        label: "Title routing test",
-        type: "resolver-preview",
-        section: "operations",
-        mode: "edit temp",
-        architecture: "Diagnostic resolver output for a title entered by the user: computed prefix match and authored write target selection only. Read answers and final write permission would require live server state.",
-      },
-    ],
-  },
-  {
-    id: "templates",
-    label: "Templates",
-    eyebrow: "Wiki Blueprints",
-    description: "Reusable recipe definitions. Changes made to a template apply to every wiki using it.",
-    columns: [
-      { key: "name", label: "Name" },
-      { key: "description", label: "Description" },
-      { key: "readonlyBagsSummary", label: "Readonly bags" },
-      { key: "writablePrefixSummary", label: "Writable prefixes" },
-      { key: "openParameterSummary", label: "Open parameters" },
-      { key: "dependentWikiCount", label: "Dependent wikis" },
-      { key: "lastUpdatedAt", label: "Updated" },
-      { key: "validationStatus", label: "Validation" },
-    ],
-    fields: [
-      { key: "name", label: "Name", type: "string", section: "authored", mode: "create edit" },
-      { key: "description", label: "Description", type: "text", section: "authored", mode: "create edit" },
-      {
-        key: "writablePrefixBags",
-        label: "Writable prefix bags",
-        type: "key-value-table",
-        section: "authored",
-        mode: "create edit",
-        architecture: "Edits the template-level prefix-to-bag routing table that wikis inherit first. Longest prefix wins, and the empty string row is the fallback write target when no wiki-level override matches.",
-      },
-      { key: "readonlyBags", label: "Readonly bags", type: "search-multiselect", section: "authored", mode: "create edit" },
-      { key: "plugins", label: "Plugins", type: "search-multiselect", section: "authored", mode: "create edit" },
-      {
-        key: "requiredPluginsEnabled",
-        label: "Required plugins",
-        type: "select",
-        section: "authored",
-        mode: "create edit",
-        description: "Core plugins enable wiki sync functionality. Disable them for vanilla wikis or custom sync implementations.",
-      },
-      {
-        key: "customHtmlEnabled",
-        label: "Custom HTML shell",
-        type: "select",
-        section: "authored",
-        mode: "create edit",
-        description: "Enable custom HTML shell settings when this template should serve authored HTML instead of the default page shell.",
-      },
-      {
-        key: "htmlContent",
-        label: "HTML content",
-        type: "text",
-        section: "authored",
-        mode: "create edit",
-        description: "Store the raw HTML that will be served for this template. All HTTP endpoints still work, but any boot, library, or raw markup tiddlers must be included here manually.",
-      },
-      {
-        key: "injectionArray",
-        label: "Injection array",
-        type: "string",
-        section: "authored",
-        mode: "create edit",
-        description: "Name of the JavaScript array to push tiddlers onto, for example $tw.preloadTiddlers.",
-      },
-      {
-        key: "injectionLocation",
-        label: "Injection marker",
-        type: "string",
-        section: "authored",
-        mode: "create edit",
-        description: "Inject the tiddlers before this string in the HTML file. It must not be inside a script tag, for example <!-- INJECT STORE TIDDLERS HERE -->.",
-      },
-      {
-        key: "defaultWritableBag",
-        label: "Default writable bag",
-        type: "reference",
-        section: "runtime",
-        mode: "",
-        architecture: "Read-only convenience projection of the writablePrefixBags row whose prefix is the empty string.",
-      },
-      {
-        key: "openParameters",
-        label: "Open parameters",
-        type: "parameter-list",
-        section: "runtime",
-        mode: "",
-        architecture: "Read-only description of which values the template leaves for each wiki to provide in its parameters JSON.",
-      },
-      {
-        key: "dependentWikis",
-        label: "Dependent wikis",
-        type: "relationship-table",
-        section: "runtime",
-        mode: "",
-        architecture: "Read-only relationship view listing all wikis that reference this template and will be revalidated or recompiled if it changes.",
-      },
-      {
-        key: "validationResult",
-        label: "Validation result",
-        type: "validation-report",
-        section: "runtime",
-        mode: "",
-        architecture: "Read-only summary of whether the definition can compile cleanly against current bag and plugin references.",
-      },
-    ],
-  },
-  {
-    id: "bags",
-    label: "Bags",
-    eyebrow: "Tiddler Storage",
-    description: "Concrete tiddler storage with role-based access control.",
-    columns: [
-      { key: "name", label: "Name" },
-      { key: "description", label: "Description" },
-      { key: "usedByCount", label: "Used by" },
-      { key: "readonlyUsageCount", label: "Readonly" },
-      { key: "writableUsageCount", label: "Writable" },
-      { key: "defaultUsageCount", label: "Default" },
-      { key: "permissionSummary", label: "Permissions" },
-      { key: "tiddlerCount", label: "Tiddlers" },
-      { key: "lastActivityAt", label: "Last activity" },
-    ],
-    fields: [
-      { key: "name", label: "Name", type: "string", section: "authored", mode: "create edit" },
-      { key: "description", label: "Description", type: "text", section: "authored", mode: "create edit" },
-      {
-        key: "permissions",
-        label: "Permissions",
-        type: "permission-table",
-        section: "authored",
-        mode: "create edit",
-        architecture: "Edits bag permission rows. These rows are consulted directly by the resolver when deciding who can read from or write to the storage container.",
-      },
-      {
-        key: "referencedByTemplates",
-        label: "Referenced by templates",
-        type: "relationship-table",
-        section: "runtime",
-        mode: "",
-        architecture: "Read-only relationship view derived from authored template definition JSON that mentions this bag in readonly or writable routing positions.",
-      },
-      {
-        key: "referencedByWikis",
-        label: "Referenced by wikis",
-        type: "relationship-table",
-        section: "runtime",
-        mode: "",
-        architecture: "Read-only relationship view derived from compiled recipe-bag rows, reflecting the effective runtime routing topology.",
-      },
-      {
-        key: "routingRoles",
-        label: "Routing roles",
-        type: "summary-list",
-        section: "runtime",
-        mode: "",
-        architecture: "Derived routing summary classifying how this bag participates across compiled wikis, such as readonly layer, writable prefix target, or default fallback.",
-      },
-      { key: "tiddlerCount", label: "Tiddler count", type: "number", section: "runtime", mode: "", },
-      {
-        key: "recentActivity",
-        label: "Recent activity",
-        type: "activity-feed",
-        section: "runtime",
-        mode: "",
-        architecture: "Read-only operational summary built from recent tiddler event rows for this bag.",
-      },
-    ],
-  },
-  {
-    id: "plugins",
-    label: "Plugins",
-    eyebrow: "Managed Assets",
-    description: "Separately versioned plugins compiled into each wiki’s resolved plugin set. Still work in progress.",
-    columns: [
-      { key: "name", label: "Name" },
-      { key: "version", label: "Version" },
-      { key: "status", label: "Status" },
-      { key: "usageCount", label: "Usage" },
-      { key: "updatedAt", label: "Updated" },
-    ],
-    fields: [
-      { key: "name", label: "Name", type: "string", section: "authored", mode: "create edit" },
-      { key: "version", label: "Version", type: "version", section: "authored", mode: "create edit" },
-      { key: "status", label: "Status", type: "select", section: "authored", mode: "create edit" },
-      { key: "description", label: "Description", type: "text", section: "authored", mode: "create edit" },
-      {
-        key: "assetsMetadata",
-        label: "Assets metadata",
-        type: "metadata-table",
-        section: "runtime",
-        mode: "",
-        architecture: "Read-only metadata projection from the stored plugin version and its packaged payload, showing the concrete assets and identity facts consumed by the renderer and plugin cache.",
-      },
-      {
-        key: "usedByWikis",
-        label: "Used by wikis",
-        type: "relationship-table",
-        section: "runtime",
-        mode: "",
-        architecture: "Read-only relationship view derived from compiled recipe-plugin rows, showing exact effective usage of this version.",
-      },
-      {
-        key: "draftOf",
-        label: "Draft of",
-        type: "reference",
-        section: "runtime",
-        mode: "",
-        architecture: "Read-only lineage pointer from a draft plugin to the published version it branched from or intends to replace.",
-      },
-      {
-        key: "publishFromDraft",
-        label: "Publish from draft",
-        type: "action",
-        section: "operations",
-        mode: "edit",
-        architecture: "Action surface that promotes a draft state into a concrete version usable by compiled wiki plugin rows.",
-      },
-    ],
-  },
-  {
-    id: "roles",
-    label: "Roles",
-    eyebrow: "Access profiles",
-    description: "Named access profiles that can be assigned to user accounts.",
-    columns: [
-      { key: "roleId", label: "Role name" },
-      { key: "description", label: "Role description" },
-    ],
-    fields: [
-      { key: "roleId", label: "Role name", type: "string", section: "authored", mode: "create edit" },
-      { key: "description", label: "Role description", type: "text", section: "authored", mode: "create edit" },
-    ],
-  },
-  {
-    id: "users",
-    label: "Users",
-    eyebrow: "Account logins",
-    description: "User accounts with assigned roles.",
-    columns: [
-      { key: "username", label: "Username" },
-      { key: "email", label: "Email" },
-    ],
-    fields: [
-      { key: "username", label: "Username", type: "string", section: "authored", mode: "create edit" },
-      { key: "email", label: "Email", type: "string", section: "authored", mode: "create edit" },
-      { key: "roleIds", label: "Roles", type: "search-multiselect", section: "authored", mode: "create edit" },
-      { key: "password", label: "Password", type: "string", section: "authored", mode: "create edit" },
-      { key: "confirmPassword", label: "Confirm password", type: "string", section: "authored", mode: "create edit temp" },
-    ],
-  },
-] as const satisfies TabDefinition[];
 
-
-type StoredTabRecord<T extends TabDefinition> = { id: string } & Partial<Record<t2a<T>[T["id"]][number], string>>;
-
-type DataStore = {
-  wikis: Record<string, StoredTabRecord<(typeof tabs)[0]>>;
-  templates: Record<string, StoredTabRecord<(typeof tabs)[1]>>;
-  bags: Record<string, StoredTabRecord<(typeof tabs)[2]>>;
-  plugins: Record<string, StoredTabRecord<(typeof tabs)[3]>>;
-  roles: Record<string, StoredTabRecord<(typeof tabs)[4]>>;
-  users: Record<string, StoredTabRecord<(typeof tabs)[5]>>;
-};
-
-type t2<T> = T extends [infer F extends TabDefinition, ...infer R] ? [t2a<F>, ...t2<R>]
-  : T extends [infer F extends TabDefinition] ? [t2a<F>] : [];
-
-type t3<T> = T extends [infer F extends FieldDefinition, ...infer R] ? [t3a<F>, ...t3<R>]
-  : T extends [infer F extends FieldDefinition] ? [t3a<F>] : [];
-
-type t2a<T extends TabDefinition> = { [K in T["id"]]: t3<T["fields"]> };
-type t3a<T extends FieldDefinition> =
-  T["mode"] extends "" ? never :
-  T["mode"] extends "create edit temp" ? never :
-  T["mode"] extends "create temp" ? never :
-  T["mode"] extends "edit temp" ? never :
-  T["key"];
-
-function getStoredFieldKeys(tab: TabDefinition): string[] {
-  return tab.fields.filter((field) => ["create", "create edit", "edit"].includes(field.mode)).map((field) => field.key);
-}
-
-function pruneStoredRecord(tabId: TabId, record: AdminRecord, fallbackOrdinal?: number): AdminRecord {
-  const tab = getTab(tabId);
-  const storedFieldKeys = getStoredFieldKeys(tab);
-  const pruned = storedFieldKeys.reduce<AdminRecord>((nextRecord, key) => {
-    nextRecord[key] = record[key] ?? "";
-    return nextRecord;
-  }, {});
-  pruned.id = record.id || String(fallbackOrdinal ?? 0);
-  return pruned;
-}
-
-function toItemArray(tabId: TabId, records: Record<string, AdminRecord>): AdminRecord[] {
-  return Object.entries(records)
-    .sort(([leftId], [rightId]) => leftId.localeCompare(rightId, undefined, { numeric: true }))
-    .map(([id, record]) => ({ ...record, id }));
-}
-
-function toItemsByTab(store: DataStore): ItemsByTab {
-  return {
-    wikis: toItemArray("wikis", store.wikis),
-    templates: toItemArray("templates", store.templates),
-    bags: toItemArray("bags", store.bags),
-    plugins: toItemArray("plugins", store.plugins),
-    roles: toItemArray("roles", store.roles),
-    users: toItemArray("users", store.users),
-  };
-}
-
-function toDataStore(items: ItemsByTab): DataStore {
-  const mapTab = (tabId: TabId, records: AdminRecord[]) => Object.fromEntries(
-    records.map((record, ordinal) => {
-      const storedRecord = pruneStoredRecord(tabId, record, ordinal);
-      const id = storedRecord.id || String(ordinal);
-      return [id, { ...storedRecord, id }];
-    }),
-  );
-
-  return {
-    wikis: mapTab("wikis", items.wikis),
-    templates: mapTab("templates", items.templates),
-    bags: mapTab("bags", items.bags),
-    plugins: mapTab("plugins", items.plugins),
-    roles: mapTab("roles", items.roles),
-    users: mapTab("users", items.users),
-  };
-}
-
-function getTab(tabId: TabId): TabDefinition {
-  return tabs.find((tab) => tab.id === tabId) ?? tabs[0];
-}
 
 function formatPrefixSummary(value: string): string {
-  const rows = parseMappingRows(value);
+  const rows = mappingRowsCodec.parse(value);
   return rows.map((row) => row.left || "default").join(", ");
 }
 
-function buildTemplateDependentWikiMap(wikis: AdminRecord[], templates: AdminRecord[]): Map<string, string[]> {
-  const templateNameByKey = new Map(templates.map((template) => [normalizeLookupKey(template.name), template.name] as const));
-  const map = new Map<string, string[]>();
-
-  for (const wiki of wikis) {
-    const key = normalizeLookupKey(wiki.templateId || wiki.templateName);
-    const templateName = templateNameByKey.get(key);
-    if (!templateName) continue;
-    const next = map.get(templateName) ?? [];
-    next.push(wiki.slug || wiki.displayName || wiki.templateId || "");
-    map.set(templateName, next.filter(Boolean));
-  }
-
-  return map;
-}
-
 function summarizePermissionRoles(value: string): string {
-  return parsePermissionRows(value).map((row) => row.role).filter(Boolean).join(", ");
+  return permissionRowsCodec.parse(value).map((row) => row.role).filter(Boolean).join(", ");
 }
 
-function deriveBagRecords(items: ItemsByTab, templates: AdminRecord[], wikis: AdminRecord[]): AdminRecord[] {
+function deriveBagRecords(items: DataStore, templates: TemplateAdminRecord[], wikis: WikiAdminRecord[]): BagAdminRecord[] {
   const templateReadonlyUsage = new Map<string, Set<string>>();
   const wikiReadonlyUsage = new Map<string, Set<string>>();
   const wikiWritableUsage = new Map<string, Set<string>>();
@@ -641,19 +253,19 @@ function deriveBagRecords(items: ItemsByTab, templates: AdminRecord[], wikis: Ad
 
   for (const template of templates) {
     const templateName = template.name ?? "";
-    parseLineList(template.readonlyBags ?? "").forEach((bagName) => addUsage(templateReadonlyUsage, bagName, templateName));
+    lineListCodec.parse(template.readonlyBags ?? "").forEach((bagName) => addUsage(templateReadonlyUsage, bagName, templateName));
   }
 
   for (const wiki of wikis) {
     const wikiName = wiki.slug || wiki.displayName || "";
-    const templateRecord = findTemplateRecordForDraft(wiki, { ...items, templates, wikis });
+    const templateRecord = findTemplateRecordForWikiRecord(wiki, { ...items, templates, wikis });
     const effectiveReadonlyBags = uniqueLines([
-      ...parseLineList(templateRecord?.readonlyBags ?? ""),
-      ...parseLineList(wiki.readonlyBags ?? ""),
+      ...lineListCodec.parse(templateRecord?.readonlyBags ?? ""),
+      ...lineListCodec.parse(wiki.readonlyBags ?? ""),
     ]);
     effectiveReadonlyBags.forEach((bagName) => addUsage(wikiReadonlyUsage, bagName, wikiName));
 
-    const prefixRows = parseMappingRows(wiki.writablePrefixBags ?? "");
+    const prefixRows = mappingRowsCodec.parse(wiki.writablePrefixBags ?? "");
     prefixRows.forEach((row) => addUsage(wikiWritableUsage, row.right, wikiName));
     const defaultBag = prefixRows.find((row) => row.left === "")?.right ?? "";
     addUsage(wikiDefaultUsage, defaultBag, wikiName);
@@ -690,7 +302,7 @@ function deriveBagRecords(items: ItemsByTab, templates: AdminRecord[], wikis: Ad
   });
 }
 
-function derivePluginRecords(items: ItemsByTab, templates: AdminRecord[], wikis: AdminRecord[]): AdminRecord[] {
+function derivePluginRecords(items: DataStore, templates: TemplateAdminRecord[], wikis: WikiAdminRecord[]): PluginAdminRecord[] {
   const pluginUsage = new Map<string, Set<string>>();
 
   const addUsage = (pluginName: string, wikiName: string) => {
@@ -702,7 +314,7 @@ function derivePluginRecords(items: ItemsByTab, templates: AdminRecord[], wikis:
 
   for (const wiki of wikis) {
     const wikiName = wiki.slug || wiki.displayName || "";
-    parseLineList(wiki.effectivePluginSet ?? "").forEach((pluginValue) => {
+    lineListCodec.parse(wiki.effectivePluginSet ?? "").forEach((pluginValue) => {
       const pluginName = pluginValue.split("@")[0]?.trim() ?? pluginValue.trim();
       addUsage(pluginName, wikiName);
     });
@@ -711,166 +323,124 @@ function derivePluginRecords(items: ItemsByTab, templates: AdminRecord[], wikis:
   return items.plugins.map((plugin) => {
     const usedByWikis = Array.from(pluginUsage.get(plugin.name ?? "") ?? []);
     return {
-      ...plugin,
+      ...plugin as unknown as PluginAdminRecord,
       usedByWikis: usedByWikis.join("\n"),
       usageCount: String(usedByWikis.length),
     };
   });
 }
 
-function deriveItems(items: ItemsByTab): ItemsByTab {
-  const templates = items.templates.map((template) => syncRecord("templates", template, items));
-  const templateContext: ItemsByTab = { ...items, templates };
-  const wikis = items.wikis.map((wiki) => syncRecord("wikis", wiki, templateContext));
-  const dependentWikiMap = buildTemplateDependentWikiMap(wikis, templates);
 
-  const normalizedTemplates = templates.map((template) => {
-    const dependentWikis = dependentWikiMap.get(template.name) ?? [];
-    const readonlyBags = parseLineList(template.readonlyBags ?? "");
-    const prefixRows = parseMappingRows(template.writablePrefixBags ?? "");
-    const openParameters = parseLineList(template.openParameters ?? "");
+function syncWikiRecord(draft: DataStore["wikis"][number], itemsByTab: DataStore) {
+  const normalizedWritablePrefixBags = editableMappingRowsCodec.normalize(draft.writablePrefixBags ?? "");
+  const templateRecord = findTemplateRecordForWikiRecord(draft, itemsByTab);
+  const templateReadonlyBags = templateRecord ? lineListCodec.parse(templateRecord.readonlyBags ?? "") : [];
+  const templatePlugins = templateRecord ? lineListCodec.parse(templateRecord.plugins ?? "") : [];
+  const wikiReadonlyBags = lineListCodec.parse(draft.readonlyBags ?? "");
+  const wikiPlugins = lineListCodec.parse(draft.plugins ?? "");
+  const mergedReadonlyBags = uniqueLines([...templateReadonlyBags, ...wikiReadonlyBags]);
+  const mergedPlugins = buildEffectivePluginSet({
+    previousEffectivePlugins: lineListCodec.parse((draft as WikiAdminRecord).effectivePluginSet ?? ""),
+    templatePlugins,
+    wikiPlugins,
+    corePluginsEnabled: templateRecord?.requiredPluginsEnabled !== "disabled",
+  });
+  const prefixRows = mappingRowsCodec.parse(normalizedWritablePrefixBags);
+  const defaultWritableBag = prefixRows.find((row) => row.left === "")?.right ?? "";
+  const prefixRuleCount = String(prefixRows.length);
+  const readableBagOrder = buildEffectiveBagStack({
+    writablePrefixBags: normalizedWritablePrefixBags,
+    templateReadonlyBags,
+    wikiReadonlyBags,
+  });
+  const availableBagNames = new Set(itemsByTab.bags.map((bag) => bag.name).filter(Boolean));
+  const availablePluginNames = new Set(itemsByTab.plugins.map((plugin) => plugin.name).filter(Boolean));
+  const missingBags = readableBagOrder.filter((bagName) => !availableBagNames.has(bagName));
+  const missingPlugins = mergedPlugins.filter((pluginName) => !availablePluginNames.has(pluginName));
+  const hasMissingDependencies = missingBags.length > 0 || missingPlugins.length > 0;
+  const missingMessages = [
+    missingBags.length ? `Missing bags: ${missingBags.join(", ")}` : "",
+    missingPlugins.length ? `Missing plugins: ${missingPlugins.join(", ")}` : "",
+  ].filter(Boolean);
+  const compileValidation = hasMissingDependencies
+    ? `Alert. ${missingMessages.join(". ")}.`
+    : "Valid. All referenced bags and plugins are present.";
+  const statusFlags = hasMissingDependencies ? "alert, missing dependencies" : "compiled, dependencies resolved";
+
+  return {
+    ...draft,
+
+    writablePrefixBags: normalizedWritablePrefixBags,
+    templateName: templateRecord?.name ?? draft.templateId ?? "",
+    defaultWritableBag,
+    readonlyBagCount: String(mergedReadonlyBags.length),
+    prefixRuleCount,
+    pluginCount: String(mergedPlugins.length),
+    effectiveBagOrder: readableBagOrder.map((bag, index) => `${index + 1}. ${bag}`).join("\n"),
+    effectivePluginSet: mergedPlugins.join("\n"),
+    compileValidation,
+    statusFlags,
+  } satisfies WikiAdminRecord;
+}
+
+function syncTemplateRecord(draft: DataStore["templates"][number]) {
+  const normalizedWritablePrefixBags = editableMappingRowsCodec.normalize(draft.writablePrefixBags ?? "");
+
+  const readonlyBags = (draft.readonlyBags ?? "")
+    .split("\n")
+    .map((entry) => entry.trim())
+    .filter(Boolean);
+
+
+
+  const writablePrefixBags = Object.fromEntries(editableMappingRowsCodec.parse(normalizedWritablePrefixBags)
+    .map(e => [e.left, e.right]));
+
+  const prefixSummary = Object.keys(writablePrefixBags).map((prefix) => prefix || "default").join(", ");
+  const defaultWritableBag = writablePrefixBags[""] ?? "";
+
+  return {
+    ...draft,
+    writablePrefixBags: normalizedWritablePrefixBags,
+    readonlyBagsSummary: readonlyBags.join(", "),
+    writablePrefixSummary: prefixSummary,
+    defaultWritableBag,
+  } // intentionally partial
+}
+
+function deriveItems(items: DataStore): ItemsByTab {
+  const partialTemplates = items.templates.map((template) => syncTemplateRecord(template));
+  const wikis = items.wikis.map((wiki) => syncWikiRecord(wiki, { ...items, templates: partialTemplates }));
+  const dependentWikiMap = new Map<string, string[]>();
+  for (const wiki of wikis) {
+    mapGetInit(dependentWikiMap, wiki.templateId, () => []).push(wiki.slug || wiki.displayName);
+  }
+
+  const templates = partialTemplates.map((template) => {
+    const dependentWikis = dependentWikiMap.get(template.id) ?? [];
+    const readonlyBags = lineListCodec.parse(template.readonlyBags ?? "");
+    const prefixRows = mappingRowsCodec.parse(template.writablePrefixBags ?? "");
     return {
       ...template,
       readonlyBagsSummary: readonlyBags.join(", "),
       writablePrefixSummary: formatPrefixSummary(template.writablePrefixBags ?? ""),
-      openParameterSummary: openParameters.join(", "),
       dependentWikis: dependentWikis.join("\n"),
       dependentWikiCount: String(dependentWikis.length),
       defaultWritableBag: prefixRows.find((row) => row.left === "")?.right ?? "",
-    };
+      validationReport: "placeholder",
+      validationStatus: "placeholder",
+      lastUpdatedAt: new Date().toISOString(),
+    } satisfies TemplateAdminRecord;
+    // lastUpdatedAt, validationStatus, validationReport
   });
 
-  const derivedContext: ItemsByTab = {
-    ...items,
-    templates: normalizedTemplates,
-    wikis,
-  };
-
   return {
-    ...derivedContext,
-    bags: deriveBagRecords(derivedContext, normalizedTemplates, wikis),
-    plugins: derivePluginRecords(derivedContext, normalizedTemplates, wikis),
-  };
-}
-
-function getInitialItems(): ItemsByTab {
-
-  const sampleStoreData: DataStore = {
-    wikis: {
-      "0": {
-        id: "0",
-        slug: "engineering-hub",
-        displayName: "Engineering Hub",
-        description: "Shared engineering wiki with namespace routing for specs, drafts, and user notes.",
-        templateId: "Workspace Template",
-        readonlyBags: "",
-        plugins: "",
-        writablePrefixBags: "Docs/ -> bag-docs\nDrafts/ -> bag-drafts\nUsers/ -> bag-user-space\n(empty) -> bag-engineering-main",
-        recipePermissions: "editors:B_write\nviewers:A_read",
-      },
-      "1": {
-        id: "1",
-        slug: "plugin-lab",
-        displayName: "Plugin Lab",
-        description: "Sandbox for draft plugin work and package previews.",
-        templateId: "Plugin Sandbox",
-        readonlyBags: "",
-        plugins: "",
-        writablePrefixBags: "Plugins/ -> bag-plugin-lab\n(empty) -> bag-plugin-lab",
-        recipePermissions: "plugin-authors:B_write\nqa:A_read",
-      },
-    },
-    templates: {
-      "0": {
-        id: "0",
-        name: "Workspace Template",
-        description: "General-purpose workspace wiki with namespace-based write routing.",
-        readonlyBags: "bag-shared-specs\nbag-shared-archive\nbag-policy",
-        writablePrefixBags: "Docs/ -> bag-docs\nDrafts/ -> bag-drafts\nUsers/ -> bag-user-space\n(empty) -> bag-engineering-main",
-        plugins: "workspace-shell\nteam-presets\nsearch-tools",
-        requiredPluginsEnabled: "enabled",
-        customHtmlEnabled: "disabled",
-        htmlContent: "",
-        injectionArray: "$tw.preloadTiddlers",
-        injectionLocation: "",
-      },
-      "1": {
-        id: "1",
-        name: "Plugin Sandbox",
-        description: "Draft-heavy workspace for plugin authoring and review.",
-        readonlyBags: "bag-plugin-base\nbag-plugin-archive",
-        writablePrefixBags: "Plugins/ -> bag-plugin-lab\n(empty) -> bag-plugin-lab",
-        plugins: "plugin-devtools\nsyntax-tools\nworkspace-shell",
-        requiredPluginsEnabled: "disabled",
-        customHtmlEnabled: "enabled",
-        htmlContent: "<!DOCTYPE html>\n<html>\n<head>\n  <meta charset=\"utf-8\">\n  <title>Plugin Sandbox</title>\n</head>\n<body>\n  <!-- INJECT STORE TIDDLERS HERE -->\n</body>\n</html>",
-        injectionArray: "$tw.preloadTiddlers",
-        injectionLocation: "<!-- INJECT STORE TIDDLERS HERE -->",
-      },
-    },
-    bags: {
-      "0": {
-        id: "0",
-        name: "bag-engineering-main",
-        description: "Primary write target for engineering wiki content.",
-        permissions: "admin:C_admin\neditors:B_write\nviewers:A_read",
-      },
-      "1": {
-        id: "1",
-        name: "bag-shared-specs",
-        description: "Readonly canonical specs consumed across multiple workspaces.",
-        permissions: "admin:C_admin\neditors:A_read\nviewers:A_read",
-      },
-    },
-    plugins: {
-      "0": {
-        id: "0",
-        name: "workspace-shell",
-        version: "2.4.0",
-        status: "published",
-        description: "Shared shell chrome, navigation, and layout helpers for workspace wikis.",
-        publishFromDraft: "No draft promotion available",
-      },
-      "1": {
-        id: "1",
-        name: "plugin-devtools",
-        version: "0.4.0-draft",
-        status: "draft",
-        description: "Draft developer tooling for plugin workbench and inspection views.",
-        publishFromDraft: "Publish as 0.4.0",
-      },
-    },
-    roles: {
-      "0": {
-        id: "0",
-        roleId: "admin",
-        description: "Full administrative access across the mock multi-wiki surface.",
-      },
-      "1": {
-        id: "1",
-        roleId: "editor",
-        description: "Can edit routine authored configuration and content.",
-      },
-    },
-    users: {
-      "0": {
-        id: "0",
-        username: "alex",
-        email: "alex@example.com",
-        roleIds: "admin\neditor",
-        password: "",
-      },
-      "1": {
-        id: "1",
-        username: "sam",
-        email: "sam@example.com",
-        roleIds: "editor",
-        password: "",
-      },
-    },
-  };
-
-  return cloneItems(deriveItems(toItemsByTab(sampleStoreData)));
+    ...items,
+    templates,
+    wikis,
+    bags: deriveBagRecords(items, templates, wikis),
+    plugins: derivePluginRecords(items, templates, wikis),
+  } as unknown as ItemsByTab;
 }
 
 function getEmptyItems(): ItemsByTab {
@@ -884,52 +454,69 @@ function getEmptyItems(): ItemsByTab {
   };
 }
 
-function cloneItems(items: ItemsByTab): ItemsByTab {
-  return {
-    wikis: items.wikis.map((item) => ({ ...item })),
-    templates: items.templates.map((item) => ({ ...item })),
-    bags: items.bags.map((item) => ({ ...item })),
-    plugins: items.plugins.map((item) => ({ ...item })),
-    roles: items.roles.map((item) => ({ ...item })),
-    users: items.users.map((item) => ({ ...item })),
-  };
-}
 
-function wait(ms: number): Promise<void> {
-  return new Promise((resolve) => {
-    globalThis.setTimeout(resolve, ms);
-  });
-}
 
-class InMemoryAdminStorage implements AdminStorage {
-  constructor(private data: DataStore) {
-    this.data = data;
+class InMemoryAdminStorage<T extends Record<TabId, any[]>> implements AdminStorage {
+  private data!: DataStore;
+  constructor(
+    private deriveItems: (data: DataStore) => T
+  ) {
+
   }
 
-  public async loadAll(): Promise<ItemsByTab> {
-    await wait(300);
-    return cloneItems(deriveItems(toItemsByTab(this.data)));
+  public async loadAll(): Promise<T> {
+    this.data = await (await fetch(pathPrefix + "/admin/store")).json()
+    return this.cloneItems(this.deriveItems(this.data));
+  }
+  private wait(ms: number): Promise<void> {
+    return new Promise((resolve) => {
+      globalThis.setTimeout(resolve, ms);
+    });
+  }
+  private cloneItems(items: T): T {
+    return {
+      wikis: items.wikis.map((item) => ({ ...item })),
+      templates: items.templates.map((item) => ({ ...item })),
+      bags: items.bags.map((item) => ({ ...item })),
+      plugins: items.plugins.map((item) => ({ ...item })),
+      roles: items.roles.map((item) => ({ ...item })),
+      users: items.users.map((item) => ({ ...item })),
+    } as T;
   }
 
   public async read(tabId: TabId, id: string): Promise<AdminRecord | null> {
-    await wait(300);
-    const item = deriveItems(toItemsByTab(this.data))[tabId].find((record) => record.id === id);
+    if (!this.data) await this.loadAll();
+    else await this.wait(300);
+    const item = this.deriveItems(this.data)[tabId].find((record) => record.id === id);
     return item ? { ...item } : null;
   }
 
   public async save(tabId: TabId, record: AdminRecord): Promise<AdminRecord[]> {
-    await wait(300);
-    const currentTabRecords = toItemArray(tabId, this.data[tabId]);
-    const storedRecord = pruneStoredRecord(tabId, record, currentTabRecords.length);
+    if (!this.data) await this.loadAll();
+    else await this.wait(300);
+    const currentTabRecords = this.data[tabId];
+    const storedRecord = this.pruneStoredRecord(tabId, record, currentTabRecords.length);
     const id = storedRecord.id;
-    this.data = {
-      ...this.data,
-      [tabId]: {
-        ...this.data[tabId],
-        [id]: { ...storedRecord, id },
-      },
-    };
-    return deriveItems(toItemsByTab(this.data))[tabId].map((item) => ({ ...item }));
+    const index = this.data[tabId].findIndex(e => e.id === id);
+    if (index > -1)
+      this.data[tabId][index] = storedRecord as any;
+    else
+      this.data[tabId].push(storedRecord as any);
+    this.data = { ...this.data, [tabId]: [...this.data[tabId]] };
+    return this.deriveItems(this.data)[tabId].map((item) => ({ ...item }));
+  }
+
+  private pruneStoredRecord(tabId: TabId, record: AdminRecord, fallbackOrdinal?: number): AdminRecord {
+    const tab = getTab(tabId);
+    const storedFieldKeys = this.getStoredFieldKeys(tab);
+    const pruned = storedFieldKeys.reduce<AdminRecord>((nextRecord, key) => {
+      nextRecord[key] = record[key] ?? "";
+      return nextRecord;
+    }, { id: record.id || String(fallbackOrdinal ?? 0) });
+    return pruned;
+  }
+  private getStoredFieldKeys(tab: TabDefinition): string[] {
+    return tab.fields.filter((field) => ["create", "create edit", "edit"].includes(field.mode)).map((field) => field.key);
   }
 }
 
@@ -946,12 +533,13 @@ function createDraft(tab: TabDefinition, source?: AdminRecord): AdminRecord {
   const draft = getFieldKeys(tab).reduce<AdminRecord>((nextDraft, key) => {
     nextDraft[key] = source?.[key] ?? "";
     return nextDraft;
-  }, {});
+  }, { id: source?.id || "" });
 
   if (!source && tab.id === "templates") {
-    draft.requiredPluginsEnabled = "enabled";
-    draft.customHtmlEnabled = "disabled";
-    draft.injectionArray = "$tw.preloadTiddlers";
+    const draft2: TemplateAdminRecord = draft as any;
+    draft2.requiredPluginsEnabled = "enabled";
+    draft2.customHtmlEnabled = "disabled";
+    draft2.injectionArray = "$tw.preloadTiddlers";
   }
 
   return draft;
@@ -965,6 +553,7 @@ function isEditable(field: FieldDefinition, mode: ModalMode): boolean {
   if (field.mode === "create edit temp") return true;
   if (field.mode === "create temp") return mode === "create";
   if (field.mode === "edit temp") return mode === "edit";
+  if (field.mode === "server") return false;
   const t: never = field.mode;
   return false;
 }
@@ -974,21 +563,8 @@ function getPrimaryValue(tab: TabDefinition, item: AdminRecord): string {
   return formatFieldValue(item[primaryKey]);
 }
 
-function getCreateLabel(tabId: TabId): string {
-  switch (tabId) {
-    case "wikis":
-      return "Create wiki";
-    case "templates":
-      return "Create template";
-    case "bags":
-      return "Create bag";
-    case "plugins":
-      return "Create plugin";
-    case "roles":
-      return "Create role";
-    case "users":
-      return "Create user";
-  }
+function getCreateLabel(tab: TabDefinition): string {
+  return tab.createLabel;
 }
 
 function getSelectOptions(field: FieldDefinition, itemsByTab: ItemsByTab): string[] {
@@ -1023,8 +599,8 @@ function getLookupOptions(fieldKey: string, itemsByTab: ItemsByTab): string[] {
   }
   if (fieldKey === "permissions" || fieldKey === "recipePermissions") {
     return Array.from(new Set([
-      ...itemsByTab.bags.flatMap((item) => parsePermissionRows(item.permissions ?? "").map((row) => row.role)),
-      ...itemsByTab.wikis.flatMap((item) => parsePermissionRows(item.recipePermissions ?? "").map((row) => row.role)),
+      ...itemsByTab.bags.flatMap((item) => permissionRowsCodec.parse(item.permissions ?? "").map((row) => row.role)),
+      ...itemsByTab.wikis.flatMap((item) => permissionRowsCodec.parse(item.recipePermissions ?? "").map((row) => row.role)),
     ].filter(Boolean)));
   }
   return [];
@@ -1038,7 +614,7 @@ function getMissingDependencyLines(field: FieldDefinition, value: string, itemsB
   if (!itemsByTab) return null;
   if (field.key !== "effectiveBagOrder" && field.key !== "effectivePluginSet") return null;
 
-  const lines = parseLineList(value);
+  const lines = lineListCodec.parse(value);
   const availableNames = new Set(
     (field.key === "effectiveBagOrder" ? itemsByTab.bags : itemsByTab.plugins)
       .map((item) => item.name)
@@ -1096,116 +672,21 @@ function getSectionSummary(section: FieldSection, tabId?: TabId): string {
   return "Actions";
 }
 
-function getFieldGroups(tabId: TabId, section: FieldSection, fields: FieldDefinition[]): FieldGroupDefinition[] {
+function getFieldGroups(tab: TabDefinition, section: FieldSection, fields: FieldDefinition[]): FieldGroupDefinition[] {
   const fallback = fields.map((field) => ({ keys: [field.key], width: "half" as const }));
 
-  if (section === "authored") {
-    if (tabId === "templates") {
-      return [
-        { title: "Template basics", keys: ["name", "description"], width: fullWidth, layout: stackLayout },
-        { title: "Writable routing", description: "Define the template-level default and prefix-based write targets that dependent wikis inherit before applying their own overrides.", keys: ["writablePrefixBags"], width: fullWidth },
-        { title: "Bags", keys: ["readonlyBags"], width: halfWidth },
-        { title: "Plugins", keys: ["plugins", "requiredPluginsEnabled"], width: halfWidth, layout: stackLayout },
-        { title: "Custom HTML shell", keys: ["htmlContent", "injectionArray", "injectionLocation"], headerFieldKey: "customHtmlEnabled", disabledWhenHeaderOff: true, width: fullWidth, layout: stackLayout },
-      ].filter((group) => group.keys.some((key) => fields.some((field) => field.key === key)));
-    }
-    if (tabId === "wikis") {
-      return [
-        { title: "Wiki identity", description: "Name the wiki, describe it, and choose the template that provides its base routing model.", keys: ["slug", "displayName", "description", "templateId"], width: fullWidth, layout: stackLayout },
-        { title: "Writable routing", description: "Define the wiki-specific write targets for title prefixes, including the default fallback bag.", keys: ["writablePrefixBags"], width: fullWidth },
-        { title: "Bags", description: "Add wiki-specific readonly bags on top of anything inherited from the template.", keys: ["readonlyBags"], width: halfWidth },
-        { title: "Plugins", description: "Add wiki-specific plugins on top of the template plugin set.", keys: ["plugins"], width: halfWidth },
-        { title: "Access", description: "Control who can access the wiki surface itself. Bag access is handled separately on the participating bags.", keys: ["recipePermissions"], width: fullWidth },
-      ].filter((group) => group.keys.some((key) => fields.some((field) => field.key === key)));
-    }
-    if (tabId === "bags") {
-      return [
-        { title: "Bag basics", keys: ["name", "description"], width: fullWidth, layout: stackLayout },
-        { keys: ["permissions"], width: fullWidth },
-      ].filter((group) => group.keys.some((key) => fields.some((field) => field.key === key)));
-    }
-    if (tabId === "plugins") {
-      return [
-        { title: "Plugin basics", keys: ["name", "description"], width: fullWidth, layout: stackLayout },
-        { title: "Release details", keys: ["version", "status"], width: halfWidth },
-      ].filter((group) => group.keys.some((key) => fields.some((field) => field.key === key)));
-    }
-    if (tabId === "roles") {
-      return [
-        { title: "Role basics", keys: ["roleId", "description"], width: fullWidth, layout: stackLayout },
-      ].filter((group) => group.keys.some((key) => fields.some((field) => field.key === key)));
-    }
-    if (tabId === "users") {
-      return [
-        { title: "User identity", keys: ["username", "email"], width: fullWidth, layout: stackLayout },
-        { title: "Roles", description: "Assign one or more role ids to this user account.", keys: ["roleIds"], width: halfWidth },
-        { title: "Credentials", keys: ["password", "confirmPassword"], width: halfWidth, layout: stackLayout },
-      ].filter((group) => group.keys.some((key) => fields.some((field) => field.key === key)));
-    }
-  }
+  const configuredGroups = tab.fieldGroups?.[section];
+  if (!configuredGroups) return fallback;
 
-  if (section === "runtime") {
-    if (tabId === "templates") {
-      return [
-        { keys: ["defaultWritableBag"], width: halfWidth },
-        { keys: ["openParameters"], width: halfWidth },
-        { keys: ["dependentWikis"], width: halfWidth },
-        { keys: ["validationResult"], width: halfWidth },
-      ].filter((group) => group.keys.some((key) => fields.some((field) => field.key === key)));
-    }
-    if (tabId === "wikis") {
-      return [
-        { title: "Compilation status", description: "Validation and compilation outcome for the current authored state.", keys: ["compileValidation"], width: fullWidth },
-      ].filter((group) => group.keys.some((key) => fields.some((field) => field.key === key)));
-    }
-    if (tabId === "bags") {
-      return [
-        { keys: ["referencedByTemplates"], width: halfWidth },
-        { keys: ["referencedByWikis"], width: halfWidth },
-        { keys: ["routingRoles"], width: halfWidth },
-        { keys: ["tiddlerCount"], width: halfWidth },
-        { keys: ["recentActivity"], width: fullWidth },
-      ].filter((group) => group.keys.some((key) => fields.some((field) => field.key === key)));
-    }
-  }
-
-  if (section === "operations") {
-    if (tabId === "wikis") {
-      return [
-        {
-          title: "Title routing test",
-          description: "Test a title against the wiki's current prefix rules to see which bag would receive writes.",
-          keys: ["titleResolutionPreview"],
-          width: fullWidth,
-        },
-      ].filter((group) => group.keys.some((key) => fields.some((field) => field.key === key)));
-    }
-  }
-
-  return fallback;
+  return configuredGroups.filter((group) => group.keys.some((key) => fields.some((field) => field.key === key)));
 }
 
 function getSummaryColumns(tab: TabDefinition): ColumnDefinition[] {
   return tab.columns.slice(0, 6);
 }
 
-function normalizeLookupKey(value: string | undefined): string {
-  return (value ?? "")
-    .trim()
-    .toLowerCase()
-    .replace(/^tmpl-/, "")
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "");
-}
-
-function findTemplateRecordForDraft(draft: AdminRecord, itemsByTab: ItemsByTab): AdminRecord | undefined {
-  const lookupKeys = [draft.templateId, draft.templateName]
-    .map((value) => normalizeLookupKey(value))
-    .filter(Boolean);
-
-  if (!lookupKeys.length) return undefined;
-
-  return itemsByTab.templates.find((template) => lookupKeys.includes(normalizeLookupKey(template.name)));
+function findTemplateRecordForWikiRecord(draft: DataStore["wikis"][number], itemsByTab: DataStore | ItemsByTab) {
+  return itemsByTab.templates.find((template) => draft.templateId === template.id);
 }
 
 function uniqueLines(values: string[]): string[] {
@@ -1221,14 +702,14 @@ function buildEffectiveBagStack({
   templateReadonlyBags: string[];
   wikiReadonlyBags: string[];
 }): string[] {
-  const prefixRows = parseMappingRows(writablePrefixBags);
+  const prefixRows = mappingRowsCodec.parse(writablePrefixBags);
   const defaultTargets = prefixRows.filter((row) => row.left === "").map((row) => row.right);
   const prefixedTargets = prefixRows.filter((row) => row.left !== "").map((row) => row.right);
   return uniqueLines([
     ...defaultTargets,
     ...prefixedTargets,
-    ...templateReadonlyBags,
     ...wikiReadonlyBags,
+    ...templateReadonlyBags,
   ]);
 }
 
@@ -1251,111 +732,16 @@ function buildEffectivePluginSet({
   const requiredPlugins = runtimeManagedPlugins.filter((plugin) => !corePlugins.includes(plugin));
 
   return uniqueLines([
-    ...corePlugins,
-    ...requiredPlugins,
-    ...templatePlugins,
     ...wikiPlugins,
+    ...templatePlugins,
+    ...requiredPlugins,
+    ...corePlugins,
   ]);
-}
-
-function syncRecord(tabId: TabId, draft: AdminRecord, itemsByTab: ItemsByTab): AdminRecord {
-  if (tabId === "wikis") {
-    const normalizedWritablePrefixBags = normalizeWritablePrefixBags(draft.writablePrefixBags ?? "");
-    const templateRecord = findTemplateRecordForDraft(draft, itemsByTab);
-    const templateReadonlyBags = templateRecord ? parseLineList(templateRecord.readonlyBags ?? "") : [];
-    const templatePlugins = templateRecord ? parseLineList(templateRecord.plugins ?? "") : [];
-    const wikiReadonlyBags = parseLineList(draft.readonlyBags ?? "");
-    const wikiPlugins = parseLineList(draft.plugins ?? "");
-    const mergedReadonlyBags = uniqueLines([...templateReadonlyBags, ...wikiReadonlyBags]);
-    const mergedPlugins = buildEffectivePluginSet({
-      previousEffectivePlugins: parseLineList(draft.effectivePluginSet ?? ""),
-      templatePlugins,
-      wikiPlugins,
-      corePluginsEnabled: templateRecord?.requiredPluginsEnabled !== "disabled",
-    });
-    const prefixRows = parseMappingRows(normalizedWritablePrefixBags);
-    const defaultWritableBag = prefixRows.find((row) => row.left === "")?.right ?? "";
-    const prefixRuleCount = String(prefixRows.length);
-    const readableBagOrder = buildEffectiveBagStack({
-      writablePrefixBags: normalizedWritablePrefixBags,
-      templateReadonlyBags,
-      wikiReadonlyBags,
-    });
-    const availableBagNames = new Set(itemsByTab.bags.map((bag) => bag.name).filter(Boolean));
-    const availablePluginNames = new Set(itemsByTab.plugins.map((plugin) => plugin.name).filter(Boolean));
-    const missingBags = readableBagOrder.filter((bagName) => !availableBagNames.has(bagName));
-    const missingPlugins = mergedPlugins.filter((pluginName) => !availablePluginNames.has(pluginName));
-    const hasMissingDependencies = missingBags.length > 0 || missingPlugins.length > 0;
-    const missingMessages = [
-      missingBags.length ? `Missing bags: ${missingBags.join(", ")}` : "",
-      missingPlugins.length ? `Missing plugins: ${missingPlugins.join(", ")}` : "",
-    ].filter(Boolean);
-    const compileValidation = hasMissingDependencies
-      ? `Alert. ${missingMessages.join(". ")}.`
-      : "Valid. All referenced bags and plugins are present.";
-    const statusFlags = hasMissingDependencies ? "alert, missing dependencies" : "compiled, dependencies resolved";
-
-    return {
-      ...draft,
-      writablePrefixBags: normalizedWritablePrefixBags,
-      templateName: templateRecord?.name ?? draft.templateId,
-      defaultWritableBag,
-      readonlyBagCount: String(mergedReadonlyBags.length),
-      prefixRuleCount,
-      pluginCount: String(mergedPlugins.length),
-      effectiveBagOrder: readableBagOrder.map((bag, index) => `${index + 1}. ${bag}`).join("\n"),
-      effectivePluginSet: mergedPlugins.join("\n"),
-      compileValidation,
-      statusFlags,
-    };
-  }
-
-  if (tabId === "templates") {
-
-    const normalizedWritablePrefixBags = normalizeWritablePrefixBags(draft.writablePrefixBags ?? "");
-
-    const readonlyBags = (draft.readonlyBags ?? "")
-      .split("\n")
-      .map((entry) => entry.trim())
-      .filter(Boolean);
-
-    const prefixRows = normalizedWritablePrefixBags
-      .split("\n")
-      .map((entry) => entry.trim())
-      .filter(Boolean);
-
-    const writablePrefixBags = prefixRows.reduce<Record<string, string>>((acc, row) => {
-      const [prefixText, bagText] = row.split("->").map((part) => part?.trim() ?? "");
-      if (!bagText) return acc;
-      const prefix = prefixText === "(empty)" ? "" : prefixText;
-      acc[prefix] = bagText;
-      return acc;
-    }, {});
-
-    const prefixSummary = Object.keys(writablePrefixBags).map((prefix) => prefix || "default").join(", ");
-    const defaultWritableBag = writablePrefixBags[""] ?? "";
-
-    return {
-      ...draft,
-      writablePrefixBags: normalizedWritablePrefixBags,
-      readonlyBagsSummary: readonlyBags.join(", "),
-      writablePrefixSummary: prefixSummary,
-      defaultWritableBag,
-    };
-  }
-
-  return { ...draft };
 }
 
 class LineListCodec {
   public parse(value: string): string[] {
     if (!value.trim()) return [];
-    try {
-      const parsed = JSON.parse(value);
-      if (Array.isArray(parsed)) return parsed.map((entry) => String(entry).trim()).filter(Boolean);
-    } catch {
-      // fall back to the legacy newline-delimited format
-    }
     return value.split("\n").map((entry) => entry.trim()).filter(Boolean);
   }
 
@@ -1366,51 +752,21 @@ class LineListCodec {
 
 class MappingRowsCodec {
   public parse(value: string): MappingRow[] {
-    return value.split("\n").map((entry) => entry.trim()).filter(Boolean).map((row) => {
-      const [left, right] = row.split("->").map((part) => part?.trim() ?? "");
-      return {
-        left: left === "(empty)" ? "" : left,
-        right,
-      };
-    });
+    return JSON.parse(value);
   }
 
   public stringify(rows: MappingRow[]): string {
-    return rows
-      .map((row) => ({ left: row.left.trim(), right: row.right.trim() }))
-      .filter((row) => row.left || row.right)
-      .map((row) => `${row.left || "(empty)"} -> ${row.right}`)
-      .join("\n");
+    return JSON.stringify(rows.map(e => ({ left: e.left.trim(), right: e.right.trim() })));
   }
 }
-
+/** This class is used for actual editors so we can type spaces in the field. */
 class EditableMappingRowsCodec {
   public parse(value: string): MappingRow[] {
-    return value.split("\n").map((entry) => {
-      const separatorIndex = entry.indexOf("->");
-      if (separatorIndex === -1) {
-        return {
-          left: entry,
-          right: "",
-        };
-      }
-
-      const left = entry.slice(0, separatorIndex).replace(/ $/, "");
-      const right = entry.slice(separatorIndex + 2).replace(/^ /, "");
-
-      return {
-        left: left === "(empty)" ? "" : left,
-        right: right.trim(),
-      };
-    }).filter((row) => row.left || row.right);
+    return JSON.parse(value);
   }
 
   public stringify(rows: MappingRow[]): string {
-    return rows
-      .map((row) => ({ left: row.left, right: row.right.trim() }))
-      .filter((row) => row.left || row.right)
-      .map((row) => `${row.left || "(empty)"} -> ${row.right}`)
-      .join("\n");
+    return JSON.stringify(rows);
   }
 
   public normalize(value: string): string {
@@ -1420,6 +776,7 @@ class EditableMappingRowsCodec {
 
 class PermissionRowsCodec {
   public parse(value: string): PermissionRow[] {
+    return JSON.parse(value);
     return value.split("\n").map((entry) => entry.trim()).filter(Boolean).map((row) => {
       const [role, levelText] = row.split(":").map((part) => part?.trim() ?? "");
       const allPermissionLevels = [...bagPermissionLevels];
@@ -1429,6 +786,7 @@ class PermissionRowsCodec {
   }
 
   public stringify(rows: PermissionRow[]): string {
+    return JSON.stringify(rows);
     return rows
       .map((row) => ({ role: row.role.trim(), level: row.level }))
       .filter((row) => row.role)
@@ -1467,53 +825,9 @@ const editableMappingRowsCodec = new EditableMappingRowsCodec();
 const permissionRowsCodec = new PermissionRowsCodec();
 const jsonObjectRowsCodec = new JsonObjectRowsCodec();
 
-function parseLineList(value: string): string[] {
-  return lineListCodec.parse(value);
-}
-
-function serializeLineList(lines: string[]): string {
-  return lineListCodec.stringify(lines);
-}
-
-function parseMappingRows(value: string): MappingRow[] {
-  return mappingRowsCodec.parse(value);
-}
-
-function parseEditableMappingRows(value: string): MappingRow[] {
-  return editableMappingRowsCodec.parse(value);
-}
-
-function serializeMappingRows(rows: MappingRow[]): string {
-  return mappingRowsCodec.stringify(rows);
-}
-
-function serializeEditableMappingRows(rows: MappingRow[]): string {
-  return editableMappingRowsCodec.stringify(rows);
-}
-
-function normalizeWritablePrefixBags(value: string): string {
-  return editableMappingRowsCodec.normalize(value);
-}
-
-function parsePermissionRows(value: string): PermissionRow[] {
-  return permissionRowsCodec.parse(value);
-}
-
-function serializePermissionRows(rows: PermissionRow[]): string {
-  return permissionRowsCodec.stringify(rows);
-}
-
-function parseJsonObjectRows(value: string): KeyValueRow[] {
-  return jsonObjectRowsCodec.parse(value);
-}
-
-function serializeJsonObjectRows(rows: KeyValueRow[]): string {
-  return jsonObjectRowsCodec.stringify(rows);
-}
-
 function computeResolverPreview(draft: AdminRecord, title: string) {
   const normalizedTitle = title.trim();
-  const targets = parseMappingRows(draft.writablePrefixBags ?? "").filter((row) => row.right).sort((a, b) => b.left.length - a.left.length);
+  const targets = mappingRowsCodec.parse(draft.writablePrefixBags ?? "").filter((row) => row.right).sort((a, b) => b.left.length - a.left.length);
   const writeTarget = normalizedTitle
     ? (targets.find((target) => target.left && normalizedTitle.startsWith(target.left)) ?? targets.find((target) => target.left === ""))
     : undefined;
@@ -1547,40 +861,57 @@ function renderListCellValue(columnKey: string, value: string | undefined) {
 }
 
 function countValueLines(value: string | undefined): number {
-  return parseLineList(value ?? "").length;
+  return lineListCodec.parse(value ?? "").length;
 }
 
-function getSidebarFacts(tabId: TabId, draft: AdminRecord): Array<{ label: string; value: string; }> {
+function getSidebarFacts(tabId: TabId, draft: AdminRecord): Array<{ label: string; value: string; }>;
+function getSidebarFacts(tabId: TabId, draft: unknown): Array<{ label: string; value: string; }> {
   if (tabId === "wikis") {
+    definitely<WikiAdminRecord>(draft);
     return [
-      { label: "Template", value: formatFieldValue(draft.templateId || draft.templateName) },
+      { label: "Template", value: formatFieldValue(draft.templateName || draft.templateId) },
       { label: "Default bag", value: formatFieldValue(draft.defaultWritableBag) },
       { label: "Compiled", value: formatFieldValue(draft.lastCompiledAt) },
     ];
   }
 
   if (tabId === "templates") {
+    definitely<TemplateAdminRecord>(draft);
     return [
       { label: "Readonly bags", value: String(countValueLines(draft.readonlyBags)) },
-      { label: "Prefix rules", value: String(parseMappingRows(draft.writablePrefixBags ?? "").length || 0) },
+      { label: "Prefix rules", value: String(mappingRowsCodec.parse(draft.writablePrefixBags ?? "").length || 0) },
       { label: "Default bag", value: formatFieldValue(draft.defaultWritableBag) },
       { label: "Plugins", value: String(countValueLines(draft.plugins)) },
-      { label: "Validation", value: formatFieldValue(draft.validationStatus || draft.validationResult) },
+      { label: "Validation", value: formatFieldValue(draft.validationStatus || draft.validationReport) },
     ];
   }
 
   if (tabId === "bags") {
+    definitely<BagAdminRecord>(draft);
     return [
-      { label: "Permission roles", value: String(parsePermissionRows(draft.permissions ?? "").length || 0) },
+      { label: "Permission roles", value: String(permissionRowsCodec.parse(draft.permissions ?? "").length || 0) },
       { label: "Referenced by templates", value: String(countValueLines(draft.referencedByTemplates)) },
       { label: "Referenced by wikis", value: String(countValueLines(draft.referencedByWikis)) },
       { label: "Routing roles", value: String(countValueLines(draft.routingRoles)) },
-      { label: "Tiddlers", value: formatFieldValue(draft.tiddlerCount) },
-      { label: "Last activity", value: formatFieldValue(draft.lastActivityAt) },
+      // { label: "Tiddlers", value: formatFieldValue(draft.tiddlerCount) },
+      // { label: "Last activity", value: formatFieldValue(draft.lastActivityAt) },
+    ];
+  }
+
+  if (tabId === "plugins") {
+    definitely<PluginAdminRecord>(draft);
+    return [
+      { label: "Version", value: formatFieldValue(draft.version) },
+      { label: "Status", value: formatFieldValue(draft.status) },
+      { label: "Used by wikis", value: String(countValueLines(draft.usedByWikis)) },
+      { label: "Usage count", value: formatFieldValue(draft.usageCount) },
+      { label: "Draft of", value: formatFieldValue(draft.draftOf) },
+      { label: "Updated", value: formatFieldValue(draft.updatedAt) },
     ];
   }
 
   if (tabId === "roles") {
+    definitely<RoleAdminRecord>(draft);
     return [
       { label: "Role name", value: formatFieldValue(draft.roleId) },
       { label: "Description", value: formatFieldValue(draft.description) },
@@ -1588,6 +919,7 @@ function getSidebarFacts(tabId: TabId, draft: AdminRecord): Array<{ label: strin
   }
 
   if (tabId === "users") {
+    definitely<UserAdminRecord>(draft);
     return [
       { label: "Username", value: formatFieldValue(draft.username) },
       { label: "Email", value: formatFieldValue(draft.email) },
@@ -1595,14 +927,8 @@ function getSidebarFacts(tabId: TabId, draft: AdminRecord): Array<{ label: strin
     ];
   }
 
-  return [
-    { label: "Version", value: formatFieldValue(draft.version) },
-    { label: "Status", value: formatFieldValue(draft.status) },
-    { label: "Used by wikis", value: String(countValueLines(draft.usedByWikis)) },
-    { label: "Usage count", value: formatFieldValue(draft.usageCount) },
-    { label: "Draft of", value: formatFieldValue(draft.draftOf) },
-    { label: "Updated", value: formatFieldValue(draft.updatedAt) },
-  ];
+  { const t: never = tabId; return []; }
+
 }
 
 interface FieldEditorInput {
@@ -1672,7 +998,7 @@ function renderTextareaField(ctx: FieldEditorContext, rows: number, extraClass =
 
 function renderParametersEditor(ctx: FieldEditorContext) {
   const { field, disabled, modalState, value, onDraftChange, onPendingRowsChange } = ctx;
-  const parameterRows = parseJsonObjectRows(value);
+  const parameterRows = jsonObjectRowsCodec.parse(value);
   const pendingRowCount = modalState.pendingRows[field.key] ?? 0;
   const displayedParameterRows = parameterRows.length
     ? [...parameterRows, ...Array.from({ length: pendingRowCount }, () => ({ key: "", value: "" }))]
@@ -1687,7 +1013,7 @@ function renderParametersEditor(ctx: FieldEditorContext) {
             const hadStoredRow = index < parameterRows.length;
             const nextRows = parameterRows.length ? [...parameterRows] : [{ key: "", value: "" }];
             nextRows[index] = { ...row, key: element.value };
-            onDraftChange(field.key, serializeJsonObjectRows(nextRows));
+            onDraftChange(field.key, jsonObjectRowsCodec.stringify(nextRows));
             if (!hadStoredRow && (element.value.trim() || row.value.trim())) onPendingRowsChange(field.key, (count) => count - 1);
           }} ref={(element) => {
             if (element.value !== row.key) element.value = row.key;
@@ -1697,7 +1023,7 @@ function renderParametersEditor(ctx: FieldEditorContext) {
             const hadStoredRow = index < parameterRows.length;
             const nextRows = parameterRows.length ? [...parameterRows] : [{ key: "", value: "" }];
             nextRows[index] = { ...row, value: element.value };
-            onDraftChange(field.key, serializeJsonObjectRows(nextRows));
+            onDraftChange(field.key, jsonObjectRowsCodec.stringify(nextRows));
             if (!hadStoredRow && (row.key.trim() || element.value.trim())) onPendingRowsChange(field.key, (count) => count - 1);
           }} ref={(element) => {
             if (element.value !== row.value) element.value = row.value;
@@ -1709,7 +1035,7 @@ function renderParametersEditor(ctx: FieldEditorContext) {
             }
             const nextRows = parameterRows.length ? [...parameterRows] : [];
             nextRows.splice(index, 1);
-            onDraftChange(field.key, serializeJsonObjectRows(nextRows));
+            onDraftChange(field.key, jsonObjectRowsCodec.stringify(nextRows));
           }}>Remove</button>
         </div>
       ))}
@@ -1720,7 +1046,7 @@ function renderParametersEditor(ctx: FieldEditorContext) {
 
 function renderSearchMultiselectField(ctx: FieldEditorContext) {
   const { field, value, disabled, modalState, itemsByTab, inputId, onDraftChange, onPendingRowsChange } = ctx;
-  const editableLines = parseLineList(value);
+  const editableLines = lineListCodec.parse(value);
   const pendingRowCount = modalState.pendingRows[field.key] ?? 0;
   const lookupOptions = getLookupOptions(field.key, itemsByTab);
   const itemLabel = field.key === "plugins"
@@ -1728,28 +1054,31 @@ function renderSearchMultiselectField(ctx: FieldEditorContext) {
     : field.key === "roleIds"
       ? "role id"
       : "bag";
-  const templateRecord = modalState.tabId === "wikis" ? findTemplateRecordForDraft(modalState.draft, itemsByTab) : undefined;
-  const templateReadonlyBagLines = field.key === "readonlyBags" && templateRecord ? parseLineList(templateRecord.readonlyBags ?? "") : [];
-  const templatePluginLines = field.key === "plugins" && templateRecord ? parseLineList(templateRecord.plugins ?? "") : [];
+  const templateRecord = is<WikiAdminRecord>(modalState.draft, modalState.tabId === "wikis")
+    ? findTemplateRecordForWikiRecord(modalState.draft, itemsByTab) : undefined;
+  const templateReadonlyBagLines = field.key === "readonlyBags" && templateRecord
+    ? lineListCodec.parse(templateRecord.readonlyBags ?? "") : [];
+  const templatePluginLines = field.key === "plugins" && templateRecord
+    ? lineListCodec.parse(templateRecord.plugins ?? "") : [];
   const templateCorePluginsEnabled = templateRecord?.requiredPluginsEnabled !== "disabled";
 
   const updateLineValueAt = (index: number, nextValue: string) => {
-    const lines = parseLineList(value);
+    const lines = lineListCodec.parse(value);
     const hadStoredRow = index < lines.length;
     while (lines.length <= index) lines.push("");
     lines[index] = nextValue;
-    onDraftChange(field.key, serializeLineList(lines));
+    onDraftChange(field.key, lineListCodec.stringify(lines));
     if (!hadStoredRow && nextValue.trim()) onPendingRowsChange(field.key, (count) => count - 1);
   };
 
   const removeLineValueAt = (index: number) => {
-    const lines = parseLineList(value);
+    const lines = lineListCodec.parse(value);
     if (index >= lines.length) {
       onPendingRowsChange(field.key, (count) => count - 1);
       return;
     }
     lines.splice(index, 1);
-    onDraftChange(field.key, serializeLineList(lines));
+    onDraftChange(field.key, lineListCodec.stringify(lines));
   };
 
   const displayedLines = editableLines.length
@@ -1772,7 +1101,7 @@ function renderSearchMultiselectField(ctx: FieldEditorContext) {
       <button type="button" class="ghost-button" disabled={disabled} onclick={() => onPendingRowsChange(field.key, (count) => count + 1)}>{`Add ${itemLabel}`}</button>
       {field.key === "readonlyBags" && modalState.tabId === "wikis" && templateRecord ? (
         <div class="field-callout">
-          <p>Template readonly bags</p>
+          <p>Readonly bags from template</p>
           <ul class="value-list">
             {templateReadonlyBagLines.length ? templateReadonlyBagLines.map((bag) => <li>{bag}</li>) : <li>No template readonly bags</li>}
           </ul>
@@ -1780,7 +1109,7 @@ function renderSearchMultiselectField(ctx: FieldEditorContext) {
       ) : null}
       {field.key === "plugins" && modalState.tabId === "wikis" && templateRecord ? (
         <div class="field-callout">
-          <p>Template plugins</p>
+          <p>Plugins from template</p>
           <ul class="value-list">
             {templatePluginLines.map((plugin) => <li>{plugin}</li>)}
             {templateCorePluginsEnabled ? <li>core plugins</li> : <li>core plugins disabled</li>}
@@ -1793,7 +1122,7 @@ function renderSearchMultiselectField(ctx: FieldEditorContext) {
 
 function renderPermissionTableField(ctx: FieldEditorContext) {
   const { field, value, disabled, modalState, itemsByTab, inputId, onDraftChange, onTransientPermissionRowsChange } = ctx;
-  const permissionRows = parsePermissionRows(value);
+  const permissionRows = permissionRowsCodec.parse(value);
   const lookupOptions = getLookupOptions(field.key, itemsByTab);
   const availableLevels = getPermissionLevelsForField(field.key);
   const transientPermissionRows = modalState.transientPermissionRows[field.key] ?? [];
@@ -1804,7 +1133,7 @@ function renderPermissionTableField(ctx: FieldEditorContext) {
   const persistPermissionRows = (rows: PermissionRow[]) => {
     const persistedRows = rows.filter((row) => row.role.trim());
     const nextTransientRows = rows.filter((row) => !row.role.trim());
-    onDraftChange(field.key, serializePermissionRows(persistedRows));
+    onDraftChange(field.key, permissionRowsCodec.stringify(persistedRows));
     onTransientPermissionRowsChange(field.key, nextTransientRows);
   };
 
@@ -1845,15 +1174,16 @@ function renderPermissionTableField(ctx: FieldEditorContext) {
 
 function renderKeyValueTableField(ctx: FieldEditorContext) {
   const { field, value, disabled, modalState, itemsByTab, inputId, onDraftChange, onPendingRowsChange } = ctx;
-  const mappingRows = parseEditableMappingRows(value);
+  const mappingRows = editableMappingRowsCodec.parse(value);
   const pendingRowCount = modalState.pendingRows[field.key] ?? 0;
   const lookupOptions = getLookupOptions(field.key, itemsByTab);
   const displayedMappingRows = mappingRows.length
     ? [...mappingRows, ...Array.from({ length: pendingRowCount }, () => ({ left: "", right: "" }))]
     : [{ left: "", right: "" }, ...Array.from({ length: pendingRowCount }, () => ({ left: "", right: "" }))];
-  const templateRecord = modalState.tabId === "wikis" ? findTemplateRecordForDraft(modalState.draft, itemsByTab) : undefined;
+  const templateRecord = is<WikiAdminRecord>(modalState.draft, modalState.tabId === "wikis")
+    ? findTemplateRecordForWikiRecord(modalState.draft, itemsByTab) : undefined;
   const inheritedRoutingRows = field.key === "writablePrefixBags" && modalState.tabId === "wikis" && templateRecord
-    ? parseMappingRows(templateRecord.writablePrefixBags ?? "")
+    ? mappingRowsCodec.parse(templateRecord.writablePrefixBags ?? "")
     : [];
   return (
     <div class="row-editor-stack">
@@ -1865,7 +1195,7 @@ function renderKeyValueTableField(ctx: FieldEditorContext) {
               const hadStoredRow = index < mappingRows.length;
               const nextRows = mappingRows.length ? [...mappingRows] : [{ left: "", right: "" }];
               nextRows[index] = { ...row, left: element.value };
-              onDraftChange(field.key, serializeEditableMappingRows(nextRows));
+              onDraftChange(field.key, editableMappingRowsCodec.stringify(nextRows));
               if (!hadStoredRow && (element.value.trim() || row.right.trim())) onPendingRowsChange(field.key, (count) => count - 1);
             }} ref={(element) => {
               if (element.value !== row.left) element.value = row.left;
@@ -1881,7 +1211,7 @@ function renderKeyValueTableField(ctx: FieldEditorContext) {
               const hadStoredRow = index < mappingRows.length;
               const nextRows = mappingRows.length ? [...mappingRows] : [{ left: "", right: "" }];
               nextRows[index] = { ...row, right: nextValue };
-              onDraftChange(field.key, serializeEditableMappingRows(nextRows));
+              onDraftChange(field.key, editableMappingRowsCodec.stringify(nextRows));
               if (!hadStoredRow && (row.left.trim() || nextValue.trim())) onPendingRowsChange(field.key, (count) => count - 1);
             },
           })}
@@ -1892,14 +1222,14 @@ function renderKeyValueTableField(ctx: FieldEditorContext) {
             }
             const nextRows = mappingRows.length ? [...mappingRows] : [];
             nextRows.splice(index, 1);
-            onDraftChange(field.key, serializeEditableMappingRows(nextRows));
+            onDraftChange(field.key, editableMappingRowsCodec.stringify(nextRows));
           }}>Remove</button>
         </div>
       ))}
       <button type="button" class="ghost-button" disabled={disabled} onclick={() => onPendingRowsChange(field.key, (count) => count + 1)}>Add prefix rule</button>
       {inheritedRoutingRows.length ? (
         <div class="field-callout">
-          <p>Inherited routing</p>
+          <p>Writable bags inherited from template:</p>
           <ul class="value-list">
             {inheritedRoutingRows.map((row) => (
               <li>
@@ -1995,17 +1325,17 @@ function renderReferenceField(ctx: ReadonlyFieldContext) {
 }
 
 function renderValueListField(ctx: ReadonlyFieldContext) {
-  const lines = parseLineList(ctx.value);
+  const lines = lineListCodec.parse(ctx.value);
   return <ul class="value-list">{lines.map((line) => <li>{line}</li>)}</ul>;
 }
 
 function renderActivityFeedField(ctx: ReadonlyFieldContext) {
-  const lines = parseLineList(ctx.value);
+  const lines = lineListCodec.parse(ctx.value);
   return <ul class="timeline-list">{lines.map((line) => <li>{line}</li>)}</ul>;
 }
 
 function renderMetadataTableField(ctx: ReadonlyFieldContext) {
-  const lines = parseLineList(ctx.value);
+  const lines = lineListCodec.parse(ctx.value);
   return <dl class="meta-list">{lines.map((line) => {
     const [key, ...rest] = line.split(":");
     return <><dt>{key}</dt><dd>{rest.join(":").trim()}</dd></>;
@@ -2014,7 +1344,7 @@ function renderMetadataTableField(ctx: ReadonlyFieldContext) {
 
 function renderTableField(ctx: ReadonlyFieldContext) {
   const { field, value, itemsByTab } = ctx;
-  const lines = parseLineList(value);
+  const lines = lineListCodec.parse(value);
   const missingDependencyLines = getMissingDependencyLines(field, value, itemsByTab);
   if (missingDependencyLines) {
     if (missingDependencyLines.every((line) => /^\d+\./.test(line.value))) {
@@ -2059,19 +1389,49 @@ function renderPreField(ctx: ReadonlyFieldContext) {
   );
 }
 
-abstract class FieldTypeHandler {
+abstract class BaseFieldTypeHandler {
   protected constructor(public readonly fieldTypes: readonly FieldType[]) { }
 
   public renderEditor(ctx: FieldEditorContext) {
     return renderTextareaField(ctx, 5);
   }
 
-  public renderReadonly(ctx: ReadonlyFieldContext) {
+  public renderSidebar(ctx: ReadonlyFieldContext) {
     return renderPreField(ctx);
   }
 }
 
-class TextInputFieldHandler extends FieldTypeHandler {
+abstract class FieldTypeHandler<T> extends BaseFieldTypeHandler {
+
+  public abstract parse(item: string): T;
+
+  public abstract stringify(item: T): string;
+
+  public renderEditor(ctx: FieldEditorContext) {
+    return renderTextareaField(ctx, 5);
+  }
+
+  public renderSidebar(ctx: ReadonlyFieldContext) {
+    return renderPreField(ctx);
+  }
+}
+
+abstract class StringFieldTypeHandler extends FieldTypeHandler<string> {
+
+  public parse(item: string): string { return item; }
+
+  public stringify(item: string): string { return item; }
+
+  public renderEditor(ctx: FieldEditorContext) {
+    return renderTextareaField(ctx, 5);
+  }
+
+  public renderSidebar(ctx: ReadonlyFieldContext) {
+    return renderPreField(ctx);
+  }
+}
+
+class TextInputFieldHandler extends StringFieldTypeHandler {
   constructor(fieldTypes: readonly FieldType[], private readonly inputType: "text" | "number") {
     super(fieldTypes);
   }
@@ -2081,7 +1441,7 @@ class TextInputFieldHandler extends FieldTypeHandler {
   }
 }
 
-class TextareaFieldHandler extends FieldTypeHandler {
+class TextareaFieldHandler extends StringFieldTypeHandler {
   constructor(fieldTypes: readonly FieldType[], private readonly rows: number, private readonly extraClass = "") {
     super(fieldTypes);
   }
@@ -2091,7 +1451,7 @@ class TextareaFieldHandler extends FieldTypeHandler {
   }
 }
 
-class JsonEditorFieldHandler extends FieldTypeHandler {
+class JsonEditorFieldHandler extends FieldTypeHandler<KeyValueRow[]> {
   constructor() {
     super(["json-editor"]);
   }
@@ -2109,7 +1469,7 @@ class JsonEditorFieldHandler extends FieldTypeHandler {
   }
 }
 
-class SearchMultiselectFieldHandler extends FieldTypeHandler {
+class SearchMultiselectFieldHandler extends FieldTypeHandler<string[]> {
   constructor() {
     super(["search-multiselect"]);
   }
@@ -2127,7 +1487,7 @@ class SearchMultiselectFieldHandler extends FieldTypeHandler {
   }
 }
 
-class PermissionTableFieldHandler extends FieldTypeHandler {
+class PermissionTableFieldHandler extends FieldTypeHandler<PermissionRow[]> {
   constructor() {
     super(["permission-table"]);
   }
@@ -2145,7 +1505,7 @@ class PermissionTableFieldHandler extends FieldTypeHandler {
   }
 }
 
-class KeyValueTableFieldHandler extends FieldTypeHandler {
+class KeyValueTableFieldHandler extends FieldTypeHandler<MappingRow[]> {
   constructor() {
     super(["key-value-table"]);
   }
@@ -2167,7 +1527,7 @@ class KeyValueTableFieldHandler extends FieldTypeHandler {
   }
 }
 
-class SelectFieldHandler extends FieldTypeHandler {
+class SelectFieldHandler extends StringFieldTypeHandler {
   constructor() {
     super(["select"]);
   }
@@ -2177,7 +1537,7 @@ class SelectFieldHandler extends FieldTypeHandler {
   }
 }
 
-class AutocompleteFieldHandler extends FieldTypeHandler {
+class AutocompleteFieldHandler extends StringFieldTypeHandler {
   constructor() {
     super(["autocomplete"]);
   }
@@ -2187,7 +1547,7 @@ class AutocompleteFieldHandler extends FieldTypeHandler {
   }
 }
 
-class ActionFieldHandler extends FieldTypeHandler {
+class ActionFieldHandler extends BaseFieldTypeHandler {
   constructor() {
     super(["action"]);
   }
@@ -2197,7 +1557,7 @@ class ActionFieldHandler extends FieldTypeHandler {
   }
 }
 
-class ResolverPreviewFieldHandler extends FieldTypeHandler {
+class ResolverPreviewFieldHandler extends StringFieldTypeHandler {
   constructor() {
     super(["resolver-preview"]);
   }
@@ -2207,12 +1567,12 @@ class ResolverPreviewFieldHandler extends FieldTypeHandler {
   }
 }
 
-class ReferenceFieldHandler extends FieldTypeHandler {
+class ReferenceFieldHandler extends StringFieldTypeHandler {
   constructor() {
     super(["reference"]);
   }
 
-  public override renderReadonly(ctx: ReadonlyFieldContext) {
+  public override renderSidebar(ctx: ReadonlyFieldContext) {
     return renderReferenceField(ctx);
   }
 
@@ -2221,7 +1581,7 @@ class ReferenceFieldHandler extends FieldTypeHandler {
   }
 }
 
-class ValueListFieldHandler extends FieldTypeHandler {
+class ValueListFieldHandler extends FieldTypeHandler<string[]> {
   constructor(fieldTypes: readonly FieldType[]) {
     super(fieldTypes);
   }
@@ -2234,7 +1594,7 @@ class ValueListFieldHandler extends FieldTypeHandler {
     return lineListCodec.stringify(lines);
   }
 
-  public override renderReadonly(ctx: ReadonlyFieldContext) {
+  public override renderSidebar(ctx: ReadonlyFieldContext) {
     return renderValueListField(ctx);
   }
 
@@ -2243,7 +1603,7 @@ class ValueListFieldHandler extends FieldTypeHandler {
   }
 }
 
-class ActivityFeedFieldHandler extends FieldTypeHandler {
+class ActivityFeedFieldHandler extends FieldTypeHandler<string[]> {
   constructor() {
     super(["activity-feed"]);
   }
@@ -2256,7 +1616,7 @@ class ActivityFeedFieldHandler extends FieldTypeHandler {
     return lineListCodec.stringify(lines);
   }
 
-  public override renderReadonly(ctx: ReadonlyFieldContext) {
+  public override renderSidebar(ctx: ReadonlyFieldContext) {
     return renderActivityFeedField(ctx);
   }
 
@@ -2265,7 +1625,7 @@ class ActivityFeedFieldHandler extends FieldTypeHandler {
   }
 }
 
-class MetadataTableFieldHandler extends FieldTypeHandler {
+class MetadataTableFieldHandler extends FieldTypeHandler<string[]> {
   constructor() {
     super(["metadata-table"]);
   }
@@ -2278,7 +1638,7 @@ class MetadataTableFieldHandler extends FieldTypeHandler {
     return lineListCodec.stringify(lines);
   }
 
-  public override renderReadonly(ctx: ReadonlyFieldContext) {
+  public override renderSidebar(ctx: ReadonlyFieldContext) {
     return renderMetadataTableField(ctx);
   }
 
@@ -2287,7 +1647,7 @@ class MetadataTableFieldHandler extends FieldTypeHandler {
   }
 }
 
-class TableFieldHandler extends FieldTypeHandler {
+class TableFieldHandler extends FieldTypeHandler<string[]> {
   constructor() {
     super(["table"]);
   }
@@ -2300,7 +1660,7 @@ class TableFieldHandler extends FieldTypeHandler {
     return lineListCodec.stringify(lines);
   }
 
-  public override renderReadonly(ctx: ReadonlyFieldContext) {
+  public override renderSidebar(ctx: ReadonlyFieldContext) {
     return renderTableField(ctx);
   }
 
@@ -2309,12 +1669,12 @@ class TableFieldHandler extends FieldTypeHandler {
   }
 }
 
-class CalloutFieldHandler extends FieldTypeHandler {
+class CalloutFieldHandler extends BaseFieldTypeHandler {
   constructor(fieldTypes: readonly FieldType[]) {
     super(fieldTypes);
   }
 
-  public override renderReadonly(ctx: ReadonlyFieldContext) {
+  public override renderSidebar(ctx: ReadonlyFieldContext) {
     return renderCalloutField(ctx);
   }
 
@@ -2323,13 +1683,13 @@ class CalloutFieldHandler extends FieldTypeHandler {
   }
 }
 
-class FallbackFieldHandler extends FieldTypeHandler {
+class FallbackFieldHandler extends StringFieldTypeHandler {
   constructor() {
     super([]);
   }
 }
 
-const fieldTypeHandlers: FieldTypeHandler[] = [
+const fieldTypeHandlers: BaseFieldTypeHandler[] = [
   new TextInputFieldHandler(["string", "version"], "text"),
   new TextInputFieldHandler(["number"], "number"),
   new TextareaFieldHandler(["text"], 4),
@@ -2351,11 +1711,11 @@ const fieldTypeHandlers: FieldTypeHandler[] = [
 
 const fallbackFieldHandler = new FallbackFieldHandler();
 
-const fieldHandlerByType = new Map<FieldType, FieldTypeHandler>(
+const fieldHandlerByType = new Map<FieldType, BaseFieldTypeHandler>(
   fieldTypeHandlers.flatMap((handler) => handler.fieldTypes.map((fieldType) => [fieldType, handler] as const)),
 );
 
-function getFieldHandler(fieldType: FieldType): FieldTypeHandler {
+function getFieldHandler(fieldType: FieldType): BaseFieldTypeHandler {
   return fieldHandlerByType.get(fieldType) ?? fallbackFieldHandler;
 }
 
@@ -2364,8 +1724,8 @@ function getFieldHandler(fieldType: FieldType): FieldTypeHandler {
  * ReadonlyFieldElement custom element and (for the duplicated types) by
  * renderFieldEditor.
  */
-function renderReadonlyField(ctx: ReadonlyFieldContext) {
-  return getFieldHandler(ctx.field.type).renderReadonly(ctx);
+function renderFieldSidebar(ctx: ReadonlyFieldContext) {
+  return getFieldHandler(ctx.field.type).renderSidebar(ctx);
 }
 
 function renderFieldEditor(input: FieldEditorInput) {
@@ -2421,7 +1781,7 @@ class FieldBlockElement extends JSXElement {
 function sidebarField(field: FieldDefinition, draft: AdminRecord, itemsByTab?: ItemsByTab) {
   return sidebarSection({
     title: field.label,
-    content: renderReadonlyField({ field, value: draft[field.key] ?? "", itemsByTab })
+    content: renderFieldSidebar({ field, value: draft[field.key] ?? "", itemsByTab })
   })
 }
 function sidebarSection({ title, content }: SidebarSectionProps) {
@@ -2500,14 +1860,14 @@ class RecordModalElement extends JSXElement {
     const sidebarFacts = !isModalLoading ? getSidebarFacts(modalState.tabId, modalState.draft) : [];
     const effectiveBagField = selectedTab.id === "wikis" ? selectedTab.fields.find((field) => field.key === "effectiveBagOrder") ?? null : null;
     const effectivePluginField = selectedTab.id === "wikis" ? selectedTab.fields.find((field) => field.key === "effectivePluginSet") ?? null : null;
-    const baseNameField = selectedTab.id === "templates" ? selectedTab.fields.find((field) => field.key === "name") ?? null : null;
-    const descriptionField = selectedTab.id === "templates" ? selectedTab.fields.find((field) => field.key === "description") ?? null : null;
-    const dependentWikisField = selectedTab.id === "templates" ? selectedTab.fields.find((field) => field.key === "dependentWikis") ?? null : null;
-    const genericSummaryFields = selectedTab.id !== "wikis" && selectedTab.id !== "templates"
-      ? getSummaryColumns(selectedTab)
-        .map((column) => selectedTab.fields.find((field) => field.key === column.key) ?? null)
-        .filter((field): field is FieldDefinition => Boolean(field))
-      : [];
+    const baseNameFact = selectedTab.id === "templates" ? selectedTab.fields.find((field) => field.key === "name") ?? null : null;
+    const descriptionFact = selectedTab.id === "templates" ? selectedTab.fields.find((field) => field.key === "description") ?? null : null;
+    const dependentWikisFact = selectedTab.id === "templates" ? selectedTab.fields.find((field) => field.key === "dependentWikis") ?? null : null;
+    // const genericSummaryFields = selectedTab.id !== "wikis" && selectedTab.id !== "templates"
+    //   ? getSummaryColumns(selectedTab)
+    //     .map((column) => selectedTab.fields.find((field) => field.key === column.key) ?? null)
+    //     .filter((field): field is FieldDefinition => Boolean(field))
+    //   : [];
 
     return (
       <div class="modal-shell" onclick={(event) => {
@@ -2554,30 +1914,23 @@ class RecordModalElement extends JSXElement {
                 ) : (
                   selectedTab.id === "templates" ? (
                     <>
-                      {baseNameField ? sidebarField(baseNameField, modalState.draft, itemsByTab) : null}
+                      {baseNameFact ? sidebarField(baseNameFact, modalState.draft, itemsByTab) : null}
 
-                      {descriptionField ? sidebarField(descriptionField, modalState.draft, itemsByTab) : null}
+                      {descriptionFact ? sidebarField(descriptionFact, modalState.draft, itemsByTab) : null}
 
-                      {dependentWikisField ? sidebarField(dependentWikisField, modalState.draft, itemsByTab) : null}
+                      {dependentWikisFact ? sidebarField(dependentWikisFact, modalState.draft, itemsByTab) : null}
                     </>
                   ) : (
                     <>
-                      {genericSummaryFields.map((field) => (
-                        sidebarField(field, modalState.draft, itemsByTab)
-                      ))}
-                      {sidebarSection({
-                        title: "Status",
-                        content: (
-                          <dl class="summary-listing">
-                            {sidebarFacts.map((fact) => (
-                              <>
-                                <dt>{fact.label}</dt>
-                                <dd>{fact.value}</dd>
-                              </>
-                            ))}
-                          </dl>
-                        )
-                      })}
+                      <dl class="summary-listing">
+                        {sidebarFacts.map((fact) => (
+                          <>
+                            <dt>{fact.label}</dt>
+                            <dd>{fact.value}</dd>
+                          </>
+                        ))}
+                      </dl>
+
                     </>
                   )
                 )}
@@ -2603,7 +1956,7 @@ class RecordModalElement extends JSXElement {
                       ) : null}
 
                       <div class="section-field-grid">
-                        {getFieldGroups(selectedTab.id, section, fields).map((group) => {
+                        {getFieldGroups(selectedTab, section, fields).map((group) => {
                           const groupFields = group.keys
                             .map((key) => fields.find((field) => field.key === key))
                             .filter((field): field is FieldDefinition => Boolean(field));
@@ -2670,6 +2023,10 @@ class RecordModalElement extends JSXElement {
 export class App extends JSXElement {
   // don't use shadow dom. allows inheriting main.css styles.
   useLightDOM: boolean = true;
+
+  constructor() {
+    super()
+  }
 
   protected render() {
     const [activeTab, setActiveTab] = this.useState<TabId>("wikis");
@@ -2793,13 +2150,12 @@ export class App extends JSXElement {
 
     const saveDraft = async () => {
       if (!modalState) return;
-      const snapshot = modalState;
-      const syncedDraft = syncRecord(snapshot.tabId, snapshot.draft, itemsByTab);
+      const snapshot = modalState; // nah, ai be tripping
       setStorageError("");
       setIsSaving(true);
       const savedTabItems = await adminStorage.save(
         snapshot.tabId,
-        syncedDraft,
+        snapshot.draft,
       ).catch((error) => {
         setStorageError(error instanceof Error ? error.message : "Failed to save record.");
         return null;
@@ -2852,7 +2208,7 @@ export class App extends JSXElement {
         </header>
 
         <nav class="tab-strip" aria-label="Admin sections">
-          {tabs.map((tab) => (
+          {getAllTabs().map((tab) => (
             <button
               class={tab.id === activeTab ? "tab-button is-active" : "tab-button"}
               onclick={() => setActiveTab(tab.id)}
@@ -2876,11 +2232,17 @@ export class App extends JSXElement {
           <div class="list-toolbar">
             <div>
               <strong>{currentTab.label} list</strong>
-              <p>{isLoadingData ? "Loading records from simulated server storage." : "Click any row to inspect its edit surface and derived state."}</p>
+              <p>{isLoadingData
+                ? "Loading…"
+                : "Click any row to for more information."}</p>
             </div>
             <div class="toolbar-actions">
-              <button class="ghost-button" type="button" onclick={() => openCreate(currentTab.id)} disabled={isLoadingData || isOpeningItem || isSaving}>{getCreateLabel(currentTab.id)}</button>
-              <button class="ghost-button" type="button" onclick={() => activeTabItems[0] && openItem(currentTab.id, activeTabItems[0].id)} disabled={isLoadingData || isOpeningItem || isSaving || !activeTabItems.length}>Open featured item</button>
+              <button
+                class="ghost-button"
+                type="button"
+                onclick={() => openCreate(currentTab.id)}
+                disabled={isLoadingData || isOpeningItem || isSaving}
+              >{getCreateLabel(currentTab)}</button>
             </div>
           </div>
 
@@ -2899,7 +2261,7 @@ export class App extends JSXElement {
           <div class="list-body">
             {isLoadingData ? (
               <div class="field-callout">
-                <p>Loading {currentTab.label.toLowerCase()} from async storage…</p>
+                <p>Loading {currentTab.label.toLowerCase()}…</p>
               </div>
             ) : activeTabItems.length ? activeTabItems.map((item) => (
               <button class="list-grid list-row" type="button" onclick={() => openItem(currentTab.id, item.id)} disabled={isOpeningItem || isSaving}>
@@ -2909,7 +2271,7 @@ export class App extends JSXElement {
               </button>
             )) : (
               <div class="field-callout">
-                <p>No {currentTab.label.toLowerCase()} are loaded in storage yet.</p>
+                <p>Create a {currentTab.label.toLowerCase()} to get started.</p>
               </div>
             )}
           </div>
@@ -2937,4 +2299,4 @@ export class App extends JSXElement {
   }
 }
 
-const adminStorage: AdminStorage = new InMemoryAdminStorage(toDataStore(getInitialItems()));
+const adminStorage: AdminStorage = new InMemoryAdminStorage(deriveItems);

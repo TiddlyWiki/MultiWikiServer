@@ -39,7 +39,7 @@ export type TemplateMaxAggregateOutputType = {
 export type TemplateCountAggregateOutputType = {
   id: number
   type: number
-  definition: number
+  definition:PrismaJson.Template_definition
   _all: number
 }
 
@@ -136,7 +136,7 @@ export type TemplateGroupByArgs<ExtArgs extends runtime.Types.Extensions.Interna
 export type TemplateGroupByOutputType = {
   id: string
   type: string
-  definition:unknown
+  definition:PrismaJson.Template_definition
   _count: TemplateCountAggregateOutputType | null
   _min: TemplateMinAggregateOutputType | null
   _max: TemplateMaxAggregateOutputType | null
@@ -205,47 +205,47 @@ export type TemplateScalarWhereWithAggregatesInput = {
 export type TemplateCreateInput = {
   id?: string
   type: string
-  definition:unknown
+  definition:PrismaJson.Template_definition
   recipes?: Prisma.RecipeCreateNestedManyWithoutTemplateInput
 }
 
 export type TemplateUncheckedCreateInput = {
   id?: string
   type: string
-  definition:unknown
+  definition:PrismaJson.Template_definition
   recipes?: Prisma.RecipeUncheckedCreateNestedManyWithoutTemplateInput
 }
 
 export type TemplateUpdateInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   type?: Prisma.StringFieldUpdateOperationsInput | string
-  definition?:unknown
+  definition?:PrismaJson.Template_definition
   recipes?: Prisma.RecipeUpdateManyWithoutTemplateNestedInput
 }
 
 export type TemplateUncheckedUpdateInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   type?: Prisma.StringFieldUpdateOperationsInput | string
-  definition?:unknown
+  definition?:PrismaJson.Template_definition
   recipes?: Prisma.RecipeUncheckedUpdateManyWithoutTemplateNestedInput
 }
 
 export type TemplateCreateManyInput = {
   id?: string
   type: string
-  definition:unknown
+  definition:PrismaJson.Template_definition
 }
 
 export type TemplateUpdateManyMutationInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   type?: Prisma.StringFieldUpdateOperationsInput | string
-  definition?:unknown
+  definition?:PrismaJson.Template_definition
 }
 
 export type TemplateUncheckedUpdateManyInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   type?: Prisma.StringFieldUpdateOperationsInput | string
-  definition?:unknown
+  definition?:PrismaJson.Template_definition
 }
 
 export type TemplateCountOrderByAggregateInput = {
@@ -286,13 +286,13 @@ export type TemplateUpdateOneRequiredWithoutRecipesNestedInput = {
 export type TemplateCreateWithoutRecipesInput = {
   id?: string
   type: string
-  definition:unknown
+  definition:PrismaJson.Template_definition
 }
 
 export type TemplateUncheckedCreateWithoutRecipesInput = {
   id?: string
   type: string
-  definition:unknown
+  definition:PrismaJson.Template_definition
 }
 
 export type TemplateCreateOrConnectWithoutRecipesInput = {
@@ -314,13 +314,13 @@ export type TemplateUpdateToOneWithWhereWithoutRecipesInput = {
 export type TemplateUpdateWithoutRecipesInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   type?: Prisma.StringFieldUpdateOperationsInput | string
-  definition?:unknown
+  definition?:PrismaJson.Template_definition
 }
 
 export type TemplateUncheckedUpdateWithoutRecipesInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   type?: Prisma.StringFieldUpdateOperationsInput | string
-  definition?:unknown
+  definition?:PrismaJson.Template_definition
 }
 
 
@@ -396,7 +396,10 @@ export type $TemplatePayload<ExtArgs extends runtime.Types.Extensions.InternalAr
   scalars: runtime.Types.Extensions.GetPayloadResult<{
     id: string
     type: string
-    definition:unknown
+    /**
+     * [Template_definition]
+     */
+    definition:PrismaJson.Template_definition
   }, ExtArgs["result"]["template"]>
   composites: {}
 }

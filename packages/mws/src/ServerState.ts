@@ -167,11 +167,11 @@ declare global {
   type PrismaTxnClient = Omit<PrismaEngineClient, ITXClientDenyList>;
   type PrismaEngineClient = PrismaClient<never, never, {
     result: {
-      [T in Uncapitalize<Prisma.ModelName>]: {
-        [K in keyof PrismaPayloadScalars<Capitalize<T>>]: () => {
-          compute: () => PrismaField<Capitalize<T>, K>;
-        };
-      };
+      // [T in Uncapitalize<Prisma.ModelName>]: {
+      //   [K in keyof PrismaPayloadScalars<Capitalize<T>>]: () => {
+      //     compute: () => PrismaField<Capitalize<T>, K>;
+      //   };
+      // };
     };
     client: {};
     model: {};

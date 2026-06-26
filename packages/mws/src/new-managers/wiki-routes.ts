@@ -11,7 +11,7 @@
 
 import { registerZodRoutes, RouterKeyMap, zodRoute, SendError, ServerRequest, truthy, checkPath } from "@tiddlywiki/server";
 import { serverEvents } from "@tiddlywiki/events";
-import { RecipeResolver } from "./RecipeResolver";
+import { getAdminDataStore, RecipeResolver } from "./RecipeResolver";
 
 export const BAG_PREFIX = "/bag";
 export const RECIPE_PREFIX = "/recipe";
@@ -52,15 +52,10 @@ export class NewWikiRecipeRoutes {
           user_id,
           username,
           isLoggedIn,
-          template: {
-            type: recipe.template.type,
-            definition: recipe.template.definition,
-            parameters: recipe.parameters,
-          },
           bags: recipe.recipe_bags.map(e => ({
             bag_id: e.bag_id,
-            info: e.info,
             is_writable: e.is_writable,
+            prefix: e.prefix,
             priority: e.priority,
             bag_name: e.bag.name,
             canUserWrite: r.canWriteBag(e),
@@ -121,19 +116,25 @@ export class NewWikiRecipeRoutes {
 
       return await state.$transaction(async (prisma) => {
         const recipe = await RecipeResolver.assertRecipe({ state, prisma, recipe_slug });
-        const bag_ids = recipe.recipe_bags.map(b => b.bag_id);
+        const r = new RecipeResolver(recipe, prisma, state.user.isAdmin);
+        const bagIDMap = new Map(recipe.recipe_bags.map(b => [b.bag_id, b]));
 
         const events = await prisma.tiddlerEvent.findMany({
-          where: { bag_id: { in: bag_ids }, seq: { gt: since } },
+          where: { bag_id: { in: Array.from(bagIDMap.keys()) }, seq: { gt: since } },
           orderBy: { seq: "asc" },
-          select: { seq: true, title: true, type: true },
+          select: { seq: true, title: true, type: true, bag_id: true },
         });
+
+
+
 
         const lastSeq = events.at(-1)?.seq ?? since;
 
         const lastEventByTitle = new Map<string, "save" | "delete">();
         for (const e of events) {
-          lastEventByTitle.set(e.title, e.type);
+          const target = r.getWriteTarget({ title: e.title });
+          if (!bagIDMap.get(e.bag_id)!.is_writable || target && target.bag_id === e.bag_id)
+            lastEventByTitle.set(e.title, e.type);
         }
 
         const modifications: string[] = [];
@@ -225,7 +226,7 @@ serverEvents.on("mws.routes", (root) => {
   const parent = root.defineRoute({
     method: [],
     denyFinal: true,
-    path: new RegExp(`^(?=${RECIPE_PREFIX}/|${WIKI_PREFIX}/)`),
+    path: new RegExp(`^(?=${RECIPE_PREFIX}/|${WIKI_PREFIX}/|/admin/)`),
   }, async (state) => {
     state.user.isAdmin = true;
     state.user.isLoggedIn = true;
@@ -237,6 +238,18 @@ serverEvents.on("mws.routes", (root) => {
     rpcRecipeTiddlerBatch: true,
     rpcRecipeTiddlerListGet: true,
   } satisfies RouterKeyMap<NewWikiRecipeRoutes, true>));
+
+
+  parent.defineRoute<"ignore">({
+    method: ["GET", "HEAD", "OPTIONS"],
+    path: new RegExp(`^/admin/store$`),
+    bodyFormat: "ignore",
+  }, async (state) => {
+    state.asserted = state.user.isAdmin;
+    state.sendJSON(200, await state.$transaction(async prisma => {
+      return await getAdminDataStore(prisma);
+    }));
+  });
 
   parent.defineRoute<"ignore">({
     method: ["GET", "HEAD", "OPTIONS"],

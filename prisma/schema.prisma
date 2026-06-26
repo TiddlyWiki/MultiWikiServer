@@ -74,6 +74,7 @@ enum TiddlerEventType {
 model Template {
   id         String   @id @default(uuid(7))
   type       String
+  /// [Template_definition]
   definition Json
   recipes    Recipe[]
 
@@ -83,14 +84,14 @@ model Template {
 model Recipe {
   id          String             @id @default(uuid(7))
   slug        String             @unique
-  description String
   template_id String
-  /// [Recipe_parameters]
-  parameters  Json
+  /// [Recipe_definition]
+  definition  Json
   template    Template           @relation(fields: [template_id], references: [id], onDelete: Restrict)
   recipe_bags RecipeBag[]
   permissions RecipePermission[]
-  plugins     RecipePlugin[]
+  /// [Recipe_plugins]
+  plugins     Json
 
   @@map("recipe")
 }
@@ -110,12 +111,11 @@ model RecipeBag {
   bag_id      String
   priority    Int
   is_writable Boolean
-  /// [RecipeBag_info]
-  info        Json?
+  prefix      String
   recipe      Recipe  @relation(fields: [recipe_id], references: [id], onDelete: Cascade)
   bag         Bag     @relation(fields: [bag_id], references: [id], onDelete: Restrict)
 
-  @@id([recipe_id, bag_id])
+  @@id([recipe_id, bag_id, prefix])
   @@map("recipe_bag")
 }
 
@@ -124,33 +124,6 @@ model Settings {
   value String
 
   @@map("settings")
-}
-
-// ---------------------------------------------------------------------------
-// Plugin system
-// ---------------------------------------------------------------------------
-
-model Plugin {
-  id             String         @id @default(uuid(7))
-  name           String
-  version        String
-  is_draft       Boolean        @default(false)
-  draft_of       String?
-  recipe_plugins RecipePlugin[]
-
-  @@unique([name, version])
-  @@map("plugin")
-}
-
-model RecipePlugin {
-  recipe_id        String
-  plugin_id        String
-  resolved_version String
-  recipe           Recipe @relation(fields: [recipe_id], references: [id], onDelete: Cascade)
-  plugin           Plugin @relation(fields: [plugin_id], references: [id], onDelete: Restrict)
-
-  @@id([recipe_id, plugin_id])
-  @@map("recipe_plugin")
 }
 
 // ---------------------------------------------------------------------------

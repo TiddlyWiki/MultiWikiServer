@@ -4,6 +4,7 @@ export * from "./types.ts";
 
 declare global {
   namespace PrismaJson {
+
     /** A tiddler's fields and body, stored as a single JSON column. */
     type Tiddler_fields = Record<string, string>;
 
@@ -18,6 +19,8 @@ declare global {
 
     type RecipeBag_info = {};
     type Template_type = "simpleV1" | "prefixV1";
+
+
 
   }
 }
@@ -40,6 +43,7 @@ declare global {
     // It doesn't really matter, just annoying.
     (
       [T, K] extends ["Tiddler", "bag_id"] ? PrismaField<"Bag", "id"> :
+      [T, K] extends ["TiddlerEvent", "bag_id"] ? PrismaField<"Bag", "id"> :
       [T, K] extends ["BagPermission", "bag_id"] ? PrismaField<"Bag", "id"> :
       [T, K] extends ["BagPermission", "role_id"] ? PrismaField<"Roles", "role_id"> :
       [T, K] extends ["Recipe", "template_id"] ? PrismaField<"Template", "id"> :
@@ -48,8 +52,6 @@ declare global {
       [T, K] extends ["RecipeBag", "recipe_id"] ? PrismaField<"Recipe", "id"> :
       [T, K] extends ["RecipeBag", "bag_id"] ? PrismaField<"Bag", "id"> :
       [T, K] extends ["RecipePlugin", "recipe_id"] ? PrismaField<"Recipe", "id"> :
-      [T, K] extends ["RecipePlugin", "plugin_id"] ? PrismaField<"Plugin", "id"> :
-      [T, K] extends ["Plugin", "draft_of"] ? PrismaField<"Plugin", "id"> :
       [T, K] extends ["Session", "user_id"] ? PrismaField<"Users", "user_id"> :
       IsEnum<PrismaPayloadScalars<T>[K], true, false> extends true ? PrismaPayloadScalars<T>[K] :
       (PrismaPayloadScalars<T>[K] & { __prisma_table?: T, __prisma_field?: K })
