@@ -884,8 +884,9 @@ abstract class WikiRow implements IWikiRow {
   abstract readonlyBags: string;
   abstract writablePrefixBags: string;
   abstract recipePermissions: string;
-  abstract effectiveBagOrder: string;
+  abstract effectiveReadonlyBags: string;
   abstract effectivePluginSet: string;
+  abstract effectiveWritableBags: string;
 }
 
 
@@ -939,7 +940,7 @@ abstract class UserRow implements IUserRow {
 }
 
 
-export async function getAdminDataStore(prisma: PrismaTxnClient){
+export async function getAdminDataStore(prisma: PrismaTxnClient) {
   const [templates, recipes, bags, roles, users] = await Promise.all([
     prisma.template.findMany({
       select: {
@@ -1043,33 +1044,38 @@ export async function getAdminDataStore(prisma: PrismaTxnClient){
       htmlContent: definition.htmlContent,
       injectionArray: definition.injectionArray,
       injectionLocation: definition.injectionLocation,
-      dependentWikis: JSON.stringify(template.recipes.map((recipe) => ({ id: recipe.id, slug: recipe.slug }))),
+      dependentWikis: JSON.stringify(template.recipes.map((recipe) => ({ id: recipe.id, name: recipe.slug }))),
     };
   });
 
   const wikiRows: IWikiRow[] = recipes.map((recipe) => {
     const definition = recipe.definition;
     const effectivePluginSet = Array.isArray(recipe.plugins) ? recipe.plugins.map(String) : [];
-    const readonlyBags = recipe.recipe_bags.filter((row) => !row.is_writable).map((row) => row.bag.name);
-    const writablePrefixRows = recipe.recipe_bags
+    const effectiveReadonlyBags = recipe.recipe_bags.filter(e => !e.is_writable).map((row) => row.bag.name);
+    const effectiveWritableBags = recipe.recipe_bags
       .filter((row) => row.is_writable)
+      .sort((a, b) => b.prefix.length - a.prefix.length)
       .map((row) => ({ prefix: row.prefix, bagName: row.bag.name }));
     const permissions = recipe.permissions.map((row) => ({
       role: roleNameById.get(row.role_id) ?? row.role_id,
       level: row.level,
     }));
+    const definitionWritableBags = Object.entries(definition.writablePrefixBags)
+      .sort((a, b) => b[0].length - a[0].length)
+      .map(([prefix, bagName]) => ({ prefix, bagName }))
     return {
       id: recipe.id,
       slug: recipe.slug,
       displayName: definition.displayName,
       description: definition.description,
-      templateId: recipe.template_id,
+      templateId: JSON.stringify({ id: recipe.template_id, name: templateNameById.get(recipe.template_id) }),
+      writablePrefixBags: stringifyPrefixRows(definitionWritableBags),
       readonlyBags: stringifyLineList(definition.readonlyBags),
       plugins: stringifyLineList(definition.plugins),
       lastCompiledAt: "",
-      writablePrefixBags: stringifyPrefixRows(writablePrefixRows),
       recipePermissions: stringifyPermissions(permissions),
-      effectiveBagOrder: stringifyLineList(recipe.recipe_bags.map((row) => row.bag.name)),
+      effectiveWritableBags: stringifyPrefixRows(effectiveWritableBags),
+      effectiveReadonlyBags: stringifyLineList(effectiveReadonlyBags),
       effectivePluginSet: stringifyLineList(effectivePluginSet),
     };
   });

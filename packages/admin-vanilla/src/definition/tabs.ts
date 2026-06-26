@@ -33,6 +33,7 @@ export type FieldType =
   | "search-multiselect"
   | "key-value-table"
   | "reference"
+  | "reference-list"
   | "parameter-list"
   | "relationship-table"
   | "action"
@@ -89,6 +90,7 @@ const tabs = [
       { key: "pluginCount", label: "Plugins" },
       { key: "lastCompiledAt", label: "Compiled" },
       { key: "statusFlags", label: "Status" },
+      { key: "compileValidation", label: "Validation" }
     ],
     fields: [
       { key: "slug", label: "Slug", type: "string", section: "authored", mode: "create edit" },
@@ -107,8 +109,16 @@ const tabs = [
         architecture: "Edits the wiki-level prefix-to-bag routing table that drives write target selection. Longest prefix wins, and the empty string row is the fallback write target.",
       },
       {
-        key: "effectiveBagOrder",
-        label: "Effective bags",
+        key: "effectiveWritableBags",
+        label: "Effective writable bags",
+        type: "key-value-table",
+        section: "runtime",
+        mode: "server",
+        architecture: "Read-only projection of compiled recipe-bag rows in the same slice of the pie order the resolver uses for writes.",
+      },
+      {
+        key: "effectiveReadonlyBags",
+        label: "Effective readonly bags",
         type: "table",
         section: "runtime",
         mode: "server",
@@ -156,6 +166,9 @@ const tabs = [
         { title: "Access", description: "Control who can access the wiki surface itself. Bag access is handled separately on the participating bags.", keys: ["recipePermissions"], width: fullWidth },
       ],
       runtime: [
+        { title: "Computed Write Prefix", description: "", keys: ["effectiveWritableBags"], width: fullWidth },
+        { title: "Computed Bag Order", description: "", keys: ["effectiveReadonlyBags"], width: halfWidth },
+        { title: "Computed Plugin Set", description: "", keys: ["effectivePluginSet"], width: halfWidth },
         { title: "Compilation status", description: "Validation and compilation outcome for the current authored state.", keys: ["compileValidation"], width: fullWidth },
       ],
       operations: [
@@ -240,7 +253,7 @@ const tabs = [
       {
         key: "defaultWritableBag",
         label: "Default writable bag",
-        type: "reference",
+        type: "string",
         section: "runtime",
         mode: "",
         architecture: "Read-only convenience projection of the writablePrefixBags row whose prefix is the empty string.",
@@ -271,9 +284,9 @@ const tabs = [
         { title: "Custom HTML shell", keys: ["htmlContent", "injectionArray", "injectionLocation"], headerFieldKey: "customHtmlEnabled", disabledWhenHeaderOff: true, width: fullWidth, layout: stackLayout },
       ],
       runtime: [
-        { keys: ["defaultWritableBag"], width: halfWidth },
-        { keys: ["dependentWikis"], width: halfWidth },
-        { keys: ["validationReport"], width: halfWidth },
+        // { keys: ["defaultWritableBag"], width: halfWidth },
+        // { keys: ["dependentWikis"], width: halfWidth },
+        // { keys: ["validationReport"], width: halfWidth },
       ],
     },
   },
@@ -468,6 +481,8 @@ export type DataStore = {
   plugins: StoredTabRecord<(typeof tabs)[3]>[];
   roles: StoredTabRecord<(typeof tabs)[4]>[];
   users: StoredTabRecord<(typeof tabs)[5]>[];
+  availableBagNames: Set<string>;
+  availablePluginNames: Set<string>;
 };
 
 type t2<T> = T extends [infer F extends TabDefinition, ...infer R] ? [t2a<F>, ...t2<R>]

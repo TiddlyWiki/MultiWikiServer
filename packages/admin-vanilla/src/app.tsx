@@ -58,7 +58,10 @@ interface AdminValue {
   __admin_value_parsed__: any;
 }
 type AdminRecord = Record<string, string> & { id: string; };
-type ItemsByTab = Record<TabId, AdminRecord[]>;
+type ItemsByTab = Record<TabId, AdminRecord[]> & {
+  availablePluginNames: Set<string>;
+  availableBagNames: Set<string>;
+};
 
 type PermissionLevel = "A_read" | "B_write" | "C_admin";
 type RecipePermissionLevel = "A_read" | "B_write";
@@ -76,11 +79,13 @@ interface WikiAdminRecord extends WikiDataStore {
   readonlyBagCount: string;
   prefixRuleCount: string;
   pluginCount: string;
-  effectiveBagOrder: string;
+  effectiveReadonlyBags: string;
   effectivePluginSet: string;
   compileValidation: string;
   lastCompiledAt: string;
   statusFlags: string;
+  missingBags: string;
+  missingPlugins: string;
 }
 
 interface TemplateAdminRecord extends TemplateDataStore {
@@ -331,14 +336,15 @@ function derivePluginRecords(items: DataStore, templates: TemplateAdminRecord[],
 }
 
 
-function syncWikiRecord(draft: DataStore["wikis"][number], itemsByTab: DataStore) {
+function syncWikiRecord(draft: DataStore["wikis"][number], data: DataStore) {
   const normalizedWritablePrefixBags = editableMappingRowsCodec.normalize(draft.writablePrefixBags ?? "");
-  const templateRecord = findTemplateRecordForWikiRecord(draft, itemsByTab);
+  const templateRecord = findTemplateRecordForWikiRecord(draft, data);
   const templateReadonlyBags = templateRecord ? lineListCodec.parse(templateRecord.readonlyBags ?? "") : [];
   const templatePlugins = templateRecord ? lineListCodec.parse(templateRecord.plugins ?? "") : [];
   const wikiReadonlyBags = lineListCodec.parse(draft.readonlyBags ?? "");
   const wikiPlugins = lineListCodec.parse(draft.plugins ?? "");
-  const mergedReadonlyBags = uniqueLines([...templateReadonlyBags, ...wikiReadonlyBags]);
+
+  const mergedReadonlyBags = uniqueLines([...wikiReadonlyBags, ...templateReadonlyBags]);
   const mergedPlugins = buildEffectivePluginSet({
     previousEffectivePlugins: lineListCodec.parse((draft as WikiAdminRecord).effectivePluginSet ?? ""),
     templatePlugins,
@@ -346,6 +352,7 @@ function syncWikiRecord(draft: DataStore["wikis"][number], itemsByTab: DataStore
     corePluginsEnabled: templateRecord?.requiredPluginsEnabled !== "disabled",
   });
   const prefixRows = mappingRowsCodec.parse(normalizedWritablePrefixBags);
+
   const defaultWritableBag = prefixRows.find((row) => row.left === "")?.right ?? "";
   const prefixRuleCount = String(prefixRows.length);
   const readableBagOrder = buildEffectiveBagStack({
@@ -353,10 +360,8 @@ function syncWikiRecord(draft: DataStore["wikis"][number], itemsByTab: DataStore
     templateReadonlyBags,
     wikiReadonlyBags,
   });
-  const availableBagNames = new Set(itemsByTab.bags.map((bag) => bag.name).filter(Boolean));
-  const availablePluginNames = new Set(itemsByTab.plugins.map((plugin) => plugin.name).filter(Boolean));
-  const missingBags = readableBagOrder.filter((bagName) => !availableBagNames.has(bagName));
-  const missingPlugins = mergedPlugins.filter((pluginName) => !availablePluginNames.has(pluginName));
+  const missingBags = readableBagOrder.filter((bagName) => !data.availableBagNames.has(bagName));
+  const missingPlugins = mergedPlugins.filter((pluginName) => !data.availablePluginNames.has(pluginName));
   const hasMissingDependencies = missingBags.length > 0 || missingPlugins.length > 0;
   const missingMessages = [
     missingBags.length ? `Missing bags: ${missingBags.join(", ")}` : "",
@@ -369,17 +374,16 @@ function syncWikiRecord(draft: DataStore["wikis"][number], itemsByTab: DataStore
 
   return {
     ...draft,
-
     writablePrefixBags: normalizedWritablePrefixBags,
     templateName: templateRecord?.name ?? draft.templateId ?? "",
     defaultWritableBag,
     readonlyBagCount: String(mergedReadonlyBags.length),
     prefixRuleCount,
     pluginCount: String(mergedPlugins.length),
-    effectiveBagOrder: readableBagOrder.map((bag, index) => `${index + 1}. ${bag}`).join("\n"),
-    effectivePluginSet: mergedPlugins.join("\n"),
     compileValidation,
     statusFlags,
+    missingBags: lineListCodec.stringify(missingBags),
+    missingPlugins: lineListCodec.stringify(missingPlugins),
   } satisfies WikiAdminRecord;
 }
 
@@ -409,6 +413,8 @@ function syncTemplateRecord(draft: DataStore["templates"][number]) {
 }
 
 function deriveItems(items: DataStore): ItemsByTab {
+  items.availableBagNames = new Set(items.bags.map((bag) => bag.name).filter(Boolean));
+  items.availablePluginNames = new Set(items.plugins.map((plugin) => plugin.name).filter(Boolean));
   const partialTemplates = items.templates.map((template) => syncTemplateRecord(template));
   const wikis = items.wikis.map((wiki) => syncWikiRecord(wiki, { ...items, templates: partialTemplates }));
   const dependentWikiMap = new Map<string, string[]>();
@@ -445,6 +451,8 @@ function deriveItems(items: DataStore): ItemsByTab {
 
 function getEmptyItems(): ItemsByTab {
   return {
+    availableBagNames: new Set(),
+    availablePluginNames: new Set(),
     wikis: [],
     templates: [],
     bags: [],
@@ -456,7 +464,7 @@ function getEmptyItems(): ItemsByTab {
 
 
 
-class InMemoryAdminStorage<T extends Record<TabId, any[]>> implements AdminStorage {
+class InMemoryAdminStorage<T extends ItemsByTab> implements AdminStorage {
   private data!: DataStore;
   constructor(
     private deriveItems: (data: DataStore) => T
@@ -481,6 +489,8 @@ class InMemoryAdminStorage<T extends Record<TabId, any[]>> implements AdminStora
       plugins: items.plugins.map((item) => ({ ...item })),
       roles: items.roles.map((item) => ({ ...item })),
       users: items.users.map((item) => ({ ...item })),
+      availableBagNames: new Set(items.availableBagNames),
+      availablePluginNames: new Set(items.availablePluginNames),
     } as T;
   }
 
@@ -516,7 +526,7 @@ class InMemoryAdminStorage<T extends Record<TabId, any[]>> implements AdminStora
     return pruned;
   }
   private getStoredFieldKeys(tab: TabDefinition): string[] {
-    return tab.fields.filter((field) => ["create", "create edit", "edit"].includes(field.mode)).map((field) => field.key);
+    return tab.fields.filter((field) => ["create", "create edit", "edit", "server"].includes(field.mode)).map((field) => field.key);
   }
 }
 
@@ -612,23 +622,17 @@ function getPermissionLevelsForField(fieldKey: string): PermissionLevel[] | Reci
 
 function getMissingDependencyLines(field: FieldDefinition, value: string, itemsByTab?: ItemsByTab): MissingDependencyLine[] | null {
   if (!itemsByTab) return null;
-  if (field.key !== "effectiveBagOrder" && field.key !== "effectivePluginSet") return null;
+  if (field.key !== "effectiveReadonlyBags" && field.key !== "effectivePluginSet") return null;
 
   const lines = lineListCodec.parse(value);
   const availableNames = new Set(
-    (field.key === "effectiveBagOrder" ? itemsByTab.bags : itemsByTab.plugins)
-      .map((item) => item.name)
-      .filter(Boolean),
+    field.key === "effectiveReadonlyBags" ? itemsByTab.availableBagNames : itemsByTab.availablePluginNames,
   );
 
   return lines.map((line) => {
-    const normalizedValue = field.key === "effectiveBagOrder"
-      ? line.replace(/^\d+\.\s*/, "").trim()
-      : line.split("@")[0]?.trim() ?? line.trim();
-
     return {
       value: line,
-      missing: normalizedValue ? !availableNames.has(normalizedValue) : false,
+      missing: line.trim() ? !availableNames.has(line.trim()) : false,
     };
   });
 }
@@ -642,8 +646,9 @@ function getFieldSection(field: FieldDefinition): FieldSection {
 }
 
 function getSectionFields(tab: TabDefinition, section: FieldSection): FieldDefinition[] {
-  if (tab.id === "wikis" && section === "runtime") return [];
-  if (tab.id === "templates" && section === "runtime") return [];
+  // if (tab.id === "wikis" && section === "runtime") return [];
+  // if (tab.id === "templates" && section === "runtime") return [];
+  if (!tab.fieldGroups?.[section]?.length) return [];
   return tab.fields.filter((field) => {
     return getFieldSection(field) === section;
   });
@@ -752,7 +757,7 @@ class LineListCodec {
 
 class MappingRowsCodec {
   public parse(value: string): MappingRow[] {
-    return JSON.parse(value);
+    return JSON.parse(value || "[]");
   }
 
   public stringify(rows: MappingRow[]): string {
@@ -762,7 +767,7 @@ class MappingRowsCodec {
 /** This class is used for actual editors so we can type spaces in the field. */
 class EditableMappingRowsCodec {
   public parse(value: string): MappingRow[] {
-    return JSON.parse(value);
+    return JSON.parse(value || "[]");
   }
 
   public stringify(rows: MappingRow[]): string {
@@ -776,7 +781,7 @@ class EditableMappingRowsCodec {
 
 class PermissionRowsCodec {
   public parse(value: string): PermissionRow[] {
-    return JSON.parse(value);
+    return JSON.parse(value || "[]");
     return value.split("\n").map((entry) => entry.trim()).filter(Boolean).map((row) => {
       const [role, levelText] = row.split(":").map((part) => part?.trim() ?? "");
       const allPermissionLevels = [...bagPermissionLevels];
@@ -1858,7 +1863,7 @@ class RecordModalElement extends JSXElement {
     const runtimeFields = !isModalLoading ? getSectionFields(selectedTab, "runtime") : [];
     const operationFields = !isModalLoading ? getSectionFields(selectedTab, "operations") : [];
     const sidebarFacts = !isModalLoading ? getSidebarFacts(modalState.tabId, modalState.draft) : [];
-    const effectiveBagField = selectedTab.id === "wikis" ? selectedTab.fields.find((field) => field.key === "effectiveBagOrder") ?? null : null;
+    const effectiveBagField = selectedTab.id === "wikis" ? selectedTab.fields.find((field) => field.key === "effectiveReadonlyBags") ?? null : null;
     const effectivePluginField = selectedTab.id === "wikis" ? selectedTab.fields.find((field) => field.key === "effectivePluginSet") ?? null : null;
     const baseNameFact = selectedTab.id === "templates" ? selectedTab.fields.find((field) => field.key === "name") ?? null : null;
     const descriptionFact = selectedTab.id === "templates" ? selectedTab.fields.find((field) => field.key === "description") ?? null : null;
