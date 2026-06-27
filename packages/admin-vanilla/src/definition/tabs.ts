@@ -24,7 +24,7 @@ export type FieldType =
   | "string"
   | "text"
   | "search"
-  | "json-editor"
+  // | "json-editor"
   | "structured-preview"
   | "table"
   | "permission-table"
@@ -32,11 +32,11 @@ export type FieldType =
   | "resolver-preview"
   | "search-multiselect"
   | "prefix-table"
-  | "reference"
-  | "reference-list"
+  // | "reference"
+  // | "reference-list"
   | "parameter-list"
   | "relationship-table"
-  | "action"
+  // | "action"
   | "summary-list"
   | "number"
   | "activity-feed"
@@ -69,6 +69,7 @@ export interface TabDefinition {
   eyebrow: string;
   description: string;
   columns: ColumnDefinition[];
+  sidebarDisplay: string[];
   fields: FieldDefinition[];
   fieldGroups?: Partial<Record<FieldSection, FieldGroupDefinition[]>>;
 }
@@ -90,13 +91,13 @@ const tabs = [
       { key: "pluginCount", label: "Plugins" },
       { key: "lastCompiledAt", label: "Compiled" },
       { key: "statusFlags", label: "Status" },
-      { key: "compileValidation", label: "Validation" }
+      // { key: "compileValidation", label: "Validation" }
     ],
     fields: [
       { key: "slug", label: "Slug", type: "string", section: "authored", mode: "create edit" },
       { key: "displayName", label: "Display name", type: "string", section: "authored", mode: "create edit" },
       { key: "description", label: "Description", type: "text", section: "authored", mode: "create edit" },
-      { key: "templateId", label: "Template", type: "search", section: "authored", mode: "create" },
+      { key: "templateRef", label: "Template", type: "search", section: "authored", mode: "create" },
       { key: "readonlyBags", label: "Readonly bags", type: "search-multiselect", section: "authored", mode: "create edit" },
       { key: "plugins", label: "Plugins", type: "search-multiselect", section: "authored", mode: "create edit" },
       { key: "lastCompiledAt", label: "Compiled", type: "string", section: "runtime", mode: "server" },
@@ -159,8 +160,8 @@ const tabs = [
     ],
     fieldGroups: {
       authored: [
-        { title: "Wiki identity", description: "Name the wiki, describe it, and choose the template that provides its base routing model.", keys: ["slug", "displayName", "description", "templateId"], width: fullWidth, layout: stackLayout },
-        { title: "Writable routing", description: "Define the wiki-specific write targets for title prefixes, including the default fallback bag.", keys: ["writablePrefixBags"], width: fullWidth },
+        { title: "Wiki identity", description: "Name the wiki, describe it, and choose the template that provides its base routing model.", keys: ["slug", "displayName", "description", "templateRef"], width: fullWidth, layout: stackLayout },
+        { title: "Writable routing", description: "Define the write targets for title prefixes, including the default fallback bag. The resolver matches prefixes from longest to shortest, so most specific prefix gets the tiddler.", keys: ["writablePrefixBags"], width: fullWidth },
         { title: "Bags", description: "Add wiki-specific readonly bags on top of anything inherited from the template.", keys: ["readonlyBags"], width: halfWidth },
         { title: "Plugins", description: "Add wiki-specific plugins on top of the template plugin set.", keys: ["plugins"], width: halfWidth },
         { title: "Access", description: "Control who can access the wiki surface itself. Bag access is handled separately on the participating bags.", keys: ["recipePermissions"], width: fullWidth },
@@ -180,6 +181,13 @@ const tabs = [
         },
       ],
     },
+    sidebarDisplay: [
+      "displayName",
+      "slug",
+      "templateRef",
+      "effectiveReadonlyBags",
+      "effectivePluginSet",
+    ]
   },
   {
     id: "templates",
@@ -191,7 +199,7 @@ const tabs = [
       { key: "name", label: "Name" },
       { key: "description", label: "Description" },
       { key: "readonlyBagsSummary", label: "Readonly bags" },
-      { key: "writablePrefixSummary", label: "Writable prefixes" },
+      // { key: "writablePrefixSummary", label: "Writable prefixes" },
       { key: "dependentWikiCount", label: "Dependent wikis" },
       { key: "lastUpdatedAt", label: "Updated" },
       { key: "validationStatus", label: "Validation" },
@@ -217,6 +225,14 @@ const tabs = [
         section: "authored",
         mode: "create edit",
         description: "Core plugins enable wiki sync functionality. Disable them for vanilla wikis or custom sync implementations.",
+      },
+      {
+        key: "templatePermissions",
+        label: "Template permissions",
+        type: "permission-table",
+        section: "authored",
+        mode: "create edit",
+        architecture: "Grants permission to view or change this template. Wikis using this template grant their roles an implicit view permission for the selected template.",
       },
       {
         key: "customHtmlEnabled",
@@ -278,9 +294,10 @@ const tabs = [
     fieldGroups: {
       authored: [
         { title: "Template basics", keys: ["name", "description"], width: fullWidth, layout: stackLayout },
-        { title: "Writable routing", description: "Define the template-level default and prefix-based write targets that dependent wikis inherit before applying their own overrides.", keys: ["writablePrefixBags"], width: fullWidth },
+        { title: "Writable routing", description: "Define the write targets for title prefixes, including the default fallback bag. The resolver matches prefixes from longest to shortest, so most specific prefix gets the tiddler.", keys: ["writablePrefixBags"], width: fullWidth },
         { title: "Bags", keys: ["readonlyBags"], width: halfWidth },
         { title: "Plugins", keys: ["plugins", "requiredPluginsEnabled"], width: halfWidth, layout: stackLayout },
+        { title: "Permissions", keys: ["plugins", "templatePermissions"], width: fullWidth, layout: stackLayout },
         { title: "Custom HTML shell", keys: ["htmlContent", "injectionArray", "injectionLocation"], headerFieldKey: "customHtmlEnabled", disabledWhenHeaderOff: true, width: fullWidth, layout: stackLayout },
       ],
       runtime: [
@@ -289,6 +306,11 @@ const tabs = [
         // { keys: ["validationReport"], width: halfWidth },
       ],
     },
+    sidebarDisplay: [
+      "name",
+      "description",
+      "dependentWikiCount",
+    ]
   },
   {
     id: "bags",
@@ -365,6 +387,12 @@ const tabs = [
         // { keys: ["recentActivity"], width: fullWidth },
       ],
     },
+    sidebarDisplay: [
+      "name",
+      "description",
+      "referencedByTemplates",
+      "referencedByWikis",
+    ]
   },
   {
     id: "plugins",
@@ -390,7 +418,7 @@ const tabs = [
         type: "metadata-table",
         section: "runtime",
         mode: "",
-        architecture: "Read-only metadata projection from the stored plugin version and its packaged payload, showing the concrete assets and identity facts consumed by the renderer and plugin cache.",
+        architecture: "List of shadow tiddlers the plugin contains.",
       },
       {
         key: "usedByWikis",
@@ -400,14 +428,6 @@ const tabs = [
         mode: "",
         architecture: "Read-only relationship view derived from compiled recipe-plugin rows, showing exact effective usage of this version.",
       },
-      {
-        key: "draftOf",
-        label: "Draft of",
-        type: "reference",
-        section: "runtime",
-        mode: "",
-        architecture: "Read-only lineage pointer from a draft plugin to the published version it branched from or intends to replace.",
-      },
     ],
     fieldGroups: {
       authored: [
@@ -415,6 +435,7 @@ const tabs = [
         { title: "Release details", keys: ["version", "status"], width: halfWidth },
       ],
     },
+    sidebarDisplay: [],
   },
   {
     id: "roles",
@@ -435,6 +456,7 @@ const tabs = [
         { title: "Role basics", keys: ["roleId", "description"], width: fullWidth, layout: stackLayout },
       ],
     },
+    sidebarDisplay: ["roleId", "description"],
   },
   {
     id: "users",
@@ -449,48 +471,38 @@ const tabs = [
     fields: [
       { key: "username", label: "Username", type: "string", section: "authored", mode: "create edit" },
       { key: "email", label: "Email", type: "string", section: "authored", mode: "create edit" },
-      { key: "roleIds", label: "Roles", type: "search-multiselect", section: "authored", mode: "create edit" },
+      { key: "userRoles", label: "Roles", type: "search-multiselect", section: "authored", mode: "create edit" },
       { key: "password", label: "Password", type: "string", section: "authored", mode: "create edit" },
       { key: "confirmPassword", label: "Confirm password", type: "string", section: "authored", mode: "create edit temp" },
     ],
     fieldGroups: {
       authored: [
         { title: "User identity", keys: ["username", "email"], width: fullWidth, layout: stackLayout },
-        { title: "Roles", description: "Assign one or more role ids to this user account.", keys: ["roleIds"], width: halfWidth },
+        { title: "Roles", description: "Assign one or more role ids to this user account.", keys: ["userRoles"], width: halfWidth },
         { title: "Credentials", keys: ["password", "confirmPassword"], width: halfWidth, layout: stackLayout },
       ],
     },
+    sidebarDisplay: [
+      "username",
+      "email",
+      "userRoles",
+    ]
   },
 ] as const satisfies TabDefinition[];
 
-
-type StoredTabRecord<T extends TabDefinition> = { id: string } & Record<t2a<T>[T["id"]][number], string>;
-
-export type DataStore = {
-  wikis: StoredTabRecord<(typeof tabs)[0]>[];
-  templates: StoredTabRecord<(typeof tabs)[1]>[];
-  bags: StoredTabRecord<(typeof tabs)[2]>[];
-  plugins: StoredTabRecord<(typeof tabs)[3]>[];
-  roles: StoredTabRecord<(typeof tabs)[4]>[];
-  users: StoredTabRecord<(typeof tabs)[5]>[];
-  availableBagNames: Set<string>;
-  availablePluginNames: Set<string>;
-};
-
-type t2<T> = T extends [infer F extends TabDefinition, ...infer R] ? [t2a<F>, ...t2<R>]
-  : T extends [infer F extends TabDefinition] ? [t2a<F>] : [];
-
-type t3<T> = T extends [infer F extends FieldDefinition, ...infer R] ? [t3a<F>, ...t3<R>]
-  : T extends [infer F extends FieldDefinition] ? [t3a<F>] : [];
-
-type t2a<T extends TabDefinition> = { [K in T["id"]]: t3<T["fields"]> };
-type t3a<T extends FieldDefinition> =
-  T["mode"] extends "" ? never :
-  T["mode"] extends "create edit temp" ? never :
-  T["mode"] extends "create temp" ? never :
-  T["mode"] extends "edit temp" ? never :
-  T["key"];
-
+// tabs.forEach(e => {
+//   const fields = new Set(e.fields.map(e => e.key as string));
+//   if (fields.size !== e.fields.length)
+//     throw new Error("There are fields with duplicate keys in tab " + e.label);
+//   const colsMissing = e.columns.filter(f => !fields.has(f.key as string));
+//   if (colsMissing.length) {
+//     console.log(colsMissing);
+//     throw new Error(`There are columns that don't have a field in tab ${e.label}: ${colsMissing.map(e => e.key)}`);
+//   }
+//   if (Object.keys(e.fieldGroups).some(k => e.fieldGroups[k].some(f => {
+//     f.keys.some(g => !fields.has(g as string))
+//   }))) throw new Error("There are field groups which specify keys that don't exist in " + e.label);
+// })
 
 
 export function getTab(tabId: TabId): TabDefinition {
@@ -500,10 +512,168 @@ export function getAllTabs(): TabDefinition[] {
   return tabs;
 }
 
+export type TabDef = typeof tabs;
 
-export type IWikiRow = StoredTabRecord<(typeof tabs)[0]>;
-export type ITemplateRow = StoredTabRecord<(typeof tabs)[1]>;
-export type IBagRow = StoredTabRecord<(typeof tabs)[2]>;
-export type IPluginRow = StoredTabRecord<(typeof tabs)[3]>;
-export type IRoleRow = StoredTabRecord<(typeof tabs)[4]>;
-export type IUserRow = StoredTabRecord<(typeof tabs)[5]>;
+
+
+type StoredTabKeys<T extends TabDefinition> = {
+  [K in T["id"]]: MapFieldDefinitions<T["fields"]>[number] | "id"
+}[T["id"]];
+
+
+
+type StoredTabRecord<D extends TabDefinition, T> = Pick<T, StoredTabKeys<D> & keyof T>;
+
+
+type MapFieldDefinitions<T> =
+  T extends [infer F extends FieldDefinition, ...infer R] ? [FilterServerFields<F>, ...MapFieldDefinitions<R>] :
+  T extends [infer F extends FieldDefinition] ? [FilterServerFields<F>] : [];
+
+type FilterServerFields<T extends FieldDefinition> =
+  T["mode"] extends "" ? never :
+  T["mode"] extends "create edit temp" ? never :
+  T["mode"] extends "create temp" ? never :
+  T["mode"] extends "edit temp" ? never :
+  T["key"];
+
+export interface AdminRecordStore {
+  wikis: WikiAdminRecord[];
+  templates: TemplateAdminRecord[];
+  bags: BagAdminRecord[];
+  plugins: PluginAdminRecord[];
+  roles: RoleAdminRecord[];
+  users: UserAdminRecord[];
+  availableBagNames: Set<string>;
+  availablePluginNames: Set<string>;
+}
+
+export interface DataStore {
+  wikis: StoredTabRecord<TabDef[0], WikiAdminRecord>[];
+  templates: StoredTabRecord<TabDef[1], TemplateAdminRecord>[];
+  bags: StoredTabRecord<TabDef[2], BagAdminRecord>[];
+  plugins: StoredTabRecord<TabDef[3], PluginAdminRecord>[];
+  roles: StoredTabRecord<TabDef[4], RoleAdminRecord>[];
+  users: StoredTabRecord<TabDef[5], UserAdminRecord>[];
+  availableBagNames: Set<string>;
+  availablePluginNames: Set<string>;
+};
+
+export interface WikiAdminRecord {
+  // server fields
+  id: string;
+  slug: string;
+  displayName: string;
+  description: string;
+  templateRef: Reference | null;
+  writablePrefixBags: readonly MappingRow[];
+  readonlyBags: readonly string[];
+  plugins: readonly string[];
+  recipePermissions: readonly PermissionRow[];
+  // client field
+  templateName: string;
+  defaultWritableBag: string;
+  readonlyBagCount: string;
+  prefixRuleCount: string;
+  pluginCount: string;
+  effectiveWritableBags: readonly MappingRow[];
+  effectiveReadonlyBags: readonly string[];
+  effectivePluginSet: readonly string[];
+  compileValidation: string;
+  lastCompiledAt: string;
+  statusFlags: string;
+  missingBags: string;
+  missingPlugins: string;
+  titleResolutionPreview: string;
+}
+
+export interface TemplateAdminRecord {
+  // server fields
+  id: string;
+  name: string;
+  description: string;
+  writablePrefixBags: readonly MappingRow[];
+  readonlyBags: readonly string[];
+  plugins: readonly string[];
+  templatePermissions: readonly PermissionRow[];
+  requiredPluginsEnabled: boolean;
+  customHtmlEnabled: boolean;
+  htmlContent: string;
+  injectionArray: string;
+  injectionLocation: string;
+  // client fields
+  defaultWritableBag: string;
+  readonlyBagsSummary: string;
+  dependentWikis: string;
+  dependentWikiCount: string;
+  lastUpdatedAt: string;
+  validationStatus: string;
+  validationReport: string;
+}
+
+export interface BagAdminRecord {
+  id: string;
+  name: string;
+  description: string;
+  permissions: readonly PermissionRow[];
+  usedByCount: string;
+  readonlyUsageCount: string;
+  writableUsageCount: string;
+  defaultUsageCount: string;
+  permissionSummary: string;
+  referencedByTemplates: string;
+  referencedByWikis: string;
+  routingRoles: string;
+  // tiddlerCount: string;
+  // lastActivityAt: string;
+  // recentActivity: string;
+}
+
+export interface PluginAdminRecord {
+  id: string;
+  version: string;
+  description: string;
+  name: string;
+  status: string;
+  publishFromDraft: string;
+  assetsMetadata: string;
+  usedByWikis: string;
+  usageCount: string;
+  draftOf: string;
+  updatedAt: string;
+}
+
+export interface RoleAdminRecord {
+  id: string;
+  roleId: string;
+  description: string;
+}
+
+export interface UserAdminRecord {
+  id: string;
+  username: string;
+  email: string;
+  userRoles: readonly string[];
+  password: string;
+  confirmPassword: string;
+}
+
+export interface MappingRow {
+  left: string;
+  right: string;
+}
+
+export interface PermissionRow<Level extends string = string> {
+  role: string;
+  level: Level;
+}
+
+export interface KeyValueRow {
+  key: string;
+  value: string;
+}
+
+
+export interface Reference {
+  readonly id: string;
+  readonly name: string;
+}

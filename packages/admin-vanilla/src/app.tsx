@@ -2,7 +2,6 @@ import { customElement, JSXElement, addstyles, state } from "@tiddlywiki/jsx-lit
 import css from "./app.inline.css";
 import warningIcon from "@material-symbols/svg-400/outlined/warning.svg";
 import {
-  DataStore,
   getAllTabs,
   getTab,
   TabId,
@@ -12,7 +11,19 @@ import {
   FieldSection,
   FieldType,
   Mode,
-  TabDefinition
+  TabDefinition,
+  TabDef,
+  PermissionRow,
+  AdminRecordStore,
+  DataStore,
+  TemplateAdminRecord,
+  WikiAdminRecord,
+  BagAdminRecord,
+  PluginAdminRecord,
+  MappingRow,
+  RoleAdminRecord,
+  UserAdminRecord,
+  Reference
 } from "./definition/tabs";
 import { is } from "@tiddlywiki/jsx-runtime";
 
@@ -52,102 +63,19 @@ export class MaterialSymbol extends JSXElement {
   }
 }
 
-type ModalMode = "create" | "edit";
-interface AdminValue {
-  __admin_value_string__: string;
-  __admin_value_parsed__: any;
-}
-type AdminRecord = Record<string, string> & { id: string; };
-type ItemsByTab = Record<TabId, AdminRecord[]> & {
-  availablePluginNames: Set<string>;
-  availableBagNames: Set<string>;
-};
+
+type AdminRecord = { id: string; };
 
 type PermissionLevel = "A_read" | "B_write" | "C_admin";
 type RecipePermissionLevel = "A_read" | "B_write";
-
-type WikiDataStore = DataStore["wikis"][number];
-type TemplateDataStore = DataStore["templates"][number];
-type BagDataStore = DataStore["bags"][number];
-type PluginDataStore = DataStore["plugins"][number];
-type RoleDataStore = DataStore["roles"][number];
-type UserDataStore = DataStore["users"][number];
-
-interface WikiAdminRecord extends WikiDataStore {
-  templateName: string;
-  defaultWritableBag: string;
-  readonlyBagCount: string;
-  prefixRuleCount: string;
-  pluginCount: string;
-  effectiveReadonlyBags: string;
-  effectivePluginSet: string;
-  compileValidation: string;
-  lastCompiledAt: string;
-  statusFlags: string;
-  missingBags: string;
-  missingPlugins: string;
-}
-
-interface TemplateAdminRecord extends TemplateDataStore {
-  defaultWritableBag: string;
-  readonlyBagsSummary: string;
-  writablePrefixSummary: string;
-  dependentWikis: string;
-  dependentWikiCount: string;
-  lastUpdatedAt: string;
-  validationStatus: string;
-  validationReport: string;
-}
-
-interface BagAdminRecord extends BagDataStore {
-  usedByCount: string;
-  readonlyUsageCount: string;
-  writableUsageCount: string;
-  defaultUsageCount: string;
-  permissionSummary: string;
-  referencedByTemplates: string;
-  referencedByWikis: string;
-  routingRoles: string;
-  // tiddlerCount: string;
-  // lastActivityAt: string;
-  // recentActivity: string;
-}
-
-interface PluginAdminRecord extends PluginDataStore {
-  assetsMetadata: string;
-  usedByWikis: string;
-  usageCount: string;
-  draftOf: string;
-  updatedAt: string;
-}
-
-interface RoleAdminRecord extends RoleDataStore {
-}
-
-interface UserAdminRecord extends UserDataStore {
-  confirmPassword: string;
-}
-
-interface MappingRow {
-  left: string;
-  right: string;
-}
-
-interface PermissionRow {
-  role: string;
-  level: PermissionLevel;
-}
-
-interface KeyValueRow {
-  key: string;
-  value: string;
-}
-
+type ModalMode = "create" | "edit";
 
 interface ModalState {
   tabId: TabId;
   mode: ModalMode;
   draft: AdminRecord;
+  /** The unedited original the draft was from. */
+  saved: AdminRecord;
   resolverTitle: string;
   operationMessages: Record<string, string>;
   pendingRows: Record<string, number>;
@@ -156,32 +84,31 @@ interface ModalState {
 }
 
 interface AdminStorage {
-  loadAll(): Promise<ItemsByTab>;
+  loadAll(): Promise<AdminRecordStore>;
   read(tabId: TabId, id: string): Promise<AdminRecord | null>;
   save(tabId: TabId, record: AdminRecord): Promise<AdminRecord[]>;
 }
 
-type DraftChangeHandler = (fieldKey: string, value: string) => void;
+type DraftChangeHandler<T = unknown> = (fieldKey: string, value: T) => void;
 type PendingRowsChangeHandler = (fieldKey: string, updater: (count: number) => number) => void;
 type PermissionRowsChangeHandler = (fieldKey: string, rows: PermissionRow[]) => void;
 type ResolverTitleChangeHandler = (value: string) => void;
 type OperationTriggerHandler = (fieldKey: string, message: string) => void;
 
 /** The subset of FieldEditorContext that the readonly renderers need. */
-interface ReadonlyFieldContext {
+interface ReadonlyFieldContext<T = unknown> {
   field: FieldDefinition;
-  value: unknown;
-  itemsByTab?: ItemsByTab;
+  value: T;
+  saved: T;
+  itemsByTab?: AdminRecordStore;
 }
 
 
-interface FieldEditorInput {
-  field: FieldDefinition;
-  value: unknown;
+interface FieldEditorInput<T = unknown> extends ReadonlyFieldContext<T> {
   disabled?: boolean;
   modalState: ModalState;
-  itemsByTab: ItemsByTab;
-  onDraftChange: DraftChangeHandler;
+  itemsByTab: AdminRecordStore;
+  onDraftChange: DraftChangeHandler<T>;
   onPendingRowsChange: PendingRowsChangeHandler;
   onTransientPermissionRowsChange: PermissionRowsChangeHandler;
   onResolverTitleChange: ResolverTitleChangeHandler;
@@ -196,7 +123,7 @@ interface FieldBlockProps extends FieldEditorInput {
 
 
 /** FieldEditorInput plus the derived inputId, shared by the per-type render functions. */
-interface FieldEditorContext extends FieldEditorInput {
+interface FieldEditorContext<T = unknown> extends FieldEditorInput<T> {
   inputId: string;
 }
 
@@ -207,7 +134,7 @@ interface MissingDependencyLine {
 
 interface SidebarSectionProps {
   title: string;
-  content: JSX.Element;
+  content: JSX.Node;
 }
 
 interface ToggleFieldProps {
@@ -220,7 +147,7 @@ interface ToggleFieldProps {
 interface RecordModalProps {
   selectedTab: TabDefinition;
   modalState: ModalState;
-  itemsByTab: ItemsByTab;
+  itemsByTab: AdminRecordStore;
   isModalLoading: boolean;
   isSaving: boolean;
   isOpeningItem: boolean;
@@ -236,15 +163,8 @@ interface RecordModalProps {
 const bagPermissionLevels: PermissionLevel[] = ["A_read", "B_write", "C_admin"];
 const recipePermissionLevels: RecipePermissionLevel[] = ["A_read", "B_write"];
 
-
-
-function formatPrefixSummary(value: string): string {
-  const rows = mappingRowsCodec.parse(value);
-  return rows.map((row) => row.left || "default").join(", ");
-}
-
-function summarizePermissionRoles(value: string): string {
-  return permissionRowsCodec.parse(value).map((row) => row.role).filter(Boolean).join(", ");
+function summarizePermissionRoles(value: readonly PermissionRow<string>[]): string {
+  return value.map((row) => row.role).filter(Boolean).join(", ");
 }
 
 function deriveBagRecords(items: DataStore, templates: TemplateAdminRecord[], wikis: WikiAdminRecord[]): BagAdminRecord[] {
@@ -262,19 +182,19 @@ function deriveBagRecords(items: DataStore, templates: TemplateAdminRecord[], wi
 
   for (const template of templates) {
     const templateName = template.name ?? "";
-    lineListCodec.parse(template.readonlyBags ?? "").forEach((bagName) => addUsage(templateReadonlyUsage, bagName, templateName));
+    template.readonlyBags.forEach((bagName) => addUsage(templateReadonlyUsage, bagName, templateName));
   }
 
   for (const wiki of wikis) {
     const wikiName = wiki.slug || wiki.displayName || "";
     const templateRecord = findTemplateRecordForWikiRecord(wiki, { ...items, templates, wikis });
     const effectiveReadonlyBags = uniqueLines([
-      ...lineListCodec.parse(templateRecord?.readonlyBags ?? ""),
-      ...lineListCodec.parse(wiki.readonlyBags ?? ""),
+      ...wiki.readonlyBags ?? [],
+      ...templateRecord?.readonlyBags ?? [],
     ]);
     effectiveReadonlyBags.forEach((bagName) => addUsage(wikiReadonlyUsage, bagName, wikiName));
 
-    const prefixRows = mappingRowsCodec.parse(wiki.writablePrefixBags ?? "");
+    const prefixRows = wiki.writablePrefixBags;
     prefixRows.forEach((row) => addUsage(wikiWritableUsage, row.right, wikiName));
     const defaultBag = prefixRows.find((row) => row.left === "")?.right ?? "";
     addUsage(wikiDefaultUsage, defaultBag, wikiName);
@@ -303,7 +223,7 @@ function deriveBagRecords(items: DataStore, templates: TemplateAdminRecord[], wi
       readonlyUsageCount: String(referencedByWikis.length),
       writableUsageCount: String(writableByWikis.length),
       defaultUsageCount: String(defaultByWikis.length),
-      permissionSummary: summarizePermissionRoles(bag.permissions ?? ""),
+      permissionSummary: summarizePermissionRoles(bag.permissions),
       referencedByTemplates: referencedByTemplates.join("\n"),
       referencedByWikis: Array.from(allUsingWikis).join("\n"),
       routingRoles: routingRoles.join("\n"),
@@ -323,7 +243,7 @@ function derivePluginRecords(items: DataStore, templates: TemplateAdminRecord[],
 
   for (const wiki of wikis) {
     const wikiName = wiki.slug || wiki.displayName || "";
-    lineListCodec.parse(wiki.effectivePluginSet ?? "").forEach((pluginValue) => {
+    wiki.effectivePluginSet.forEach((pluginValue) => {
       const pluginName = pluginValue.split("@")[0]?.trim() ?? pluginValue.trim();
       addUsage(pluginName, wikiName);
     });
@@ -341,26 +261,25 @@ function derivePluginRecords(items: DataStore, templates: TemplateAdminRecord[],
 
 
 function syncWikiRecord(draft: DataStore["wikis"][number], data: DataStore) {
-  const normalizedWritablePrefixBags = editableMappingRowsCodec.normalize(draft.writablePrefixBags ?? "");
   const templateRecord = findTemplateRecordForWikiRecord(draft, data);
-  const templateReadonlyBags = templateRecord ? lineListCodec.parse(templateRecord.readonlyBags ?? "") : [];
-  const templatePlugins = templateRecord ? lineListCodec.parse(templateRecord.plugins ?? "") : [];
-  const wikiReadonlyBags = lineListCodec.parse(draft.readonlyBags ?? "");
-  const wikiPlugins = lineListCodec.parse(draft.plugins ?? "");
+  const templateReadonlyBags = templateRecord ? templateRecord.readonlyBags : [];
+  const templatePlugins = templateRecord ? templateRecord.plugins : [];
+  const wikiReadonlyBags = draft.readonlyBags;
+  const wikiPlugins = draft.readonlyBags;
 
   const mergedReadonlyBags = uniqueLines([...wikiReadonlyBags, ...templateReadonlyBags]);
   const mergedPlugins = buildEffectivePluginSet({
-    previousEffectivePlugins: lineListCodec.parse((draft as WikiAdminRecord).effectivePluginSet ?? ""),
+    previousEffectivePlugins: (draft as WikiAdminRecord).effectivePluginSet,
     templatePlugins,
     wikiPlugins,
-    corePluginsEnabled: templateRecord?.requiredPluginsEnabled !== "disabled",
+    corePluginsEnabled: !!templateRecord?.requiredPluginsEnabled,
   });
-  const prefixRows = mappingRowsCodec.parse(normalizedWritablePrefixBags);
+  const writablePrefixBags = draft.writablePrefixBags
 
-  const defaultWritableBag = prefixRows.find((row) => row.left === "")?.right ?? "";
-  const prefixRuleCount = String(prefixRows.length);
+  const defaultWritableBag = writablePrefixBags.find((row) => row.left === "")?.right ?? "";
+  const prefixRuleCount = String(writablePrefixBags.length);
   const readableBagOrder = buildEffectiveBagStack({
-    writablePrefixBags: normalizedWritablePrefixBags,
+    writablePrefixBags,
     templateReadonlyBags,
     wikiReadonlyBags,
   });
@@ -378,8 +297,7 @@ function syncWikiRecord(draft: DataStore["wikis"][number], data: DataStore) {
 
   return {
     ...draft,
-    writablePrefixBags: normalizedWritablePrefixBags,
-    templateName: templateRecord?.name ?? referenceCodec.name(draft.templateId) ?? "",
+    templateName: templateRecord?.name ?? draft.templateRef?.name ?? "",
     defaultWritableBag,
     readonlyBagCount: String(mergedReadonlyBags.length),
     prefixRuleCount,
@@ -388,53 +306,27 @@ function syncWikiRecord(draft: DataStore["wikis"][number], data: DataStore) {
     statusFlags,
     missingBags: lineListCodec.stringify(missingBags),
     missingPlugins: lineListCodec.stringify(missingPlugins),
+    titleResolutionPreview: "",
   } satisfies WikiAdminRecord;
 }
 
-function syncTemplateRecord(draft: DataStore["templates"][number]) {
-  const normalizedWritablePrefixBags = editableMappingRowsCodec.normalize(draft.writablePrefixBags ?? "");
-
-  const readonlyBags = (draft.readonlyBags ?? "")
-    .split("\n")
-    .map((entry) => entry.trim())
-    .filter(Boolean);
-
-
-
-  const writablePrefixBags = Object.fromEntries(editableMappingRowsCodec.parse(normalizedWritablePrefixBags)
-    .map(e => [e.left, e.right]));
-
-  const prefixSummary = Object.keys(writablePrefixBags).map((prefix) => prefix || "default").join(", ");
-  const defaultWritableBag = writablePrefixBags[""] ?? "";
-
-  return {
-    ...draft,
-    writablePrefixBags: normalizedWritablePrefixBags,
-    readonlyBagsSummary: readonlyBags.join(", "),
-    writablePrefixSummary: prefixSummary,
-    defaultWritableBag,
-  } // intentionally partial
-}
-
-function deriveItems(items: DataStore): ItemsByTab {
+function deriveItems(items: DataStore): AdminRecordStore {
   items.availableBagNames = new Set(items.bags.map((bag) => bag.name).filter(Boolean));
   items.availablePluginNames = new Set(items.plugins.map((plugin) => plugin.name).filter(Boolean));
-  const partialTemplates = items.templates.map((template) => syncTemplateRecord(template));
-  const wikis = items.wikis.map((wiki) => syncWikiRecord(wiki, { ...items, templates: partialTemplates }));
+  const wikis = items.wikis.map((wiki) => syncWikiRecord(wiki, items));
   const dependentWikiMap = new Map<string, string[]>();
   for (const wiki of wikis) {
-    const id = referenceCodec.id(wiki.templateId);
+    const id = wiki.templateRef?.id;
     mapGetInit(dependentWikiMap, id, () => []).push(wiki.slug || wiki.displayName);
   }
 
-  const templates = partialTemplates.map((template) => {
+  const templates = items.templates.map((template) => {
     const dependentWikis = dependentWikiMap.get(template.id) ?? [];
-    const readonlyBags = lineListCodec.parse(template.readonlyBags ?? "");
-    const prefixRows = mappingRowsCodec.parse(template.writablePrefixBags ?? "");
+    const readonlyBags = template.readonlyBags
+    const prefixRows = template.writablePrefixBags
     return {
       ...template,
       readonlyBagsSummary: readonlyBags.join(", "),
-      writablePrefixSummary: formatPrefixSummary(template.writablePrefixBags ?? ""),
       dependentWikis: dependentWikis.join("\n"),
       dependentWikiCount: String(dependentWikis.length),
       defaultWritableBag: prefixRows.find((row) => row.left === "")?.right ?? "",
@@ -445,16 +337,22 @@ function deriveItems(items: DataStore): ItemsByTab {
     // lastUpdatedAt, validationStatus, validationReport
   });
 
+  const users = items.users.map(e => ({
+    ...e,
+    confirmPassword: "",
+  }))
+
   return {
     ...items,
     templates,
     wikis,
+    users,
     bags: deriveBagRecords(items, templates, wikis),
     plugins: derivePluginRecords(items, templates, wikis),
-  } as unknown as ItemsByTab;
+  } as unknown as AdminRecordStore;
 }
 
-function getEmptyItems(): ItemsByTab {
+function getEmptyItems(): AdminRecordStore {
   return {
     availableBagNames: new Set(),
     availablePluginNames: new Set(),
@@ -469,91 +367,89 @@ function getEmptyItems(): ItemsByTab {
 
 
 
-class InMemoryAdminStorage<T extends ItemsByTab> implements AdminStorage {
+class InMemoryAdminStorage implements AdminStorage {
   private data!: DataStore;
   constructor(
-    private deriveItems: (data: DataStore) => T
+    private deriveItems: (data: DataStore) => AdminRecordStore
   ) {
 
   }
 
-  public async loadAll(): Promise<T> {
-    this.data = await (await fetch(pathPrefix + "/admin/store")).json()
-    return this.cloneItems(this.deriveItems(this.data));
+  public async loadAll(): Promise<AdminRecordStore> {
+    this.data = await (await fetch(pathPrefix + "/admin/load")).json()
+    return this.deriveItems(this.data)
   }
   private wait(ms: number): Promise<void> {
     return new Promise((resolve) => {
       globalThis.setTimeout(resolve, ms);
     });
   }
-  private cloneItems(items: T): T {
-    return {
-      wikis: items.wikis.map((item) => ({ ...item })),
-      templates: items.templates.map((item) => ({ ...item })),
-      bags: items.bags.map((item) => ({ ...item })),
-      plugins: items.plugins.map((item) => ({ ...item })),
-      roles: items.roles.map((item) => ({ ...item })),
-      users: items.users.map((item) => ({ ...item })),
-      availableBagNames: new Set(items.availableBagNames),
-      availablePluginNames: new Set(items.availablePluginNames),
-    } as T;
-  }
 
   public async read(tabId: TabId, id: string): Promise<AdminRecord | null> {
     if (!this.data) await this.loadAll();
-    else await this.wait(300);
-    const item = this.deriveItems(this.data)[tabId].find((record) => record.id === id);
-    return item ? { ...item } : null;
+    return this.deriveItems(this.data)[tabId].find((record) => record.id === id) ?? null;
   }
 
   public async save(tabId: TabId, record: AdminRecord): Promise<AdminRecord[]> {
-    if (!this.data) await this.loadAll();
-    else await this.wait(300);
+    if (!this.data) throw new Error("data should be loaded first");
+
     const currentTabRecords = this.data[tabId];
-    const storedRecord = this.pruneStoredRecord(tabId, record, currentTabRecords.length);
-    const id = storedRecord.id;
-    const index = this.data[tabId].findIndex(e => e.id === id);
-    if (index > -1)
-      this.data[tabId][index] = storedRecord as any;
-    else
-      this.data[tabId].push(storedRecord as any);
+    const prunedRecord = this.pruneStoredRecord(tabId, record, currentTabRecords.length);
+    const id = prunedRecord.id;
+    const response = await fetch(pathPrefix + "/admin/save", {
+      body: JSON.stringify(prunedRecord),
+    });
+
+    if (response.status !== 200) {
+      console.log(await response.text());
+    } else {
+      const storedRecord = await response.json();
+      if (id) {
+        if (storedRecord.id !== id) location.reload();
+        const index = this.data[tabId].findIndex(e => e.id === id);
+        this.data[tabId][index] = storedRecord as any;
+      } else {
+        this.data[tabId].push(storedRecord as any);
+      }
+    }
+
     this.data = { ...this.data, [tabId]: [...this.data[tabId]] };
     return this.deriveItems(this.data)[tabId].map((item) => ({ ...item }));
   }
 
   private pruneStoredRecord(tabId: TabId, record: AdminRecord, fallbackOrdinal?: number): AdminRecord {
     const tab = getTab(tabId);
-    const storedFieldKeys = this.getStoredFieldKeys(tab);
-    const pruned = storedFieldKeys.reduce<AdminRecord>((nextRecord, key) => {
-      nextRecord[key] = record[key] ?? "";
-      return nextRecord;
-    }, { id: record.id || String(fallbackOrdinal ?? 0) });
+    const storedFields = tab.fields.filter((field) => isServerField(field.mode));
+    const pruned: any = {};
+    for (const field of storedFields) {
+      const value = getAdminRecordValue(field, record);
+      setAdminRecordValue(field, pruned, value, true);
+    }
     return pruned;
   }
-  private getStoredFieldKeys(tab: TabDefinition): string[] {
-    return tab.fields.filter((field) => ["create", "create edit", "edit", "server"].includes(field.mode)).map((field) => field.key);
-  }
+
 }
 
-
-function getFieldKeys(tab: TabDefinition): string[] {
-  return Array.from(new Set([
-    "id",
-    ...tab.columns.map((column) => column.key),
-    ...tab.fields.map((field) => field.key),
-  ]));
+function isServerField(mode: Mode) {
+  return ["create", "create edit", "edit", "server"].includes(mode);
+}
+function isAuthoredField(mode: Mode) {
+  return ["create", "create edit", "edit"].includes(mode);
 }
 
 function createDraft(tab: TabDefinition, source?: AdminRecord): AdminRecord {
-  const draft = getFieldKeys(tab).reduce<AdminRecord>((nextDraft, key) => {
-    nextDraft[key] = source?.[key] ?? "";
-    return nextDraft;
-  }, { id: source?.id || "" });
+  const draft: any = {};
+  for (const field of tab.fields) {
+    const value = source
+      ? getAdminRecordValue(field, source)
+      : getFieldHandler(field.type).initCreate();
+    setAdminRecordValue(field, draft, value, true);
+  }
 
   if (!source && tab.id === "templates") {
     const draft2: TemplateAdminRecord = draft as any;
-    draft2.requiredPluginsEnabled = "enabled";
-    draft2.customHtmlEnabled = "disabled";
+    draft2.requiredPluginsEnabled = true;
+    draft2.customHtmlEnabled = false;
     draft2.injectionArray = "$tw.preloadTiddlers";
   }
 
@@ -574,48 +470,38 @@ function isEditable(field: FieldDefinition, mode: ModalMode): boolean {
 }
 
 function getPrimaryValue(tab: TabDefinition, item: AdminRecord): string {
-  const primaryKey = tab.columns[0]?.key ?? tab.fields[0]?.key;
-  return formatFieldValue(item[primaryKey]);
+  const primary = tab.columns[0] ?? tab.fields[0];
+  return formatFieldValue(getAdminRecordValue(primary, item));
 }
 
 function getCreateLabel(tab: TabDefinition): string {
   return tab.createLabel;
 }
 // TODO: fold into tabs variable
-function getSelectOptions(field: FieldDefinition, itemsByTab: ItemsByTab): string[] {
+function getSelectOptions(field: FieldDefinition, itemsByTab: AdminRecordStore): string[] {
   if (field.key === "status") return ["draft", "published", "archived"];
   if (field.key === "requiredPluginsEnabled" || field.key === "customHtmlEnabled") return ["enabled", "disabled"];
-  if (field.key === "templateId") {
+  if (field.key === "templateRef") {
     return Array.from(new Set(itemsByTab.templates.map((item) => item.name).filter(Boolean)));
   }
   return [];
 }
 
-function getAutocompleteOptions(field: FieldDefinition, itemsByTab: ItemsByTab): string[] {
-  if (field.key === "templateId") {
-    return Array.from(new Set([
-      ...itemsByTab.templates.map((item) => item.name),
-      ...itemsByTab.wikis.map((item) => referenceCodec.name(item.templateId)),
-    ].filter(Boolean)));
-  }
-  return [];
-}
 
-function getLookupOptions(fieldKey: string, itemsByTab: ItemsByTab): string[] {
-  if (fieldKey === "templateId") return getAutocompleteOptions({ key: fieldKey } as FieldDefinition, itemsByTab);
+function getLookupOptions(fieldKey: string, itemsByTab: AdminRecordStore): string[] {
   if (fieldKey === "readonlyBags" || fieldKey === "writablePrefixBags") {
     return Array.from(new Set(itemsByTab.bags.map((item) => item.name).filter(Boolean)));
   }
   if (fieldKey === "plugins") {
     return Array.from(new Set(itemsByTab.plugins.map((item) => item.name).filter(Boolean)));
   }
-  if (fieldKey === "roleIds") {
+  if (fieldKey === "userRoles") {
     return Array.from(new Set(itemsByTab.roles.map((item) => item.roleId).filter(Boolean)));
   }
   if (fieldKey === "permissions" || fieldKey === "recipePermissions") {
     return Array.from(new Set([
-      ...itemsByTab.bags.flatMap((item) => permissionRowsCodec.parse(item.permissions ?? "").map((row) => row.role)),
-      ...itemsByTab.wikis.flatMap((item) => permissionRowsCodec.parse(item.recipePermissions ?? "").map((row) => row.role)),
+      ...itemsByTab.bags.flatMap((item) => item.permissions.map((row) => row.role)),
+      ...itemsByTab.wikis.flatMap((item) => item.recipePermissions.map((row) => row.role)),
     ].filter(Boolean)));
   }
   return [];
@@ -625,11 +511,10 @@ function getPermissionLevelsForField(fieldKey: string): PermissionLevel[] | Reci
   return fieldKey === "recipePermissions" ? recipePermissionLevels : bagPermissionLevels;
 }
 
-function getMissingDependencyLines(field: FieldDefinition, value: string, itemsByTab?: ItemsByTab): MissingDependencyLine[] | null {
+function getMissingDependencyLines(field: FieldDefinition, lines: readonly string[], itemsByTab?: AdminRecordStore): MissingDependencyLine[] | null {
   if (!itemsByTab) return null;
   if (field.key !== "effectiveReadonlyBags" && field.key !== "effectivePluginSet") return null;
 
-  const lines = lineListCodec.parse(value);
   const availableNames = new Set(
     field.key === "effectiveReadonlyBags" ? itemsByTab.availableBagNames : itemsByTab.availablePluginNames,
   );
@@ -647,7 +532,7 @@ function formatPermissionLevel(level: string): string {
 }
 
 function getFieldSection(field: FieldDefinition): FieldSection {
-  return field.section ?? (field.type === "action" ? "operations" : field.mode ? "authored" : "runtime");
+  return field.section ?? (isAuthoredField(field.mode) ? "authored" : "runtime");
 }
 
 function getSectionFields(tab: TabDefinition, section: FieldSection): FieldDefinition[] {
@@ -659,14 +544,19 @@ function getSectionFields(tab: TabDefinition, section: FieldSection): FieldDefin
   });
 }
 
+function getSidebarFields(tab: TabDefinition) {
+  const keys = new Set(tab.sidebarDisplay);
+  return tab.fields.filter(e => keys.has(e.key));
+}
+
 function getSectionHeading(section: FieldSection, mode: ModalMode) {
   if (section === "authored") {
     return null;
   }
   if (section === "runtime") {
     return {
-      title: "Resolved and derived state",
-      copy: "These values come from compilation, relationships, or runtime projections. They explain what the system will do, not what the editor writes directly.",
+      title: "Current server state",
+      copy: "These values come from the current server state. Changes you make on this page are not reflected here until you click save.",
     };
   }
   return {
@@ -691,25 +581,36 @@ function getFieldGroups(tab: TabDefinition, section: FieldSection, fields: Field
   return configuredGroups.filter((group) => group.keys.some((key) => fields.some((field) => field.key === key)));
 }
 
-function findTemplateRecordForWikiRecord(draft: DataStore["wikis"][number], itemsByTab: DataStore | ItemsByTab) {
-  const id = referenceCodec.id(draft.templateId);
+function findTemplateRecordForWikiRecord(draft: DataStore["wikis"][number], itemsByTab: DataStore) {
+  const id = draft.templateRef?.id;
   return itemsByTab.templates.find((template) => id === template.id);
 }
 
-function uniqueLines(values: string[]): string[] {
+function uniqueLines(values: readonly string[]): string[] {
   return Array.from(new Set(values.map((value) => value.trim()).filter(Boolean)));
 }
 
+function buildEffectivePrefixObject(writablePrefixBags: (readonly MappingRow[])[]): readonly MappingRow[] {
+  const result: Record<string, string> = {};
+  for (const list of writablePrefixBags) {
+    for (const row of list) {
+      if (typeof row.left !== "string" || typeof row.right !== "string")
+        throw new Error("Expects an object of { left: string; right: string; }.")
+      result[row.left] ??= row.right;
+    }
+  }
+  return Object.entries(result).map(([left, right]) => ({ left, right })).sort((a, b) => b.left.length - a.left.length);
+}
+
 function buildEffectiveBagStack({
-  writablePrefixBags,
+  writablePrefixBags: prefixRows,
   templateReadonlyBags,
   wikiReadonlyBags,
 }: {
-  writablePrefixBags: string;
-  templateReadonlyBags: string[];
-  wikiReadonlyBags: string[];
+  writablePrefixBags: readonly MappingRow[];
+  templateReadonlyBags: readonly string[];
+  wikiReadonlyBags: readonly string[];
 }): string[] {
-  const prefixRows = mappingRowsCodec.parse(writablePrefixBags);
   const defaultTargets = prefixRows.filter((row) => row.left === "").map((row) => row.right);
   const prefixedTargets = prefixRows.filter((row) => row.left !== "").map((row) => row.right);
   return uniqueLines([
@@ -726,9 +627,9 @@ function buildEffectivePluginSet({
   wikiPlugins,
   corePluginsEnabled,
 }: {
-  previousEffectivePlugins: string[];
-  templatePlugins: string[];
-  wikiPlugins: string[];
+  previousEffectivePlugins: readonly string[];
+  templatePlugins: readonly string[];
+  wikiPlugins: readonly string[];
   corePluginsEnabled: boolean;
 }): string[] {
   const authoredPlugins = uniqueLines([...templatePlugins, ...wikiPlugins]);
@@ -757,110 +658,48 @@ class LineListCodec {
   }
 }
 
-class MappingRowsCodec {
-  public parse(value: string): MappingRow[] {
-    return JSON.parse(value || "[]");
-  }
-
-  public stringify(rows: MappingRow[]): string {
-    return JSON.stringify(rows.map(e => ({ left: e.left.trim(), right: e.right.trim() })));
-  }
-}
-/** This class is used for actual editors so we can type spaces in the field. */
-class EditableMappingRowsCodec {
-  public parse(value: string): MappingRow[] {
-    return JSON.parse(value || "[]");
-  }
-
-  public stringify(rows: MappingRow[]): string {
-    return JSON.stringify(rows);
-  }
-
-  public normalize(value: string): string {
-    return mappingRowsCodec.stringify(this.parse(value));
-  }
-}
-
 class PermissionRowsCodec {
-  public parse(value: string): PermissionRow[] {
-    return JSON.parse(value || "[]");
-    return value.split("\n").map((entry) => entry.trim()).filter(Boolean).map((row) => {
-      const [role, levelText] = row.split(":").map((part) => part?.trim() ?? "");
-      const allPermissionLevels = [...bagPermissionLevels];
-      const level = allPermissionLevels.includes(levelText as PermissionLevel) ? levelText as PermissionLevel : "A_read";
-      return { role, level };
-    });
+  public parse(value: PermissionRow[]): PermissionRow[] {
+    return JSON.parse(JSON.stringify(value));
+    // return value.split("\n").map((entry) => entry.trim()).filter(Boolean).map((row) => {
+    //   const [role, levelText] = row.split(":").map((part) => part?.trim() ?? "");
+    //   const allPermissionLevels = [...bagPermissionLevels];
+    //   const level = allPermissionLevels.includes(levelText as PermissionLevel) ? levelText as PermissionLevel : "A_read";
+    //   return { role, level };
+    // });
   }
 
-  public stringify(rows: PermissionRow[]): string {
-    return JSON.stringify(rows);
-    return rows
-      .map((row) => ({ role: row.role.trim(), level: row.level }))
-      .filter((row) => row.role)
-      .map((row) => `${row.role}:${row.level}`)
-      .join("\n");
-  }
-}
-
-class JsonObjectRowsCodec {
-  public parse(value: string): KeyValueRow[] {
-    try {
-      const parsed = JSON.parse(value || "{}");
-      if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
-        return Object.entries(parsed).map(([key, entryValue]) => ({ key, value: String(entryValue) }));
-      }
-    } catch {
-      // fall back to an empty structured editor if the JSON is not currently parseable
-    }
-    return [];
-  }
-
-  public stringify(rows: KeyValueRow[]): string {
-    const next = rows.reduce<Record<string, string>>((acc, row) => {
-      const key = row.key.trim();
-      if (!key) return acc;
-      acc[key] = row.value;
-      return acc;
-    }, {});
-    return JSON.stringify(next, null, 2);
-  }
-}
-
-class ReferenceCodec {
-  id(value: string) { return JSON.parse(value).id; }
-  name(value: string) { return JSON.parse(value).name; }
-  public parse(value: string): { id: string; name: string; } {
-    return JSON.parse(value);
-  }
-  public stringify(value: { id: string; name: string; }) {
-    return JSON.stringify(value);
+  public stringify(value: PermissionRow[]): PermissionRow[] {
+    return JSON.parse(JSON.stringify(value));
+    // return rows
+    //   .map((row) => ({ role: row.role.trim(), level: row.level }))
+    //   .filter((row) => row.role)
+    //   .map((row) => `${row.role}:${row.level}`)
+    //   .join("\n");
   }
 }
 
 const lineListCodec = new LineListCodec();
-const mappingRowsCodec = new MappingRowsCodec();
-const editableMappingRowsCodec = new EditableMappingRowsCodec();
 const permissionRowsCodec = new PermissionRowsCodec();
-const jsonObjectRowsCodec = new JsonObjectRowsCodec();
-const referenceCodec = new ReferenceCodec();
-
-function computeResolverPreview(draft: AdminRecord, title: string) {
-  const normalizedTitle = title.trim();
-  const targets = mappingRowsCodec.parse(draft.writablePrefixBags ?? "").filter((row) => row.right).sort((a, b) => b.left.length - a.left.length);
-  const writeTarget = normalizedTitle
-    ? (targets.find((target) => target.left && normalizedTitle.startsWith(target.left)) ?? targets.find((target) => target.left === ""))
-    : undefined;
-  return {
-    title: normalizedTitle,
-    writeTo: writeTarget?.right ?? "No writable target",
-    matchedPrefix: writeTarget ? (writeTarget.left || "default") : "none",
-  };
-}
 
 
 
-function formatFieldValue(value: string | undefined): string {
-  return value && value.trim() ? value : "—";
+function formatFieldValue(value: any): string {
+  if (typeof value === "string")
+    return value && value.trim() ? value : "—";
+  if (Array.isArray(value)) {
+    if (!value.length) return "—";
+    if (typeof value[0] === "string")
+      return value.join("\n"); // value.length ?  : "—";
+    if (typeof value[0] === "object") {
+      if (typeof value[0].left === "string")
+        return value.map(e => `${e.left}: ${e.right}`).join("\n");
+      if (typeof value[0].name === "string")
+        return value.map(e => `${e.name}`).join("\n");
+    }
+  }
+  console.error("value is not supported", value)
+  throw new Error("value is not supported");
 }
 
 function renderListCellValue(columnKey: string, value: string | undefined) {
@@ -877,8 +716,37 @@ function renderListCellValue(columnKey: string, value: string | undefined) {
   return formattedValue;
 }
 
-function countValueLines(value: string | undefined): number {
-  return lineListCodec.parse(value ?? "").length;
+type ListColumnLinkMapper = (item: AdminRecord) => string | null;
+
+function getListColumnLinkMappers(tabId: TabId): Partial<Record<string, ListColumnLinkMapper>> {
+  switch (tabId) {
+    case "wikis":
+      return {
+        slug: (item) => {
+          definitely<WikiAdminRecord>(item);
+          return item.slug ? `${pathPrefix}/wiki/${encodeURIComponent(item.slug)}` : null;
+        },
+      };
+    case "templates":
+    case "bags":
+    case "plugins":
+    case "roles":
+    case "users":
+      return {};
+    default: {
+      const exhaustive: never = tabId;
+      return exhaustive;
+    }
+  }
+}
+
+function getListColumnLink(tabId: TabId, columnKey: string, item: AdminRecord): string | null {
+  const mapper = getListColumnLinkMappers(tabId)[columnKey];
+  return mapper ? mapper(item) : null;
+}
+
+function countValueLines(value: readonly string[]): number {
+  return value.length;
 }
 
 function getSidebarFacts(tabId: TabId, draft: AdminRecord): Array<{ label: string; value: string; }>;
@@ -886,7 +754,7 @@ function getSidebarFacts(tabId: TabId, draft: unknown): Array<{ label: string; v
   if (tabId === "wikis") {
     definitely<WikiAdminRecord>(draft);
     return [
-      { label: "Template", value: formatFieldValue(draft.templateName || referenceCodec.name(draft.templateId)) },
+      { label: "Template", value: formatFieldValue(draft.templateName || draft.templateRef?.name) },
       { label: "Default bag", value: formatFieldValue(draft.defaultWritableBag) },
       { label: "Compiled", value: formatFieldValue(draft.lastCompiledAt) },
     ];
@@ -895,10 +763,10 @@ function getSidebarFacts(tabId: TabId, draft: unknown): Array<{ label: string; v
   if (tabId === "templates") {
     definitely<TemplateAdminRecord>(draft);
     return [
-      { label: "Readonly bags", value: String(countValueLines(draft.readonlyBags)) },
-      { label: "Prefix rules", value: String(mappingRowsCodec.parse(draft.writablePrefixBags ?? "").length || 0) },
+      { label: "Readonly bags", value: String((draft.readonlyBags.length)) },
+      { label: "Prefix rules", value: String(draft.writablePrefixBags.length || 0) },
       { label: "Default bag", value: formatFieldValue(draft.defaultWritableBag) },
-      { label: "Plugins", value: String(countValueLines(draft.plugins)) },
+      { label: "Plugins", value: String(draft.plugins.length) },
       { label: "Validation", value: formatFieldValue(draft.validationStatus || draft.validationReport) },
     ];
   }
@@ -906,10 +774,10 @@ function getSidebarFacts(tabId: TabId, draft: unknown): Array<{ label: string; v
   if (tabId === "bags") {
     definitely<BagAdminRecord>(draft);
     return [
-      { label: "Permission roles", value: String(permissionRowsCodec.parse(draft.permissions ?? "").length || 0) },
-      { label: "Referenced by templates", value: String(countValueLines(draft.referencedByTemplates)) },
-      { label: "Referenced by wikis", value: String(countValueLines(draft.referencedByWikis)) },
-      { label: "Routing roles", value: String(countValueLines(draft.routingRoles)) },
+      { label: "Permission roles", value: String(draft.permissions.length || 0) },
+      { label: "Referenced by templates", value: String(draft.referencedByTemplates.length) },
+      { label: "Referenced by wikis", value: String(draft.referencedByWikis.length) },
+      { label: "Routing roles", value: String(draft.referencedByWikis.length) },
       // { label: "Tiddlers", value: formatFieldValue(draft.tiddlerCount) },
       // { label: "Last activity", value: formatFieldValue(draft.lastActivityAt) },
     ];
@@ -920,7 +788,7 @@ function getSidebarFacts(tabId: TabId, draft: unknown): Array<{ label: string; v
     return [
       { label: "Version", value: formatFieldValue(draft.version) },
       { label: "Status", value: formatFieldValue(draft.status) },
-      { label: "Used by wikis", value: String(countValueLines(draft.usedByWikis)) },
+      { label: "Used by wikis", value: String(draft.usedByWikis.length) },
       { label: "Usage count", value: formatFieldValue(draft.usageCount) },
       { label: "Draft of", value: formatFieldValue(draft.draftOf) },
       { label: "Updated", value: formatFieldValue(draft.updatedAt) },
@@ -940,7 +808,7 @@ function getSidebarFacts(tabId: TabId, draft: unknown): Array<{ label: string; v
     return [
       { label: "Username", value: formatFieldValue(draft.username) },
       { label: "Email", value: formatFieldValue(draft.email) },
-      { label: "Assigned roles", value: String(countValueLines(draft.roleIds)) },
+      { label: "Assigned roles", value: String(draft.userRoles.length) },
     ];
   }
 
@@ -948,12 +816,13 @@ function getSidebarFacts(tabId: TabId, draft: unknown): Array<{ label: string; v
 
 }
 
-function renderSearchableInput(ctx: FieldEditorContext, { id, currentValue, placeholder, options, onInput }: {
+function renderSearchableInput({ id, currentValue, placeholder, options, onInput, disabled }: {
   id: string;
   currentValue: string;
   placeholder: string;
   options: string[];
   onInput: (nextValue: string) => void;
+  disabled: boolean | undefined;
 }) {
   const datalistId = `${id}-options`;
   return (
@@ -963,7 +832,7 @@ function renderSearchableInput(ctx: FieldEditorContext, { id, currentValue, plac
         class="field-input"
         type="text"
         value={currentValue}
-        disabled={ctx.disabled}
+        disabled={disabled}
         ref={(element) => {
           if (element.value !== currentValue) element.value = currentValue;
         }}
@@ -1009,26 +878,19 @@ function renderSelectField(ctx: FieldEditorContext) {
   );
 }
 
-function renderReferenceField(ctx: ReadonlyFieldContext) {
-  definitely<string>(ctx.value);
+function renderReferenceField(ctx: ReadonlyFieldContext<string | undefined>) {
   return <div class="pill-value">{formatFieldValue(ctx.value)}</div>;
 }
 
-function renderValueListField(ctx: ReadonlyFieldContext) {
-  definitely<string>(ctx.value);
-  const lines = lineListCodec.parse(ctx.value);
-  return <ul class="value-list">{lines.map((line) => <li>{line}</li>)}</ul>;
-}
 
-function renderActivityFeedField(ctx: ReadonlyFieldContext) {
-  definitely<string>(ctx.value);
-  const lines = lineListCodec.parse(ctx.value);
+
+function renderActivityFeedField(ctx: ReadonlyFieldContext<readonly string[]>) {
+  const lines = ctx.value;
   return <ul class="timeline-list">{lines.map((line) => <li>{line}</li>)}</ul>;
 }
 
-function renderMetadataTableField(ctx: ReadonlyFieldContext) {
-  definitely<string>(ctx.value);
-  const lines = lineListCodec.parse(ctx.value);
+function renderMetadataTableField(ctx: ReadonlyFieldContext<readonly string[]>) {
+  const lines = ctx.value;
   return <dl class="meta-list">{lines.map((line) => {
     const [key, ...rest] = line.split(":");
     return <><dt>{key}</dt><dd>{rest.join(":").trim()}</dd></>;
@@ -1037,8 +899,8 @@ function renderMetadataTableField(ctx: ReadonlyFieldContext) {
 
 function renderTableField(ctx: ReadonlyFieldContext) {
   const { field, value, itemsByTab } = ctx;
-  definitely<string>(value);
-  const lines = lineListCodec.parse(value);
+  definitely<readonly string[]>(value);
+  const lines = value;
   const missingDependencyLines = getMissingDependencyLines(field, value, itemsByTab);
   if (missingDependencyLines) {
     if (missingDependencyLines.every((line) => /^\d+\./.test(line.value))) {
@@ -1085,51 +947,43 @@ function renderPreField(ctx: ReadonlyFieldContext) {
   );
 }
 
-abstract class BaseFieldTypeHandler {
-  protected constructor(public readonly fieldTypes: readonly FieldType[]) { }
+abstract class FieldTypeHandler<T = unknown> {
 
-  public renderEditor(ctx: FieldEditorContext) {
+  public abstract initCreate(): T;
+
+  public renderEditor(ctx: FieldEditorContext<any>): JSX.Node {
     return renderTextareaField(ctx, 5);
   }
 
-  public renderSidebar(ctx: ReadonlyFieldContext) {
-    return renderPreField(ctx);
-  }
-}
-
-abstract class FieldTypeHandler<T> extends BaseFieldTypeHandler {
-
-  public abstract parse(item: string): T;
-
-  public abstract stringify(item: T): string;
-
-  public renderEditor(ctx: FieldEditorContext) {
-    return renderTextareaField(ctx, 5);
-  }
-
-  public renderSidebar(ctx: ReadonlyFieldContext) {
-    return renderPreField(ctx);
+  public renderSidebar(ctx: ReadonlyFieldContext): JSX.Node {
+    if (typeof ctx.value !== "string") console.log(ctx);
+    return (
+      <div class="field-value">
+        <pre>{formatFieldValue(ctx.value)}</pre>
+      </div>
+    );
   }
 }
 
 abstract class StringFieldTypeHandler extends FieldTypeHandler<string> {
 
+  public initCreate(): string {
+    return "";
+  }
+
   public parse(item: string): string { return item; }
 
   public stringify(item: string): string { return item; }
 
-  public renderEditor(ctx: FieldEditorContext) {
+  public renderEditor(ctx: FieldEditorContext<any>) {
     return renderTextareaField(ctx, 5);
   }
 
-  public renderSidebar(ctx: ReadonlyFieldContext) {
-    return renderPreField(ctx);
-  }
 }
 
 class TextInputFieldHandler extends StringFieldTypeHandler {
-  constructor(fieldTypes: readonly FieldType[], private readonly inputType: "text" | "number") {
-    super(fieldTypes);
+  constructor(private readonly inputType: "text" | "number") {
+    super();
   }
 
   public override renderEditor(ctx: FieldEditorContext) {
@@ -1138,8 +992,8 @@ class TextInputFieldHandler extends StringFieldTypeHandler {
 }
 
 class TextareaFieldHandler extends StringFieldTypeHandler {
-  constructor(fieldTypes: readonly FieldType[], private readonly rows: number, private readonly extraClass = "") {
-    super(fieldTypes);
+  constructor(private readonly rows: number, private readonly extraClass = "") {
+    super();
   }
 
   public override renderEditor(ctx: FieldEditorContext) {
@@ -1149,7 +1003,11 @@ class TextareaFieldHandler extends StringFieldTypeHandler {
 
 class SearchMultiselectFieldHandler extends FieldTypeHandler<string[]> {
   constructor() {
-    super(["search-multiselect"]);
+    super();
+  }
+
+  public initCreate(): string[] {
+    return [];
   }
 
   public parse(value: string) {
@@ -1160,42 +1018,49 @@ class SearchMultiselectFieldHandler extends FieldTypeHandler<string[]> {
     return lineListCodec.stringify(lines);
   }
 
-  public override renderEditor(ctx: FieldEditorContext) {
+  public override renderSidebar(ctx: ReadonlyFieldContext<readonly string[]>): JSX.Node {
+    return <ul>
+      {ctx.value.map(e => <li>{e}</li>)}
+    </ul>
+  }
+
+  public override renderEditor(ctx: FieldEditorContext<readonly string[]>) {
     const { field, value, disabled, modalState, itemsByTab, inputId, onDraftChange, onPendingRowsChange } = ctx;
-    definitely<string>(value);
-    const editableLines = lineListCodec.parse(value);
+    if (typeof value === "string") {
+      console.log(ctx);
+      throw new Error("value is a string");
+    }
+    const editableLines = value;
     const pendingRowCount = modalState.pendingRows[field.key] ?? 0;
     const lookupOptions = getLookupOptions(field.key, itemsByTab);
     const itemLabel = field.key === "plugins"
       ? "plugin"
-      : field.key === "roleIds"
+      : field.key === "userRoles"
         ? "role id"
         : "bag";
     const templateRecord = is<WikiAdminRecord>(modalState.draft, modalState.tabId === "wikis")
-      ? findTemplateRecordForWikiRecord(modalState.draft, itemsByTab) : undefined;
-    const templateReadonlyBagLines = field.key === "readonlyBags" && templateRecord
-      ? lineListCodec.parse(templateRecord.readonlyBags ?? "") : [];
-    const templatePluginLines = field.key === "plugins" && templateRecord
-      ? lineListCodec.parse(templateRecord.plugins ?? "") : [];
-    const templateCorePluginsEnabled = templateRecord?.requiredPluginsEnabled !== "disabled";
+      ? findTemplateRecordForWikiRecord(modalState.draft, itemsByTab as AdminRecordStore) : undefined;
+    const templateReadonlyBagLines = field.key === "readonlyBags" && templateRecord ? templateRecord.readonlyBags : [];
+    const templatePluginLines = field.key === "plugins" && templateRecord ? templateRecord.plugins : [];
+    const templateCorePluginsEnabled = Boolean(templateRecord?.requiredPluginsEnabled);
 
     const updateLineValueAt = (index: number, nextValue: string) => {
-      const lines = lineListCodec.parse(value);
+      const lines = value.slice();
       const hadStoredRow = index < lines.length;
       while (lines.length <= index) lines.push("");
       lines[index] = nextValue;
-      onDraftChange(field.key, lineListCodec.stringify(lines));
+      onDraftChange(field.key, lines);
       if (!hadStoredRow && nextValue.trim()) onPendingRowsChange(field.key, (count) => count - 1);
     };
 
     const removeLineValueAt = (index: number) => {
-      const lines = lineListCodec.parse(value);
+      const lines = value.slice();
       if (index >= lines.length) {
         onPendingRowsChange(field.key, (count) => count - 1);
         return;
       }
       lines.splice(index, 1);
-      onDraftChange(field.key, lineListCodec.stringify(lines));
+      onDraftChange(field.key, lines);
     };
 
     const displayedLines = editableLines.length
@@ -1205,12 +1070,13 @@ class SearchMultiselectFieldHandler extends FieldTypeHandler<string[]> {
       <div class="row-editor-stack">
         {displayedLines.map((line, index) => (
           <div class="row-editor-row">
-            {renderSearchableInput(ctx, {
+            {renderSearchableInput({
               id: `${inputId}-${index}`,
               currentValue: line,
               placeholder: `${itemLabel.charAt(0).toUpperCase()}${itemLabel.slice(1)} name`,
               options: lookupOptions,
               onInput: (nextValue) => updateLineValueAt(index, nextValue),
+              disabled: ctx.disabled
             })}
             <button type="button" class="row-action-button" disabled={disabled} onclick={() => removeLineValueAt(index)}>Remove</button>
           </div>
@@ -1238,23 +1104,19 @@ class SearchMultiselectFieldHandler extends FieldTypeHandler<string[]> {
   }
 }
 
-class PermissionTableFieldHandler extends FieldTypeHandler<PermissionRow[]> {
+class PermissionTableFieldHandler extends FieldTypeHandler<readonly PermissionRow[]> {
   constructor() {
-    super(["permission-table"]);
+    super();
   }
 
-  public parse(value: string) {
-    return permissionRowsCodec.parse(value);
+  public initCreate(): PermissionRow<string>[] {
+    return [];
   }
 
-  public stringify(rows: PermissionRow[]) {
-    return permissionRowsCodec.stringify(rows);
-  }
-
-  public override renderEditor(ctx: FieldEditorContext) {
-    const { field, value, disabled, modalState, itemsByTab, inputId, onDraftChange, onTransientPermissionRowsChange } = ctx;
-    definitely<string>(value);
-    const permissionRows = permissionRowsCodec.parse(value);
+  public override renderEditor(ctx: FieldEditorContext<readonly PermissionRow[]>) {
+    const { field, disabled, modalState, itemsByTab, inputId, onDraftChange, onTransientPermissionRowsChange } = ctx;
+    definitely<readonly PermissionRow[]>(ctx.value);
+    const permissionRows = ctx.value;
     const lookupOptions = getLookupOptions(field.key, itemsByTab);
     const availableLevels = getPermissionLevelsForField(field.key);
     const transientPermissionRows = modalState.transientPermissionRows[field.key] ?? [];
@@ -1273,11 +1135,12 @@ class PermissionTableFieldHandler extends FieldTypeHandler<PermissionRow[]> {
       <div class="row-editor-stack">
         {displayedPermissionRows.map((row, index) => (
           <div key={`${field.key}-permission-${index}`} class="row-editor-row row-editor-row-wide row-editor-row-permission">
-            {renderSearchableInput(ctx, {
+            {renderSearchableInput({
               id: `${inputId}-${index}-role`,
               currentValue: row.role,
               placeholder: "Role",
               options: lookupOptions,
+              disabled: ctx.disabled,
               onInput: (nextValue) => {
                 const nextRows = [...displayedPermissionRows];
                 nextRows[index] = { ...row, role: nextValue };
@@ -1307,26 +1170,18 @@ class PermissionTableFieldHandler extends FieldTypeHandler<PermissionRow[]> {
 
 class PrefixTableFieldHandler extends FieldTypeHandler<MappingRow[]> {
   constructor() {
-    super(["prefix-table"]);
+    super();
   }
 
-  public parse(value: string) {
-    return editableMappingRowsCodec.parse(value);
-  }
-
-  public stringify(rows: MappingRow[]) {
-    return editableMappingRowsCodec.stringify(rows);
-  }
-
-  public normalize(value: string) {
-    return editableMappingRowsCodec.normalize(value);
+  public initCreate(): MappingRow[] {
+    return [];
   }
 
   public override renderEditor(ctx: FieldEditorContext) {
     const { field, value, disabled, modalState, itemsByTab, inputId, onDraftChange, onPendingRowsChange } = ctx;
     const forDisplay = field.mode === "server";
-    definitely<string>(value);
-    const mappingRows = editableMappingRowsCodec.parse(value);
+    definitely<MappingRow[]>(value);
+    const mappingRows = value;
     const pendingRowCount = modalState.pendingRows[field.key] ?? 0;
     const lookupOptions = getLookupOptions(field.key, itemsByTab);
     const displayedMappingRows = mappingRows.length
@@ -1334,18 +1189,10 @@ class PrefixTableFieldHandler extends FieldTypeHandler<MappingRow[]> {
       : [{ left: "", right: "" }, ...Array.from({ length: pendingRowCount }, () => ({ left: "", right: "" }))];
     const templateRecord = is<WikiAdminRecord>(modalState.draft, modalState.tabId === "wikis")
       ? findTemplateRecordForWikiRecord(modalState.draft, itemsByTab) : undefined;
-    const inheritedRoutingRows = modalState.tabId === "wikis" && templateRecord
-      ? mappingRowsCodec.parse(templateRecord.writablePrefixBags ?? "")
-      : [];
+    const inheritedRoutingRows = modalState.tabId === "wikis" && templateRecord ? templateRecord.writablePrefixBags : [];
 
     if (forDisplay) {
-      return <ul class="value-list">
-        {displayedMappingRows.map((row) => (
-          <li>
-            {row.left ? row.left : <span class="pill-value pill-value-small">default</span>} {"->"} {row.right}
-          </li>
-        ))}
-      </ul>
+      return this.displayMappingRows(displayedMappingRows)
     }
     return (
       <div class="row-editor-stack">
@@ -1357,31 +1204,36 @@ class PrefixTableFieldHandler extends FieldTypeHandler<MappingRow[]> {
                 value={row.left}
                 placeholder="Prefix, leave blank for default"
                 aria-invalid={this.hasTrimMismatch(row.left) ? "true" : undefined}
-                title={this.hasTrimMismatch(row.left) ? "Prefix cannot start or end with whitespace." : undefined}
+                title={this.hasTrimMismatch(row.left) ? "Prefix has leading or trailing whitespace. Is this intentional?" : undefined}
                 disabled={disabled}
                 oninput={(event) => {
                   const element = event.currentTarget as HTMLInputElement;
                   const hadStoredRow = index < mappingRows.length;
                   const nextRows = mappingRows.length ? [...mappingRows] : [{ left: "", right: "" }];
                   nextRows[index] = { ...row, left: element.value };
-                  onDraftChange(field.key, editableMappingRowsCodec.stringify(nextRows));
-                  if (!hadStoredRow && (element.value.trim() || row.right.trim())) onPendingRowsChange(field.key, (count) => count - 1);
+                  onDraftChange(field.key, nextRows);
+                  if (!hadStoredRow && (element.value || row.right.trim())) onPendingRowsChange(field.key, (count) => count - 1);
                 }} ref={(element) => {
                   if (element.value !== row.left) element.value = row.left;
                 }} />
-              {this.hasTrimMismatch(row.left) ? <span class="prefix-input-alert missing-marker" aria-label="Prefix has leading or trailing whitespace" title="Prefix cannot start or end with whitespace."><MaterialSymbol icon={warningIcon} /></span> : null}
+              {this.hasTrimMismatch(row.left) ? <span
+                class="prefix-input-alert missing-marker"
+                aria-label="Prefix has leading or trailing whitespace"
+                title="Prefix has leading or trailing whitespace. Is this intentional?"
+              ><MaterialSymbol icon={warningIcon} /></span> : null}
             </div>
-            {renderSearchableInput(ctx, {
+            {renderSearchableInput({
               id: `${inputId}-${index}-target`,
               currentValue: row.right,
               placeholder: "Target bag",
               options: lookupOptions,
+              disabled: ctx.disabled,
               onInput: (nextValue) => {
                 const hadStoredRow = index < mappingRows.length;
                 const nextRows = mappingRows.length ? [...mappingRows] : [{ left: "", right: "" }];
                 nextRows[index] = { ...row, right: nextValue };
-                onDraftChange(field.key, editableMappingRowsCodec.stringify(nextRows));
-                if (!hadStoredRow && (row.left.trim() || nextValue.trim())) onPendingRowsChange(field.key, (count) => count - 1);
+                onDraftChange(field.key, nextRows);
+                if (!hadStoredRow && (row.left || nextValue.trim())) onPendingRowsChange(field.key, (count) => count - 1);
               },
             })}
             {<button type="button" class="row-action-button" disabled={disabled} onclick={() => {
@@ -1391,7 +1243,7 @@ class PrefixTableFieldHandler extends FieldTypeHandler<MappingRow[]> {
               }
               const nextRows = mappingRows.length ? [...mappingRows] : [];
               nextRows.splice(index, 1);
-              onDraftChange(field.key, editableMappingRowsCodec.stringify(nextRows));
+              onDraftChange(field.key, nextRows);
             }}>Remove</button>}
           </div>
         ))}
@@ -1399,18 +1251,23 @@ class PrefixTableFieldHandler extends FieldTypeHandler<MappingRow[]> {
         {inheritedRoutingRows.length ? (
           <div class="field-callout">
             <p>Writable bags inherited from template:</p>
-            <ul class="value-list">
-              {inheritedRoutingRows.map((row) => (
-                <li>
-                  {row.left ? row.left : <span class="pill-value pill-value-small">default</span>} {"->"} {row.right}
-                </li>
-              ))}
-            </ul>
+            {this.displayMappingRows(buildEffectivePrefixObject([mappingRows, inheritedRoutingRows]))}
           </div>
         ) : null}
       </div>
     );
   }
+  private displayMappingRows(displayedMappingRows: readonly MappingRow[]) {
+    return <table class="value-table">
+      {displayedMappingRows.map((row) => (
+        <tr>
+          <td>{row.left ? <code>{'"' + row.left + '"'}</code> : <span class="pill-value pill-value-small">default</span>}</td>
+          <td>{row.right}</td>
+        </tr>
+      ))}
+    </table>;
+  }
+
   private hasTrimMismatch(value: string): boolean {
     return value.trim() !== value;
   }
@@ -1418,7 +1275,7 @@ class PrefixTableFieldHandler extends FieldTypeHandler<MappingRow[]> {
 
 class SelectFieldHandler extends StringFieldTypeHandler {
   constructor() {
-    super(["select"]);
+    super();
   }
 
   public override renderEditor(ctx: FieldEditorContext) {
@@ -1426,23 +1283,43 @@ class SelectFieldHandler extends StringFieldTypeHandler {
   }
 }
 
-class AutocompleteFieldHandler extends StringFieldTypeHandler {
+class AutocompleteFieldHandler extends FieldTypeHandler<Reference | null> {
   constructor() {
-    super(["search"]);
+    super();
   }
 
-  public override renderEditor(ctx: FieldEditorContext) {
+  public initCreate(): Reference | null {
+    return null;
+  }
+
+  renderSidebar(ctx: ReadonlyFieldContext<Reference | null>) {
+    return ctx.value?.name ?? "";
+  }
+
+  public override renderEditor(ctx: FieldEditorContext<Reference | null>) {
     const { field, value, disabled, itemsByTab, inputId, onDraftChange } = ctx;
-    definitely<string>(value);
     const datalistId = `${inputId}-options`;
-    const options = getAutocompleteOptions(field, itemsByTab);
+    const optionMap = new Map(itemsByTab.templates.map(e => [e.name, e.id]))
+    const oninput = (event: InputEvent & {
+      currentTarget: HTMLInputElement;
+      target: Element;
+    }) => {
+      const name = event.currentTarget.value;
+      const id = optionMap.get(name);
+      if (!id) return event.preventDefault();
+      onDraftChange(field.key, { id, name });
+    }
     return (
       <>
-        <input id={inputId} class="field-input" type="text" value={value} disabled={disabled} ref={(element) => {
-          if (element.value !== value) element.value = value;
-        }} list={datalistId} oninput={(event) => onDraftChange(field.key, (event.currentTarget as HTMLInputElement).value)} />
+        <input id={inputId} class="field-input" type="text" value={value?.name} disabled={disabled}
+          ref={(element) => {
+            if (value && element.value !== value.name) element.value = value.name;
+          }}
+          list={datalistId}
+          oninput={oninput}
+        />
         <datalist id={datalistId}>
-          {options.map((option) => <option value={option} />)}
+          {Array.from(optionMap.keys(), (option) => <option value={option} />)}
         </datalist>
       </>
     );
@@ -1451,12 +1328,27 @@ class AutocompleteFieldHandler extends StringFieldTypeHandler {
 
 class ResolverPreviewFieldHandler extends StringFieldTypeHandler {
   constructor() {
-    super(["resolver-preview"]);
+    super();
   }
+
+  private computeResolverPreview(draft: WikiAdminRecord, title: string) {
+    const normalizedTitle = title.trim();
+    const targets = draft.effectiveWritableBags.filter((row) => row.right).sort((a, b) => b.left.length - a.left.length);
+    const writeTarget = normalizedTitle
+      ? (targets.find((target) => target.left && normalizedTitle.startsWith(target.left)) ?? targets.find((target) => target.left === ""))
+      : undefined;
+    return {
+      title: normalizedTitle,
+      writeTo: writeTarget?.right ?? "No writable target",
+      matchedPrefix: writeTarget ? (writeTarget.left || "default") : "none",
+    };
+  }
+
 
   public override renderEditor(ctx: FieldEditorContext) {
     const { modalState, inputId, onResolverTitleChange } = ctx;
-    const preview = computeResolverPreview(modalState.draft, modalState.resolverTitle);
+    definitely<WikiAdminRecord>(modalState.draft);
+    const preview = this.computeResolverPreview(modalState.draft, modalState.resolverTitle);
     return (
       <div class="tool-panel resolver-tool">
         <label class="field-label" for={inputId}>Title to test</label>
@@ -1481,23 +1373,13 @@ class ResolverPreviewFieldHandler extends StringFieldTypeHandler {
   }
 }
 
-class ReferenceFieldHandler extends StringFieldTypeHandler {
-  constructor() {
-    super(["reference"]);
-  }
-
-  public override renderSidebar(ctx: ReadonlyFieldContext) {
-    return renderReferenceField(ctx);
-  }
-
-  public override renderEditor(ctx: FieldEditorContext) {
-    return renderReferenceField(ctx);
-  }
-}
-
 class ValueListFieldHandler extends FieldTypeHandler<string[]> {
-  constructor(fieldTypes: readonly FieldType[]) {
-    super(fieldTypes);
+  constructor() {
+    super();
+  }
+
+  public initCreate(): string[] {
+    return [];
   }
 
   public parse(value: string) {
@@ -1509,17 +1391,25 @@ class ValueListFieldHandler extends FieldTypeHandler<string[]> {
   }
 
   public override renderSidebar(ctx: ReadonlyFieldContext) {
-    return renderValueListField(ctx);
+    // TODO: string should probably be a separate class 
+    const lines = typeof ctx.value === "string"
+      ? lineListCodec.parse(ctx.value)
+      : ctx.value as readonly string[];
+    return <ul class="value-list">{lines.map((line) => <li>{line}</li>)}</ul>;
   }
 
   public override renderEditor(ctx: FieldEditorContext) {
-    return renderValueListField(ctx);
+    return this.renderSidebar(ctx);
   }
 }
 
-class ActivityFeedFieldHandler extends FieldTypeHandler<string[]> {
+class ActivityFeedFieldHandler extends FieldTypeHandler<readonly string[]> {
   constructor() {
-    super(["activity-feed"]);
+    super();
+  }
+
+  public initCreate(): string[] {
+    return [];
   }
 
   public parse(value: string) {
@@ -1530,18 +1420,22 @@ class ActivityFeedFieldHandler extends FieldTypeHandler<string[]> {
     return lineListCodec.stringify(lines);
   }
 
-  public override renderSidebar(ctx: ReadonlyFieldContext) {
+  public override renderSidebar(ctx: ReadonlyFieldContext<readonly string[]>) {
     return renderActivityFeedField(ctx);
   }
 
-  public override renderEditor(ctx: FieldEditorContext) {
+  public override renderEditor(ctx: FieldEditorContext<readonly string[]>) {
     return renderActivityFeedField(ctx);
   }
 }
 
-class MetadataTableFieldHandler extends FieldTypeHandler<string[]> {
+class MetadataTableFieldHandler extends FieldTypeHandler<readonly string[]> {
   constructor() {
-    super(["metadata-table"]);
+    super();
+  }
+
+  public initCreate(): string[] {
+    return [];
   }
 
   public parse(value: string) {
@@ -1552,18 +1446,22 @@ class MetadataTableFieldHandler extends FieldTypeHandler<string[]> {
     return lineListCodec.stringify(lines);
   }
 
-  public override renderSidebar(ctx: ReadonlyFieldContext) {
+  public override renderSidebar(ctx: ReadonlyFieldContext<readonly string[]>) {
     return renderMetadataTableField(ctx);
   }
 
-  public override renderEditor(ctx: FieldEditorContext) {
+  public override renderEditor(ctx: FieldEditorContext<readonly string[]>) {
     return renderMetadataTableField(ctx);
   }
 }
 
 class TableFieldHandler extends FieldTypeHandler<string[]> {
   constructor() {
-    super(["table"]);
+    super();
+  }
+
+  public initCreate(): string[] {
+    return [];
   }
 
   public parse(value: string) {
@@ -1583,9 +1481,13 @@ class TableFieldHandler extends FieldTypeHandler<string[]> {
   }
 }
 
-class CalloutFieldHandler extends BaseFieldTypeHandler {
-  constructor(fieldTypes: readonly FieldType[]) {
-    super(fieldTypes);
+class CalloutFieldHandler extends FieldTypeHandler {
+  constructor() {
+    super();
+  }
+
+  public initCreate(): unknown {
+    return "";
   }
 
   public override renderSidebar(ctx: ReadonlyFieldContext) {
@@ -1599,46 +1501,53 @@ class CalloutFieldHandler extends BaseFieldTypeHandler {
 
 class FallbackFieldHandler extends StringFieldTypeHandler {
   constructor() {
-    super([]);
+    super();
   }
 }
 
-const fieldTypeHandlers: BaseFieldTypeHandler[] = [
-  new TextInputFieldHandler(["string", "version"], "text"),
-  new TextInputFieldHandler(["number"], "number"),
-  new TextareaFieldHandler(["text"], 4),
-  new SearchMultiselectFieldHandler(),
-  new PermissionTableFieldHandler(),
-  new PrefixTableFieldHandler(),
-  new SelectFieldHandler(),
-  new AutocompleteFieldHandler(),
-  new ResolverPreviewFieldHandler(),
-  new ReferenceFieldHandler(),
-  new ValueListFieldHandler(["parameter-list", "relationship-table", "summary-list"]),
-  new ActivityFeedFieldHandler(),
-  new MetadataTableFieldHandler(),
-  new TableFieldHandler(),
-  new CalloutFieldHandler(["structured-preview", "validation-report"]),
-];
+const textInputFieldHandler = new TextInputFieldHandler("text");
+const numberInputFieldHandler = new TextInputFieldHandler("number");
+const textareaFieldHandler = new TextareaFieldHandler(4);
+const searchMultiselectFieldHandler = new SearchMultiselectFieldHandler();
+const permissionTableFieldHandler = new PermissionTableFieldHandler();
+const prefixTableFieldHandler = new PrefixTableFieldHandler();
+const selectFieldHandler = new SelectFieldHandler();
+const autocompleteFieldHandler = new AutocompleteFieldHandler();
+const resolverPreviewFieldHandler = new ResolverPreviewFieldHandler();
+const valueListFieldHandler = new ValueListFieldHandler();
+const activityFeedFieldHandler = new ActivityFeedFieldHandler();
+const metadataTableFieldHandler = new MetadataTableFieldHandler();
+const tableFieldHandler = new TableFieldHandler();
+const calloutFieldHandler = new CalloutFieldHandler();
+
+const fieldTypeHandlers = {
+  "string": textInputFieldHandler,
+  "version": textInputFieldHandler,
+  "number": numberInputFieldHandler,
+  "text": textareaFieldHandler,
+  "search-multiselect": searchMultiselectFieldHandler,
+  "permission-table": permissionTableFieldHandler,
+  "prefix-table": prefixTableFieldHandler,
+  "select": selectFieldHandler,
+  "search": autocompleteFieldHandler,
+  "resolver-preview": resolverPreviewFieldHandler,
+  "parameter-list": valueListFieldHandler,
+  "relationship-table": valueListFieldHandler,
+  "summary-list": valueListFieldHandler,
+  "activity-feed": activityFeedFieldHandler,
+  "metadata-table": metadataTableFieldHandler,
+  "table": tableFieldHandler,
+  "structured-preview": calloutFieldHandler,
+  "validation-report": calloutFieldHandler,
+} satisfies Record<FieldType, FieldTypeHandler>;
 
 const fallbackFieldHandler = new FallbackFieldHandler();
 
-const fieldHandlerByType = new Map<FieldType, BaseFieldTypeHandler>(
-  fieldTypeHandlers.flatMap((handler) => handler.fieldTypes.map((fieldType) => [fieldType, handler] as const)),
-);
-
-function getFieldHandler(fieldType: FieldType): BaseFieldTypeHandler {
-  return fieldHandlerByType.get(fieldType) ?? fallbackFieldHandler;
+function getFieldHandler(fieldType: FieldType): FieldTypeHandler {
+  return fieldTypeHandlers[fieldType] ?? fallbackFieldHandler;
 }
 
-/**
-* Dispatches readonly field types to their renderers. Used both by the
-* ReadonlyFieldElement custom element and (for the duplicated types) by
-* renderFieldEditor.
-*/
-function renderFieldSidebar(ctx: ReadonlyFieldContext) {
-  return getFieldHandler(ctx.field.type).renderSidebar(ctx);
-}
+
 
 function renderFieldEditor(input: FieldEditorInput) {
   const ctx: FieldEditorContext = { ...input, inputId: `field-${input.field.key}` };
@@ -1652,7 +1561,7 @@ class FieldBlockElement extends JSXElement {
   @state() accessor props!: FieldBlockProps;
 
   protected render() {
-    const { field, modalMode, useCardTitle, value, modalState } = this.props;
+    const { field, modalMode, useCardTitle, value, saved: savedValue, modalState } = this.props;
     const editable = isEditable(field, modalMode);
     const disabled = Boolean(this.props.disabled) || !editable;
     const useToggleEditor = editable && field.key === "requiredPluginsEnabled";
@@ -1674,6 +1583,7 @@ class FieldBlockElement extends JSXElement {
             {renderFieldEditor({
               field,
               value,
+              saved: savedValue,
               disabled,
               modalState,
               itemsByTab: this.props.itemsByTab,
@@ -1690,10 +1600,22 @@ class FieldBlockElement extends JSXElement {
   }
 }
 
-function sidebarField(field: FieldDefinition, draft: AdminRecord, itemsByTab?: ItemsByTab) {
+function getAdminRecordValue(field: FieldDefinition | ColumnDefinition, draft: AdminRecord) {
+  if (!(field.key in draft)) throw new Error("The field " + field.key + " is not defined in the draft record");
+  return (draft as any)[field.key];
+}
+function setAdminRecordValue(field: FieldDefinition | ColumnDefinition, draft: AdminRecord, value: unknown, init: boolean) {
+  if (!init && !(field.key in draft)) throw new Error("The field " + field.key + " is not defined in the draft record");
+  (draft as any)[field.key] = value;
+}
+
+function sidebarField(field: FieldDefinition, draft: AdminRecord, saved: AdminRecord, itemsByTab?: AdminRecordStore) {
+  const value = getAdminRecordValue(field, draft);
   return sidebarSection({
     title: field.label,
-    content: renderFieldSidebar({ field, value: draft[field.key] ?? "", itemsByTab })
+    content: getFieldHandler(field.type).renderSidebar({
+      field, value, saved: saved, itemsByTab
+    })
   })
 }
 function sidebarSection({ title, content }: SidebarSectionProps) {
@@ -1769,17 +1691,7 @@ class RecordModalElement extends JSXElement {
     const authoredFields = !isModalLoading ? getSectionFields(selectedTab, "authored") : [];
     const runtimeFields = !isModalLoading ? getSectionFields(selectedTab, "runtime") : [];
     const operationFields = !isModalLoading ? getSectionFields(selectedTab, "operations") : [];
-    const sidebarFacts = !isModalLoading ? getSidebarFacts(modalState.tabId, modalState.draft) : [];
-    const effectiveBagField = selectedTab.id === "wikis" ? selectedTab.fields.find((field) => field.key === "effectiveReadonlyBags") ?? null : null;
-    const effectivePluginField = selectedTab.id === "wikis" ? selectedTab.fields.find((field) => field.key === "effectivePluginSet") ?? null : null;
-    const baseNameFact = selectedTab.id === "templates" ? selectedTab.fields.find((field) => field.key === "name") ?? null : null;
-    const descriptionFact = selectedTab.id === "templates" ? selectedTab.fields.find((field) => field.key === "description") ?? null : null;
-    const dependentWikisFact = selectedTab.id === "templates" ? selectedTab.fields.find((field) => field.key === "dependentWikis") ?? null : null;
-    // const genericSummaryFields = selectedTab.id !== "wikis" && selectedTab.id !== "templates"
-    //   ? getSummaryColumns(selectedTab)
-    //     .map((column) => selectedTab.fields.find((field) => field.key === column.key) ?? null)
-    //     .filter((field): field is FieldDefinition => Boolean(field))
-    //   : [];
+    const sidebarFields = !isModalLoading ? getSidebarFields(selectedTab) : [];
 
     return (
       <div class="modal-shell" onclick={(event) => {
@@ -1803,49 +1715,7 @@ class RecordModalElement extends JSXElement {
           ) : (
             <div class="modal-layout">
               <aside class="field-index modal-sidebar">
-                {selectedTab.id === "wikis" ? (
-                  <>
-                    {sidebarSection({
-                      title: "Wiki status",
-                      content: (
-                        <dl class="summary-listing">
-                          {sidebarFacts.map((fact) => (
-                            <>
-                              <dt>{fact.label}</dt>
-                              <dd>{fact.value}</dd>
-                            </>
-                          ))}
-                        </dl>
-                      )
-                    })}
-
-                    {effectiveBagField ? sidebarField(effectiveBagField, modalState.draft, itemsByTab) : null}
-
-                    {effectivePluginField ? sidebarField(effectivePluginField, modalState.draft, itemsByTab) : null}
-                  </>
-                ) : (
-                  selectedTab.id === "templates" ? (
-                    <>
-                      {baseNameFact ? sidebarField(baseNameFact, modalState.draft, itemsByTab) : null}
-
-                      {descriptionFact ? sidebarField(descriptionFact, modalState.draft, itemsByTab) : null}
-
-                      {dependentWikisFact ? sidebarField(dependentWikisFact, modalState.draft, itemsByTab) : null}
-                    </>
-                  ) : (
-                    <>
-                      <dl class="summary-listing">
-                        {sidebarFacts.map((fact) => (
-                          <>
-                            <dt>{fact.label}</dt>
-                            <dd>{fact.value}</dd>
-                          </>
-                        ))}
-                      </dl>
-
-                    </>
-                  )
-                )}
+                {sidebarFields.map(field => sidebarField(field, modalState.draft, modalState.saved, itemsByTab))}
               </aside>
 
               <div class="field-stack modal-main">
@@ -1875,7 +1745,7 @@ class RecordModalElement extends JSXElement {
                           const headerField = group.headerFieldKey
                             ? fields.find((field) => field.key === group.headerFieldKey)
                             : undefined;
-                          const groupDisabled = Boolean(group.disabledWhenHeaderOff && headerField && (modalState.draft[headerField.key] ?? "disabled") !== "enabled");
+                          const groupDisabled = Boolean(group.disabledWhenHeaderOff && headerField && (getAdminRecordValue(headerField, modalState.draft) ?? "disabled") !== "enabled");
                           const headerDescription = group.description ?? (!group.footerDescriptionFromHeader ? headerField?.description : undefined) ?? getSectionSummary(section, selectedTab.id);
                           const footerDescription = group.footerDescriptionFromHeader ? headerField?.description : undefined;
                           if (!groupFields.length) return null;
@@ -1885,7 +1755,12 @@ class RecordModalElement extends JSXElement {
                               <header class="field-card-header">
                                 <div class="field-card-header-row">
                                   <h4>{group.title ?? (groupFields.length === 1 ? groupFields[0].label : groupFields.map((field) => field.label).join(" and "))}</h4>
-                                  {headerField ? <ToggleFieldElement field={headerField} value={modalState.draft[headerField.key] ?? ""} onDraftChange={onDraftChange} headerOnly={true} /> : null}
+                                  {headerField ? <ToggleFieldElement
+                                    field={headerField}
+                                    value={getAdminRecordValue(headerField, modalState.draft) ?? ""}
+                                    onDraftChange={onDraftChange}
+                                    headerOnly={true}
+                                  /> : null}
                                 </div>
                                 {headerDescription ? <p>{headerDescription}</p> : null}
                               </header>
@@ -1894,7 +1769,8 @@ class RecordModalElement extends JSXElement {
                                 {groupFields.map((field) => (
                                   <FieldBlockElement
                                     field={field}
-                                    value={modalState.draft[field.key] ?? ""}
+                                    value={getAdminRecordValue(field, modalState.draft)}
+                                    saved={getAdminRecordValue(field, modalState.saved)}
                                     modalState={modalState}
                                     modalMode={modalState.mode}
                                     disabled={groupDisabled}
@@ -1942,7 +1818,7 @@ export class App extends JSXElement {
 
   protected render() {
     const [activeTab, setActiveTab] = this.useState<TabId>("wikis");
-    const [itemsByTab, setItemsByTab] = this.useState<ItemsByTab>(() => getEmptyItems());
+    const [itemsByTab, setItemsByTab] = this.useState<AdminRecordStore>(() => getEmptyItems());
     const [modalState, setModalState] = this.useState<ModalState | null>(null);
     const [isLoadingData, setIsLoadingData] = this.useState<boolean>(true);
     const [isOpeningItem, setIsOpeningItem] = this.useState<boolean>(false);
@@ -1971,6 +1847,7 @@ export class App extends JSXElement {
     const activeTabItems = itemsByTab[activeTab];
     const selectedTab = modalState ? getTab(modalState.tabId) : null;
     const isModalLoading = Boolean(modalState?.loading);
+    const isListInteractionDisabled = isOpeningItem || isSaving;
 
     const openItem = async (tabId: TabId, recordId: string) => {
       const tab = getTab(tabId);
@@ -1980,6 +1857,7 @@ export class App extends JSXElement {
         tabId,
         mode: "edit",
         draft: createDraft(tab),
+        saved: createDraft(tab),
         resolverTitle: "Docs/Welcome",
         operationMessages: {},
         pendingRows: {},
@@ -2000,6 +1878,7 @@ export class App extends JSXElement {
         tabId,
         mode: "edit",
         draft: createDraft(tab, item),
+        saved: createDraft(tab, item),
         resolverTitle: "Docs/Welcome",
         operationMessages: {},
         pendingRows: {},
@@ -2015,6 +1894,7 @@ export class App extends JSXElement {
         tabId,
         mode: "create",
         draft: createDraft(tab),
+        saved: createDraft(tab),
         resolverTitle: "Docs/Welcome",
         operationMessages: {},
         pendingRows: {},
@@ -2025,7 +1905,7 @@ export class App extends JSXElement {
 
     const closeModal = () => setModalState(null);
 
-    const updateDraft = (fieldKey: string, value: string) => {
+    const updateDraft = (fieldKey: string, value: unknown) => {
       setModalState((state) => state
         ? { ...state, draft: { ...state.draft, [fieldKey]: value } }
         : state);
@@ -2174,11 +2054,35 @@ export class App extends JSXElement {
                 <p>Loading {currentTab.label.toLowerCase()}…</p>
               </div>
             ) : activeTabItems.length ? activeTabItems.map((item) => (
-              <button class="list-grid list-row" type="button" onclick={() => openItem(currentTab.id, item.id)} disabled={isOpeningItem || isSaving}>
+              <div
+                class="list-grid list-row"
+                role="button"
+                tabindex={isListInteractionDisabled ? -1 : 0}
+                aria-disabled={isListInteractionDisabled ? "true" : undefined}
+                onclick={() => {
+                  if (!isListInteractionDisabled) void openItem(currentTab.id, item.id);
+                }}
+                onkeydown={(event) => {
+                  if (isListInteractionDisabled) return;
+                  if (event.key !== "Enter" && event.key !== " ") return;
+                  event.preventDefault();
+                  void openItem(currentTab.id, item.id);
+                }}
+              >
                 {currentTab.columns.map((column) => (
-                  <div class="list-cell">{renderListCellValue(column.key, item[column.key])}</div>
+                  <div class="list-cell">
+                    {(() => {
+                      const value = getAdminRecordValue(column, item);
+                      const isFirstColumn = column.key === currentTab.columns[0]?.key;
+                      const linkUrl = isFirstColumn ? getListColumnLink(currentTab.id, column.key, item) : null;
+
+                      return typeof linkUrl === "string"
+                        ? <a class="list-cell-link" href={linkUrl} onclick={(event) => event.stopPropagation()} onkeydown={(event) => event.stopPropagation()}>{renderListCellValue(column.key, value)}</a>
+                        : renderListCellValue(column.key, value);
+                    })()}
+                  </div>
                 ))}
-              </button>
+              </div>
             )) : (
               <div class="field-callout">
                 <p>Create a {currentTab.label.toLowerCase()} to get started.</p>

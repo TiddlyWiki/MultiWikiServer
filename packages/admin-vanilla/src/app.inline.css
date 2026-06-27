@@ -190,7 +190,12 @@ textarea {
 	color: var(--color-accent-eyebrow);
 }
 
-h1, h2, h3, h4, h5, h6 {
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
 	color: var(--color-text-heading);
 }
 
@@ -370,6 +375,12 @@ h1, h2, h3, h4, h5, h6 {
 	padding: 14px 16px;
 	overflow: hidden;
 	text-overflow: ellipsis;
+}
+
+.list-cell-link {
+	color: inherit;
+	text-decoration: underline;
+	text-underline-offset: 0.18em;
 }
 
 .list-body {
@@ -1119,6 +1130,20 @@ h1, h2, h3, h4, h5, h6 {
 .value-ordered-list li:last-child {
 	padding-bottom: 0;
 	border-bottom: 0;
+}
+
+table.value-table {
+	width: 100%;
+}
+
+table.value-table tr {
+	
+}
+
+table.value-table td {
+	padding: 10px;
+	border-bottom: 1px solid var(--color-border-soft);
+
 }
 
 .meta-list {

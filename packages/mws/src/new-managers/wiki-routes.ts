@@ -11,7 +11,8 @@
 
 import { registerZodRoutes, RouterKeyMap, zodRoute, SendError, ServerRequest, truthy, checkPath } from "@tiddlywiki/server";
 import { serverEvents } from "@tiddlywiki/events";
-import { getAdminDataStore, RecipeResolver } from "./RecipeResolver";
+import { RecipeResolver, } from "./RecipeResolver";
+import { doAdminDataOp, getAdminDataStore, TabId, } from "./seed-wiki";
 
 export const BAG_PREFIX = "/bag";
 export const RECIPE_PREFIX = "/recipe";
@@ -241,13 +242,30 @@ serverEvents.on("mws.routes", (root) => {
 
 
   parent.defineRoute<"ignore">({
-    method: ["GET", "HEAD", "OPTIONS"],
-    path: new RegExp(`^/admin/store$`),
+    method: ["GET", "HEAD",],
+    path: new RegExp(`^/admin/load$`),
     bodyFormat: "ignore",
   }, async (state) => {
     state.asserted = state.user.isAdmin;
     state.sendJSON(200, await state.$transaction(async prisma => {
       return await getAdminDataStore(prisma);
+    }));
+  });
+
+  parent.defineRoute<"ignore">({
+    method: ["PUT", "OPTIONS"],
+    path: new RegExp(`^/admin/(?<op>[^/]+)/(?<page>.*)$`),
+    bodyFormat: "json",
+  }, async (state) => {
+    if (state.method === "OPTIONS")
+      return state.sendEmpty(200);
+    state.asserted = state.user.isAdmin;
+    checkPath(state, z => ({
+      op: z.enum(["save"]),
+      tab: z.enum(["wikis", "templates", "bags", "plugins", "users", "roles"] satisfies TabId[])
+    }), new Error())
+    return state.sendJSON(200, await state.$transaction(async prisma => {
+      return await doAdminDataOp(prisma, state.pathParams.op, state.pathParams.tab, state.data);
     }));
   });
 
