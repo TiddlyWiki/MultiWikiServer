@@ -16,7 +16,7 @@ export async function startupCache($tw: TW, cachePath: string) {
   const pkg = JSON.parse(fs.readFileSync(dist_resolve("../package.json"), "utf8"));
 
   // we only need the client since we don't load plugins server-side
-  const { tiddlerFiles: pluginFiles, tiddlerHashes: pluginHashes } =
+  const { tiddlerFiles: pluginFiles, tiddlerHashes: pluginHashes, pluginsList } =
     await importPlugins(path.join($tw.boot.corePath, ".."), cachePath, "client", $tw, pkg.version);
 
   const filePlugins = new Map([...pluginFiles.entries()].map(e => e.reverse() as [string, string]));
@@ -41,7 +41,7 @@ export async function startupCache($tw: TW, cachePath: string) {
   fs.writeFileSync(filepath, result);
 
   return {
-    pluginFiles, pluginHashes, filePlugins,
+    pluginFiles, pluginHashes, filePlugins, pluginsList,
     requiredPlugins, cachePath,
     prefix, suffix,
   };
@@ -133,7 +133,7 @@ async function importPlugins(twFolder: string, cacheFolder: string, type: string
   //   $tw.preloadTiddlers.push(fields);
   // };
 
-  const pluginsList: any[] = [];
+  const pluginsList: PluginDefinition[] = [];
   const tiddlerFiles = new Map<string, string>();
   const tiddlerHashes = new Map<string, string>();
 
@@ -172,7 +172,19 @@ async function importPlugins(twFolder: string, cacheFolder: string, type: string
         fs.writeFileSync(path.join(newPath, "plugin.js.gz"), gz);
         tiddlerFiles.set(plugin.title, relativePluginPath);
         tiddlerHashes.set(plugin.title, "sha384-" + hash);
-        pluginsList.push({ title: plugin.title, path: relativePluginPath, hash });
+        pluginsList.push({
+          path: relativePluginPath,
+          hash,
+          name: plugin.name,
+          description: plugin.description,
+          reportedVersion: plugin.version,
+          title: plugin.title,
+          pluginType: plugin["plugin-type"],
+          dependents: plugin.dependents,
+          author: plugin.author,
+          contentType: plugin.type,
+          type: "system"
+        });
       }
     } else {
       console.log("Info: No plugin found at", oldPath);
@@ -181,9 +193,22 @@ async function importPlugins(twFolder: string, cacheFolder: string, type: string
 
   fs.writeFileSync(path.join(cacheFolder, "tiddlywiki-plugins.json"), JSON.stringify(pluginsList, null, 2));
 
-  return { tiddlerFiles, tiddlerHashes };
+  return { tiddlerFiles, tiddlerHashes, pluginsList };
 
 }
 
+export interface PluginDefinition {
+  path: string;
+  hash: string;
+  name: string;
+  description: string;
+  reportedVersion: string;
+  title: string;
+  pluginType: "plugin" | "theme" | "language";
+  dependents: string;
+  author: string;
+  contentType: string | undefined;
+  type: "system" | "installed";
+}
 
 export type CacheState = ART<typeof startupCache>;

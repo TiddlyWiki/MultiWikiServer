@@ -74,8 +74,8 @@ export interface TabDefinition {
   fieldGroups?: Partial<Record<FieldSection, FieldGroupDefinition[]>>;
 }
 
-const tabs = [
-  {
+const tabs = {
+  wikis: {
     id: "wikis",
     label: "Wikis",
     createLabel: "Create wiki",
@@ -189,7 +189,7 @@ const tabs = [
       "effectivePluginSet",
     ]
   },
-  {
+  templates: {
     id: "templates",
     label: "Templates",
     createLabel: "Create template",
@@ -312,7 +312,7 @@ const tabs = [
       "dependentWikiCount",
     ]
   },
-  {
+  bags: {
     id: "bags",
     label: "Bags",
     createLabel: "Create bag",
@@ -394,7 +394,7 @@ const tabs = [
       "referencedByWikis",
     ]
   },
-  {
+  plugins: {
     id: "plugins",
     label: "Plugins",
     createLabel: "Create plugin",
@@ -402,42 +402,30 @@ const tabs = [
     description: "Separately versioned plugins compiled into each wiki’s resolved plugin set. Still work in progress.",
     columns: [
       { key: "name", label: "Name" },
-      { key: "version", label: "Version" },
-      { key: "status", label: "Status" },
+      { key: "description", label: "Description" },
+      { key: "pluginPath", label: "Plugin Path" },
       { key: "usageCount", label: "Usage" },
-      { key: "updatedAt", label: "Updated" },
     ],
     fields: [
-      { key: "name", label: "Name", type: "string", section: "authored", mode: "create edit" },
-      { key: "version", label: "Version", type: "version", section: "authored", mode: "create edit" },
-      { key: "status", label: "Status", type: "select", section: "authored", mode: "create edit" },
-      { key: "description", label: "Description", type: "text", section: "authored", mode: "create edit" },
-      {
-        key: "assetsMetadata",
-        label: "Assets metadata",
-        type: "metadata-table",
-        section: "runtime",
-        mode: "",
-        architecture: "List of shadow tiddlers the plugin contains.",
-      },
-      {
-        key: "usedByWikis",
-        label: "Used by wikis",
-        type: "relationship-table",
-        section: "runtime",
-        mode: "",
-        architecture: "Read-only relationship view derived from compiled recipe-plugin rows, showing exact effective usage of this version.",
-      },
+      { key: "name", label: "Name", type: "string", section: "authored", mode: "server" },
+      { key: "description", label: "Description", type: "text", section: "authored", mode: "server" },
+      { key: "pluginPath", label: "Path", type: "string", section: "authored", mode: "server" },
+      { key: "usageCount", label: "Wiki Count", type: "number", section: "runtime", mode: "" },
+      { key: "usedByWikis", label: "Active Wikis", type: "table", section: "runtime", mode: "" },
     ],
     fieldGroups: {
-      authored: [
-        { title: "Plugin basics", keys: ["name", "description"], width: fullWidth, layout: stackLayout },
-        { title: "Release details", keys: ["version", "status"], width: halfWidth },
+      runtime: [
+        { title: "Used in", description: "List of wikis this plugin is used in. Only includes templates that are in use.", keys: ["usedByWikis"], width: fullWidth, layout: "grid" },
       ],
     },
-    sidebarDisplay: [],
+    sidebarDisplay: [
+      "name", 
+      "description",
+      "usageCount",
+      "pluginPath",
+    ],
   },
-  {
+  roles: {
     id: "roles",
     label: "Roles",
     createLabel: "Create role",
@@ -458,7 +446,7 @@ const tabs = [
     },
     sidebarDisplay: ["roleId", "description"],
   },
-  {
+  users: {
     id: "users",
     label: "Users",
     createLabel: "Create user",
@@ -488,28 +476,13 @@ const tabs = [
       "userRoles",
     ]
   },
-] as const satisfies TabDefinition[];
-
-// tabs.forEach(e => {
-//   const fields = new Set(e.fields.map(e => e.key as string));
-//   if (fields.size !== e.fields.length)
-//     throw new Error("There are fields with duplicate keys in tab " + e.label);
-//   const colsMissing = e.columns.filter(f => !fields.has(f.key as string));
-//   if (colsMissing.length) {
-//     console.log(colsMissing);
-//     throw new Error(`There are columns that don't have a field in tab ${e.label}: ${colsMissing.map(e => e.key)}`);
-//   }
-//   if (Object.keys(e.fieldGroups).some(k => e.fieldGroups[k].some(f => {
-//     f.keys.some(g => !fields.has(g as string))
-//   }))) throw new Error("There are field groups which specify keys that don't exist in " + e.label);
-// })
-
+} as const satisfies Record<string, TabDefinition>;
 
 export function getTab(tabId: TabId): TabDefinition {
-  return tabs.find((tab) => tab.id === tabId) ?? tabs[0];
+  return tabs[tabId];
 }
 export function getAllTabs(): TabDefinition[] {
-  return tabs;
+  return Object.values(tabs);
 }
 
 export type TabDef = typeof tabs;
@@ -517,9 +490,10 @@ export type TabDef = typeof tabs;
 
 
 type StoredTabKeys<T extends TabDefinition> = {
-  [K in T["id"]]: MapFieldDefinitions<T["fields"]>[number] | "id"
-}[T["id"]];
+  [K in keyof TabDef]: MapFieldDefinitions<T["fields"]>[number] | "id"
+}[keyof TabDef];
 
+type t1 = TabDef[TabId]["fields"][number]["key"]
 
 
 type StoredTabRecord<D extends TabDefinition, T> = Pick<T, StoredTabKeys<D> & keyof T>;
@@ -548,12 +522,12 @@ export interface AdminRecordStore {
 }
 
 export interface DataStore {
-  wikis: StoredTabRecord<TabDef[0], WikiAdminRecord>[];
-  templates: StoredTabRecord<TabDef[1], TemplateAdminRecord>[];
-  bags: StoredTabRecord<TabDef[2], BagAdminRecord>[];
-  plugins: StoredTabRecord<TabDef[3], PluginAdminRecord>[];
-  roles: StoredTabRecord<TabDef[4], RoleAdminRecord>[];
-  users: StoredTabRecord<TabDef[5], UserAdminRecord>[];
+  wikis: StoredTabRecord<TabDef["wikis"], WikiAdminRecord>[];
+  templates: StoredTabRecord<TabDef["templates"], TemplateAdminRecord>[];
+  bags: StoredTabRecord<TabDef["bags"], BagAdminRecord>[];
+  plugins: StoredTabRecord<TabDef["plugins"], PluginAdminRecord>[];
+  roles: StoredTabRecord<TabDef["roles"], RoleAdminRecord>[];
+  users: StoredTabRecord<TabDef["users"], UserAdminRecord>[];
   availableBagNames: Set<string>;
   availablePluginNames: Set<string>;
 };
@@ -630,16 +604,11 @@ export interface BagAdminRecord {
 
 export interface PluginAdminRecord {
   id: string;
-  version: string;
-  description: string;
   name: string;
-  status: string;
-  publishFromDraft: string;
-  assetsMetadata: string;
-  usedByWikis: string;
+  description: string;
+  pluginPath: string;
   usageCount: string;
-  draftOf: string;
-  updatedAt: string;
+  usedByWikis: string[];
 }
 
 export interface RoleAdminRecord {

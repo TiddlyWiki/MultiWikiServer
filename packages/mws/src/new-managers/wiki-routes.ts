@@ -248,7 +248,7 @@ serverEvents.on("mws.routes", (root) => {
   }, async (state) => {
     state.asserted = state.user.isAdmin;
     state.sendJSON(200, await state.$transaction(async prisma => {
-      return await getAdminDataStore(prisma);
+      return await getAdminDataStore(prisma, state.pluginCache);
     }));
   });
 
@@ -265,7 +265,7 @@ serverEvents.on("mws.routes", (root) => {
       tab: z.enum(["wikis", "templates", "bags", "plugins", "users", "roles"] satisfies TabId[])
     }), new Error())
     return state.sendJSON(200, await state.$transaction(async prisma => {
-      return await doAdminDataOp(prisma, state.pathParams.op, state.pathParams.tab, state.data);
+      return await doAdminDataOp(prisma, state.pluginCache, state.pathParams.op, state.pathParams.tab, state.data);
     }));
   });
 

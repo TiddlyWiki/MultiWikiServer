@@ -234,18 +234,12 @@ function deriveBagRecords(items: DataStore, templates: TemplateAdminRecord[], wi
 function derivePluginRecords(items: DataStore, templates: TemplateAdminRecord[], wikis: WikiAdminRecord[]): PluginAdminRecord[] {
   const pluginUsage = new Map<string, Set<string>>();
 
-  const addUsage = (pluginName: string, wikiName: string) => {
-    if (!pluginName || !wikiName) return;
-    const next = pluginUsage.get(pluginName) ?? new Set<string>();
-    next.add(wikiName);
-    pluginUsage.set(pluginName, next);
-  };
-
   for (const wiki of wikis) {
     const wikiName = wiki.slug || wiki.displayName || "";
     wiki.effectivePluginSet.forEach((pluginValue) => {
       const pluginName = pluginValue.split("@")[0]?.trim() ?? pluginValue.trim();
-      addUsage(pluginName, wikiName);
+      if (!pluginName || !wikiName) return;
+      mapGetInit(pluginUsage, pluginName, () => new Set<string>()).add(wikiName);
     });
   }
 
@@ -253,7 +247,7 @@ function derivePluginRecords(items: DataStore, templates: TemplateAdminRecord[],
     const usedByWikis = Array.from(pluginUsage.get(plugin.name ?? "") ?? []);
     return {
       ...plugin as unknown as PluginAdminRecord,
-      usedByWikis: usedByWikis.join("\n"),
+      usedByWikis,
       usageCount: String(usedByWikis.length),
     };
   });
@@ -745,77 +739,6 @@ function getListColumnLink(tabId: TabId, columnKey: string, item: AdminRecord): 
   return mapper ? mapper(item) : null;
 }
 
-function countValueLines(value: readonly string[]): number {
-  return value.length;
-}
-
-function getSidebarFacts(tabId: TabId, draft: AdminRecord): Array<{ label: string; value: string; }>;
-function getSidebarFacts(tabId: TabId, draft: unknown): Array<{ label: string; value: string; }> {
-  if (tabId === "wikis") {
-    definitely<WikiAdminRecord>(draft);
-    return [
-      { label: "Template", value: formatFieldValue(draft.templateName || draft.templateRef?.name) },
-      { label: "Default bag", value: formatFieldValue(draft.defaultWritableBag) },
-      { label: "Compiled", value: formatFieldValue(draft.lastCompiledAt) },
-    ];
-  }
-
-  if (tabId === "templates") {
-    definitely<TemplateAdminRecord>(draft);
-    return [
-      { label: "Readonly bags", value: String((draft.readonlyBags.length)) },
-      { label: "Prefix rules", value: String(draft.writablePrefixBags.length || 0) },
-      { label: "Default bag", value: formatFieldValue(draft.defaultWritableBag) },
-      { label: "Plugins", value: String(draft.plugins.length) },
-      { label: "Validation", value: formatFieldValue(draft.validationStatus || draft.validationReport) },
-    ];
-  }
-
-  if (tabId === "bags") {
-    definitely<BagAdminRecord>(draft);
-    return [
-      { label: "Permission roles", value: String(draft.permissions.length || 0) },
-      { label: "Referenced by templates", value: String(draft.referencedByTemplates.length) },
-      { label: "Referenced by wikis", value: String(draft.referencedByWikis.length) },
-      { label: "Routing roles", value: String(draft.referencedByWikis.length) },
-      // { label: "Tiddlers", value: formatFieldValue(draft.tiddlerCount) },
-      // { label: "Last activity", value: formatFieldValue(draft.lastActivityAt) },
-    ];
-  }
-
-  if (tabId === "plugins") {
-    definitely<PluginAdminRecord>(draft);
-    return [
-      { label: "Version", value: formatFieldValue(draft.version) },
-      { label: "Status", value: formatFieldValue(draft.status) },
-      { label: "Used by wikis", value: String(draft.usedByWikis.length) },
-      { label: "Usage count", value: formatFieldValue(draft.usageCount) },
-      { label: "Draft of", value: formatFieldValue(draft.draftOf) },
-      { label: "Updated", value: formatFieldValue(draft.updatedAt) },
-    ];
-  }
-
-  if (tabId === "roles") {
-    definitely<RoleAdminRecord>(draft);
-    return [
-      { label: "Role name", value: formatFieldValue(draft.roleId) },
-      { label: "Description", value: formatFieldValue(draft.description) },
-    ];
-  }
-
-  if (tabId === "users") {
-    definitely<UserAdminRecord>(draft);
-    return [
-      { label: "Username", value: formatFieldValue(draft.username) },
-      { label: "Email", value: formatFieldValue(draft.email) },
-      { label: "Assigned roles", value: String(draft.userRoles.length) },
-    ];
-  }
-
-  { const t: never = tabId; return []; }
-
-}
-
 function renderSearchableInput({ id, currentValue, placeholder, options, onInput, disabled }: {
   id: string;
   currentValue: string;
@@ -890,7 +813,7 @@ function renderActivityFeedField(ctx: ReadonlyFieldContext<readonly string[]>) {
 }
 
 function renderMetadataTableField(ctx: ReadonlyFieldContext<readonly string[]>) {
-  const lines = ctx.value;
+  const lines = ctx.saved;
   return <dl class="meta-list">{lines.map((line) => {
     const [key, ...rest] = line.split(":");
     return <><dt>{key}</dt><dd>{rest.join(":").trim()}</dd></>;
@@ -898,7 +821,7 @@ function renderMetadataTableField(ctx: ReadonlyFieldContext<readonly string[]>) 
 }
 
 function renderTableField(ctx: ReadonlyFieldContext) {
-  const { field, value, itemsByTab } = ctx;
+  const { field, saved: value, itemsByTab } = ctx;
   definitely<readonly string[]>(value);
   const lines = value;
   const missingDependencyLines = getMissingDependencyLines(field, value, itemsByTab);
@@ -934,8 +857,8 @@ function renderTableField(ctx: ReadonlyFieldContext) {
 }
 
 function renderCalloutField(ctx: ReadonlyFieldContext) {
-  definitely<string>(ctx.value);
-  return <div class="field-callout"><p>{formatFieldValue(ctx.value)}</p></div>;
+  definitely<string>(ctx.saved);
+  return <div class="field-callout"><p>{formatFieldValue(ctx.saved)}</p></div>;
 }
 
 function renderPreField(ctx: ReadonlyFieldContext) {
@@ -1020,7 +943,7 @@ class SearchMultiselectFieldHandler extends FieldTypeHandler<string[]> {
 
   public override renderSidebar(ctx: ReadonlyFieldContext<readonly string[]>): JSX.Node {
     return <ul>
-      {ctx.value.map(e => <li>{e}</li>)}
+      {ctx.saved.map(e => <li>{e}</li>)}
     </ul>
   }
 
@@ -1293,7 +1216,7 @@ class AutocompleteFieldHandler extends FieldTypeHandler<Reference | null> {
   }
 
   renderSidebar(ctx: ReadonlyFieldContext<Reference | null>) {
-    return ctx.value?.name ?? "";
+    return ctx.saved?.name ?? "";
   }
 
   public override renderEditor(ctx: FieldEditorContext<Reference | null>) {
@@ -1392,15 +1315,16 @@ class ValueListFieldHandler extends FieldTypeHandler<string[]> {
 
   public override renderSidebar(ctx: ReadonlyFieldContext) {
     // TODO: string should probably be a separate class 
-    const lines = typeof ctx.value === "string"
-      ? lineListCodec.parse(ctx.value)
-      : ctx.value as readonly string[];
+    const lines = typeof ctx.saved === "string"
+      ? lineListCodec.parse(ctx.saved)
+      : ctx.saved as readonly string[];
     return <ul class="value-list">{lines.map((line) => <li>{line}</li>)}</ul>;
   }
 
   public override renderEditor(ctx: FieldEditorContext) {
     return this.renderSidebar(ctx);
   }
+
 }
 
 class ActivityFeedFieldHandler extends FieldTypeHandler<readonly string[]> {
@@ -1793,10 +1717,14 @@ class RecordModalElement extends JSXElement {
                   );
                 })}
 
-                <footer class="modal-actions">
-                  <button class="ghost-button" type="button" onclick={onClose} disabled={isSaving}>Cancel</button>
-                  <button class="primary-button" type="button" onclick={onSave} disabled={isSaving || isOpeningItem}>{isSaving ? "Saving..." : modalState.mode === "create" ? `Save ${selectedTab.label.slice(0, -1)}` : "Save changes"}</button>
-                </footer>
+                {modalState.tabId !== "plugins"
+                  ? <footer class="modal-actions">
+                    <button class="ghost-button" type="button" onclick={onClose} disabled={isSaving}>Cancel</button>
+                    <button class="primary-button" type="button" onclick={onSave} disabled={isSaving || isOpeningItem}>{isSaving ? "Saving..." : modalState.mode === "create" ? `Save ${selectedTab.label.slice(0, -1)}` : "Save changes"}</button>
+                  </footer>
+                  : <footer class="modal-actions">
+                    <button class="ghost-button" type="button" onclick={onClose} disabled={isSaving}>Close</button>
+                  </footer>}
               </div>
             </div>
           )}

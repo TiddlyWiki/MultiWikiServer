@@ -1,5 +1,6 @@
 import type { DataStore, MappingRow, PermissionRow, Reference } from "@mws/admin-vanilla/src/definition/tabs";
 import { PrismaClient } from "@tiddlywiki/mws-prisma";
+import { ServerRequest } from "@tiddlywiki/server";
 
 type IWikiRow = DataStore["wikis"][number];
 type ITemplateRow = DataStore["templates"][number];
@@ -463,12 +464,9 @@ abstract class BagRow implements IBagRow {
 
 abstract class PluginRow implements IPluginRow {
   abstract id: string;
-  abstract version: string;
-  abstract description: string;
   abstract name: string;
-  abstract status: string;
-  abstract publishFromDraft: string;
-
+  abstract description: string;
+  abstract pluginPath: string;
 }
 
 abstract class RoleRow implements IRoleRow {
@@ -739,7 +737,7 @@ async function savePluginRow(_prisma: PrismaTxnClient, _data: IPluginRow): Promi
   throw new Error("Plugin admin save is not implemented in the database-backed admin path.");
 }
 
-export async function doAdminDataOp(prisma: PrismaTxnClient, op: "save", tab: TabId, data: any) {
+export async function doAdminDataOp(prisma: PrismaTxnClient, pluginCache: ServerRequest["pluginCache"], op: "save", tab: TabId, data: any) {
   if (op !== "save") throw new Error(`Unsupported admin operation: ${op}`);
 
   let id: string;
@@ -756,13 +754,13 @@ export async function doAdminDataOp(prisma: PrismaTxnClient, op: "save", tab: Ta
     }
   }
 
-  const store = await getAdminDataStore(prisma);
+  const store = await getAdminDataStore(prisma, pluginCache);
   const saved = store[tab].find((row) => row.id === id);
   if (!saved) throw new Error(`Saved ${tab} row not found: ${id}`);
   return saved;
 }
 
-export async function getAdminDataStore(prisma: PrismaTxnClient) {
+export async function getAdminDataStore(prisma: PrismaTxnClient, pluginCache: ServerRequest["pluginCache"]) {
   const [templates, recipes, bags, roles, users] = await Promise.all([
     prisma.template.findMany({
       select: {
@@ -926,85 +924,16 @@ export async function getAdminDataStore(prisma: PrismaTxnClient) {
     password: user.password,
   }));
 
-  const pluginUsage = new Map<string, Set<string>>();
-  const pluginVersions = new Map<string, Set<string>>();
-  const templateUsage = new Map<string, Set<string>>();
-
-  const addPluginUsage = ({ pluginValue, wikiName, templateName }: {
-    pluginValue: string;
-    wikiName?: string;
-    templateName?: string;
-  }) => {
-    const { name, version } = parsePluginReference(pluginValue);
-    if (!name) return;
-
-    if (wikiName) {
-      const wikiSet = pluginUsage.get(name) ?? new Set<string>();
-      wikiSet.add(wikiName);
-      pluginUsage.set(name, wikiSet);
-    }
-
-    if (templateName) {
-      const templateSet = templateUsage.get(name) ?? new Set<string>();
-      templateSet.add(templateName);
-      templateUsage.set(name, templateSet);
-    }
-
-    const versionSet = pluginVersions.get(name) ?? new Set<string>();
-    versionSet.add(version || "unspecified");
-    pluginVersions.set(name, versionSet);
-  };
-
-  for (const template of templateRows) {
-    for (const pluginValue of template.plugins) {
-      addPluginUsage({ pluginValue, templateName: template.name });
-    }
-  }
-
-  for (const wiki of wikiRows) {
-    const wikiName = wiki.slug || wiki.displayName || "";
-    for (const pluginValue of wiki.effectivePluginSet) {
-      addPluginUsage({ pluginValue, wikiName });
-    }
-  }
-
-  const pluginRows: IPluginRow[] = Array.from(
-    new Set([
-      ...pluginUsage.keys(),
-      ...templateUsage.keys(),
-      ...pluginVersions.keys(),
-    ])
-  ).sort((a, b) => a.localeCompare(b)).map((pluginName) => {
-    const usedByWikis = Array.from(pluginUsage.get(pluginName) ?? []).sort();
-    const referencedByTemplates = Array.from(templateUsage.get(pluginName) ?? []).sort();
-    const versions = Array.from(pluginVersions.get(pluginName) ?? []).sort();
-
-    return {
-      id: pluginName,
-      name: pluginName,
-      version: versions.find((version) => version !== "unspecified") ?? "",
-      status: usedByWikis.length ? "active" : "referenced",
-      description: referencedByTemplates.length
-        ? `Referenced by templates: ${referencedByTemplates.join(", ")}`
-        : "Derived from wiki and template plugin references.",
-      publishFromDraft: "",
-      assetsMetadata: [
-        { key: "referenceCount", value: String(versions.length) },
-        { key: "versions", value: versions.join(", ") },
-        { key: "templates", value: referencedByTemplates.join(", ") },
-      ].filter((row) => row.value).map((row) => `${row.key}: ${row.value}`).join("\n"),
-      usedByWikis: usedByWikis.join("\n"),
-      usageCount: String(usedByWikis.length),
-      draftOf: "",
-      updatedAt: "",
-    };
-  });
-
   return {
     wikis: wikiRows,
     templates: templateRows,
     bags: bagRows,
-    plugins: pluginRows,
+    plugins: pluginCache.pluginsList.map(e => ({
+      id: e.title,
+      name: e.title,
+      description: `${e.name}: ${e.description}`,
+      pluginPath: e.path,
+    } satisfies IPluginRow)),
     roles: roleRows,
     users: userRows,
   };
