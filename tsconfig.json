@@ -41,6 +41,7 @@
   ],
   "exclude": [
     "packages/react-admin/src",
+    "packages/mws/src/commands",
     "packages/mws/src/managers",
     "packages/mws/src/drizzle",
     "packages/mdui-admin"

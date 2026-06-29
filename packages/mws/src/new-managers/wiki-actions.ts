@@ -1,5 +1,4 @@
 import type { DataStore, MappingRow, PermissionRow, Reference } from "@mws/admin-vanilla/src/definition/tabs";
-import { PrismaClient } from "@tiddlywiki/mws-prisma";
 import { ServerRequest } from "@tiddlywiki/server";
 
 type IWikiRow = DataStore["wikis"][number];
@@ -30,8 +29,6 @@ type RecipeDefinition = Omit<
   | "effectivePluginSet"
 >;
 
-type Template_type = "simpleV1";
-
 declare global {
   namespace PrismaJson {
     type Template_definition = TemplateDefinition;
@@ -39,383 +36,30 @@ declare global {
   }
 }
 
-
-
-
-export type SeedPermissionLevel = "A_read" | "B_write" | "C_admin";
-
-export interface SeedRoleInput {
-  role_name: string;
-  description: string;
-}
-
-export interface SeedUserInput {
-  username: string;
-  email: string;
-  password: string;
-  roles: string[];
-}
-
-export interface SeedBagPermissionInput {
-  roleName: string;
-  level: SeedPermissionLevel;
-}
-
-export interface SeedBagInput {
-  name: string;
-  description: string;
-  permissions: SeedBagPermissionInput[];
-}
-
-export interface SeedTemplateInput {
-  key: string;
-  type: Template_type;
-  definition: {
-    name: string;
-    description: string;
-    readonlyBags: string[];
-    writablePrefixBags: Record<string, string>;
-    plugins: string[];
-    requiredPluginsEnabled: boolean;
-    customHtmlEnabled: boolean;
-    htmlContent: string;
-    injectionArray: string;
-    injectionLocation: string;
-  };
-}
-
-export interface SeedRecipePermissionInput {
-  roleName: string;
-  level: "A_read" | "B_write";
-}
-
-export interface SeedCompiledRecipeBagInput {
-  bagName: string;
-  priority: number;
-  isWritable: boolean;
-  prefix: string;
-}
-
-export interface SeedRecipeInput {
-  slug: string;
-  templateKey: string;
-  definition: {
-    displayName: string;
-    description: string;
-    readonlyBags: string[];
-    writablePrefixBags: Record<string, string>;
-    plugins: string[];
-  };
-  plugins: string[];
-  permissions: SeedRecipePermissionInput[];
-  compiledBags: SeedCompiledRecipeBagInput[];
-}
-
-export interface SeedWikiInput {
-  roles: SeedRoleInput[];
-  users: SeedUserInput[];
-  bags: SeedBagInput[];
-  templates: SeedTemplateInput[];
-  recipes: SeedRecipeInput[];
-}
-
-const SAMPLE_WIKI_DATA: SeedWikiInput = {
-  roles: [
-    { role_name: "admin", description: "Full administrative access across the mock multi-wiki surface." },
-    { role_name: "editor", description: "Can edit routine authored configuration and content." },
-    { role_name: "viewer", description: "Read-only access to published wiki content." },
-    { role_name: "plugin-authors", description: "Can edit plugin-lab wiki content and related assets." },
-    { role_name: "qa", description: "Can review plugin-lab wiki content." },
-  ],
-  users: [
-    {
-      username: "alex",
-      email: "alex@example.com",
-      password: "",
-      roles: ["admin", "editor"],
-    },
-    {
-      username: "sam",
-      email: "sam@example.com",
-      password: "",
-      roles: ["editor"],
-    },
-  ],
-  bags: [
-    {
-      name: "bag-engineering-main",
-      description: "Primary write target for engineering wiki content.",
-      permissions: [{ roleName: "admin", level: "C_admin" }, { roleName: "editor", level: "B_write" }, { roleName: "viewer", level: "A_read" }],
-    },
-    {
-      name: "bag-shared-specs",
-      description: "Readonly canonical specs consumed across multiple workspaces.",
-      permissions: [{ roleName: "admin", level: "C_admin" }, { roleName: "editor", level: "A_read" }, { roleName: "viewer", level: "A_read" }],
-    },
-    {
-      name: "bag-shared-archive",
-      description: "Readonly archive content available to workspace-style wikis.",
-      permissions: [{ roleName: "admin", level: "C_admin" }, { roleName: "editor", level: "A_read" }, { roleName: "viewer", level: "A_read" }],
-    },
-    {
-      name: "bag-policy",
-      description: "Shared policy and governance content layered into workspace wikis.",
-      permissions: [{ roleName: "admin", level: "C_admin" }, { roleName: "editor", level: "A_read" }, { roleName: "viewer", level: "A_read" }],
-    },
-    {
-      name: "bag-docs",
-      description: "Writable namespace target for Docs/ titles.",
-      permissions: [{ roleName: "admin", level: "C_admin" }, { roleName: "editor", level: "B_write" }, { roleName: "viewer", level: "A_read" }],
-    },
-    {
-      name: "bag-drafts",
-      description: "Writable namespace target for Drafts/ titles.",
-      permissions: [{ roleName: "admin", level: "C_admin" }, { roleName: "editor", level: "B_write" }, { roleName: "viewer", level: "A_read" }],
-    },
-    {
-      name: "bag-user-space",
-      description: "Writable namespace target for user-authored personal notes.",
-      permissions: [{ roleName: "admin", level: "C_admin" }, { roleName: "editor", level: "B_write" }, { roleName: "viewer", level: "A_read" }],
-    },
-    {
-      name: "bag-plugin-base",
-      description: "Readonly shared base content for plugin workspaces.",
-      permissions: [{ roleName: "admin", level: "C_admin" }, { roleName: "plugin-authors", level: "A_read" }, { roleName: "qa", level: "A_read" }],
-    },
-    {
-      name: "bag-plugin-archive",
-      description: "Readonly historical plugin review content.",
-      permissions: [{ roleName: "admin", level: "C_admin" }, { roleName: "plugin-authors", level: "A_read" }, { roleName: "qa", level: "A_read" }],
-    },
-    {
-      name: "bag-plugin-lab",
-      description: "Primary write target for plugin lab content.",
-      permissions: [{ roleName: "admin", level: "C_admin" }, { roleName: "plugin-authors", level: "B_write" }, { roleName: "qa", level: "A_read" }],
-    },
-  ],
-  templates: [
-    {
-      key: "workspace-template",
-      type: "simpleV1",
-      definition: {
-        name: "Workspace Template",
-        description: "General-purpose workspace wiki with namespace-based write routing.",
-        readonlyBags: ["bag-shared-specs", "bag-shared-archive", "bag-policy"],
-        writablePrefixBags: {
-          "Docs/": "bag-docs",
-          "Users/": "bag-user-space",
-        },
-        plugins: [],
-        requiredPluginsEnabled: true,
-        customHtmlEnabled: false,
-        htmlContent: "",
-        injectionArray: "$tw.preloadTiddlers",
-        injectionLocation: "",
-      },
-    },
-    {
-      key: "plugin-template",
-      type: "simpleV1",
-      definition: {
-        name: "Plugin Sandbox",
-        description: "Draft-heavy workspace for plugin authoring and review.",
-        readonlyBags: ["bag-plugin-base", "bag-plugin-archive"],
-        writablePrefixBags: {
-          "Plugins/": "bag-plugin-lab",
-          "": "bag-plugin-lab",
-        },
-        plugins: [],
-        requiredPluginsEnabled: false,
-        customHtmlEnabled: true,
-        htmlContent: "<!DOCTYPE html>\n<html>\n<head>\n  <meta charset=\"utf-8\">\n  <title>Plugin Sandbox</title>\n</head>\n<body>\n  <!-- INJECT STORE TIDDLERS HERE -->\n</body>\n</html>",
-        injectionArray: "$tw.preloadTiddlers",
-        injectionLocation: "<!-- INJECT STORE TIDDLERS HERE -->",
-      },
-    },
-  ],
-  recipes: [
-    {
-      slug: "engineering-hub",
-      templateKey: "workspace-template",
-      definition: {
-        displayName: "Engineering Hub",
-        description: "Shared engineering wiki with namespace routing for specs, drafts, and user notes.",
-        readonlyBags: [],
-        writablePrefixBags: {
-          "Drafts/": "bag-drafts",
-          "": "bag-engineering-main",
-        },
-        plugins: [],
-      },
-      plugins: [],
-      permissions: [
-        { roleName: "editor", level: "B_write" },
-        { roleName: "viewer", level: "A_read" },
-      ],
-      compiledBags: [
-        { bagName: "bag-drafts", priority: 0, isWritable: true, prefix: "Drafts/" },
-        { bagName: "bag-user-space", priority: 1, isWritable: true, prefix: "Users/" },
-        { bagName: "bag-docs", priority: 2, isWritable: true, prefix: "Docs/" },
-        { bagName: "bag-engineering-main", priority: 3, isWritable: true, prefix: "" },
-        { bagName: "bag-shared-specs", priority: 4, isWritable: false, prefix: "" },
-        { bagName: "bag-shared-archive", priority: 5, isWritable: false, prefix: "" },
-        { bagName: "bag-policy", priority: 6, isWritable: false, prefix: "" },
-      ],
-    },
-    {
-      slug: "plugin-lab",
-      templateKey: "plugin-template",
-      definition: {
-        displayName: "Plugin Lab",
-        description: "Sandbox for draft plugin work and package previews.",
-        readonlyBags: [],
-        writablePrefixBags: {
-          "Plugins/": "bag-plugin-lab",
-          "": "bag-plugin-lab",
-        },
-        plugins: [],
-      },
-      plugins: [],
-      permissions: [
-        { roleName: "plugin-authors", level: "B_write" },
-        { roleName: "qa", level: "A_read" },
-      ],
-      compiledBags: [
-        { bagName: "bag-plugin-lab", priority: 0, isWritable: true, prefix: "Plugins/" },
-        { bagName: "bag-plugin-lab", priority: 1, isWritable: true, prefix: "" },
-        { bagName: "bag-plugin-base", priority: 2, isWritable: false, prefix: "" },
-        { bagName: "bag-plugin-archive", priority: 3, isWritable: false, prefix: "" },
-      ],
-    },
-  ],
-};
-
-export function createWikiSeedData(prisma: PrismaEngineClient, seedData: SeedWikiInput) {
-  return prisma.$transaction(async (tx) => {
-    const roleRows = await Promise.all(seedData.roles.map((role) => tx.roles.upsert({
-      where: { role_name: role.role_name },
-      update: { description: role.description },
-      create: { role_name: role.role_name, description: role.description },
-    })));
-
-    const rolesByName = new Map(roleRows.map((role) => [role.role_name, role]));
-
-    await Promise.all(seedData.users.map((user) => {
-      const roleLinks = user.roles.map((roleName) => ({ role_id: rolesByName.get(roleName)!.role_id }));
-      return tx.users.upsert({
-        where: { username: user.username },
-        update: {
-          email: user.email,
-          password: user.password,
-          roles: { set: roleLinks },
-        },
-        create: {
-          username: user.username,
-          email: user.email,
-          password: user.password,
-          roles: { connect: roleLinks },
-        },
-      });
-    }));
-
-    const bagRows = await Promise.all(seedData.bags.map((bag) => tx.bag.create({
-      data: { name: bag.name, description: bag.description },
-    })));
-
-    const bagsByName = new Map(bagRows.map((bag) => [bag.name, bag]));
-
-    const setBagPermission = async (bagName: string, permissionRows: SeedBagPermissionInput[]) => {
-      const bag = bagsByName.get(bagName)!;
-      await Promise.all(permissionRows.map(({ roleName, level }) => tx.bagPermission.create({
-        data: {
-          bag_id: bag.id,
-          role_id: rolesByName.get(roleName)!.role_id,
-          level,
-        },
-      })));
-    };
-
-    await Promise.all(seedData.bags.map((bag) => setBagPermission(bag.name, bag.permissions)));
-
-    const templateRows = await Promise.all(seedData.templates.map((template) => tx.template.create({
-      data: {
-        type: template.type,
-        definition: {
-          ...template.definition,
-          writablePrefixBags: toMappingRows(template.definition.writablePrefixBags),
-        },
-      },
-    })));
-
-    const templatesByKey = new Map(seedData.templates.map((template, index) => [template.key, templateRows[index]]));
-
-    const recipeRows = await Promise.all(seedData.recipes.map((recipe) => tx.recipe.create({
-      data: {
-        slug: recipe.slug,
-        definition: {
-          ...recipe.definition,
-          writablePrefixBags: toMappingRows(recipe.definition.writablePrefixBags),
-        },
-        template_id: templatesByKey.get(recipe.templateKey)!.id,
-        plugins: recipe.plugins,
-      },
-    })));
-
-    const recipesBySlug = new Map(recipeRows.map((recipe) => [recipe.slug, recipe]));
-
-    await Promise.all(seedData.recipes.flatMap((recipe) => recipe.permissions.map((permission) => tx.recipePermission.create({
-      data: {
-        recipe_id: recipesBySlug.get(recipe.slug)!.id,
-        role_id: rolesByName.get(permission.roleName)!.role_id,
-        level: permission.level,
-      },
-    }))));
-
-    const compiledRecipeBags = seedData.recipes.flatMap((recipe) => recipe.compiledBags.map((row) => ({
-      recipeId: recipesBySlug.get(recipe.slug)!.id,
-      bagName: row.bagName,
-      priority: row.priority,
-      isWritable: row.isWritable,
-      prefix: row.prefix,
-    })));
-
-    for (const row of compiledRecipeBags) {
-      await tx.recipeBag.create({
-        data: {
-          recipe_id: row.recipeId,
-          bag_id: bagsByName.get(row.bagName)!.id,
-          priority: row.priority,
-          is_writable: row.isWritable,
-          prefix: row.prefix,
-        },
-      });
-    }
-
-    recipeRows.forEach((recipe) => {
-      console.log(`/wiki/${recipe.slug}`);
-    });
-
-    return {
-      bags: bagRows,
-      templates: templateRows,
-      recipes: recipeRows,
-    };
-  });
-}
-
-export function createSampleWiki(prisma: PrismaEngineClient) {
-  return prisma.$transaction(async (tx) => {
-    const existing = await tx.recipe.findMany({ select: { slug: true } });
-    if (existing.length) {
-      existing.map((recipe) => { console.log("wiki", recipe.slug); });
-      return true;
-    }
-    return false;
-  }).then((hasExistingRecipes) => {
-    if (hasExistingRecipes) return;
-    return createWikiSeedData(prisma, SAMPLE_WIKI_DATA);
-  });
-}
+export type {
+  ImportBagInput as SeedBagInput,
+  ImportRecipeInput as SeedRecipeInput,
+  ImportRoleInput as SeedRoleInput,
+  ImportTemplateInput as SeedTemplateInput,
+  ImportUserInput as SeedUserInput,
+} from "./wiki-contract";
+export {
+  importBags as importSeedBags,
+  importRecipes as importSeedRecipes,
+  importRoles as importSeedRoles,
+  importTemplates as importSeedTemplates,
+  importUsers as importSeedUsers,
+  indexImportedBagsByName,
+  indexImportedRecipesBySlug,
+  indexImportedRolesByName,
+  indexImportedTemplatesByName,
+  indexImportedUsersByUsername,
+  type ImportedBagRows,
+  type ImportedRecipeRows,
+  type ImportedRoleRows,
+  type ImportedTemplateRow,
+  type ImportedUserRows,
+} from "./wiki-import";
 
 
 
@@ -631,7 +275,7 @@ async function saveWikiRow(prisma: PrismaTxnClient, data: IWikiRow): Promise<str
 
 async function saveTemplateRow(prisma: PrismaTxnClient, data: ITemplateRow): Promise<string> {
   const writableRows = normalizePrefixRows(data.writablePrefixBags);
-  const existing = data.id ? await prisma.template.findUnique({ where: { id: data.id }, select: { id: true, type: true } }) : null;
+  const existing = data.id ? await prisma.template.findUnique({ where: { id: data.id }, select: { id: true, type: true, definition: true } }) : null;
   const definition: PrismaJson.Template_definition = {
     name: data.name,
     description: data.description,

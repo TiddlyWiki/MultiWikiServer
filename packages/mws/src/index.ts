@@ -10,7 +10,7 @@ import "@tiddlywiki/commander";
 import "@tiddlywiki/server";
 import "./registerRequest";
 import "./registerStartup";
-import "./commands";
+import "./new-commands";
 import "./new-managers";
 import "./zodAssert";
 import "./RequestState";

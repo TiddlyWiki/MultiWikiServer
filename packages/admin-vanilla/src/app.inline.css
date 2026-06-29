@@ -157,9 +157,9 @@ textarea {
 	min-height: 100vh;
 	padding: 32px;
 	background:
-		radial-gradient(circle at top left, var(--color-decor-top-left), transparent 30%),
-		radial-gradient(circle at top right, var(--color-decor-top-right), transparent 26%),
-		linear-gradient(180deg, var(--color-surface-page-top) 0%, var(--color-surface-page-mid) 48%, var(--color-surface-page-bottom) 100%);
+		radial-gradient(circle at top left, var(--color-decor-top-left) 0, transparent 30vw),
+		radial-gradient(circle at top right, var(--color-decor-top-right) 0, transparent 26vw),
+		linear-gradient(180deg, var(--color-surface-page-top) 0vh, var(--color-surface-page-mid) 48vh, var(--color-surface-page-bottom) 100%);
 }
 
 .hero-panel,
@@ -260,9 +260,9 @@ h6 {
 
 .tab-strip {
 	display: flex;
+	flex-wrap: wrap;
 	gap: 12px;
 	margin-top: 24px;
-	overflow-x: auto;
 	padding-bottom: 4px;
 }
 
@@ -403,6 +403,10 @@ h6 {
 	background: var(--color-surface-list-hover);
 }
 
+body:has(.modal-shell[open]) {
+	overflow: hidden
+}
+
 .modal-shell {
 	position: fixed;
 	inset: 0;
@@ -413,6 +417,7 @@ h6 {
 	padding: 28px;
 	background: var(--color-overlay-modal);
 	backdrop-filter: blur(10px);
+	overflow: hidden;
 }
 
 .modal-card {
@@ -503,7 +508,7 @@ h6 {
 	}
 }
 
-.field-index {
+.modal-sidebar {
 	position: sticky;
 	top: 0;
 	align-self: start;
@@ -512,6 +517,8 @@ h6 {
 	padding: 20px;
 	border-radius: 20px;
 	background: var(--color-surface-sidebar);
+	overflow: hidden;
+	word-break: break-all;
 }
 
 .sidebar-section {
@@ -1136,9 +1143,7 @@ table.value-table {
 	width: 100%;
 }
 
-table.value-table tr {
-	
-}
+table.value-table tr {}
 
 table.value-table td {
 	padding: 10px;

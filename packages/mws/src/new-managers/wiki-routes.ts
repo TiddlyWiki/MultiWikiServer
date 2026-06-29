@@ -12,7 +12,7 @@
 import { registerZodRoutes, RouterKeyMap, zodRoute, SendError, ServerRequest, truthy, checkPath } from "@tiddlywiki/server";
 import { serverEvents } from "@tiddlywiki/events";
 import { RecipeResolver, } from "./RecipeResolver";
-import { doAdminDataOp, getAdminDataStore, TabId, } from "./seed-wiki";
+import { doAdminDataOp, getAdminDataStore, TabId, } from "./wiki-actions";
 
 export const BAG_PREFIX = "/bag";
 export const RECIPE_PREFIX = "/recipe";

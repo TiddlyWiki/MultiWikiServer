@@ -297,7 +297,7 @@ const tabs = {
         { title: "Writable routing", description: "Define the write targets for title prefixes, including the default fallback bag. The resolver matches prefixes from longest to shortest, so most specific prefix gets the tiddler.", keys: ["writablePrefixBags"], width: fullWidth },
         { title: "Bags", keys: ["readonlyBags"], width: halfWidth },
         { title: "Plugins", keys: ["plugins", "requiredPluginsEnabled"], width: halfWidth, layout: stackLayout },
-        { title: "Permissions", keys: ["plugins", "templatePermissions"], width: fullWidth, layout: stackLayout },
+        { title: "Permissions", keys: ["templatePermissions"], width: fullWidth, layout: stackLayout },
         { title: "Custom HTML shell", keys: ["htmlContent", "injectionArray", "injectionLocation"], headerFieldKey: "customHtmlEnabled", disabledWhenHeaderOff: true, width: fullWidth, layout: stackLayout },
       ],
       runtime: [
@@ -419,7 +419,7 @@ const tabs = {
       ],
     },
     sidebarDisplay: [
-      "name", 
+      "name",
       "description",
       "usageCount",
       "pluginPath",
@@ -487,6 +487,22 @@ export function getAllTabs(): TabDefinition[] {
 
 export type TabDef = typeof tabs;
 
+
+export function getSectionHeading(section: FieldSection, mode: "create" | "edit"): { title: string; copy: string; } | null {
+  switch (section) {
+    case "authored": return null;
+    case "runtime": return {
+      title: "Current server state",
+      copy: "These values come from the current server state. Changes you make on this page are not reflected here until you click save.",
+    };
+    case "operations": return {
+      title: "Operations and diagnostics",
+      copy: "These controls run checks or actions against the current record instead of defining stored configuration.",
+    };
+    default: throw new Error("Section heading not implemented for " + section);
+  }
+
+}
 
 
 type StoredTabKeys<T extends TabDefinition> = {

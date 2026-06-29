@@ -23,9 +23,11 @@ import {
   MappingRow,
   RoleAdminRecord,
   UserAdminRecord,
-  Reference
+  Reference,
+  getSectionHeading
 } from "./definition/tabs";
-import { is } from "@tiddlywiki/jsx-runtime";
+
+import { InMemoryAdminStorage } from "./definition/store";
 
 export function definitely<T>(a: any): asserts a is T { }
 
@@ -33,7 +35,7 @@ export function ok<T>(value: T | null | undefined | "" | 0 | false, message?: st
   if (!value) throw new Error(message ?? `AssertionError: ${value}`);
 }
 
-
+export function is<T>(a: any, b: boolean): a is T { return b; }
 
 function mapGetInit<K, V>(map: Map<K, V>, key: K, init: () => V): V {
   if (!map.has(key)) {
@@ -48,7 +50,7 @@ function mapGetInit<K, V>(map: Map<K, V>, key: K, init: () => V): V {
 
 // import icon1 from "@material-symbols/svg-400/{style}/{icon}.svg" // (Unfilled)
 // import icon2 from "@material-symbols/svg-400/{style}/{icon}-fill.svg" // (Filled)
-// <MaterialSymbol icon={icon1} />
+// <MaterialSymbol icon={icon} />
 @customElement("material-symbol")
 export class MaterialSymbol extends JSXElement {
   useLightDOM: boolean = true;
@@ -64,7 +66,7 @@ export class MaterialSymbol extends JSXElement {
 }
 
 
-type AdminRecord = { id: string; };
+export type AdminRecord = { id: string; };
 
 type PermissionLevel = "A_read" | "B_write" | "C_admin";
 type RecipePermissionLevel = "A_read" | "B_write";
@@ -83,7 +85,7 @@ interface ModalState {
   loading?: boolean;
 }
 
-interface AdminStorage {
+export interface AdminStorage {
   loadAll(): Promise<AdminRecordStore>;
   read(tabId: TabId, id: string): Promise<AdminRecord | null>;
   save(tabId: TabId, record: AdminRecord): Promise<AdminRecord[]>;
@@ -99,12 +101,12 @@ type OperationTriggerHandler = (fieldKey: string, message: string) => void;
 interface ReadonlyFieldContext<T = unknown> {
   field: FieldDefinition;
   value: T;
-  saved: T;
   itemsByTab?: AdminRecordStore;
 }
 
 
 interface FieldEditorInput<T = unknown> extends ReadonlyFieldContext<T> {
+  saved?: T;
   disabled?: boolean;
   modalState: ModalState;
   itemsByTab: AdminRecordStore;
@@ -162,6 +164,38 @@ interface RecordModalProps {
 
 const bagPermissionLevels: PermissionLevel[] = ["A_read", "B_write", "C_admin"];
 const recipePermissionLevels: RecipePermissionLevel[] = ["A_read", "B_write"];
+
+
+export function isServerField(mode: Mode) {
+  return ["create", "create edit", "edit", "server"].includes(mode);
+}
+function isAuthoredField(mode: Mode) {
+  return ["create", "create edit", "edit"].includes(mode);
+}
+
+function isEditable(field: FieldDefinition, mode: ModalMode): boolean {
+  if (!field.mode) return false;
+  if (field.mode === "create edit") return true;
+  if (field.mode === "create") return mode === "create";
+  if (field.mode === "edit") return mode === "edit";
+  if (field.mode === "create edit temp") return true;
+  if (field.mode === "create temp") return mode === "create";
+  if (field.mode === "edit temp") return mode === "edit";
+  if (field.mode === "server") return false;
+  const t: never = field.mode;
+  return false;
+}
+
+// TODO: fold into tabs variable
+function getSelectOptions(field: FieldDefinition, itemsByTab: AdminRecordStore): string[] {
+  if (field.key === "status") return ["draft", "published", "archived"];
+  if (field.key === "requiredPluginsEnabled" || field.key === "customHtmlEnabled") return ["enabled", "disabled"];
+  if (field.key === "templateRef") {
+    return Array.from(new Set(itemsByTab.templates.map((item) => item.name).filter(Boolean)));
+  }
+  return [];
+}
+
 
 function summarizePermissionRoles(value: readonly PermissionRow<string>[]): string {
   return value.map((row) => row.role).filter(Boolean).join(", ");
@@ -361,76 +395,6 @@ function getEmptyItems(): AdminRecordStore {
 
 
 
-class InMemoryAdminStorage implements AdminStorage {
-  private data!: DataStore;
-  constructor(
-    private deriveItems: (data: DataStore) => AdminRecordStore
-  ) {
-
-  }
-
-  public async loadAll(): Promise<AdminRecordStore> {
-    this.data = await (await fetch(pathPrefix + "/admin/load")).json()
-    return this.deriveItems(this.data)
-  }
-  private wait(ms: number): Promise<void> {
-    return new Promise((resolve) => {
-      globalThis.setTimeout(resolve, ms);
-    });
-  }
-
-  public async read(tabId: TabId, id: string): Promise<AdminRecord | null> {
-    if (!this.data) await this.loadAll();
-    return this.deriveItems(this.data)[tabId].find((record) => record.id === id) ?? null;
-  }
-
-  public async save(tabId: TabId, record: AdminRecord): Promise<AdminRecord[]> {
-    if (!this.data) throw new Error("data should be loaded first");
-
-    const currentTabRecords = this.data[tabId];
-    const prunedRecord = this.pruneStoredRecord(tabId, record, currentTabRecords.length);
-    const id = prunedRecord.id;
-    const response = await fetch(pathPrefix + "/admin/save", {
-      body: JSON.stringify(prunedRecord),
-    });
-
-    if (response.status !== 200) {
-      console.log(await response.text());
-    } else {
-      const storedRecord = await response.json();
-      if (id) {
-        if (storedRecord.id !== id) location.reload();
-        const index = this.data[tabId].findIndex(e => e.id === id);
-        this.data[tabId][index] = storedRecord as any;
-      } else {
-        this.data[tabId].push(storedRecord as any);
-      }
-    }
-
-    this.data = { ...this.data, [tabId]: [...this.data[tabId]] };
-    return this.deriveItems(this.data)[tabId].map((item) => ({ ...item }));
-  }
-
-  private pruneStoredRecord(tabId: TabId, record: AdminRecord, fallbackOrdinal?: number): AdminRecord {
-    const tab = getTab(tabId);
-    const storedFields = tab.fields.filter((field) => isServerField(field.mode));
-    const pruned: any = {};
-    for (const field of storedFields) {
-      const value = getAdminRecordValue(field, record);
-      setAdminRecordValue(field, pruned, value, true);
-    }
-    return pruned;
-  }
-
-}
-
-function isServerField(mode: Mode) {
-  return ["create", "create edit", "edit", "server"].includes(mode);
-}
-function isAuthoredField(mode: Mode) {
-  return ["create", "create edit", "edit"].includes(mode);
-}
-
 function createDraft(tab: TabDefinition, source?: AdminRecord): AdminRecord {
   const draft: any = {};
   for (const field of tab.fields) {
@@ -450,19 +414,6 @@ function createDraft(tab: TabDefinition, source?: AdminRecord): AdminRecord {
   return draft;
 }
 
-function isEditable(field: FieldDefinition, mode: ModalMode): boolean {
-  if (!field.mode) return false;
-  if (field.mode === "create edit") return true;
-  if (field.mode === "create") return mode === "create";
-  if (field.mode === "edit") return mode === "edit";
-  if (field.mode === "create edit temp") return true;
-  if (field.mode === "create temp") return mode === "create";
-  if (field.mode === "edit temp") return mode === "edit";
-  if (field.mode === "server") return false;
-  const t: never = field.mode;
-  return false;
-}
-
 function getPrimaryValue(tab: TabDefinition, item: AdminRecord): string {
   const primary = tab.columns[0] ?? tab.fields[0];
   return formatFieldValue(getAdminRecordValue(primary, item));
@@ -470,15 +421,6 @@ function getPrimaryValue(tab: TabDefinition, item: AdminRecord): string {
 
 function getCreateLabel(tab: TabDefinition): string {
   return tab.createLabel;
-}
-// TODO: fold into tabs variable
-function getSelectOptions(field: FieldDefinition, itemsByTab: AdminRecordStore): string[] {
-  if (field.key === "status") return ["draft", "published", "archived"];
-  if (field.key === "requiredPluginsEnabled" || field.key === "customHtmlEnabled") return ["enabled", "disabled"];
-  if (field.key === "templateRef") {
-    return Array.from(new Set(itemsByTab.templates.map((item) => item.name).filter(Boolean)));
-  }
-  return [];
 }
 
 
@@ -505,22 +447,6 @@ function getPermissionLevelsForField(fieldKey: string): PermissionLevel[] | Reci
   return fieldKey === "recipePermissions" ? recipePermissionLevels : bagPermissionLevels;
 }
 
-function getMissingDependencyLines(field: FieldDefinition, lines: readonly string[], itemsByTab?: AdminRecordStore): MissingDependencyLine[] | null {
-  if (!itemsByTab) return null;
-  if (field.key !== "effectiveReadonlyBags" && field.key !== "effectivePluginSet") return null;
-
-  const availableNames = new Set(
-    field.key === "effectiveReadonlyBags" ? itemsByTab.availableBagNames : itemsByTab.availablePluginNames,
-  );
-
-  return lines.map((line) => {
-    return {
-      value: line,
-      missing: line.trim() ? !availableNames.has(line.trim()) : false,
-    };
-  });
-}
-
 function formatPermissionLevel(level: string): string {
   return level.replace(/^[A-Z]_/, "");
 }
@@ -541,29 +467,6 @@ function getSectionFields(tab: TabDefinition, section: FieldSection): FieldDefin
 function getSidebarFields(tab: TabDefinition) {
   const keys = new Set(tab.sidebarDisplay);
   return tab.fields.filter(e => keys.has(e.key));
-}
-
-function getSectionHeading(section: FieldSection, mode: ModalMode) {
-  if (section === "authored") {
-    return null;
-  }
-  if (section === "runtime") {
-    return {
-      title: "Current server state",
-      copy: "These values come from the current server state. Changes you make on this page are not reflected here until you click save.",
-    };
-  }
-  return {
-    title: "Operations and diagnostics",
-    copy: "These controls run checks or actions against the current record instead of defining stored configuration.",
-  };
-}
-
-function getSectionSummary(section: FieldSection, tabId?: TabId): string {
-  if (section === "authored") return "";
-  if (tabId === "bags" && section === "runtime") return "";
-  if (section === "runtime") return "Resolved outputs";
-  return "Actions";
 }
 
 function getFieldGroups(tab: TabDefinition, section: FieldSection, fields: FieldDefinition[]): FieldGroupDefinition[] {
@@ -801,19 +704,13 @@ function renderSelectField(ctx: FieldEditorContext) {
   );
 }
 
-function renderReferenceField(ctx: ReadonlyFieldContext<string | undefined>) {
-  return <div class="pill-value">{formatFieldValue(ctx.value)}</div>;
-}
-
-
-
 function renderActivityFeedField(ctx: ReadonlyFieldContext<readonly string[]>) {
   const lines = ctx.value;
   return <ul class="timeline-list">{lines.map((line) => <li>{line}</li>)}</ul>;
 }
 
 function renderMetadataTableField(ctx: ReadonlyFieldContext<readonly string[]>) {
-  const lines = ctx.saved;
+  const lines = ctx.value;
   return <dl class="meta-list">{lines.map((line) => {
     const [key, ...rest] = line.split(":");
     return <><dt>{key}</dt><dd>{rest.join(":").trim()}</dd></>;
@@ -821,44 +718,23 @@ function renderMetadataTableField(ctx: ReadonlyFieldContext<readonly string[]>) 
 }
 
 function renderTableField(ctx: ReadonlyFieldContext) {
-  const { field, saved: value, itemsByTab } = ctx;
+  const { field, value, itemsByTab } = ctx;
   definitely<readonly string[]>(value);
-  const lines = value;
-  const missingDependencyLines = getMissingDependencyLines(field, value, itemsByTab);
-  if (missingDependencyLines) {
-    if (missingDependencyLines.every((line) => /^\d+\./.test(line.value))) {
-      return (
-        <ol class="value-ordered-list dependency-list">
-          {missingDependencyLines.map((line) => (
-            <li class={line.missing ? "is-missing" : ""}>
-              {line.value.replace(/^\d+\.\s*/, "")}
-              {line.missing ? <span class="missing-marker" aria-label="Missing dependency" title="Missing dependency"><MaterialSymbol icon={warningIcon} /></span> : null}
-            </li>
-          ))}
-        </ol>
-      );
-    }
-
-    return (
-      <ul class="value-list dependency-list">
-        {missingDependencyLines.map((line) => (
-          <li class={line.missing ? "is-missing" : ""}>
-            {line.value}
-            {line.missing ? <span class="missing-marker" aria-label="Missing dependency" title="Missing dependency"><MaterialSymbol icon={warningIcon} /></span> : null}
-          </li>
-        ))}
-      </ul>
-    );
-  }
-  if (lines.every((line) => /^\d+\./.test(line))) {
-    return <ol class="value-ordered-list">{lines.map((line) => <li>{line.replace(/^\d+\.\s*/, "")}</li>)}</ol>;
-  }
-  return <ul class="value-list">{lines.map((line) => <li>{line}</li>)}</ul>;
+  const missingCheck =
+    itemsByTab ?
+      field.key === "effectiveReadonlyBags" ? itemsByTab.availableBagNames :
+        field.key === "effectivePluginSet" ? itemsByTab.availablePluginNames :
+          null : null;
+  const lines = value.map(line => ({ line, missing: missingCheck && !missingCheck.has(line), }));
+  return <ul class="value-list">{lines.map(({ line, missing }) => <li>
+    {line}
+    {missing ? <span class="missing-marker" aria-label="Missing dependency" title="Missing dependency"><MaterialSymbol icon={warningIcon} /></span> : null}
+  </li>)}</ul>;
 }
 
 function renderCalloutField(ctx: ReadonlyFieldContext) {
-  definitely<string>(ctx.saved);
-  return <div class="field-callout"><p>{formatFieldValue(ctx.saved)}</p></div>;
+  definitely<string>(ctx.value);
+  return <div class="field-callout"><p>{formatFieldValue(ctx.value)}</p></div>;
 }
 
 function renderPreField(ctx: ReadonlyFieldContext) {
@@ -943,7 +819,7 @@ class SearchMultiselectFieldHandler extends FieldTypeHandler<string[]> {
 
   public override renderSidebar(ctx: ReadonlyFieldContext<readonly string[]>): JSX.Node {
     return <ul>
-      {ctx.saved.map(e => <li>{e}</li>)}
+      {ctx.value.map(e => <li>{e}</li>)}
     </ul>
   }
 
@@ -1216,7 +1092,7 @@ class AutocompleteFieldHandler extends FieldTypeHandler<Reference | null> {
   }
 
   renderSidebar(ctx: ReadonlyFieldContext<Reference | null>) {
-    return ctx.saved?.name ?? "";
+    return ctx.value?.name ?? "";
   }
 
   public override renderEditor(ctx: FieldEditorContext<Reference | null>) {
@@ -1315,9 +1191,9 @@ class ValueListFieldHandler extends FieldTypeHandler<string[]> {
 
   public override renderSidebar(ctx: ReadonlyFieldContext) {
     // TODO: string should probably be a separate class 
-    const lines = typeof ctx.saved === "string"
-      ? lineListCodec.parse(ctx.saved)
-      : ctx.saved as readonly string[];
+    const lines = typeof ctx.value === "string"
+      ? lineListCodec.parse(ctx.value)
+      : ctx.value as readonly string[];
     return <ul class="value-list">{lines.map((line) => <li>{line}</li>)}</ul>;
   }
 
@@ -1524,21 +1400,21 @@ class FieldBlockElement extends JSXElement {
   }
 }
 
-function getAdminRecordValue(field: FieldDefinition | ColumnDefinition, draft: AdminRecord) {
+export function getAdminRecordValue(field: FieldDefinition | ColumnDefinition, draft: AdminRecord) {
   if (!(field.key in draft)) throw new Error("The field " + field.key + " is not defined in the draft record");
   return (draft as any)[field.key];
 }
-function setAdminRecordValue(field: FieldDefinition | ColumnDefinition, draft: AdminRecord, value: unknown, init: boolean) {
+export function setAdminRecordValue(field: FieldDefinition | ColumnDefinition, draft: AdminRecord, value: unknown, init: boolean) {
   if (!init && !(field.key in draft)) throw new Error("The field " + field.key + " is not defined in the draft record");
   (draft as any)[field.key] = value;
 }
 
 function sidebarField(field: FieldDefinition, draft: AdminRecord, saved: AdminRecord, itemsByTab?: AdminRecordStore) {
-  const value = getAdminRecordValue(field, draft);
+  const value = getAdminRecordValue(field, saved);
   return sidebarSection({
     title: field.label,
     content: getFieldHandler(field.type).renderSidebar({
-      field, value, saved: saved, itemsByTab
+      field, value, itemsByTab
     })
   })
 }
@@ -1618,7 +1494,7 @@ class RecordModalElement extends JSXElement {
     const sidebarFields = !isModalLoading ? getSidebarFields(selectedTab) : [];
 
     return (
-      <div class="modal-shell" onclick={(event) => {
+      <div class="modal-shell" webjsx-attr-open onclick={(event) => {
         if (event.target === event.currentTarget) onClose();
       }}>
         <section class="modal-card" role="dialog" aria-modal="true" aria-label={`${selectedTab.label} details`}>
@@ -1670,7 +1546,7 @@ class RecordModalElement extends JSXElement {
                             ? fields.find((field) => field.key === group.headerFieldKey)
                             : undefined;
                           const groupDisabled = Boolean(group.disabledWhenHeaderOff && headerField && (getAdminRecordValue(headerField, modalState.draft) ?? "disabled") !== "enabled");
-                          const headerDescription = group.description ?? (!group.footerDescriptionFromHeader ? headerField?.description : undefined) ?? getSectionSummary(section, selectedTab.id);
+                          const headerDescription = group.description ?? (!group.footerDescriptionFromHeader ? headerField?.description : undefined) ?? "";
                           const footerDescription = group.footerDescriptionFromHeader ? headerField?.description : undefined;
                           if (!groupFields.length) return null;
 
