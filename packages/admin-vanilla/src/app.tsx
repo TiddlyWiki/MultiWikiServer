@@ -24,7 +24,8 @@ import {
   RoleAdminRecord,
   UserAdminRecord,
   Reference,
-  getSectionHeading
+  getSectionHeading,
+  TemplateTypes
 } from "./definition/tabs";
 
 import { InMemoryAdminStorage } from "./definition/store";
@@ -432,7 +433,7 @@ function getLookupOptions(fieldKey: string, itemsByTab: AdminRecordStore): strin
     return Array.from(new Set(itemsByTab.plugins.map((item) => item.name).filter(Boolean)));
   }
   if (fieldKey === "userRoles") {
-    return Array.from(new Set(itemsByTab.roles.map((item) => item.roleId).filter(Boolean)));
+    return Array.from(new Set(itemsByTab.roles.map((item) => item.name).filter(Boolean)));
   }
   if (fieldKey === "permissions" || fieldKey === "recipePermissions") {
     return Array.from(new Set([
@@ -777,6 +778,21 @@ abstract class StringFieldTypeHandler extends FieldTypeHandler<string> {
   public renderEditor(ctx: FieldEditorContext<any>) {
     return renderTextareaField(ctx, 5);
   }
+
+}
+
+class TemplateTypeFieldHandler extends FieldTypeHandler<TemplateTypes> {
+  public initCreate() {
+    return "simpleV1" as const;
+  }
+
+  public renderEditor(ctx: FieldEditorContext<any>): JSX.Node {
+    return null;
+  }
+  public renderSidebar(ctx: ReadonlyFieldContext): JSX.Node {
+    return null;
+  }
+
 
 }
 
@@ -1319,6 +1335,7 @@ const activityFeedFieldHandler = new ActivityFeedFieldHandler();
 const metadataTableFieldHandler = new MetadataTableFieldHandler();
 const tableFieldHandler = new TableFieldHandler();
 const calloutFieldHandler = new CalloutFieldHandler();
+const templateTypeFieldHandler = new TemplateTypeFieldHandler();
 
 const fieldTypeHandlers = {
   "string": textInputFieldHandler,
@@ -1339,6 +1356,7 @@ const fieldTypeHandlers = {
   "table": tableFieldHandler,
   "structured-preview": calloutFieldHandler,
   "validation-report": calloutFieldHandler,
+  "template-type": templateTypeFieldHandler,
 } satisfies Record<FieldType, FieldTypeHandler>;
 
 const fallbackFieldHandler = new FallbackFieldHandler();

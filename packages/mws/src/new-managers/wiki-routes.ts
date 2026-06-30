@@ -11,7 +11,7 @@
 
 import { registerZodRoutes, RouterKeyMap, zodRoute, SendError, ServerRequest, truthy, checkPath } from "@tiddlywiki/server";
 import { serverEvents } from "@tiddlywiki/events";
-import { RecipeResolver, } from "./RecipeResolver";
+import { IndexSender, RecipeResolver, } from "./RecipeResolver";
 import { doAdminDataOp, getAdminDataStore, TabId, } from "./wiki-actions";
 
 export const BAG_PREFIX = "/bag";
@@ -23,7 +23,7 @@ export const WIKI_PREFIX = "/wiki";
 // ---------------------------------------------------------------------------
 
 export class NewWikiRecipeRoutes {
-
+  // #region GetStatus
   handleGetRecipeStatus = zodRoute({
     method: ["GET", "HEAD"],
     path: RECIPE_PREFIX + "/:recipe_slug/status",
@@ -65,7 +65,7 @@ export class NewWikiRecipeRoutes {
       });
     },
   });
-
+  // #region TiddlerList
   rpcRecipeTiddlerListGet = zodRoute({
     method: ["GET", "HEAD"],
     path: RECIPE_PREFIX + "/:recipe_slug/list.json",
@@ -92,6 +92,7 @@ export class NewWikiRecipeRoutes {
       });
     },
   });
+  // #region RecipeUpdates
   /** Poll for tiddler changes since a known sequence number. */
   handleGetRecipeUpdates = zodRoute({
     method: ["GET", "HEAD"],
@@ -151,7 +152,7 @@ export class NewWikiRecipeRoutes {
       });
     },
   });
-
+  // #region TiddlerBatch
   /**
    * Batch RSD over a set of titles. Per-tiddler: each item returns its own
    * success or failure. Not atomic — a denied item does not fail the rest.
@@ -217,7 +218,7 @@ export class NewWikiRecipeRoutes {
 }
 
 
-
+// #region Routes
 // ---------------------------------------------------------------------------
 // Route registration
 // ---------------------------------------------------------------------------
@@ -291,12 +292,17 @@ serverEvents.on("mws.routes", (root) => {
       needsWrite: false
     }).then(() => { state.asserted = true; });
 
-    await state.$transaction(async (prisma) => {
+    // we get close the transaction before we start sending the data so the transaction isn't held up by client bandwidth
+    const { recipe, bagTiddlers, maxSeq } = await state.$transaction(async (prisma) => {
       const recipe = await RecipeResolver.assertRecipe({ state, prisma, recipe_slug });
-      await new RecipeResolver(recipe, prisma, state.user.isAdmin).serveIndexFile(state);
+      const { bagTiddlers, maxSeq }
+        = await new RecipeResolver(recipe, prisma, state.user.isAdmin)
+          .getIndexData(state.method === "GET");
+      return { recipe, bagTiddlers, maxSeq };
     });
 
-    return STREAM_ENDED;
+    return await new IndexSender(recipe, bagTiddlers, maxSeq).serveIndexFile(state);
+
   }, async (state, e) => {
     if (state.headersSent) {
       console.log(e.stack + "\nCaptured by:\n" + new Error("").stack?.split("\n").slice(1).join("\n"));

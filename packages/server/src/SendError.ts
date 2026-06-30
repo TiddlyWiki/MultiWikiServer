@@ -62,7 +62,10 @@ export interface SendErrorReasonData {
   SendErrorItem<400, null>;
 
   "REDIRECT":
-  SendErrorItem<302, { reason?: string; location: string; }>
+  SendErrorItem<302, { reason?: string; location: string; }>;
+
+  "OUTSIDE_PATH_PREFIX":
+  SendErrorItem<404, { message: string }>;
 };
 
 

@@ -1,3 +1,4 @@
+import { BagPermissionLevel, RecipePermissionLevel } from "@tiddlywiki/mws-prisma";
 
 const halfWidth = "half" as const;
 const fullWidth = "full" as const;
@@ -21,6 +22,7 @@ export type FieldSection = "authored" | "runtime" | "operations";
 
 
 export type FieldType =
+  | "template-type"
   | "string"
   | "text"
   | "search"
@@ -205,6 +207,7 @@ const tabs = {
       { key: "validationStatus", label: "Validation" },
     ],
     fields: [
+      { key: "type", label: "Type", type: "template-type", section: "authored", mode: "create" },
       { key: "name", label: "Name", type: "string", section: "authored", mode: "create edit" },
       { key: "description", label: "Description", type: "text", section: "authored", mode: "create edit" },
       { key: "lastUpdatedAt", label: "Updated", type: "string", section: "runtime", mode: "server" },
@@ -279,7 +282,7 @@ const tabs = {
         label: "Dependent wikis",
         type: "relationship-table",
         section: "runtime",
-        mode: "server",
+        mode: "",
         architecture: "Read-only relationship view listing all wikis that reference this template and will be revalidated or recompiled if it changes.",
       },
       {
@@ -432,19 +435,19 @@ const tabs = {
     eyebrow: "Access profiles",
     description: "Named access profiles that can be assigned to user accounts.",
     columns: [
-      { key: "roleId", label: "Role name" },
+      { key: "name", label: "Role name" },
       { key: "description", label: "Role description" },
     ],
     fields: [
-      { key: "roleId", label: "Role name", type: "string", section: "authored", mode: "create edit" },
+      { key: "name", label: "Role name", type: "string", section: "authored", mode: "create edit" },
       { key: "description", label: "Role description", type: "text", section: "authored", mode: "create edit" },
     ],
     fieldGroups: {
       authored: [
-        { title: "Role basics", keys: ["roleId", "description"], width: fullWidth, layout: stackLayout },
+        { title: "Role basics", keys: ["name", "description"], width: fullWidth, layout: stackLayout },
       ],
     },
-    sidebarDisplay: ["roleId", "description"],
+    sidebarDisplay: ["name", "description"],
   },
   users: {
     id: "users",
@@ -505,26 +508,20 @@ export function getSectionHeading(section: FieldSection, mode: "create" | "edit"
 }
 
 
-type StoredTabKeys<T extends TabDefinition> = {
-  [K in keyof TabDef]: MapFieldDefinitions<T["fields"]>[number] | "id"
+
+type StoredTabRecord<D extends TabDefinition, T> = Pick<T, TabFieldKeys<D, "" | "create edit temp" | "create temp" | "edit temp"> & keyof T>;
+type SavedTabRecord<D extends TabDefinition, T> = Pick<T, TabFieldKeys<D, "" | "create edit temp" | "create temp" | "edit temp" | "server"> & keyof T>;
+
+type TabFieldKeys<T extends TabDefinition, M extends Mode> = {
+  [K in keyof TabDef]: MapFieldDefinitions<T["fields"], M>[number] | "id"
 }[keyof TabDef];
 
-type t1 = TabDef[TabId]["fields"][number]["key"]
+type MapFieldDefinitions<T, M extends Mode> =
+  T extends [infer F extends FieldDefinition, ...infer R] ? [FilterServerFields<F, M>, ...MapFieldDefinitions<R, M>] :
+  T extends [infer F extends FieldDefinition] ? [FilterServerFields<F, M>] : [];
 
-
-type StoredTabRecord<D extends TabDefinition, T> = Pick<T, StoredTabKeys<D> & keyof T>;
-
-
-type MapFieldDefinitions<T> =
-  T extends [infer F extends FieldDefinition, ...infer R] ? [FilterServerFields<F>, ...MapFieldDefinitions<R>] :
-  T extends [infer F extends FieldDefinition] ? [FilterServerFields<F>] : [];
-
-type FilterServerFields<T extends FieldDefinition> =
-  T["mode"] extends "" ? never :
-  T["mode"] extends "create edit temp" ? never :
-  T["mode"] extends "create temp" ? never :
-  T["mode"] extends "edit temp" ? never :
-  T["key"];
+type FilterServerFields<T extends FieldDefinition, M extends Mode> =
+  T["mode"] extends M ? never : T["key"];
 
 export interface AdminRecordStore {
   wikis: WikiAdminRecord[];
@@ -548,6 +545,17 @@ export interface DataStore {
   availablePluginNames: Set<string>;
 };
 
+export interface DataSave {
+  wikis: SavedTabRecord<TabDef["wikis"], WikiAdminRecord>[];
+  templates: SavedTabRecord<TabDef["templates"], TemplateAdminRecord>[];
+  bags: SavedTabRecord<TabDef["bags"], BagAdminRecord>[];
+  plugins: SavedTabRecord<TabDef["plugins"], PluginAdminRecord>[];
+  roles: SavedTabRecord<TabDef["roles"], RoleAdminRecord>[];
+  users: SavedTabRecord<TabDef["users"], UserAdminRecord>[];
+  availableBagNames: Set<string>;
+  availablePluginNames: Set<string>;
+};
+
 export interface WikiAdminRecord {
   // server fields
   id: string;
@@ -558,7 +566,7 @@ export interface WikiAdminRecord {
   writablePrefixBags: readonly MappingRow[];
   readonlyBags: readonly string[];
   plugins: readonly string[];
-  recipePermissions: readonly PermissionRow[];
+  recipePermissions: readonly PermissionRow<RecipePermissionLevel>[];
   // client field
   templateName: string;
   defaultWritableBag: string;
@@ -576,15 +584,18 @@ export interface WikiAdminRecord {
   titleResolutionPreview: string;
 }
 
+export type TemplateTypes = "simpleV1";
+
 export interface TemplateAdminRecord {
   // server fields
   id: string;
+  type: TemplateTypes;
   name: string;
   description: string;
   writablePrefixBags: readonly MappingRow[];
   readonlyBags: readonly string[];
   plugins: readonly string[];
-  templatePermissions: readonly PermissionRow[];
+  templatePermissions: readonly PermissionRow<RecipePermissionLevel>[];
   requiredPluginsEnabled: boolean;
   customHtmlEnabled: boolean;
   htmlContent: string;
@@ -604,7 +615,7 @@ export interface BagAdminRecord {
   id: string;
   name: string;
   description: string;
-  permissions: readonly PermissionRow[];
+  permissions: readonly PermissionRow<BagPermissionLevel>[];
   usedByCount: string;
   readonlyUsageCount: string;
   writableUsageCount: string;
@@ -629,7 +640,7 @@ export interface PluginAdminRecord {
 
 export interface RoleAdminRecord {
   id: string;
-  roleId: string;
+  name: string;
   description: string;
 }
 

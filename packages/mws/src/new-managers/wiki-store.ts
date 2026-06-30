@@ -1,3 +1,4 @@
+import { serverEvents } from "@tiddlywiki/events";
 
 
 
@@ -8,8 +9,8 @@ declare module "@tiddlywiki/events" {
       recipe_id?: string;
       bag_id: string;
       title: string;
-      revision_id: string;
-      is_deleted: boolean;
+      revision: string;
+      deletion: boolean;
     }];
   }
 }
@@ -17,30 +18,62 @@ declare module "@tiddlywiki/events" {
 
 
 export class WikiStore {
-  private tx!: PrismaTxnClient;
-  async saveTiddler({ bag_id, tiddler }: {
+  constructor(private tx: PrismaTxnClient) { }
+  async saveTiddler({ recipe_id, bag_id, fields }: {
+    /** Only used for the mws.tiddler.events log. */
+    recipe_id?: string;
     bag_id: string;
-    tiddler: any;
+    fields: any;
   }) {
-    const title = tiddler.title;
+    const title = fields.title;
     if (!title) {
       throw new Error("Tiddler must have a title");
     }
 
-    const fields = Object.fromEntries(
-      Object.entries(tiddler)
-        .filter(([, value]) => value !== undefined)
-        .map(([fieldName, fieldValue]) => [fieldName, typeof fieldValue === "string" ? fieldValue : `${fieldValue}`])
-    );
     const event = await this.tx.tiddlerEvent.create({
       data: { bag_id, title, type: "save" }
     });
 
-    await this.tx.tiddler.upsert({
+    const revision = BigInt(event.seq);
+
+    const tiddler = await this.tx.tiddler.upsert({
       where: { bag_id_title: { bag_id, title } },
-      update: { fields, revision: event.seq },
-      create: { bag_id, title, fields, revision: event.seq },
+      update: { fields, revision },
+      create: { bag_id, title, fields, revision },
     });
 
+    serverEvents.emitLog("mws.tiddler.events", {
+      recipe_id,
+      bag_id,
+      deletion: false,
+      revision: `${event.seq}`,
+      title,
+    });
+
+    return tiddler;
+
+  }
+
+  async deleteTiddler({ recipe_id, bag_id, title }: {
+    /** Only used for the mws.tiddler.events log. */
+    recipe_id?: string;
+    bag_id: string;
+    title: string;
+  }) {
+    const deleted = await this.tx.tiddler.deleteMany({
+      where: { bag_id, title }
+    });
+    if (!deleted.count) return null;
+    const event = await this.tx.tiddlerEvent.create({
+      data: { bag_id, title, type: "delete" }
+    });
+    serverEvents.emitLog("mws.tiddler.events", {
+      recipe_id,
+      bag_id,
+      deletion: true,
+      revision: `${event.seq}`,
+      title,
+    });
+    return event;
   }
 }

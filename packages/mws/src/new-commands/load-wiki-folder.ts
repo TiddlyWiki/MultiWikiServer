@@ -4,8 +4,9 @@ import { TiddlerFields, TW } from "tiddlywiki";
 import * as fs from "fs";
 import * as path from "path";
 import { truthy } from "@tiddlywiki/server";
-import { importBags, importRecipes, indexImportedBagsByName, toMappingRows, WikiImportWriter } from "../new-managers/wiki-import";
-import { RecipeDefinition } from "../new-managers/wiki-actions";
+import { toMappingRows } from "../new-managers/wiki-import";
+import { saveBagRow, saveWikiRow } from "../new-managers/wiki-actions";
+import { WikiStore } from "../new-managers/wiki-store";
 
 export const info: CommandInfo = {
 	name: "load-wiki-folder",
@@ -70,7 +71,6 @@ export class Command extends BaseCommand<[string], {
 		}
 
 		this.config.engine.$transaction(async prisma => {
-			const importer = new WikiImportWriter(prisma, false);
 
 			const existingRecipe = await prisma.recipe.findUnique({
 				where: { slug: recipeName },
@@ -92,7 +92,7 @@ export class Command extends BaseCommand<[string], {
 
 			const template = await prisma.template.findUnique({
 				where: { name: templateName },
-				select: { id: true, definition: true, type: true }
+				select: { id: true, name: true, type: true }
 			});
 
 			if (!template) {
@@ -109,56 +109,36 @@ export class Command extends BaseCommand<[string], {
 				$tw: this.$tw,
 			});
 
-			const [bag] = await importer.importBags([{
-				name: bagName,
-				description: bagDescription,
-				permissions: ownerRoles.map(roleId => ({ level: "C_admin", roleId })),
-			}]);
 
-			if (!bag) {
-				throw new Error(`Failed to create bag ${bagName}`);
-			}
 
 			switch (template.type) {
 				case "simpleV1": {
-					const recipeDefinition: RecipeDefinition = {
+					const bag_id = await saveBagRow(prisma, {
+						id: "",
+						name: bagName,
+						description: bagDescription,
+						permissions: ownerRoles.map(role => ({ level: "C_admin", role: role })),
+					});
+
+					if (!bag_id) {
+						throw new Error(`Failed to create bag ${bagName}`);
+					}
+
+					const recipe_id = await saveWikiRow(prisma, {
+						id: "",
+						slug: recipeName,
+						templateRef: { id: template.id, name: template.name },
 						displayName: recipeName,
 						description: recipeDescription,
 						plugins: pluginTitles,
 						readonlyBags: [],
 						writablePrefixBags: toMappingRows({ "": bagName }),
-					};
-					const {
-						bags: compiledBags, plugins: compiledPlugins
-					} = await importer.compileRecipeSimpleV1(recipeDefinition, template.definition);
-					const [recipe] = await importer.importRecipes([{
-						compiledBags,
-						plugins: compiledPlugins,
-						definition: recipeDefinition,
-						permissions: ownerRoles.map(roleId => ({ level: "B_write", roleId })),
-						slug: recipeName,
-						templateId: template.id,
-					}]);
-					await saveLoadedTiddlers(this.config.engine, bag.id, tiddlers);
+						recipePermissions: ownerRoles.map(role => ({ level: "B_write", role })),
+					});
+
+					await saveLoadedTiddlers(prisma, recipe_id, bag_id, tiddlers);
 				}
 			}
-
-
-			// const compiledRecipe = await importer.compileRecipe({
-			// 	slug: recipeName,
-			// 	definition: {
-			// 		displayName: recipeName,
-			// 		description: recipeDescription,
-			// 		readonlyBags: [],
-			// 		writablePrefixBags: { "": bagName },
-			// 		plugins: pluginTitles,
-			// 	},
-			// 	permissions: ownerRoles.map(roleId => ({ level: "B_write", roleId })),
-			// }, template);
-
-
-
-
 
 			console.log(info.name, "complete:", this.params[0])
 		});
@@ -169,6 +149,31 @@ export class Command extends BaseCommand<[string], {
 
 }
 
+
+async function saveLoadedTiddlers(
+	tx: PrismaTxnClient,
+	recipe_id: string,
+	bag_id: string,
+	tiddlers: TiddlerFields[],
+) {
+	for (const fields of tiddlers) {
+		const title = fields.title;
+		if (!title) {
+			throw new Error("Tiddler must have a title");
+		}
+		const store = new WikiStore(tx);
+		await store.deleteTiddler({
+			recipe_id,
+			bag_id,
+			title,
+		});
+		await store.saveTiddler({
+			recipe_id,
+			bag_id,
+			fields,
+		});
+	}
+}
 
 // Copy TiddlyWiki core editions
 function loadWikiFolder({ $tw, cache, ...options }: {
@@ -198,36 +203,6 @@ function loadWikiFolder({ $tw, cache, ...options }: {
 		pluginTitles,
 		tiddlers: tiddlersFromPath.map((entry) => entry.tiddlers).flat(),
 	};
-
-}
-
-async function saveLoadedTiddlers(prisma: PrismaEngineClient, bag_id: string, tiddlers: TiddlerFields[]) {
-	await prisma.$transaction(async (tx) => {
-		await tx.tiddler.deleteMany({ where: { bag_id } });
-
-		for (const tiddler of tiddlers) {
-			const title = tiddler.title;
-			if (!title) {
-				throw new Error("Tiddler must have a title");
-			}
-
-			const fields = Object.fromEntries(
-				Object.entries(tiddler)
-					.filter(([, value]) => value !== undefined)
-					.map(([fieldName, fieldValue]) => [fieldName, typeof fieldValue === "string" ? fieldValue : `${fieldValue}`])
-			);
-			const event = await tx.tiddlerEvent.create({
-				data: { bag_id, title, type: "save" }
-			});
-
-			await tx.tiddler.upsert({
-				where: { bag_id_title: { bag_id, title } },
-				update: { fields, revision: event.seq },
-				create: { bag_id, title, fields, revision: event.seq },
-			});
-
-		}
-	});
 
 }
 

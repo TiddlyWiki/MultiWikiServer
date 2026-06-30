@@ -173,7 +173,9 @@ function parseHonoRequest(req: HonoRequest, pathPrefix: string, assumeHTTPS: boo
       urlInfo.pathname = urlInfo.pathname.slice(pathPrefix.length);
     } else {
       const error = "The server is setup with a path prefix " + pathPrefix + ", but this request is outside of that prefix.";
-      throw new SendError("INTERNAL_SERVER_ERROR", 500, { message: error });
+      const sendError = new SendError("OUTSIDE_PATH_PREFIX", 404, { message: error });
+      sendError.skiplog = true;
+      throw sendError;
     }
   }
 

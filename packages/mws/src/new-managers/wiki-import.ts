@@ -1,12 +1,15 @@
-import { RecipeDefinition, TemplateDefinition } from "./wiki-actions";
+import { SendError, truthy } from "@tiddlywiki/server";
+import { RecipeDefinition, TabId, TemplateDefinition } from "./wiki-actions";
 import {
-  ImportCompiledRecipeBagInput,
-  type ImportBagInput,
-  type ImportRecipeInput,
-  type ImportRoleInput,
-  type ImportTemplateInput,
-  type ImportUserInput,
+  CompiledRecipeBagInput,
+  type UpsertBagInput,
+  type UpsertRecipeInput,
+  type UpsertRoleInput,
+  type UpsertTemplateInput,
+  type UpsertUserInput,
 } from "./wiki-contract";
+import { Prisma, RecipePermissionLevel } from "@tiddlywiki/mws-prisma";
+import { mapGetInit, thrower } from "./wiki-utils";
 
 export type ImportedRoleRows = Awaited<ReturnType<PrismaTxnClient["roles"]["findMany"]>>;
 export type ImportedUserRows = Awaited<ReturnType<PrismaTxnClient["users"]["findMany"]>>;
@@ -14,6 +17,7 @@ export type ImportedBagRows = Awaited<ReturnType<PrismaTxnClient["bag"]["findMan
 export type ImportedRecipeRows = Awaited<ReturnType<PrismaTxnClient["recipe"]["findMany"]>>;
 export type ImportedTemplateRow = {
   id: string;
+  name: string;
   definition: PrismaJson.Template_definition;
   type: string
 };
@@ -35,28 +39,94 @@ export function indexImportedRecipesBySlug(rows: ImportedRecipeRows) {
 }
 
 export function indexImportedTemplatesByName(rows: ImportedTemplateRow[]) {
-  return new Map(rows.map((template) => [template.definition.name, template]));
+  return new Map(rows.map((template) => [template.name, template]));
 }
 
-type RecipeCompilationInput = Omit<ImportRecipeInput, "templateId" | "plugins" | "compiledBags">;
 
-export class WikiImportWriter {
+type PrismaModalKeys = Prisma.TypeMap["meta"]["modelProps"]
+type PrismaScalarKeys<Modal extends PrismaModalKeys> =
+  keyof PrismaTxnClient[Modal][symbol]["types"]["payload"]["scalars"];
 
+abstract class PerClassImportWriter<Modal extends PrismaModalKeys> {
   constructor(
-    private readonly tx: PrismaTxnClient,
-    private readonly initStore: boolean,
-  ) { }
+    protected tx: PrismaTxnClient,
+    private tabid: TabId,
+    private modal: Modal,
+    private name: PrismaScalarKeys<Modal>,
+    private id: PrismaScalarKeys<Modal>,
+    protected initStore: boolean,
+  ) {
 
-  async importRoles(roles: ImportRoleInput[]) {
+  }
+
+  async checkExisting(id: string, name: string) {
+    if (id) {
+      const existing = await (this.tx[this.modal] as any).findUnique({
+        where: { [this.id]: id },
+        select: { [this.id]: true, [this.name]: true }
+      });
+      if (!existing)
+        throw new Error("existing wiki not found");
+      if (existing[this.name] !== name)
+        await this.rename([[existing[this.name], name]]);
+    }
+
+  }
+
+  async rename(renames: [string, string][]) {
+    await Promise.all(renames.map(([oldName, newName]) =>
+      (this.tx[this.modal] as any).update({
+        where: { [this.name]: oldName },
+        data: { [this.name]: newName }
+      })));
+  }
+
+  async getNameMapper(names: readonly string[]) {
+    names = Array.from(new Set(names));
+    const rows = await (this.tx[this.modal] as any).findMany({
+      where: { [this.name]: { in: names.slice() } },
+      select: { [this.id]: true, [this.name]: true },
+    });
+    return recordKeyMapper(new Map(rows.map((row: any) => [row[this.name], row[this.id]])), this.tabid);
+  }
+
+  abstract upsert(rows: unknown[]): Promise<unknown[]>;
+}
+
+// #region ROLES
+export class RoleImportWriter extends PerClassImportWriter<"roles"> {
+  constructor(tx: PrismaTxnClient, initStore: boolean) {
+    super(tx, "users", "roles", "role_name", "role_id", initStore)
+  }
+
+  async upsert(roles: UpsertRoleInput[]) {
     this.validateProtectedRoles(roles);
     return Promise.all(roles.map((role) => this.tx.roles.upsert({
-      where: { role_name: role.role_name },
+      where: { role_name: role.name },
       update: { description: role.description },
-      create: { role_name: role.role_name, description: role.description },
+      create: { role_name: role.name, description: role.description },
     })));
   }
 
-  async importUsers(users: ImportUserInput[]) {
+
+  private validateProtectedRoles(roles: UpsertRoleInput[]) {
+    if (!this.initStore) {
+      if (roles.some((entry) => entry.name === "ADMIN"))
+        throw new Error("Cannot modify protected rows.");
+      if (roles.some((entry) => entry.name === "USER"))
+        throw new Error("Cannot modify protected rows.");
+    }
+  }
+
+}
+
+// #region USERS
+export class UserImportWriter extends PerClassImportWriter<"users"> {
+  constructor(tx: PrismaTxnClient, initStore: boolean) {
+    super(tx, "users", "users", "username", "user_id", initStore)
+  }
+
+  async upsert(users: UpsertUserInput[]) {
     return Promise.all(users.map((user) => {
       const roleLinks = user.roleIds.map((roleId) => ({ role_id: roleId }));
       return this.tx.users.upsert({
@@ -75,117 +145,235 @@ export class WikiImportWriter {
       });
     }));
   }
+}
 
-  async importBags(bags: ImportBagInput[]) {
-    const bagRows = await Promise.all(bags.map((bag) => this.tx.bag.upsert({
-      where: { name: bag.name },
-      update: { description: bag.description },
-      create: { name: bag.name, description: bag.description },
-    })));
+// #region BAGS
 
-    await Promise.all(bags.map((bag, index) => this.replaceBagPermissions(bag, bagRows[index].id)));
-    return bagRows;
+export class BagImportWriter extends PerClassImportWriter<"bag"> {
+  constructor(tx: PrismaTxnClient, initStore: boolean) {
+    super(tx, "bags", "bag", "name", "id", initStore)
   }
 
-  private async replaceBagPermissions(bag: ImportBagInput, bagId: string) {
-    await this.tx.bagPermission.deleteMany({ where: { bag_id: bagId } });
-    await Promise.all(bag.permissions.map(({ roleId, level }) => this.tx.bagPermission.create({
-      data: {
-        bag_id: bagId,
-        role_id: roleId,
-        level,
-      },
-    })));
-  }
-
-  async importTemplates(templates: ImportTemplateInput[]) {
-    this.validateProtectedTemplates(templates);
-    const existingTemplates = await this.tx.template.findMany({
-      select: { id: true, definition: true },
+  async rename(renames: [string, string][]) {
+    const renamesMap = new Map(renames);
+    const bags = await this.tx.bag.findMany({
+      where: { name: { in: Array.from(renamesMap.keys()) } },
+      include: { recipe_bags: { select: { recipe: { select: { id: true, template_id: true } } } }, }
     });
-    const templateIdByName = new Map<string, string>();
-    for (const template of existingTemplates) {
-      templateIdByName.set(template.definition.name, template.id);
+
+    const recipesInvolved = new Map<string, Set<string>>();
+    const templatesInvolved = new Map<string, Set<string>>();
+
+    bags.forEach(bag => {
+      bag.recipe_bags.forEach(rb => {
+        mapGetInit(recipesInvolved, bag.name, () => new Set()).add(rb.recipe.id);
+        mapGetInit(templatesInvolved, bag.name, () => new Set()).add(rb.recipe.template_id);
+      });
+    });
+
+    const recipesToEdit = Array.from(new Set(Array.from(recipesInvolved.values(), e => [...e]).flat()));
+
+    const recipes = await this.tx.recipe.findMany({
+      where: { id: { in: recipesToEdit } }
+    });
+
+    for (const recipe of recipes) {
+      recipe.definition.writablePrefixBags.forEach(e => {
+        const newName = renamesMap.get(e.right);
+        if (newName !== undefined) e.right = newName;
+      });
+      recipe.definition.readonlyBags
+        = recipe.definition.readonlyBags
+          .map(e => renamesMap.get(e) ?? e);
+      await this.tx.recipe.update({
+        where: { id: recipe.id },
+        data: { definition: recipe.definition },
+      })
     }
 
-    const templateRows = await Promise.all(templates.map((template) => {
-      const existingTemplateId = templateIdByName.get(template.definition.name);
-      const data = {
-        name: template.definition.name,
-        type: template.type,
-        definition: template.definition,
-      };
-      return existingTemplateId
-        ? this.tx.template.update({
-          where: { id: existingTemplateId },
-          data,
-          select: { id: true, definition: true, type: true },
-        })
-        : this.tx.template.create({
-          data,
-          select: { id: true, definition: true, type: true },
-        });
-    }));
-    return templateRows;
-  }
+    const templatesToEdit = Array.from(new Set(Array.from(templatesInvolved.values(), e => [...e]).flat()));
 
-  async importRecipes(recipes: ImportRecipeInput[]) {
-    const recipeRows = await Promise.all(recipes.map((recipe) => this.tx.recipe.upsert({
-      where: { slug: recipe.slug },
-      update: {
-        definition: recipe.definition,
-        template_id: recipe.templateId,
-        plugins: recipe.plugins,
-      },
-      create: {
-        slug: recipe.slug,
-        definition: recipe.definition,
-        template_id: recipe.templateId,
-        plugins: recipe.plugins,
-      },
-    })));
-
-    await Promise.all(recipes.map((recipe, index) => this.replaceRecipePermissions(recipe, recipeRows[index].id)));
-    await Promise.all(recipes.map((recipe, index) => this.replaceRecipeBags(recipe, recipeRows[index].id)));
-    this.logRecipes(recipeRows);
-    return recipeRows;
-  }
-
-  private async replaceRecipePermissions(recipe: ImportRecipeInput, recipeId: string) {
-    await this.tx.recipePermission.deleteMany({
-      where: { recipe_id: recipeId },
-    });
-    await Promise.all(recipe.permissions.map((permission) => this.tx.recipePermission.create({
-      data: {
-        recipe_id: recipeId,
-        role_id: permission.roleId,
-        level: permission.level,
-      },
-    })));
-  }
-
-  private async replaceRecipeBags(recipe: ImportRecipeInput, recipeId: string) {
-    await this.tx.recipeBag.deleteMany({
-      where: { recipe_id: recipeId },
+    const templates = await this.tx.template.findMany({
+      where: { id: { in: templatesToEdit } }
     });
 
-    for (const row of recipe.compiledBags) {
-      await this.tx.recipeBag.create({
-        data: {
-          recipe_id: recipeId,
-          bag_id: row.bagId,
-          priority: row.priority,
-          is_writable: row.isWritable,
-          prefix: row.prefix,
-        },
+    for (const template of templates) {
+      template.definition.writablePrefixBags.forEach(e => {
+        const newName = renamesMap.get(e.right);
+        if (newName !== undefined) e.right = newName;
+      });
+      template.definition.readonlyBags
+        = template.definition.readonlyBags
+          .map(e => renamesMap.get(e) ?? e);
+      await this.tx.template.update({
+        where: { id: template.id },
+        data: { definition: template.definition },
       });
     }
+
   }
 
+  async upsert(bags: UpsertBagInput[]) {
+    const bagRows = await Promise.all(bags.map((bag) => this.tx.bag.upsert({
+      where: { name: bag.name },
+      update: {
+        description: bag.description,
+        permissions: {
+          deleteMany: {},
+          create: bag.permissions.map(e => ({
+            level: e.level,
+            role_id: e.role_id,
+          })),
+        }
+      },
+      create: {
+        name: bag.name,
+        description: bag.description,
+        permissions: {
+          create: bag.permissions.map(e => ({
+            level: e.level,
+            role_id: e.role_id,
+          })),
+        }
+      },
+      include: { permissions: true, }
+    })));
+
+    for (let i = 0; i < bags.length; i++) {
+      for (let j = 0; j < bags[i].permissions.length; j++) {
+        if (bagRows[i].permissions[j].role_id !== bags[i].permissions[j].role_id)
+          throw new Error("Data partially saved but permissions did not save properly");
+      }
+    }
+
+    return bagRows;
+  }
+}
+
+
+// #region TEMPLATES
+export class TemplateImportWriter extends PerClassImportWriter<"template"> {
+  constructor(tx: PrismaTxnClient, initStore: boolean) {
+    super(tx, "templates", "template", "name", "id", initStore)
+  }
+
+  /** 
+   * Saving a template without an id will always create one if the name does not exist 
+   * and modify it if it does exist. 
+   * You must include the existing id if you want to rename a template.
+   */
+  async upsert(definitions: UpsertTemplateInput[]) {
+    const defaultName = "Blank Template";
+
+    const templateRows = await Promise.all(definitions.map((definition) => {
+
+      if (!this.initStore && definition.name === defaultName)
+        throw new Error("Cannot modify the blank template.");
+
+      const { name, type } = definition;
+
+      definition.name = undefined as any;
+
+      const data = { name, type, definition, };
+
+      return this.tx.template.upsert({
+        create: data,
+        update: data,
+        // prevents the template type from changing if it exists
+        where: { name, type }
+      });
+
+    }));
+
+    return templateRows;
+  }
+}
+
+
+// #region RECIPES
+
+export class RecipeImportWriter extends PerClassImportWriter<"recipe"> {
+  constructor(tx: PrismaTxnClient, initStore: boolean) {
+    super(tx, "wikis", "recipe", "slug", "id", initStore)
+  }
+
+
+  async upsert(recipes: UpsertRecipeInput[]) {
+
+    const upserter = async (recipe: UpsertRecipeInput) => {
+      return await this.tx.recipe.upsert({
+        where: { slug: recipe.slug },
+        update: {
+          definition: recipe.definition,
+          template_id: recipe.templateId,
+          plugins: recipe.plugins,
+          recipe_bags: {
+            deleteMany: {},
+            create: recipe.compiledBags.map(e => ({
+              bag_id: e.bagId,
+              is_writable: e.isWritable,
+              prefix: e.prefix,
+              priority: e.priority,
+            }))
+          },
+          permissions: {
+            deleteMany: {},
+            create: recipe.permissions.map(e => ({
+              level: e.level,
+              role_id: e.role_id,
+            }))
+          }
+        },
+        create: {
+          slug: recipe.slug,
+          definition: recipe.definition,
+          template_id: recipe.templateId,
+          plugins: recipe.plugins,
+          recipe_bags: {
+            create: recipe.compiledBags.map(e => ({
+              bag_id: e.bagId,
+              is_writable: e.isWritable,
+              prefix: e.prefix,
+              priority: e.priority,
+            })),
+          },
+          permissions: {
+            create: recipe.permissions.map(e => ({
+              level: e.level,
+              role_id: e.role_id,
+            }))
+          }
+        },
+        include: {
+          recipe_bags: true,
+          permissions: true,
+        }
+      });
+    }
+    const results: ART<typeof upserter>[] = [];
+    for (const recipe of recipes) {
+      const row = await upserter(recipe);
+      // if either of these ever throws, it is very likely because 
+      // having deleteMany and create in the same nested operation is undefined behavior.
+      for (let i = 0; i < recipe.permissions.length; i++) {
+        if (row.permissions[i].role_id !== recipe.permissions[i].role_id)
+          throw new Error("Data partially saved but permissions did not save properly");
+      }
+      for (let i = 0; i < recipe.compiledBags.length; i++) {
+        if (row.recipe_bags[i].bag_id !== recipe.compiledBags[i].bagId)
+          throw new Error("Data partially saved but compiledBags did not save properly");
+      }
+      results.push(row);
+    }
+    this.logRecipes(results);
+    return results;
+
+  }
+  // #region COMPILE
   async compileRecipeSimpleV1(
     recipeDefinition: RecipeDefinition,
     templateDefinition: TemplateDefinition
-  ): Promise<{ bags: ImportCompiledRecipeBagInput[], plugins: string[] }> {
+  ): Promise<{ bags: CompiledRecipeBagInput[], plugins: string[] }> {
     // Set takes the order of first appearance.
     const plugins = Array.from(new Set([
       ...recipeDefinition.plugins,
@@ -228,31 +416,20 @@ export class WikiImportWriter {
             isWritable: true,
             priority: i,
             prefix: e.prefix,
-          } satisfies ImportCompiledRecipeBagInput)),
+          } satisfies CompiledRecipeBagInput)),
         ...readonlyBags
           .map((e, i) => ({
             bagId: bagLookup.get(e)!.id,
             isWritable: false,
             priority: i + writablePrefixBags.length,
             prefix: "",
-          } satisfies ImportCompiledRecipeBagInput))
+          } satisfies CompiledRecipeBagInput))
       ],
     }
   }
 
-  private validateProtectedRoles(roles: ImportRoleInput[]) {
-    if (!this.initStore) {
-      if (roles.some((entry) => entry.role_name === "ADMIN"))
-        throw new Error("Seed data cannot modify protected rows.");
-      if (roles.some((entry) => entry.role_name === "USER"))
-        throw new Error("Seed data cannot modify protected rows.");
-    }
-  }
+  // #region OTHER
 
-  private validateProtectedTemplates(templates: ImportTemplateInput[]) {
-    if (!this.initStore && templates.some((entry) => entry.definition.name === "Blank Template"))
-      throw new Error("Seed data cannot modify protected rows.");
-  }
 
   private logRecipes(recipeRows: ImportedRecipeRows) {
     recipeRows.forEach((recipe) => {
@@ -261,38 +438,39 @@ export class WikiImportWriter {
   }
 }
 
-export function importRoles(prisma: PrismaEngineClient, roles: ImportRoleInput[], initStore = false) {
+
+export function importRoles(prisma: PrismaEngineClient, roles: UpsertRoleInput[], initStore = false) {
   return prisma.$transaction(async (tx) => {
-    const importer = new WikiImportWriter(tx, initStore);
-    return importer.importRoles(roles);
+    const importer = new RoleImportWriter(tx, initStore);
+    return importer.upsert(roles);
   });
 }
 
-export function importUsers(prisma: PrismaEngineClient, users: ImportUserInput[], initStore = false) {
+export function importUsers(prisma: PrismaEngineClient, users: UpsertUserInput[], initStore = false) {
   return prisma.$transaction(async (tx) => {
-    const importer = new WikiImportWriter(tx, initStore);
-    return importer.importUsers(users);
+    const importer = new UserImportWriter(tx, initStore);
+    return importer.upsert(users);
   });
 }
 
-export function importBags(prisma: PrismaEngineClient, bags: ImportBagInput[], initStore = false) {
+export function importBags(prisma: PrismaEngineClient, bags: UpsertBagInput[], initStore = false) {
   return prisma.$transaction(async (tx) => {
-    const importer = new WikiImportWriter(tx, initStore);
-    return importer.importBags(bags);
+    const importer = new BagImportWriter(tx, initStore);
+    return importer.upsert(bags);
   });
 }
 
-export function importTemplates(prisma: PrismaEngineClient, templates: ImportTemplateInput[], initStore = false) {
+export function importTemplates(prisma: PrismaEngineClient, templates: UpsertTemplateInput[], initStore = false) {
   return prisma.$transaction(async (tx) => {
-    const importer = new WikiImportWriter(tx, initStore);
-    return importer.importTemplates(templates);
+    const importer = new TemplateImportWriter(tx, initStore);
+    return importer.upsert(templates);
   });
 }
 
-export function importRecipes(prisma: PrismaEngineClient, recipes: ImportRecipeInput[], initStore = false) {
+export function importRecipes(prisma: PrismaEngineClient, recipes: UpsertRecipeInput[], initStore = false) {
   return prisma.$transaction(async (tx) => {
-    const importer = new WikiImportWriter(tx, initStore);
-    return importer.importRecipes(recipes);
+    const importer = new RecipeImportWriter(tx, initStore);
+    return importer.upsert(recipes);
   });
 }
 
@@ -308,3 +486,7 @@ function uniqueStrings(values: string[]) {
   return Array.from(new Set(values));
 }
 
+
+function recordKeyMapper(map: Map<string, string>, table: TabId): (key: string) => string {
+  return key => map.get(key) ?? thrower(new SendError("RECORD_KEY_NOT_FOUND", 400, { table, name: key }))
+}

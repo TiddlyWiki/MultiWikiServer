@@ -1,4 +1,5 @@
 import { SendErrorItem } from "@tiddlywiki/server";
+import { TabId } from "./new-managers/wiki-actions";
 declare module "@tiddlywiki/server" {
   interface SendErrorReasonData {
     "RECIPE_NOT_FOUND":
@@ -63,5 +64,8 @@ declare module "@tiddlywiki/server" {
 
     "ARGUMENT_REQUIRED":
     SendErrorItem<400, { name: string }>;
+
+    "RECORD_KEY_NOT_FOUND":
+    SendErrorItem<400, { table: TabId; name: string; }>
   }
 }

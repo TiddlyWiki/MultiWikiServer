@@ -493,7 +493,7 @@ export class Streamer extends StreamerRequest {
       onNotFound: async (path, c) => {
         if (options.on404)
           await options.on404(path, this as unknown as ServerRequest)
-        else 
+        else
           this.res.sendResponse(await c.notFound());
       },
     });
@@ -579,7 +579,19 @@ export class Streamer extends StreamerRequest {
 
   async pipeFrom(stream: Readable) {
     stream.pipe(this.writer, { end: false });
-    return new Promise<void>((r, c) => this.writer.on("unpipe", r).on("error", c));
+    return new Promise<void>((r, c) => {
+      const register: [string, () => void][] = [];
+      const subscribe = (key: string, finish: () => void) => {
+        const finish2 = () => {
+          register.map(([key, cb]) => this.writer.off(key, cb));
+          finish();
+        }
+        register.push([key, finish2]);
+        this.writer.on(key, finish2);
+      }
+      subscribe("unpipe", r);
+      subscribe("error", c);
+    });
   }
 
   /** sends a status and plain text string body */

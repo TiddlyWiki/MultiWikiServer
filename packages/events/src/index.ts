@@ -13,7 +13,7 @@ import { EventEmitter } from "events";
 export interface ServerEventsMap {
 
 }
-
+// the node implementation handles once in the once handler, not in emit
 export class ServerEvents extends EventEmitter<ServerEventsMap> {
   /** Use emitAsync instead */
   override emit!: never;
@@ -29,9 +29,18 @@ export class ServerEvents extends EventEmitter<ServerEventsMap> {
     eventName: keyof ServerEventsMap | K,
     ...args: K extends keyof ServerEventsMap ? ServerEventsMap[K] : never
   ) {
-    // the node implementation handles once in the once handler, not in emit
     await Promise.all(this.listeners(eventName).map(e => e(...args)));
   }
+  /** Call all listeners sync'ly, await them, catch errors per listener and forward them to emitLogCatcher.  */
+  async emitLog<K>(
+    eventName: keyof ServerEventsMap | K,
+    ...args: K extends keyof ServerEventsMap ? ServerEventsMap[K] : never
+  ) {
+    this.listeners(eventName).map(async e => { try { await e(...args) } catch (e) { this.emitLogCatcher?.(e); } })
+  }
+
+  emitLogCatcher?: (error: unknown) => void;
+
 }
 
 /**

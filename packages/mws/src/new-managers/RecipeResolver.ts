@@ -12,6 +12,8 @@ import { createHash } from "node:crypto";
 import { createReadStream } from "node:fs";
 import { readFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
+import { WikiStore } from "./wiki-store";
+import { mapGetInit } from "./wiki-utils";
 
 
 // ---------------------------------------------------------------------------
@@ -364,30 +366,32 @@ export class RecipeResolver {
       if (!title) throw "tiddler must have a title";
       const bag = this.getWriteTarget({ title });
       if (!bag || !this.canWriteBag(bag)) throw "write not permitted";
-      const event = await this.prisma.tiddlerEvent.create({
-        data: { bag_id: bag.bag_id, title, type: "save" }
-      });
-      const revision = BigInt(event.seq);
-      await this.prisma.tiddler.upsert({
-        where: { bag_id_title: { bag_id: bag.bag_id, title: title } },
-        update: { fields, revision },
-        create: { bag_id: bag.bag_id, title: title, fields, revision },
+      const tiddler = await new WikiStore(this.prisma).saveTiddler({
+        recipe_id: this.recipe.id,
+        bag_id: bag.bag_id,
+        fields
       });
       return {
         title,
         info: await this.resolveInfo({ title, target: bag }),
-        revision: event.seq.toString(),
+        revision: tiddler.revision.toString(),
       };
     }));
   }
 
-  async deleteTiddlers({ titles }: { titles: PrismaField<"Tiddler", "title">[]; }): Promise<BatchMutationResult[]> {
+  async deleteTiddlers({ titles }: { titles: PrismaField<"Tiddler", "title">[]; }): Promise<(BatchMutationResult | null)[]> {
     return await Promise.all((titles ?? []).map(async title => {
+
       const bag = this.getWriteTarget({ title });
       if (!bag || !this.canWriteBag(bag)) throw "write not permitted";
-      await this.prisma.tiddler.deleteMany({ where: { bag_id: bag.bag_id, title } });
-      const event = await this.prisma.tiddlerEvent.create({ data: { bag_id: bag.bag_id, title, type: "delete" } });
-      return {
+
+      const event = await new WikiStore(this.prisma).deleteTiddler({
+        recipe_id: this.recipe.id,
+        bag_id: bag.bag_id,
+        title,
+      });
+
+      return !event ? null : {
         title,
         info: await this.resolveInfo({ title, target: bag }),
         revision: event.seq.toString(),
@@ -395,6 +399,36 @@ export class RecipeResolver {
     }));
   }
 
+  async getIndexData(includeTiddlers: boolean) {
+    const maxSeq = await this.prisma.tiddlerEvent.aggregate({ _max: { seq: true } });
+
+    const bagIds = this.recipe.recipe_bags.map(e => e.bag_id);
+
+    const bagTiddlers = includeTiddlers ? await this.prisma.bag.findMany({
+      where: { id: { in: bagIds } },
+      select: {
+        id: true,
+        name: true,
+        tiddlers: {
+          select: { title: true, fields: true, revision: true },
+        },
+      },
+    }) : [];
+
+    return { bagTiddlers, maxSeq: maxSeq._max.seq }
+
+  }
+
+}
+
+
+export class IndexSender {
+
+  constructor(
+    private recipe: RecipeInfo,
+    private bagTiddlers: ART<RecipeResolver["getIndexData"]>["bagTiddlers"],
+    private lastEventId: number | null,
+  ) { }
 
   async serveIndexFile(
     state: ServerRequest<any, any>,
@@ -424,22 +458,14 @@ export class RecipeResolver {
       });
     }
 
-    const bagIds = this.recipe.recipe_bags.map(e => e.bag_id);
-
-    const [lastEvent, template] = await Promise.all([
-      this.prisma.tiddlerEvent.findFirst({
-        where: { bag_id: { in: bagIds } },
-        orderBy: { seq: "desc" },
-        select: { seq: true },
-      }),
-      readFile(resolve(state.config.cachePath, "tiddlywiki5.html"), "utf8"),
-    ]);
+    const template = await readFile(resolve(state.config.cachePath, "tiddlywiki5.html"), "utf8");
+    const lastEvent = this.lastEventId;
 
     const hash = createHash("md5");
     hash.update(template);
     hash.update(this.recipe.recipe_bags.map(e => e.bag.name).join(","));
     hash.update(plugins.map(e => pluginHashes.get(e) ?? "").join(","));
-    hash.update(String(lastEvent?.seq ?? 0));
+    hash.update(String(lastEvent ?? 0));
     const contentDigest = hash.digest("hex");
 
     const newEtag = `"${contentDigest}"`;
@@ -492,7 +518,7 @@ export class RecipeResolver {
       }
     }
 
-    await this.writeStoreTiddlers(state, String(lastEvent?.seq ?? 0));
+    await this.writeStoreTiddlers(state, String(lastEvent ?? 0));
 
     await state.write(template.substring(markerPos + marker.length));
 
@@ -508,26 +534,12 @@ export class RecipeResolver {
     }
 
     const bagOrder = new Map(this.recipe.recipe_bags.map(e => [e.bag_id, e.priority]));
-    const bagIds = this.recipe.recipe_bags
-      .filter(e => !state.pluginCache.pluginFiles.has(e.bag.name))
-      .map(e => e.bag_id);
 
-    const bagTiddlers = await this.prisma.bag.findMany({
-      where: { id: { in: bagIds } },
-      select: {
-        id: true,
-        name: true,
-        tiddlers: {
-          select: { title: true, fields: true, revision: true },
-        },
-      },
-    });
-
-    bagTiddlers.sort((a, b) => bagOrder.get(b.id)! - bagOrder.get(a.id)!);
+    this.bagTiddlers.sort((a, b) => bagOrder.get(b.id)! - bagOrder.get(a.id)!);
 
     // Top bag wins — last write in the Map wins, so iterate lowest-priority first.
     const recipeTiddlers = Array.from(
-      new Map(bagTiddlers.flatMap(bag =>
+      new Map(this.bagTiddlers.flatMap(bag =>
         bag.tiddlers.map(t => [t.title, { bag, tiddler: t }])
       )).values()
     );
@@ -569,18 +581,6 @@ export class RecipeResolver {
     }
   }
 
-
-}
-
-
-function mapGetInit<K, V>(map: Map<K, V>, key: K, init: () => V): V {
-  if (!map.has(key)) {
-    let val = init();
-    map.set(key, val);
-    return val;
-  } else {
-    return map.get(key) as V;
-  }
 }
 
 

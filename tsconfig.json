@@ -40,10 +40,11 @@
     "packages/**/src",
   ],
   "exclude": [
-    "packages/react-admin/src",
-    "packages/mws/src/commands",
-    "packages/mws/src/managers",
+    "packages/admin-react",
+    "packages/admin-mdui",
+    "packages/mws/src/old-commands",
+    "packages/mws/src/old-managers",
     "packages/mws/src/drizzle",
-    "packages/mdui-admin"
+    "packages/mws/src/services/attachments.ts",
   ]
 }

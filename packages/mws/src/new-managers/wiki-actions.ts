@@ -1,5 +1,8 @@
-import type { DataStore, MappingRow, PermissionRow, Reference } from "@mws/admin-vanilla/src/definition/tabs";
+import type { DataSave, DataStore, MappingRow, PermissionRow, Reference, TemplateTypes } from "@mws/admin-vanilla/src/definition/tabs";
 import { ServerRequest } from "@tiddlywiki/server";
+import { BagImportWriter, RecipeImportWriter, RoleImportWriter, TemplateImportWriter, UserImportWriter } from "./wiki-import";
+import { BagPermissionLevel } from "./wiki-contract";
+import { RecipePermissionLevel } from "@tiddlywiki/mws-prisma";
 
 type IWikiRow = DataStore["wikis"][number];
 type ITemplateRow = DataStore["templates"][number];
@@ -10,15 +13,16 @@ type IRoleRow = DataStore["roles"][number];
 
 
 export type TemplateDefinition = Omit<
-  ITemplateRow,
+  DataStore["templates"][number],
   | "id"
+  | "name"
   | "lastUpdatedAt"
   | "templatePermissions"
   | "dependentWikis"
 >;
 
 export type RecipeDefinition = Omit<
-  IWikiRow,
+  DataStore["wikis"][number],
   | "id"
   | "slug"
   | "templateRef"
@@ -37,18 +41,18 @@ declare global {
 }
 
 export type {
-  ImportBagInput as SeedBagInput,
-  ImportRecipeInput as SeedRecipeInput,
-  ImportRoleInput as SeedRoleInput,
-  ImportTemplateInput as SeedTemplateInput,
-  ImportUserInput as SeedUserInput,
+  UpsertBagInput,
+  UpsertRecipeInput,
+  UpsertRoleInput,
+  UpsertTemplateInput,
+  UpsertUserInput,
 } from "./wiki-contract";
 export {
-  importBags as importSeedBags,
-  importRecipes as importSeedRecipes,
-  importRoles as importSeedRoles,
-  importTemplates as importSeedTemplates,
-  importUsers as importSeedUsers,
+  importBags as importBags,
+  importRecipes as importRecipes,
+  importRoles as importRoles,
+  importTemplates as importTemplates,
+  importUsers as importUsers,
   indexImportedBagsByName,
   indexImportedRecipesBySlug,
   indexImportedRolesByName,
@@ -77,12 +81,13 @@ abstract class WikiRow implements IWikiRow {
   abstract effectiveWritableBags: readonly MappingRow[];
   abstract effectiveReadonlyBags: readonly string[];
   abstract effectivePluginSet: readonly string[];
-  abstract recipePermissions: readonly PermissionRow<string>[];
+  abstract recipePermissions: readonly PermissionRow<RecipePermissionLevel>[];
 }
 
 
 abstract class TemplateRow implements ITemplateRow {
   abstract id: string;
+  abstract type: TemplateTypes;
   abstract name: string;
   abstract description: string;
   abstract plugins: readonly string[];
@@ -90,7 +95,7 @@ abstract class TemplateRow implements ITemplateRow {
   abstract writablePrefixBags: readonly MappingRow[];
   abstract lastUpdatedAt: string;
   abstract requiredPluginsEnabled: boolean;
-  abstract templatePermissions: readonly PermissionRow<string>[];
+  abstract templatePermissions: readonly PermissionRow<RecipePermissionLevel>[];
   abstract customHtmlEnabled: boolean;
   abstract htmlContent: string;
   abstract injectionArray: string;
@@ -103,7 +108,7 @@ abstract class BagRow implements IBagRow {
   abstract id: string;
   abstract name: string;
   abstract description: string;
-  abstract permissions: readonly PermissionRow<string>[];
+  abstract permissions: readonly PermissionRow<BagPermissionLevel>[];
 }
 
 abstract class PluginRow implements IPluginRow {
@@ -116,7 +121,7 @@ abstract class PluginRow implements IPluginRow {
 abstract class RoleRow implements IRoleRow {
   abstract id: string;
   abstract description: string;
-  abstract roleId: string;
+  abstract name: string;
 
 }
 
@@ -130,13 +135,6 @@ abstract class UserRow implements IUserRow {
 
 
 export type TabId = "wikis" | "templates" | "bags" | "plugins" | "roles" | "users";
-
-type PermissionValue = "A_read" | "B_write" | "C_admin";
-
-function parseLineList(value: string): string[] {
-  if (!value.trim()) return [];
-  return value.split("\n").map((entry) => entry.trim()).filter(Boolean);
-}
 
 function normalizeLineList(values: readonly string[]): string[] {
   return values.map((entry) => entry.trim()).filter(Boolean);
@@ -153,47 +151,14 @@ function normalizePermissions<Level extends string>(rows: readonly PermissionRow
     .map((row) => ({ role: row.role.trim(), level: row.level }))
     .filter((row) => row.role);
 }
-
-function toMappingRows(obj: Record<string, string>): MappingRow[] {
-  return Object.entries(obj).map(([left, right]) => ({ left, right }));
-}
-
-function parsePluginReference(pluginValue: string) {
-  const trimmed = pluginValue.trim();
-  const atIndex = trimmed.lastIndexOf("@");
-  if (atIndex > 0) {
-    return {
-      name: trimmed.slice(0, atIndex),
-      version: trimmed.slice(atIndex + 1) || "",
-    };
-  }
-  return { name: trimmed, version: "" };
-}
-
-async function getRoleIdsByName(prisma: PrismaTxnClient, roleNames: readonly string[]): Promise<Map<string, string>> {
-  const uniqueRoleNames = Array.from(new Set(roleNames.map((name) => name.trim()).filter(Boolean)));
-  const rows = await prisma.roles.findMany({
-    where: { role_name: { in: uniqueRoleNames } },
-    select: { role_id: true, role_name: true },
-  });
-  return new Map(rows.map((row) => [row.role_name, row.role_id]));
-}
-
-async function getBagIdsByName(prisma: PrismaTxnClient, bagNames: string[]): Promise<Map<string, string>> {
-  const uniqueBagNames = Array.from(new Set(bagNames.map((name) => name.trim()).filter(Boolean)));
-  const rows = await prisma.bag.findMany({
-    where: { name: { in: uniqueBagNames } },
-    select: { id: true, name: true },
-  });
-  return new Map(rows.map((row) => [row.name, row.id]));
-}
-
-async function saveWikiRow(prisma: PrismaTxnClient, data: IWikiRow): Promise<string> {
+// #region saveWiki
+export async function saveWikiRow(prisma: PrismaTxnClient, data: DataSave["wikis"][number]): Promise<string> {
+  const importer = new RecipeImportWriter(prisma, false);
   const templateRef = data.templateRef;
   if (!templateRef) throw new Error("wiki template reference is required");
+  const template = await prisma.template.findUnique({ where: { id: templateRef.id } });
+  if (!template) throw new Error("wiki template not found");
   const authoredWritableRows = normalizePrefixRows(data.writablePrefixBags);
-  const effectiveWritableRows = normalizePrefixRows(data.effectiveWritableBags);
-  const effectiveReadonlyBags = normalizeLineList(data.effectiveReadonlyBags);
   const recipePermissions = normalizePermissions(data.recipePermissions);
   const authoredDefinition: PrismaJson.Recipe_definition = {
     displayName: data.displayName,
@@ -203,85 +168,36 @@ async function saveWikiRow(prisma: PrismaTxnClient, data: IWikiRow): Promise<str
     plugins: normalizeLineList(data.plugins),
   };
 
-  const permissionRoleIds = await getRoleIdsByName(prisma, recipePermissions.map((row) => row.role));
-  const compiledBagNames = [
-    ...effectiveWritableRows.map((row) => row.right),
-    ...effectiveReadonlyBags,
-  ];
-  const bagIdsByName = await getBagIdsByName(prisma, compiledBagNames);
-  const existing = data.id ? await prisma.recipe.findUnique({ where: { id: data.id }, select: { id: true } }) : null;
+  await importer.checkExisting(data.id, data.slug);
 
-  const recipe = existing
-    ? await prisma.recipe.update({
-      where: { id: data.id },
-      data: {
-        slug: data.slug,
-        template_id: templateRef.id,
-        definition: authoredDefinition,
-        plugins: normalizeLineList(data.effectivePluginSet),
-      },
-      select: { id: true },
-    })
-    : await prisma.recipe.create({
-      data: {
-        slug: data.slug,
-        template_id: templateRef.id,
-        definition: authoredDefinition,
-        plugins: normalizeLineList(data.effectivePluginSet),
-      },
-      select: { id: true },
-    });
+  const compiled = await importer.compileRecipeSimpleV1(
+    authoredDefinition,
+    template.definition
+  );
 
-  await prisma.recipePermission.deleteMany({ where: { recipe_id: recipe.id } });
-  if (recipePermissions.length) {
-    await Promise.all(recipePermissions.map((row) => prisma.recipePermission.create({
-      data: {
-        recipe_id: recipe.id,
-        role_id: permissionRoleIds.get(row.role) ?? row.role,
-        level: row.level as "A_read" | "B_write",
-      },
-    })));
-  }
+  const permissionRolesMapper = await getRolesMapper(prisma, recipePermissions.map((row) => row.role));
 
-  await prisma.recipeBag.deleteMany({ where: { recipe_id: recipe.id } });
-  const compiledRows = [
-    ...effectiveWritableRows.map((row, index) => ({
-      bagName: row.right,
-      priority: index,
-      is_writable: true,
-      prefix: row.left,
+  const [recipe] = await importer.upsert([{
+    slug: data.slug,
+    templateId: template.id,
+    compiledBags: compiled.bags,
+    plugins: compiled.plugins,
+    definition: authoredDefinition,
+    permissions: recipePermissions.map(row => ({
+      level: row.level,
+      role_id: permissionRolesMapper(row.role),
     })),
-    ...effectiveReadonlyBags.map((bagName, index) => ({
-      bagName,
-      priority: effectiveWritableRows.length + index,
-      is_writable: false,
-      prefix: "",
-    })),
-  ];
-  if (compiledRows.length) {
-    await Promise.all(compiledRows.map((row) => prisma.recipeBag.create({
-      data: {
-        recipe_id: recipe.id,
-        bag_id: bagIdsByName.get(row.bagName) ?? row.bagName,
-        priority: row.priority,
-        is_writable: row.is_writable,
-        prefix: row.prefix,
-      },
-    })));
-  }
+  }]);
 
   return recipe.id;
 }
+// #region saveTemplate
+export async function saveTemplateRow(prisma: PrismaTxnClient, data: DataSave["templates"][number]): Promise<string> {
+  const importer = new TemplateImportWriter(prisma, false);
+  await importer.checkExisting(data.id, data.name);
 
-async function saveTemplateRow(prisma: PrismaTxnClient, data: ITemplateRow): Promise<string> {
-
-  const existing = data.id
-    ? await prisma.template.findUnique({
-      where: { id: data.id },
-      select: { id: true, type: true, definition: true }
-    })
-    : null;
-  const definition: PrismaJson.Template_definition = {
+  const [template] = await importer.upsert([{
+    type: "simpleV1",
     name: data.name,
     description: data.description,
     readonlyBags: normalizeLineList(data.readonlyBags),
@@ -292,102 +208,101 @@ async function saveTemplateRow(prisma: PrismaTxnClient, data: ITemplateRow): Pro
     htmlContent: data.htmlContent,
     injectionArray: data.injectionArray,
     injectionLocation: data.injectionLocation,
-  };
+  }]);
 
-  const template = existing
-    ? await prisma.template.update({
-      where: { id: data.id },
-      data: { definition },
-      select: { id: true },
-    })
-    : await prisma.template.create({
-      data: {
-        name: definition.name,
-        type: "simpleV1",
-        definition,
-      },
-      select: { id: true },
-    });
+  const recipes = await prisma.recipe.findMany({
+    where: { template_id: template.id },
+    include: { permissions: true }
+  });
+
+  const importerRecipe = new RecipeImportWriter(prisma, false);
+
+  for (const recipe of recipes) {
+    const compiled = await importerRecipe.compileRecipeSimpleV1(
+      recipe.definition,
+      template.definition
+    );
+
+    await importerRecipe.upsert([{
+      slug: recipe.slug,
+      templateId: template.id,
+      compiledBags: compiled.bags,
+      plugins: compiled.plugins,
+      definition: recipe.definition,
+      permissions: recipe.permissions.map(row => ({
+        level: row.level,
+        role_id: row.role_id,
+      })),
+    }]);
+  }
 
   return template.id;
 }
-
-async function saveBagRow(prisma: PrismaTxnClient, data: IBagRow): Promise<string> {
+// #region saveBag
+export async function saveBagRow(prisma: PrismaTxnClient, data: DataSave["bags"][number]): Promise<string> {
+  const importer = new BagImportWriter(prisma, false);
+  await importer.checkExisting(data.id, data.name);
   const permissions = normalizePermissions(data.permissions);
-  const userRolesByName = await getRoleIdsByName(prisma, permissions.map((row) => row.role));
-  const existing = data.id ? await prisma.bag.findUnique({ where: { id: data.id }, select: { id: true } }) : null;
-  const bag = existing
-    ? await prisma.bag.update({
-      where: { id: data.id },
-      data: { name: data.name, description: data.description },
-      select: { id: true },
-    })
-    : await prisma.bag.create({
-      data: { name: data.name, description: data.description },
-      select: { id: true },
-    });
+  const rolesMapper = await getRolesMapper(prisma, permissions.map(e => e.role))
 
-  await prisma.bagPermission.deleteMany({ where: { bag_id: bag.id } });
-  if (permissions.length) {
-    await Promise.all(permissions.map((row) => prisma.bagPermission.create({
-      data: {
-        bag_id: bag.id,
-        role_id: userRolesByName.get(row.role) ?? row.role,
-        level: row.level as PermissionValue,
-      },
-    })));
-  }
+  const [bag] = await importer.upsert([{
+    name: data.name,
+    description: data.description,
+    permissions: data.permissions.map(e => ({
+      role_id: rolesMapper(e.role),
+      level: e.level as BagPermissionLevel
+    }))
+  }]);
+
   return bag.id;
 }
-
-async function saveRoleRow(prisma: PrismaTxnClient, data: IRoleRow): Promise<string> {
-  const existing = data.id ? await prisma.roles.findUnique({ where: { role_id: data.id }, select: { role_id: true } }) : null;
-  const role = existing
-    ? await prisma.roles.update({
-      where: { role_id: data.id },
-      data: { role_name: data.roleId, description: data.description || null },
-      select: { role_id: true },
-    })
-    : await prisma.roles.create({
-      data: { role_name: data.roleId, description: data.description || null },
-      select: { role_id: true },
-    });
-  return role.role_id;
+async function getRolesMapper(prisma: PrismaTxnClient, roles: readonly string[]) {
+  return await new RoleImportWriter(prisma, false).getNameMapper(roles);
 }
 
-async function saveUserRow(prisma: PrismaTxnClient, data: IUserRow): Promise<string> {
-  const roleNames = data.userRoles;
-  const userRolesByName = await getRoleIdsByName(prisma, roleNames);
-  const roleLinks = roleNames.map((roleName) => ({ role_id: userRolesByName.get(roleName) ?? roleName }));
-  const existing = data.id ? await prisma.users.findUnique({ where: { user_id: data.id }, select: { user_id: true } }) : null;
-  const user = existing
-    ? await prisma.users.update({
-      where: { user_id: data.id },
-      data: {
-        username: data.username,
-        email: data.email,
-        password: data.password,
-        roles: { set: roleLinks },
-      },
-      select: { user_id: true },
-    })
-    : await prisma.users.create({
-      data: {
-        username: data.username,
-        email: data.email,
-        password: data.password,
-        roles: { connect: roleLinks },
-      },
-      select: { user_id: true },
-    });
+// #region saveRole
+export async function saveRoleRow(prisma: PrismaTxnClient, data: DataSave["roles"][number]) {
+  const importer = new RoleImportWriter(prisma, false);
+  await importer.checkExisting(data.id, data.name);
+
+  const [role] = await importer.upsert([{
+    description: data.description,
+    name: data.name,
+  }]);
+
+  return role.role_id;
+
+}
+// #region saveUser
+export async function saveUserRow(prisma: PrismaTxnClient, data: DataSave["users"][number]): Promise<string> {
+
+  const importer = new UserImportWriter(prisma, false);
+  await importer.checkExisting(data.id, data.username);
+
+  const rolesMapper = await getRolesMapper(prisma, data.userRoles);
+  const roleLinks = data.userRoles.map(e => rolesMapper(e));
+
+  const [user] = await importer.upsert([{
+    username: data.username,
+    email: data.email,
+    password: data.password,
+    roleIds: roleLinks,
+  }])
+
   return user.user_id;
 }
-
-async function savePluginRow(_prisma: PrismaTxnClient, _data: IPluginRow): Promise<string> {
+// #region savePlugin
+async function savePluginRow(_prisma: PrismaTxnClient, _data: DataSave["plugins"][number]): Promise<string> {
   throw new Error("Plugin admin save is not implemented in the database-backed admin path.");
 }
 
-export async function doAdminDataOp(prisma: PrismaTxnClient, pluginCache: ServerRequest["pluginCache"], op: "save", tab: TabId, data: any) {
+export async function doAdminDataOp(
+  prisma: PrismaTxnClient,
+  pluginCache: ServerRequest["pluginCache"],
+  op: "save",
+  tab: TabId,
+  data: any
+) {
   if (op !== "save") throw new Error(`Unsupported admin operation: ${op}`);
 
   let id: string;
@@ -415,6 +330,7 @@ export async function getAdminDataStore(prisma: PrismaTxnClient, pluginCache: Se
     prisma.template.findMany({
       select: {
         id: true,
+        name: true,
         definition: true,
         recipes: {
           select: {
@@ -497,13 +413,14 @@ export async function getAdminDataStore(prisma: PrismaTxnClient, pluginCache: Se
   ]);
 
   const roleNameById = new Map(roles.map((role) => [role.role_id, role.role_name]));
-  const templateNameById = new Map(templates.map((template) => [template.id, template.definition.name]));
+  const templateNameById = new Map(templates.map((template) => [template.id, template.name]));
 
-  const templateRows: ITemplateRow[] = templates.map((template) => {
+  const templateRows = templates.map((template): ITemplateRow => {
     const definition = template.definition;
     return {
       id: template.id,
-      name: definition.name,
+      name: template.name,
+      type: "simpleV1",
       description: definition.description,
       readonlyBags: definition.readonlyBags,
       writablePrefixBags: definition.writablePrefixBags,
@@ -515,14 +432,16 @@ export async function getAdminDataStore(prisma: PrismaTxnClient, pluginCache: Se
       htmlContent: definition.htmlContent,
       injectionArray: definition.injectionArray,
       injectionLocation: definition.injectionLocation,
-      dependentWikis: JSON.stringify(template.recipes.map((recipe) => ({ id: recipe.id, name: recipe.slug }))),
+      // dependentWikis: JSON.stringify(template.recipes.map((recipe) => ({ id: recipe.id, name: recipe.slug }))),
     };
   });
 
   const wikiRows: IWikiRow[] = recipes.map((recipe) => {
     const definition = recipe.definition;
-    const effectivePluginSet = Array.isArray(recipe.plugins) ? recipe.plugins.map(String) : [];
-    const effectiveReadonlyBags = recipe.recipe_bags.filter(e => !e.is_writable).map((row) => row.bag.name);
+    const effectivePluginSet = recipe.plugins;
+    const effectiveReadonlyBags = recipe.recipe_bags
+      .filter(e => !e.is_writable)
+      .map((row) => row.bag.name);
     const effectiveWritableBags = recipe.recipe_bags
       .filter((row) => row.is_writable)
       .sort((a, b) => b.prefix.length - a.prefix.length)
@@ -538,7 +457,10 @@ export async function getAdminDataStore(prisma: PrismaTxnClient, pluginCache: Se
       slug: recipe.slug,
       displayName: definition.displayName,
       description: definition.description,
-      templateRef: { id: recipe.template_id, name: templateNameById.get(recipe.template_id) ?? recipe.template_id },
+      templateRef: {
+        id: recipe.template_id,
+        name: templateNameById.get(recipe.template_id) ?? ""
+      },
       writablePrefixBags: definitionWritableBags,
       readonlyBags: definition.readonlyBags,
       plugins: definition.plugins,
@@ -562,7 +484,7 @@ export async function getAdminDataStore(prisma: PrismaTxnClient, pluginCache: Se
 
   const roleRows: IRoleRow[] = roles.map((role) => ({
     id: role.role_id,
-    roleId: role.role_name,
+    name: role.role_name,
     description: role.description ?? "",
   }));
 
@@ -588,3 +510,4 @@ export async function getAdminDataStore(prisma: PrismaTxnClient, pluginCache: Se
     users: userRows,
   };
 }
+

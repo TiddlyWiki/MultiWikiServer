@@ -1,54 +1,55 @@
 import { RecipeDefinition, TemplateDefinition } from "./wiki-actions";
 
-export type ImportPermissionLevel = "A_read" | "B_write" | "C_admin";
+export type BagPermissionLevel = "A_read" | "B_write" | "C_admin";
 
-export interface ImportRoleInput {
-  role_name: string;
+export interface UpsertRoleInput {
+  name: string;
   description: string;
 }
 
-export interface ImportUserInput {
+export interface UpsertUserInput {
   username: string;
   email: string;
   password: string;
+  /** these are the role ids, not the role names */
   roleIds: string[];
 }
 
 export interface ImportBagPermissionInput {
-  roleId: string;
-  level: ImportPermissionLevel;
+  role_id: string;
+  level: BagPermissionLevel;
 }
 
-export interface ImportBagInput {
+export interface UpsertBagInput {
   name: string;
   description: string;
   permissions: ImportBagPermissionInput[];
 }
 
 
-export interface ImportRecipePermissionInput {
-  roleId: string;
+export interface RecipePermissionInput {
+  role_id: string;
   level: "A_read" | "B_write";
 }
 
-export interface ImportCompiledRecipeBagInput {
+export interface CompiledRecipeBagInput {
   bagId: string;
   priority: number;
   isWritable: boolean;
   prefix: string;
 }
 
-export interface ImportRecipeInput {
+export interface UpsertRecipeInput {
   slug: string;
+  /** this is the primary key of the template, not the name */
   templateId: string;
   definition: RecipeDefinition;
   plugins: string[];
-  permissions: ImportRecipePermissionInput[];
-  compiledBags: ImportCompiledRecipeBagInput[];
+  permissions: RecipePermissionInput[];
+  compiledBags: CompiledRecipeBagInput[];
 }
 
 
-export interface ImportTemplateInput {
-  type: "simpleV1";
-  definition: TemplateDefinition;
+export interface UpsertTemplateInput extends TemplateDefinition {
+  name: string;
 }
