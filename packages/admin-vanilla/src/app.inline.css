@@ -423,6 +423,8 @@ body:has(.modal-shell[open]) {
 .modal-card {
 	width: min(1180px, 100%);
 	max-height: calc(100vh - 56px);
+	display: flex;
+	flex-direction: column;
 	border-radius: 28px;
 	overflow: hidden;
 	background: var(--color-surface-modal);
@@ -430,11 +432,19 @@ body:has(.modal-shell[open]) {
 
 .modal-header {
 	display: flex;
+	align-items: center;
 	justify-content: space-between;
 	gap: 20px;
 	padding: 24px 26px;
+	flex: 0 0 116px;
+	min-height: 116px;
 	border-bottom: 1px solid var(--color-border-soft);
 	background: linear-gradient(180deg, var(--color-surface-modal-header-top) 0%, var(--color-surface-modal-header-bottom) 100%);
+}
+
+footer.modal-header {
+	border-top: 1px solid var(--color-border-soft);
+	border-bottom: 0;
 }
 
 .modal-header h3 {
@@ -442,14 +452,62 @@ body:has(.modal-shell[open]) {
 	font-size: 2rem;
 }
 
+.modal-header > div {
+	min-width: 0;
+}
+
 .close-button {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
 	width: 44px;
 	height: 44px;
 	border-radius: 50%;
 	background: var(--color-surface-ghost-button);
 	color: var(--color-accent-button-text);
-	font-size: 1.6rem;
-	line-height: 1;
+	padding: 0;
+}
+
+.close-button material-symbol {
+	display: inline-flex;
+	width: 20px;
+	height: 20px;
+}
+
+.close-button material-symbol svg {
+	width: 20px;
+	height: 20px;
+}
+
+.error-close-button {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 36px;
+	height: 36px;
+	padding: 0;
+	border: 0;
+	border-radius: 50%;
+	background: transparent;
+	color: var(--color-accent-button-text);
+	cursor: pointer;
+	flex: 0 0 auto;
+}
+
+.error-close-button:hover,
+.error-close-button:focus-visible {
+	background: var(--color-surface-ghost-button);
+}
+
+.error-close-button material-symbol {
+	display: inline-flex;
+	width: 18px;
+	height: 18px;
+}
+
+.error-close-button material-symbol svg {
+	width: 18px;
+	height: 18px;
 }
 
 .modal-layout {
@@ -457,14 +515,18 @@ body:has(.modal-shell[open]) {
 	grid-template-columns: 260px minmax(0, 1fr);
 	gap: 22px;
 	padding: 24px;
+	flex: 1 1 auto;
+	min-height: 0;
 	overflow: auto;
-	max-height: calc(100vh - 200px);
 }
 
 .modal-loading-shell {
 	display: grid;
 	gap: 18px;
 	padding: 32px 26px 36px;
+	flex: 1 1 auto;
+	min-height: 0;
+	overflow: auto;
 	align-content: start;
 	min-height: 220px;
 }

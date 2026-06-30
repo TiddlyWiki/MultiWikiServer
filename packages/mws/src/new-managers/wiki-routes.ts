@@ -12,7 +12,8 @@
 import { registerZodRoutes, RouterKeyMap, zodRoute, SendError, ServerRequest, truthy, checkPath } from "@tiddlywiki/server";
 import { serverEvents } from "@tiddlywiki/events";
 import { IndexSender, RecipeResolver, } from "./RecipeResolver";
-import { doAdminDataOp, getAdminDataStore, TabId, } from "./wiki-actions";
+import { doAdminDataOp, getAdminDataStore, } from "./wiki-actions";
+import { TabId } from "@mws/admin-vanilla/src/definition/tabs";
 
 export const BAG_PREFIX = "/bag";
 export const RECIPE_PREFIX = "/recipe";
@@ -255,7 +256,7 @@ serverEvents.on("mws.routes", (root) => {
 
   parent.defineRoute<"ignore">({
     method: ["PUT", "OPTIONS"],
-    path: new RegExp(`^/admin/(?<op>[^/]+)/(?<page>.*)$`),
+    path: new RegExp(`^/admin/(?<op>[^/]+)/(?<tab>.*)$`),
     bodyFormat: "json",
   }, async (state) => {
     if (state.method === "OPTIONS")
@@ -266,7 +267,13 @@ serverEvents.on("mws.routes", (root) => {
       tab: z.enum(["wikis", "templates", "bags", "plugins", "users", "roles"] satisfies TabId[])
     }), new Error())
     return state.sendJSON(200, await state.$transaction(async prisma => {
-      return await doAdminDataOp(prisma, state.pluginCache, state.pathParams.op, state.pathParams.tab, state.data);
+      return await doAdminDataOp({
+        prisma,
+        pluginCache: state.pluginCache,
+        op: state.pathParams.op,
+        tab: state.pathParams.tab,
+        data: state.data
+      });
     }));
   });
 

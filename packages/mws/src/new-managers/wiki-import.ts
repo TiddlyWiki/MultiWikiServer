@@ -1,5 +1,5 @@
-import { SendError, truthy } from "@tiddlywiki/server";
-import { RecipeDefinition, TabId, TemplateDefinition } from "./wiki-actions";
+import { SendError } from "@tiddlywiki/server";
+import { RecipeDefinition, TemplateDefinition } from "./wiki-actions";
 import {
   CompiledRecipeBagInput,
   type UpsertBagInput,
@@ -8,8 +8,9 @@ import {
   type UpsertTemplateInput,
   type UpsertUserInput,
 } from "./wiki-contract";
-import { Prisma, RecipePermissionLevel } from "@tiddlywiki/mws-prisma";
+import { Prisma } from "@tiddlywiki/mws-prisma";
 import { mapGetInit, thrower } from "./wiki-utils";
+import { TabId } from "@mws/admin-vanilla/src/definition/tabs";
 
 export type ImportedRoleRows = Awaited<ReturnType<PrismaTxnClient["roles"]["findMany"]>>;
 export type ImportedUserRows = Awaited<ReturnType<PrismaTxnClient["users"]["findMany"]>>;
@@ -42,6 +43,15 @@ export function indexImportedTemplatesByName(rows: ImportedTemplateRow[]) {
   return new Map(rows.map((template) => [template.name, template]));
 }
 
+/*
+
+basically I'm making everything on the server as consistent and repeatable 
+as I possibly can across tabs. this is critical for bugs and maintenance. 
+AI is good for designing a great idea, but its an absolute nightmare to 
+maintain and update. So I'm going through manually and locking everything 
+down with Typescript types and deduplicating as much code as I possibly can.
+
+*/
 
 type PrismaModalKeys = Prisma.TypeMap["meta"]["modelProps"]
 type PrismaScalarKeys<Modal extends PrismaModalKeys> =

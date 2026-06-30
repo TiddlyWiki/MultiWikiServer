@@ -1,6 +1,7 @@
 import { customElement, JSXElement, addstyles, state } from "@tiddlywiki/jsx-lit";
 import css from "./app.inline.css";
 import warningIcon from "@material-symbols/svg-400/outlined/warning.svg";
+import closeIcon from "@material-symbols/svg-400/outlined/close.svg";
 import {
   getAllTabs,
   getTab,
@@ -28,25 +29,8 @@ import {
   TemplateTypes
 } from "./definition/tabs";
 
-import { InMemoryAdminStorage } from "./definition/store";
-
-export function definitely<T>(a: any): asserts a is T { }
-
-export function ok<T>(value: T | null | undefined | "" | 0 | false, message?: string): asserts value is T {
-  if (!value) throw new Error(message ?? `AssertionError: ${value}`);
-}
-
-export function is<T>(a: any, b: boolean): a is T { return b; }
-
-function mapGetInit<K, V>(map: Map<K, V>, key: K, init: () => V): V {
-  if (!map.has(key)) {
-    let val = init();
-    map.set(key, val);
-    return val;
-  } else {
-    return map.get(key) as V;
-  }
-}
+import { adminStorage, createDraft, findTemplateRecordForWikiRecord, getEmptyItems, InMemoryAdminStorage } from "./definition/store";
+import { definitely, is, mapGetInit, ok } from "./definition/utils"
 
 
 // import icon1 from "@material-symbols/svg-400/{style}/{icon}.svg" // (Unfilled)
@@ -151,6 +135,8 @@ interface RecordModalProps {
   selectedTab: TabDefinition;
   modalState: ModalState;
   itemsByTab: AdminRecordStore;
+  storageError: string;
+  onClearStorageError: () => void;
   isModalLoading: boolean;
   isSaving: boolean;
   isOpeningItem: boolean;
@@ -198,222 +184,6 @@ function getSelectOptions(field: FieldDefinition, itemsByTab: AdminRecordStore):
 }
 
 
-function summarizePermissionRoles(value: readonly PermissionRow<string>[]): string {
-  return value.map((row) => row.role).filter(Boolean).join(", ");
-}
-
-function deriveBagRecords(items: DataStore, templates: TemplateAdminRecord[], wikis: WikiAdminRecord[]): BagAdminRecord[] {
-  const templateReadonlyUsage = new Map<string, Set<string>>();
-  const wikiReadonlyUsage = new Map<string, Set<string>>();
-  const wikiWritableUsage = new Map<string, Set<string>>();
-  const wikiDefaultUsage = new Map<string, Set<string>>();
-
-  const addUsage = (map: Map<string, Set<string>>, bagName: string, recordName: string) => {
-    if (!bagName || !recordName) return;
-    const next = map.get(bagName) ?? new Set<string>();
-    next.add(recordName);
-    map.set(bagName, next);
-  };
-
-  for (const template of templates) {
-    const templateName = template.name ?? "";
-    template.readonlyBags.forEach((bagName) => addUsage(templateReadonlyUsage, bagName, templateName));
-  }
-
-  for (const wiki of wikis) {
-    const wikiName = wiki.slug || wiki.displayName || "";
-    const templateRecord = findTemplateRecordForWikiRecord(wiki, { ...items, templates, wikis });
-    const effectiveReadonlyBags = uniqueLines([
-      ...wiki.readonlyBags ?? [],
-      ...templateRecord?.readonlyBags ?? [],
-    ]);
-    effectiveReadonlyBags.forEach((bagName) => addUsage(wikiReadonlyUsage, bagName, wikiName));
-
-    const prefixRows = wiki.writablePrefixBags;
-    prefixRows.forEach((row) => addUsage(wikiWritableUsage, row.right, wikiName));
-    const defaultBag = prefixRows.find((row) => row.left === "")?.right ?? "";
-    addUsage(wikiDefaultUsage, defaultBag, wikiName);
-  }
-
-  return items.bags.map((bag) => {
-    const name = bag.name ?? "";
-    const referencedByTemplates = Array.from(templateReadonlyUsage.get(name) ?? []);
-    const referencedByWikis = Array.from(wikiReadonlyUsage.get(name) ?? new Set<string>());
-    const writableByWikis = Array.from(wikiWritableUsage.get(name) ?? new Set<string>());
-    const defaultByWikis = Array.from(wikiDefaultUsage.get(name) ?? new Set<string>());
-    const routingRoles = uniqueLines([
-      referencedByWikis.length ? "readonly layer" : "",
-      writableByWikis.length ? "writable prefix target" : "",
-      defaultByWikis.length ? "default writable target" : "",
-    ]);
-    const allUsingWikis = new Set<string>([
-      ...referencedByWikis,
-      ...writableByWikis,
-      ...defaultByWikis,
-    ]);
-
-    return {
-      ...bag,
-      usedByCount: String(allUsingWikis.size),
-      readonlyUsageCount: String(referencedByWikis.length),
-      writableUsageCount: String(writableByWikis.length),
-      defaultUsageCount: String(defaultByWikis.length),
-      permissionSummary: summarizePermissionRoles(bag.permissions),
-      referencedByTemplates: referencedByTemplates.join("\n"),
-      referencedByWikis: Array.from(allUsingWikis).join("\n"),
-      routingRoles: routingRoles.join("\n"),
-    };
-  });
-}
-
-function derivePluginRecords(items: DataStore, templates: TemplateAdminRecord[], wikis: WikiAdminRecord[]): PluginAdminRecord[] {
-  const pluginUsage = new Map<string, Set<string>>();
-
-  for (const wiki of wikis) {
-    const wikiName = wiki.slug || wiki.displayName || "";
-    wiki.effectivePluginSet.forEach((pluginValue) => {
-      const pluginName = pluginValue.split("@")[0]?.trim() ?? pluginValue.trim();
-      if (!pluginName || !wikiName) return;
-      mapGetInit(pluginUsage, pluginName, () => new Set<string>()).add(wikiName);
-    });
-  }
-
-  return items.plugins.map((plugin) => {
-    const usedByWikis = Array.from(pluginUsage.get(plugin.name ?? "") ?? []);
-    return {
-      ...plugin as unknown as PluginAdminRecord,
-      usedByWikis,
-      usageCount: String(usedByWikis.length),
-    };
-  });
-}
-
-
-function syncWikiRecord(draft: DataStore["wikis"][number], data: DataStore) {
-  const templateRecord = findTemplateRecordForWikiRecord(draft, data);
-  const templateReadonlyBags = templateRecord ? templateRecord.readonlyBags : [];
-  const templatePlugins = templateRecord ? templateRecord.plugins : [];
-  const wikiReadonlyBags = draft.readonlyBags;
-  const wikiPlugins = draft.readonlyBags;
-
-  const mergedReadonlyBags = uniqueLines([...wikiReadonlyBags, ...templateReadonlyBags]);
-  const mergedPlugins = buildEffectivePluginSet({
-    previousEffectivePlugins: (draft as WikiAdminRecord).effectivePluginSet,
-    templatePlugins,
-    wikiPlugins,
-    corePluginsEnabled: !!templateRecord?.requiredPluginsEnabled,
-  });
-  const writablePrefixBags = draft.writablePrefixBags
-
-  const defaultWritableBag = writablePrefixBags.find((row) => row.left === "")?.right ?? "";
-  const prefixRuleCount = String(writablePrefixBags.length);
-  const readableBagOrder = buildEffectiveBagStack({
-    writablePrefixBags,
-    templateReadonlyBags,
-    wikiReadonlyBags,
-  });
-  const missingBags = readableBagOrder.filter((bagName) => !data.availableBagNames.has(bagName));
-  const missingPlugins = mergedPlugins.filter((pluginName) => !data.availablePluginNames.has(pluginName));
-  const hasMissingDependencies = missingBags.length > 0 || missingPlugins.length > 0;
-  const missingMessages = [
-    missingBags.length ? `Missing bags: ${missingBags.join(", ")}` : "",
-    missingPlugins.length ? `Missing plugins: ${missingPlugins.join(", ")}` : "",
-  ].filter(Boolean);
-  const compileValidation = hasMissingDependencies
-    ? `Alert. ${missingMessages.join(". ")}.`
-    : "Valid. All referenced bags and plugins are present.";
-  const statusFlags = hasMissingDependencies ? "alert, missing dependencies" : "compiled, dependencies resolved";
-
-  return {
-    ...draft,
-    templateName: templateRecord?.name ?? draft.templateRef?.name ?? "",
-    defaultWritableBag,
-    readonlyBagCount: String(mergedReadonlyBags.length),
-    prefixRuleCount,
-    pluginCount: String(mergedPlugins.length),
-    compileValidation,
-    statusFlags,
-    missingBags: lineListCodec.stringify(missingBags),
-    missingPlugins: lineListCodec.stringify(missingPlugins),
-    titleResolutionPreview: "",
-  } satisfies WikiAdminRecord;
-}
-
-function deriveItems(items: DataStore): AdminRecordStore {
-  items.availableBagNames = new Set(items.bags.map((bag) => bag.name).filter(Boolean));
-  items.availablePluginNames = new Set(items.plugins.map((plugin) => plugin.name).filter(Boolean));
-  const wikis = items.wikis.map((wiki) => syncWikiRecord(wiki, items));
-  const dependentWikiMap = new Map<string, string[]>();
-  for (const wiki of wikis) {
-    const id = wiki.templateRef?.id;
-    mapGetInit(dependentWikiMap, id, () => []).push(wiki.slug || wiki.displayName);
-  }
-
-  const templates = items.templates.map((template) => {
-    const dependentWikis = dependentWikiMap.get(template.id) ?? [];
-    const readonlyBags = template.readonlyBags
-    const prefixRows = template.writablePrefixBags
-    return {
-      ...template,
-      readonlyBagsSummary: readonlyBags.join(", "),
-      dependentWikis: dependentWikis.join("\n"),
-      dependentWikiCount: String(dependentWikis.length),
-      defaultWritableBag: prefixRows.find((row) => row.left === "")?.right ?? "",
-      validationReport: "placeholder",
-      validationStatus: "placeholder",
-      lastUpdatedAt: new Date().toISOString(),
-    } satisfies TemplateAdminRecord;
-    // lastUpdatedAt, validationStatus, validationReport
-  });
-
-  const users = items.users.map(e => ({
-    ...e,
-    confirmPassword: "",
-  }))
-
-  return {
-    ...items,
-    templates,
-    wikis,
-    users,
-    bags: deriveBagRecords(items, templates, wikis),
-    plugins: derivePluginRecords(items, templates, wikis),
-  } as unknown as AdminRecordStore;
-}
-
-function getEmptyItems(): AdminRecordStore {
-  return {
-    availableBagNames: new Set(),
-    availablePluginNames: new Set(),
-    wikis: [],
-    templates: [],
-    bags: [],
-    plugins: [],
-    roles: [],
-    users: [],
-  };
-}
-
-
-
-function createDraft(tab: TabDefinition, source?: AdminRecord): AdminRecord {
-  const draft: any = {};
-  for (const field of tab.fields) {
-    const value = source
-      ? getAdminRecordValue(field, source)
-      : getFieldHandler(field.type).initCreate();
-    setAdminRecordValue(field, draft, value, true);
-  }
-
-  if (!source && tab.id === "templates") {
-    const draft2: TemplateAdminRecord = draft as any;
-    draft2.requiredPluginsEnabled = true;
-    draft2.customHtmlEnabled = false;
-    draft2.injectionArray = "$tw.preloadTiddlers";
-  }
-
-  return draft;
-}
 
 function getPrimaryValue(tab: TabDefinition, item: AdminRecord): string {
   const primary = tab.columns[0] ?? tab.fields[0];
@@ -479,12 +249,8 @@ function getFieldGroups(tab: TabDefinition, section: FieldSection, fields: Field
   return configuredGroups.filter((group) => group.keys.some((key) => fields.some((field) => field.key === key)));
 }
 
-function findTemplateRecordForWikiRecord(draft: DataStore["wikis"][number], itemsByTab: DataStore) {
-  const id = draft.templateRef?.id;
-  return itemsByTab.templates.find((template) => id === template.id);
-}
 
-function uniqueLines(values: readonly string[]): string[] {
+export function uniqueLines(values: readonly string[]): string[] {
   return Array.from(new Set(values.map((value) => value.trim()).filter(Boolean)));
 }
 
@@ -498,51 +264,6 @@ function buildEffectivePrefixObject(writablePrefixBags: (readonly MappingRow[])[
     }
   }
   return Object.entries(result).map(([left, right]) => ({ left, right })).sort((a, b) => b.left.length - a.left.length);
-}
-
-function buildEffectiveBagStack({
-  writablePrefixBags: prefixRows,
-  templateReadonlyBags,
-  wikiReadonlyBags,
-}: {
-  writablePrefixBags: readonly MappingRow[];
-  templateReadonlyBags: readonly string[];
-  wikiReadonlyBags: readonly string[];
-}): string[] {
-  const defaultTargets = prefixRows.filter((row) => row.left === "").map((row) => row.right);
-  const prefixedTargets = prefixRows.filter((row) => row.left !== "").map((row) => row.right);
-  return uniqueLines([
-    ...defaultTargets,
-    ...prefixedTargets,
-    ...wikiReadonlyBags,
-    ...templateReadonlyBags,
-  ]);
-}
-
-function buildEffectivePluginSet({
-  previousEffectivePlugins,
-  templatePlugins,
-  wikiPlugins,
-  corePluginsEnabled,
-}: {
-  previousEffectivePlugins: readonly string[];
-  templatePlugins: readonly string[];
-  wikiPlugins: readonly string[];
-  corePluginsEnabled: boolean;
-}): string[] {
-  const authoredPlugins = uniqueLines([...templatePlugins, ...wikiPlugins]);
-  const runtimeManagedPlugins = previousEffectivePlugins.filter((plugin) => !authoredPlugins.includes(plugin));
-  const corePlugins = corePluginsEnabled
-    ? runtimeManagedPlugins.filter((plugin) => /core/i.test(plugin))
-    : [];
-  const requiredPlugins = runtimeManagedPlugins.filter((plugin) => !corePlugins.includes(plugin));
-
-  return uniqueLines([
-    ...wikiPlugins,
-    ...templatePlugins,
-    ...requiredPlugins,
-    ...corePlugins,
-  ]);
 }
 
 class LineListCodec {
@@ -577,8 +298,32 @@ class PermissionRowsCodec {
   }
 }
 
-const lineListCodec = new LineListCodec();
-const permissionRowsCodec = new PermissionRowsCodec();
+export const lineListCodec = new LineListCodec();
+export const permissionRowsCodec = new PermissionRowsCodec();
+
+
+function formatStorageErrorForDisplay(storageError: string): string {
+  if (!storageError) return storageError;
+
+  try {
+    const parsed = JSON.parse(storageError) as {
+      reason?: unknown;
+      status?: unknown;
+      details?: { prettyErrors?: unknown };
+    };
+    const hasReason = typeof parsed.reason === "string";
+    const hasStatus = typeof parsed.status === "number" || typeof parsed.status === "string";
+    const prettyText = typeof parsed.details?.prettyErrors === "string"
+      ? parsed.details.prettyErrors
+      : "";
+
+    if (hasReason && hasStatus && prettyText.trim()) return prettyText;
+  } catch {
+    // Keep the original storage error text when it's not valid JSON.
+  }
+
+  return storageError;
+}
 
 
 
@@ -1361,7 +1106,7 @@ const fieldTypeHandlers = {
 
 const fallbackFieldHandler = new FallbackFieldHandler();
 
-function getFieldHandler(fieldType: FieldType): FieldTypeHandler {
+export function getFieldHandler(fieldType: FieldType): FieldTypeHandler {
   return fieldTypeHandlers[fieldType] ?? fallbackFieldHandler;
 }
 
@@ -1494,6 +1239,8 @@ class RecordModalElement extends JSXElement {
       selectedTab,
       modalState,
       itemsByTab,
+      storageError,
+      onClearStorageError,
       isModalLoading,
       isSaving,
       isOpeningItem,
@@ -1522,7 +1269,9 @@ class RecordModalElement extends JSXElement {
               <h3>{isModalLoading ? `Loading ${selectedTab.label.slice(0, -1).toLowerCase()}...` : modalState.mode === "create" ? `New ${selectedTab.label.slice(0, -1)}` : getPrimaryValue(selectedTab, modalState.draft)}</h3>
               <p>{isModalLoading ? "Fetching record details from async storage before rendering the form." : selectedTab.description}</p>
             </div>
-            <button class="close-button" type="button" onclick={onClose} aria-label="Close details">x</button>
+            <button class="close-button" type="button" onclick={onClose} aria-label="Close details">
+              <MaterialSymbol icon={closeIcon} />
+            </button>
           </header>
 
           {isModalLoading ? (
@@ -1622,6 +1371,15 @@ class RecordModalElement extends JSXElement {
               </div>
             </div>
           )}
+
+          {storageError ? (
+            <footer class="modal-header" role="alert" aria-live="polite">
+              <pre style="white-space: break-spaces;">{storageError}</pre>
+              <button class="error-close-button" type="button" onclick={onClearStorageError} aria-label="Dismiss error message">
+                <MaterialSymbol icon={closeIcon} />
+              </button>
+            </footer>
+          ) : null}
         </section>
       </div>
     );
@@ -1668,6 +1426,7 @@ export class App extends JSXElement {
     const currentTab = getTab(activeTab);
     const activeTabItems = itemsByTab[activeTab];
     const selectedTab = modalState ? getTab(modalState.tabId) : null;
+    const displayedStorageError = formatStorageErrorForDisplay(storageError);
     const isModalLoading = Boolean(modalState?.loading);
     const isListInteractionDisabled = isOpeningItem || isSaving;
 
@@ -1769,6 +1528,7 @@ export class App extends JSXElement {
         snapshot.tabId,
         snapshot.draft,
       ).catch((error) => {
+        debugger;
         setStorageError(error instanceof Error ? error.message : "Failed to save record.");
         return null;
       });
@@ -1860,7 +1620,7 @@ export class App extends JSXElement {
 
           {storageError ? (
             <div class="field-callout">
-              <p>{storageError}</p>
+              <p>{displayedStorageError.split("\n").map(e => <>{e}<br /></>)}</p>
             </div>
           ) : null}
 
@@ -1918,6 +1678,8 @@ export class App extends JSXElement {
             selectedTab={selectedTab}
             modalState={modalState}
             itemsByTab={itemsByTab}
+            storageError={displayedStorageError}
+            onClearStorageError={() => setStorageError("")}
             isModalLoading={isModalLoading}
             isSaving={isSaving}
             isOpeningItem={isOpeningItem}
@@ -1934,5 +1696,3 @@ export class App extends JSXElement {
     );
   }
 }
-
-const adminStorage: AdminStorage = new InMemoryAdminStorage(deriveItems);

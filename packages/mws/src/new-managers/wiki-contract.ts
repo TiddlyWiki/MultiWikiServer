@@ -1,6 +1,5 @@
+import { BagPermissionLevel } from "@tiddlywiki/mws-prisma";
 import { RecipeDefinition, TemplateDefinition } from "./wiki-actions";
-
-export type BagPermissionLevel = "A_read" | "B_write" | "C_admin";
 
 export interface UpsertRoleInput {
   name: string;

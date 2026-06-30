@@ -1,5 +1,6 @@
-import { AdminStorage, AdminRecord, isServerField, getAdminRecordValue, setAdminRecordValue } from "../app";
-import { DataStore, AdminRecordStore, TabId, getTab } from "./tabs";
+import { AdminStorage, AdminRecord, isServerField, getAdminRecordValue, setAdminRecordValue, getFieldHandler, uniqueLines, lineListCodec } from "../app";
+import { DataStore, AdminRecordStore, TabId, getTab, TabDefinition, TemplateAdminRecord, WikiAdminRecord, BagAdminRecord, PermissionRow, PluginAdminRecord, MappingRow } from "./tabs";
+import { mapGetInit } from "./utils";
 
 export class InMemoryAdminStorage implements AdminStorage {
   private data!: DataStore;
@@ -25,18 +26,19 @@ export class InMemoryAdminStorage implements AdminStorage {
 
   public async save(tabId: TabId, record: AdminRecord): Promise<AdminRecord[]> {
     if (!this.data) throw new Error("data should be loaded first");
-
-    const currentTabRecords = this.data[tabId];
-    const prunedRecord = this.pruneStoredRecord(tabId, record, currentTabRecords.length);
+    console.log(record);
+    const prunedRecord = this.pruneStoredRecord(tabId, record);
     const id = prunedRecord.id;
-    const response = await fetch(pathPrefix + "/admin/save", {
+    const response = await fetch(pathPrefix + "/admin/save/" + tabId, {
+      method: "PUT",
       body: JSON.stringify(prunedRecord),
     });
 
     if (response.status !== 200) {
-      console.log(await response.text());
+      throw new Error(await response.text());
     } else {
       const storedRecord = await response.json();
+      console.log(storedRecord, prunedRecord);
       if (id) {
         if (storedRecord.id !== id) location.reload();
         const index = this.data[tabId].findIndex(e => e.id === id);
@@ -50,10 +52,10 @@ export class InMemoryAdminStorage implements AdminStorage {
     return this.deriveItems(this.data)[tabId].map((item) => ({ ...item }));
   }
 
-  private pruneStoredRecord(tabId: TabId, record: AdminRecord, fallbackOrdinal?: number): AdminRecord {
+  private pruneStoredRecord(tabId: TabId, record: AdminRecord): AdminRecord {
     const tab = getTab(tabId);
     const storedFields = tab.fields.filter((field) => isServerField(field.mode));
-    const pruned: any = {};
+    const pruned: any = { id: record.id };
     for (const field of storedFields) {
       const value = getAdminRecordValue(field, record);
       setAdminRecordValue(field, pruned, value, true);
@@ -61,3 +63,276 @@ export class InMemoryAdminStorage implements AdminStorage {
     return pruned;
   }
 }
+
+
+
+export function createDraft(tab: TabDefinition, source?: AdminRecord): AdminRecord {
+  const draft: any = { id: source?.id ?? "" };
+  for (const field of tab.fields) {
+    const value = source
+      ? getAdminRecordValue(field, source)
+      : getFieldHandler(field.type).initCreate();
+    setAdminRecordValue(field, draft, value, true);
+  }
+
+  if (!source && tab.id === "templates") {
+    const draft2: TemplateAdminRecord = draft as any;
+    draft2.requiredPluginsEnabled = true;
+    draft2.customHtmlEnabled = false;
+    draft2.injectionArray = "$tw.preloadTiddlers";
+  }
+
+  return draft;
+}
+
+export function findTemplateRecordForWikiRecord(draft: DataStore["wikis"][number], itemsByTab: DataStore) {
+  const id = draft.templateRef?.id;
+  return itemsByTab.templates.find((template) => id === template.id);
+}
+
+
+function summarizePermissionRoles(value: readonly PermissionRow<string>[]): string {
+  return value.map((row) => row.role).filter(Boolean).join(", ");
+}
+
+
+function deriveBagRecords(items: DataStore, templates: TemplateAdminRecord[], wikis: WikiAdminRecord[]): BagAdminRecord[] {
+  const templateReadonlyUsage = new Map<string, Set<string>>();
+  const wikiReadonlyUsage = new Map<string, Set<string>>();
+  const wikiWritableUsage = new Map<string, Set<string>>();
+  const wikiDefaultUsage = new Map<string, Set<string>>();
+
+  const addUsage = (map: Map<string, Set<string>>, bagName: string, recordName: string) => {
+    if (!bagName || !recordName) return;
+    const next = map.get(bagName) ?? new Set<string>();
+    next.add(recordName);
+    map.set(bagName, next);
+  };
+
+  for (const template of templates) {
+    const templateName = template.name ?? "";
+    template.readonlyBags.forEach((bagName) => addUsage(templateReadonlyUsage, bagName, templateName));
+  }
+
+  for (const wiki of wikis) {
+    const wikiName = wiki.slug || wiki.displayName || "";
+    const templateRecord = findTemplateRecordForWikiRecord(wiki, { ...items, templates, wikis });
+    const effectiveReadonlyBags = uniqueLines([
+      ...wiki.readonlyBags ?? [],
+      ...templateRecord?.readonlyBags ?? [],
+    ]);
+    effectiveReadonlyBags.forEach((bagName) => addUsage(wikiReadonlyUsage, bagName, wikiName));
+
+    const prefixRows = wiki.writablePrefixBags;
+    prefixRows.forEach((row) => addUsage(wikiWritableUsage, row.right, wikiName));
+    const defaultBag = prefixRows.find((row) => row.left === "")?.right ?? "";
+    addUsage(wikiDefaultUsage, defaultBag, wikiName);
+  }
+
+  return items.bags.map((bag) => {
+    const name = bag.name ?? "";
+    const referencedByTemplates = Array.from(templateReadonlyUsage.get(name) ?? []);
+    const referencedByWikis = Array.from(wikiReadonlyUsage.get(name) ?? new Set<string>());
+    const writableByWikis = Array.from(wikiWritableUsage.get(name) ?? new Set<string>());
+    const defaultByWikis = Array.from(wikiDefaultUsage.get(name) ?? new Set<string>());
+    const routingRoles = uniqueLines([
+      referencedByWikis.length ? "readonly layer" : "",
+      writableByWikis.length ? "writable prefix target" : "",
+      defaultByWikis.length ? "default writable target" : "",
+    ]);
+    const allUsingWikis = new Set<string>([
+      ...referencedByWikis,
+      ...writableByWikis,
+      ...defaultByWikis,
+    ]);
+
+    return {
+      ...bag,
+      usedByCount: String(allUsingWikis.size),
+      readonlyUsageCount: String(referencedByWikis.length),
+      writableUsageCount: String(writableByWikis.length),
+      defaultUsageCount: String(defaultByWikis.length),
+      permissionSummary: summarizePermissionRoles(bag.permissions),
+      referencedByTemplates: referencedByTemplates.join("\n"),
+      referencedByWikis: Array.from(allUsingWikis).join("\n"),
+      routingRoles: routingRoles.join("\n"),
+    };
+  });
+}
+
+function derivePluginRecords(items: DataStore, templates: TemplateAdminRecord[], wikis: WikiAdminRecord[]): PluginAdminRecord[] {
+  const pluginUsage = new Map<string, Set<string>>();
+
+  for (const wiki of wikis) {
+    const wikiName = wiki.slug || wiki.displayName || "";
+    wiki.effectivePluginSet.forEach((pluginValue) => {
+      const pluginName = pluginValue.split("@")[0]?.trim() ?? pluginValue.trim();
+      if (!pluginName || !wikiName) return;
+      mapGetInit(pluginUsage, pluginName, () => new Set<string>()).add(wikiName);
+    });
+  }
+
+  return items.plugins.map((plugin) => {
+    const usedByWikis = Array.from(pluginUsage.get(plugin.name ?? "") ?? []);
+    return {
+      ...plugin as unknown as PluginAdminRecord,
+      usedByWikis,
+      usageCount: String(usedByWikis.length),
+    };
+  });
+}
+
+function buildEffectiveBagStack({
+  writablePrefixBags: prefixRows,
+  templateReadonlyBags,
+  wikiReadonlyBags,
+}: {
+  writablePrefixBags: readonly MappingRow[];
+  templateReadonlyBags: readonly string[];
+  wikiReadonlyBags: readonly string[];
+}): string[] {
+  const defaultTargets = prefixRows.filter((row) => row.left === "").map((row) => row.right);
+  const prefixedTargets = prefixRows.filter((row) => row.left !== "").map((row) => row.right);
+  return uniqueLines([
+    ...defaultTargets,
+    ...prefixedTargets,
+    ...wikiReadonlyBags,
+    ...templateReadonlyBags,
+  ]);
+}
+
+function buildEffectivePluginSet({
+  previousEffectivePlugins,
+  templatePlugins,
+  wikiPlugins,
+  corePluginsEnabled,
+}: {
+  previousEffectivePlugins: readonly string[];
+  templatePlugins: readonly string[];
+  wikiPlugins: readonly string[];
+  corePluginsEnabled: boolean;
+}): string[] {
+  const authoredPlugins = uniqueLines([...templatePlugins, ...wikiPlugins]);
+  const runtimeManagedPlugins = previousEffectivePlugins.filter((plugin) => !authoredPlugins.includes(plugin));
+  const corePlugins = corePluginsEnabled
+    ? runtimeManagedPlugins.filter((plugin) => /core/i.test(plugin))
+    : [];
+  const requiredPlugins = runtimeManagedPlugins.filter((plugin) => !corePlugins.includes(plugin));
+
+  return uniqueLines([
+    ...wikiPlugins,
+    ...templatePlugins,
+    ...requiredPlugins,
+    ...corePlugins,
+  ]);
+}
+
+
+function syncWikiRecord(draft: DataStore["wikis"][number], data: DataStore) {
+  const templateRecord = findTemplateRecordForWikiRecord(draft, data);
+  const templateReadonlyBags = templateRecord ? templateRecord.readonlyBags : [];
+  const templatePlugins = templateRecord ? templateRecord.plugins : [];
+  const wikiReadonlyBags = draft.readonlyBags;
+  const wikiPlugins = draft.readonlyBags;
+
+  const mergedReadonlyBags = uniqueLines([...wikiReadonlyBags, ...templateReadonlyBags]);
+  const mergedPlugins = buildEffectivePluginSet({
+    previousEffectivePlugins: (draft as WikiAdminRecord).effectivePluginSet,
+    templatePlugins,
+    wikiPlugins,
+    corePluginsEnabled: !!templateRecord?.requiredPluginsEnabled,
+  });
+  const writablePrefixBags = draft.writablePrefixBags
+
+  const defaultWritableBag = writablePrefixBags.find((row) => row.left === "")?.right ?? "";
+  const prefixRuleCount = String(writablePrefixBags.length);
+  const readableBagOrder = buildEffectiveBagStack({
+    writablePrefixBags,
+    templateReadonlyBags,
+    wikiReadonlyBags,
+  });
+  const missingBags = readableBagOrder.filter((bagName) => !data.availableBagNames.has(bagName));
+  const missingPlugins = mergedPlugins.filter((pluginName) => !data.availablePluginNames.has(pluginName));
+  const hasMissingDependencies = missingBags.length > 0 || missingPlugins.length > 0;
+  const missingMessages = [
+    missingBags.length ? `Missing bags: ${missingBags.join(", ")}` : "",
+    missingPlugins.length ? `Missing plugins: ${missingPlugins.join(", ")}` : "",
+  ].filter(Boolean);
+  const compileValidation = hasMissingDependencies
+    ? `Alert. ${missingMessages.join(". ")}.`
+    : "Valid. All referenced bags and plugins are present.";
+  const statusFlags = hasMissingDependencies ? "alert, missing dependencies" : "compiled, dependencies resolved";
+
+  return {
+    ...draft,
+    templateName: templateRecord?.name ?? draft.templateRef?.name ?? "",
+    defaultWritableBag,
+    readonlyBagCount: String(mergedReadonlyBags.length),
+    prefixRuleCount,
+    pluginCount: String(mergedPlugins.length),
+    compileValidation,
+    statusFlags,
+    missingBags: lineListCodec.stringify(missingBags),
+    missingPlugins: lineListCodec.stringify(missingPlugins),
+    titleResolutionPreview: "",
+  } satisfies WikiAdminRecord;
+}
+
+function deriveItems(items: DataStore): AdminRecordStore {
+  items.availableBagNames = new Set(items.bags.map((bag) => bag.name).filter(Boolean));
+  items.availablePluginNames = new Set(items.plugins.map((plugin) => plugin.name).filter(Boolean));
+  const wikis = items.wikis.map((wiki) => syncWikiRecord(wiki, items));
+  const dependentWikiMap = new Map<string, string[]>();
+  for (const wiki of wikis) {
+    const id = wiki.templateRef?.id;
+    mapGetInit(dependentWikiMap, id, () => []).push(wiki.slug || wiki.displayName);
+  }
+
+  const templates = items.templates.map((template) => {
+    const dependentWikis = dependentWikiMap.get(template.id) ?? [];
+    const readonlyBags = template.readonlyBags
+    const prefixRows = template.writablePrefixBags
+    return {
+      ...template,
+      readonlyBagsSummary: readonlyBags.join(", "),
+      dependentWikis: dependentWikis.join("\n"),
+      dependentWikiCount: String(dependentWikis.length),
+      defaultWritableBag: prefixRows.find((row) => row.left === "")?.right ?? "",
+      validationReport: "placeholder",
+      validationStatus: "placeholder",
+      lastUpdatedAt: new Date().toISOString(),
+    } satisfies TemplateAdminRecord;
+    // lastUpdatedAt, validationStatus, validationReport
+  });
+
+  const users = items.users.map(e => ({
+    ...e,
+    confirmPassword: "",
+  }))
+
+  return {
+    ...items,
+    templates,
+    wikis,
+    users,
+    bags: deriveBagRecords(items, templates, wikis),
+    plugins: derivePluginRecords(items, templates, wikis),
+  } as unknown as AdminRecordStore;
+}
+
+export function getEmptyItems(): AdminRecordStore {
+  return {
+    availableBagNames: new Set(),
+    availablePluginNames: new Set(),
+    wikis: [],
+    templates: [],
+    bags: [],
+    plugins: [],
+    roles: [],
+    users: [],
+  };
+}
+
+
+export const adminStorage: AdminStorage = new InMemoryAdminStorage(deriveItems);
+

@@ -555,7 +555,7 @@ export interface DataSave {
   availableBagNames: Set<string>;
   availablePluginNames: Set<string>;
 };
-
+// #region Wiki
 export interface WikiAdminRecord {
   // server fields
   id: string;
@@ -585,7 +585,7 @@ export interface WikiAdminRecord {
 }
 
 export type TemplateTypes = "simpleV1";
-
+// #region Template
 export interface TemplateAdminRecord {
   // server fields
   id: string;
@@ -610,7 +610,7 @@ export interface TemplateAdminRecord {
   validationStatus: string;
   validationReport: string;
 }
-
+// #region Bag
 export interface BagAdminRecord {
   id: string;
   name: string;
@@ -628,7 +628,7 @@ export interface BagAdminRecord {
   // lastActivityAt: string;
   // recentActivity: string;
 }
-
+// #region Plugin
 export interface PluginAdminRecord {
   id: string;
   name: string;
@@ -637,13 +637,13 @@ export interface PluginAdminRecord {
   usageCount: string;
   usedByWikis: string[];
 }
-
+// #region Role
 export interface RoleAdminRecord {
   id: string;
   name: string;
   description: string;
 }
-
+// #region User
 export interface UserAdminRecord {
   id: string;
   username: string;

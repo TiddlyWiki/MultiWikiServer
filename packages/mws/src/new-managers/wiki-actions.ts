@@ -1,8 +1,7 @@
-import type { DataSave, DataStore, MappingRow, PermissionRow, Reference, TemplateTypes } from "@mws/admin-vanilla/src/definition/tabs";
+import type { DataSave, DataStore, MappingRow, PermissionRow, Reference, TabId, TemplateTypes } from "@mws/admin-vanilla/src/definition/tabs";
 import { ServerRequest } from "@tiddlywiki/server";
 import { BagImportWriter, RecipeImportWriter, RoleImportWriter, TemplateImportWriter, UserImportWriter } from "./wiki-import";
-import { BagPermissionLevel } from "./wiki-contract";
-import { RecipePermissionLevel } from "@tiddlywiki/mws-prisma";
+import { RecipePermissionLevel, BagPermissionLevel } from "@tiddlywiki/mws-prisma";
 
 type IWikiRow = DataStore["wikis"][number];
 type ITemplateRow = DataStore["templates"][number];
@@ -48,16 +47,11 @@ export type {
   UpsertUserInput,
 } from "./wiki-contract";
 export {
-  importBags as importBags,
-  importRecipes as importRecipes,
-  importRoles as importRoles,
-  importTemplates as importTemplates,
-  importUsers as importUsers,
-  indexImportedBagsByName,
-  indexImportedRecipesBySlug,
-  indexImportedRolesByName,
-  indexImportedTemplatesByName,
-  indexImportedUsersByUsername,
+  importBags,
+  importRecipes,
+  importRoles,
+  importTemplates,
+  importUsers,
   type ImportedBagRows,
   type ImportedRecipeRows,
   type ImportedRoleRows,
@@ -66,7 +60,7 @@ export {
 } from "./wiki-import";
 
 
-
+// #region abstracts
 
 abstract class WikiRow implements IWikiRow {
   abstract id: string;
@@ -132,9 +126,6 @@ abstract class UserRow implements IUserRow {
   abstract userRoles: readonly string[];
   abstract password: string;
 }
-
-
-export type TabId = "wikis" | "templates" | "bags" | "plugins" | "roles" | "users";
 
 function normalizeLineList(values: readonly string[]): string[] {
   return values.map((entry) => entry.trim()).filter(Boolean);
@@ -296,13 +287,13 @@ async function savePluginRow(_prisma: PrismaTxnClient, _data: DataSave["plugins"
   throw new Error("Plugin admin save is not implemented in the database-backed admin path.");
 }
 
-export async function doAdminDataOp(
-  prisma: PrismaTxnClient,
-  pluginCache: ServerRequest["pluginCache"],
-  op: "save",
-  tab: TabId,
-  data: any
-) {
+export async function doAdminDataOp({ prisma, pluginCache, op, tab, data }: {
+  prisma: PrismaTxnClient;
+  pluginCache: ServerRequest["pluginCache"];
+  op: "save";
+  tab: TabId;
+  data: any;
+}) {
   if (op !== "save") throw new Error(`Unsupported admin operation: ${op}`);
 
   let id: string;
@@ -324,7 +315,7 @@ export async function doAdminDataOp(
   if (!saved) throw new Error(`Saved ${tab} row not found: ${id}`);
   return saved;
 }
-
+// #region getDataStore
 export async function getAdminDataStore(prisma: PrismaTxnClient, pluginCache: ServerRequest["pluginCache"]) {
   const [templates, recipes, bags, roles, users] = await Promise.all([
     prisma.template.findMany({
@@ -411,6 +402,8 @@ export async function getAdminDataStore(prisma: PrismaTxnClient, pluginCache: Se
       orderBy: { username: "asc" },
     }),
   ]);
+
+  // #region (still datastore)
 
   const roleNameById = new Map(roles.map((role) => [role.role_id, role.role_name]));
   const templateNameById = new Map(templates.map((template) => [template.id, template.name]));
