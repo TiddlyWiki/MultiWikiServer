@@ -277,9 +277,7 @@ declare module "@tiddlywiki/events" {
   interface ServerEventsMap {
     "mws.tiddler.events": [{
       recipe_id?: string;
-      recipe_name?: string;
       bag_id: string;
-      bag_name: string;
       results: { title: string; revision_id: string; is_deleted: boolean; }[];
     }];
   }

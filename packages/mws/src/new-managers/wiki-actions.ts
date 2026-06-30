@@ -9,7 +9,7 @@ type IUserRow = DataStore["users"][number];
 type IRoleRow = DataStore["roles"][number];
 
 
-type TemplateDefinition = Omit<
+export type TemplateDefinition = Omit<
   ITemplateRow,
   | "id"
   | "lastUpdatedAt"
@@ -17,7 +17,7 @@ type TemplateDefinition = Omit<
   | "dependentWikis"
 >;
 
-type RecipeDefinition = Omit<
+export type RecipeDefinition = Omit<
   IWikiRow,
   | "id"
   | "slug"
@@ -274,13 +274,18 @@ async function saveWikiRow(prisma: PrismaTxnClient, data: IWikiRow): Promise<str
 }
 
 async function saveTemplateRow(prisma: PrismaTxnClient, data: ITemplateRow): Promise<string> {
-  const writableRows = normalizePrefixRows(data.writablePrefixBags);
-  const existing = data.id ? await prisma.template.findUnique({ where: { id: data.id }, select: { id: true, type: true, definition: true } }) : null;
+
+  const existing = data.id
+    ? await prisma.template.findUnique({
+      where: { id: data.id },
+      select: { id: true, type: true, definition: true }
+    })
+    : null;
   const definition: PrismaJson.Template_definition = {
     name: data.name,
     description: data.description,
     readonlyBags: normalizeLineList(data.readonlyBags),
-    writablePrefixBags: writableRows,
+    writablePrefixBags: normalizePrefixRows(data.writablePrefixBags),
     plugins: normalizeLineList(data.plugins),
     requiredPluginsEnabled: data.requiredPluginsEnabled,
     customHtmlEnabled: data.customHtmlEnabled,
@@ -297,7 +302,8 @@ async function saveTemplateRow(prisma: PrismaTxnClient, data: ITemplateRow): Pro
     })
     : await prisma.template.create({
       data: {
-        type: "prefixV1",
+        name: definition.name,
+        type: "simpleV1",
         definition,
       },
       select: { id: true },

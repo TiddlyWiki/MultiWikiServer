@@ -1379,6 +1379,7 @@ export type TiddlerEventScalarFieldEnum = (typeof TiddlerEventScalarFieldEnum)[k
 
 export const TemplateScalarFieldEnum = {
   id: 'id',
+  name: 'name',
   type: 'type',
   definition: 'definition'
 } as const

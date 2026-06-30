@@ -3,6 +3,7 @@ import * as load_wiki_folder from "./load-wiki-folder";
 // import * as load_archive from "./load-archive";
 import * as init_store from "./init-store";
 // import * as manager from "./manager";
+import * as test_args from "./test-args";
 import * as tests_complete from "./tests-complete";
 import * as listen from "./listen";
 import { BaseCommand, CommandInfo } from "@tiddlywiki/commander";
@@ -13,6 +14,7 @@ export const commands = {
   listen,
   load_wiki_folder,
   init_store,
+  test_args,
   tests_complete,
 } as const satisfies Record<string, {
   info: CommandInfo,

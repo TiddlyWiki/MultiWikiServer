@@ -18,7 +18,7 @@ declare global {
     type Recipe_parameters = Record<string, ParameterValue>;
 
     type RecipeBag_info = {};
-    type Template_type = "simpleV1" | "prefixV1";
+    type Template_type = "simpleV1";
 
 
 

@@ -4,7 +4,8 @@ import { TiddlerFields, TW } from "tiddlywiki";
 import * as fs from "fs";
 import * as path from "path";
 import { truthy } from "@tiddlywiki/server";
-import { importBags, importRecipes, indexImportedBagsByName } from "../new-managers/wiki-import";
+import { importBags, importRecipes, indexImportedBagsByName, toMappingRows, WikiImportWriter } from "../new-managers/wiki-import";
+import { RecipeDefinition } from "../new-managers/wiki-actions";
 
 export const info: CommandInfo = {
 	name: "load-wiki-folder",
@@ -13,12 +14,14 @@ export const info: CommandInfo = {
 		["path", "Path to the folder containing a tiddlywiki.info file"],
 	],
 	options: [
-		["bag-name <string>", "Name of the bag to load tiddlers into"],
-		["bag-description <string>", "Description of the bag"],
 		["recipe-name <string>", "Name of the recipe to create"],
 		["recipe-description <string>", "Description of the recipe"],
+		["bag-name <string>", "Name of the bag to load tiddlers into"],
+		["bag-description <string>", "Description of the bag"],
 		["template-name <string>", "Template for this recipe"],
-		["overwrite", "Confirm that you want to overwrite existing content"]
+		["owner-roles <string>", "Roles to set on the recipes and bags."],
+		["overwrite", "Confirm that you want to overwrite existing content"],
+		["skip-existing", "Confirm that you want to skip existing content"],
 	],
 };
 // tiddlywiki --load ./mywiki.html --savewikifolder ./mywikifolder
@@ -27,8 +30,10 @@ export class Command extends BaseCommand<[string], {
 	"bag-description"?: string[];
 	"recipe-name"?: string[];
 	"recipe-description"?: string[];
+	"owner-roles"?: string[];
 	"template-name"?: string[];
 	"overwrite"?: boolean;
+	"skip-existing"?: boolean;
 }> {
 
 
@@ -51,79 +56,113 @@ export class Command extends BaseCommand<[string], {
 		const templateName = this.options["template-name"]?.[0] ?? "Blank Template";
 
 		const overwrite = !!this.options["overwrite"];
+		const skipExisting = !!this.options["skip-existing"];
 
 		const bagName = this.options["bag-name"][0];
 		const bagDescription = this.options["bag-description"][0];
 		const recipeName = this.options["recipe-name"][0];
 		const recipeDescription = this.options["recipe-description"][0];
-		const templateId = await getTemplateIdByName(this.config.engine, templateName);
-		if (!templateId) {
+
+		const ownerRoles = this.options["owner-roles"] ?? [];
+
+		if (!templateName) {
 			throw new Error(`Template ${templateName} does not exist.`);
 		}
 
-		const existingRecipe = await this.config.engine.recipe.findUnique({
-			where: { slug: recipeName },
-			select: { id: true },
-		});
-		const existingBag = await this.config.engine.bag.findUnique({
-			where: { name: bagName },
-			select: { id: true },
-		});
+		this.config.engine.$transaction(async prisma => {
+			const importer = new WikiImportWriter(prisma, false);
 
-		if (!overwrite && (existingRecipe || existingBag)) {
-			console.log(`Recipe or bag already exists for ${recipeName}. Use --overwrite to overwrite it. Skipping.`);
-			return;
-		}
+			const existingRecipe = await prisma.recipe.findUnique({
+				where: { slug: recipeName },
+				select: { id: true },
+			});
+			const existingBag = await prisma.bag.findUnique({
+				where: { name: bagName },
+				select: { id: true },
+			});
+			if ((existingRecipe || existingBag)) {
+				if (!overwrite && !skipExisting) {
+					throw `Recipe or bag already exists for ${recipeName}. Use --overwrite to overwrite it or --skip-existing to continue.`;
+				}
+				if (skipExisting) {
+					console.log(`Recipe or bag already exists for ${recipeName}. Use --overwrite to overwrite it or --skip-existing to continue.`);
+					return;
+				}
+			}
 
-		const { pluginTitles, tiddlers } = loadWikiFolder({
-			wikiPath: this.params[0],
-			bagName,
-			bagDescription,
-			recipeName,
-			recipeDescription,
-			$tw: this.$tw,
-			cache: this.config.pluginCache,
-		});
+			const template = await prisma.template.findUnique({
+				where: { name: templateName },
+				select: { id: true, definition: true, type: true }
+			});
 
-		if (overwrite) {
-			await deleteExistingWikiFolderSeedData(this.config.engine, { recipeName, bagName });
-		}
+			if (!template) {
+				throw `The specified template name '${templateName}' could not be found.`;
+			}
 
-		const bagSeed = await importBags(this.config.engine, [{
+			const { pluginTitles, tiddlers } = loadWikiFolder({
+				recipeName,
+				recipeDescription,
+				bagName,
+				bagDescription,
+				wikiPath: this.params[0],
+				cache: this.config.pluginCache,
+				$tw: this.$tw,
+			});
+
+			const [bag] = await importer.importBags([{
 				name: bagName,
 				description: bagDescription,
-				permissions: [],
-			}]);
-		const bag = indexImportedBagsByName(bagSeed).get(bagName)
-			?? await this.config.engine.bag.findUnique({ where: { name: bagName }, select: { id: true, name: true } });
-
-		if (!bag) {
-			throw new Error(`Failed to create bag ${bagName}`);
-		}
-
-		await importRecipes(this.config.engine, [{
-				slug: recipeName,
-				templateId,
-				definition: {
-					displayName: recipeName,
-					description: recipeDescription,
-					readonlyBags: [],
-					writablePrefixBags: { "": bagName },
-					plugins: pluginTitles,
-				},
-				plugins: pluginTitles,
-				permissions: [],
-				compiledBags: [{
-					bagId: bag.id,
-					priority: 0,
-					isWritable: true,
-					prefix: "",
-				}],
+				permissions: ownerRoles.map(roleId => ({ level: "C_admin", roleId })),
 			}]);
 
-		await saveLoadedTiddlers(this.config.engine, bag.id, tiddlers);
+			if (!bag) {
+				throw new Error(`Failed to create bag ${bagName}`);
+			}
 
-		console.log(info.name, "complete:", this.params[0])
+			switch (template.type) {
+				case "simpleV1": {
+					const recipeDefinition: RecipeDefinition = {
+						displayName: recipeName,
+						description: recipeDescription,
+						plugins: pluginTitles,
+						readonlyBags: [],
+						writablePrefixBags: toMappingRows({ "": bagName }),
+					};
+					const {
+						bags: compiledBags, plugins: compiledPlugins
+					} = await importer.compileRecipeSimpleV1(recipeDefinition, template.definition);
+					const [recipe] = await importer.importRecipes([{
+						compiledBags,
+						plugins: compiledPlugins,
+						definition: recipeDefinition,
+						permissions: ownerRoles.map(roleId => ({ level: "B_write", roleId })),
+						slug: recipeName,
+						templateId: template.id,
+					}]);
+					await saveLoadedTiddlers(this.config.engine, bag.id, tiddlers);
+				}
+			}
+
+
+			// const compiledRecipe = await importer.compileRecipe({
+			// 	slug: recipeName,
+			// 	definition: {
+			// 		displayName: recipeName,
+			// 		description: recipeDescription,
+			// 		readonlyBags: [],
+			// 		writablePrefixBags: { "": bagName },
+			// 		plugins: pluginTitles,
+			// 	},
+			// 	permissions: ownerRoles.map(roleId => ({ level: "B_write", roleId })),
+			// }, template);
+
+
+
+
+
+			console.log(info.name, "complete:", this.params[0])
+		});
+
 		return null;
 	}
 
@@ -162,46 +201,9 @@ function loadWikiFolder({ $tw, cache, ...options }: {
 
 }
 
-async function getTemplateIdByName(prisma: PrismaEngineClient, templateName: string) {
-	const templates = await prisma.template.findMany({
-		select: { id: true, definition: true },
-	});
-	return templates.find((template) => template.definition.name === templateName)?.id ?? null;
-}
-
-async function deleteExistingWikiFolderSeedData(prisma: PrismaEngineClient, { recipeName, bagName }: {
-	recipeName: string;
-	bagName: string;
-}) {
+async function saveLoadedTiddlers(prisma: PrismaEngineClient, bag_id: string, tiddlers: TiddlerFields[]) {
 	await prisma.$transaction(async (tx) => {
-		const existingRecipe = await tx.recipe.findUnique({
-			where: { slug: recipeName },
-			select: { id: true, template_id: true },
-		});
-
-		if (existingRecipe) {
-			await tx.recipe.delete({ where: { id: existingRecipe.id } });
-			const templateUsageCount = await tx.recipe.count({ where: { template_id: existingRecipe.template_id } });
-			if (!templateUsageCount) {
-				await tx.template.delete({ where: { id: existingRecipe.template_id } });
-			}
-		}
-
-		const existingBag = await tx.bag.findUnique({
-			where: { name: bagName },
-			select: { id: true },
-		});
-
-		if (existingBag) {
-			await tx.bag.delete({ where: { id: existingBag.id } });
-		}
-	});
-
-}
-
-async function saveLoadedTiddlers(prisma: PrismaEngineClient, bagId: string, tiddlers: TiddlerFields[]) {
-	await prisma.$transaction(async (tx) => {
-		await tx.tiddler.deleteMany({ where: { bag_id: bagId } });
+		await tx.tiddler.deleteMany({ where: { bag_id } });
 
 		for (const tiddler of tiddlers) {
 			const title = tiddler.title;
@@ -214,12 +216,16 @@ async function saveLoadedTiddlers(prisma: PrismaEngineClient, bagId: string, tid
 					.filter(([, value]) => value !== undefined)
 					.map(([fieldName, fieldValue]) => [fieldName, typeof fieldValue === "string" ? fieldValue : `${fieldValue}`])
 			);
+			const event = await tx.tiddlerEvent.create({
+				data: { bag_id, title, type: "save" }
+			});
 
 			await tx.tiddler.upsert({
-				where: { bag_id_title: { bag_id: bagId, title } },
-				update: { fields, revision: BigInt(0) },
-				create: { bag_id: bagId, title, fields, revision: BigInt(0) },
+				where: { bag_id_title: { bag_id, title } },
+				update: { fields, revision: event.seq },
+				create: { bag_id, title, fields, revision: event.seq },
 			});
+
 		}
 	});
 

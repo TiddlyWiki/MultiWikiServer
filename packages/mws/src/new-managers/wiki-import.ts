@@ -1,4 +1,6 @@
+import { RecipeDefinition, TemplateDefinition } from "./wiki-actions";
 import {
+  ImportCompiledRecipeBagInput,
   type ImportBagInput,
   type ImportRecipeInput,
   type ImportRoleInput,
@@ -10,7 +12,11 @@ export type ImportedRoleRows = Awaited<ReturnType<PrismaTxnClient["roles"]["find
 export type ImportedUserRows = Awaited<ReturnType<PrismaTxnClient["users"]["findMany"]>>;
 export type ImportedBagRows = Awaited<ReturnType<PrismaTxnClient["bag"]["findMany"]>>;
 export type ImportedRecipeRows = Awaited<ReturnType<PrismaTxnClient["recipe"]["findMany"]>>;
-export type ImportedTemplateRow = { id: string; definition: PrismaJson.Template_definition; type: string };
+export type ImportedTemplateRow = {
+  id: string;
+  definition: PrismaJson.Template_definition;
+  type: string
+};
 
 export function indexImportedRolesByName(rows: ImportedRoleRows) {
   return new Map(rows.map((role) => [role.role_name, role]));
@@ -32,7 +38,9 @@ export function indexImportedTemplatesByName(rows: ImportedTemplateRow[]) {
   return new Map(rows.map((template) => [template.definition.name, template]));
 }
 
-class SeedWikiImportWriter {
+type RecipeCompilationInput = Omit<ImportRecipeInput, "templateId" | "plugins" | "compiledBags">;
+
+export class WikiImportWriter {
 
   constructor(
     private readonly tx: PrismaTxnClient,
@@ -103,11 +111,9 @@ class SeedWikiImportWriter {
     const templateRows = await Promise.all(templates.map((template) => {
       const existingTemplateId = templateIdByName.get(template.definition.name);
       const data = {
+        name: template.definition.name,
         type: template.type,
-        definition: {
-          ...template.definition,
-          writablePrefixBags: toMappingRows(template.definition.writablePrefixBags),
-        },
+        definition: template.definition,
       };
       return existingTemplateId
         ? this.tx.template.update({
@@ -127,19 +133,13 @@ class SeedWikiImportWriter {
     const recipeRows = await Promise.all(recipes.map((recipe) => this.tx.recipe.upsert({
       where: { slug: recipe.slug },
       update: {
-        definition: {
-          ...recipe.definition,
-          writablePrefixBags: toMappingRows(recipe.definition.writablePrefixBags),
-        },
+        definition: recipe.definition,
         template_id: recipe.templateId,
         plugins: recipe.plugins,
       },
       create: {
         slug: recipe.slug,
-        definition: {
-          ...recipe.definition,
-          writablePrefixBags: toMappingRows(recipe.definition.writablePrefixBags),
-        },
+        definition: recipe.definition,
         template_id: recipe.templateId,
         plugins: recipe.plugins,
       },
@@ -182,6 +182,64 @@ class SeedWikiImportWriter {
     }
   }
 
+  async compileRecipeSimpleV1(
+    recipeDefinition: RecipeDefinition,
+    templateDefinition: TemplateDefinition
+  ): Promise<{ bags: ImportCompiledRecipeBagInput[], plugins: string[] }> {
+    // Set takes the order of first appearance.
+    const plugins = Array.from(new Set([
+      ...recipeDefinition.plugins,
+      ...templateDefinition.plugins,
+    ]));
+    const readonlyBags = Array.from(new Set([
+      ...recipeDefinition.readonlyBags,
+      ...templateDefinition.readonlyBags,
+    ]));
+    // Object spread takes the last occurance of a value.
+    const writablePrefixBags = Object.entries({
+      ...toMappingObject(templateDefinition.writablePrefixBags),
+      ...toMappingObject(recipeDefinition.writablePrefixBags),
+    })
+      .sort(([a], [b]) => b.length - a.length)
+      .map(([prefix, bagName]) => ({ prefix, bagName }));
+
+    const bagLookup = new Map((await this.tx.bag.findMany({
+      where: {
+        name: {
+          in: [
+            ...readonlyBags,
+            ...writablePrefixBags.map(e => e.bagName)]
+        }
+      }
+    })).map(e => [e.name, e]));
+
+    const missingWritableBags = writablePrefixBags.filter(e => !bagLookup.has(e.bagName));
+    const missingReadonlyBags = readonlyBags.filter(e => !bagLookup.has(e));
+
+    if (missingWritableBags.length || missingReadonlyBags.length)
+      throw new Error("Some bag names could not be found: " + JSON.stringify([...missingWritableBags, ...missingReadonlyBags]))
+
+    return {
+      plugins,
+      bags: [
+        ...writablePrefixBags
+          .map((e, i) => ({
+            bagId: bagLookup.get(e.bagName)!.id,
+            isWritable: true,
+            priority: i,
+            prefix: e.prefix,
+          } satisfies ImportCompiledRecipeBagInput)),
+        ...readonlyBags
+          .map((e, i) => ({
+            bagId: bagLookup.get(e)!.id,
+            isWritable: false,
+            priority: i + writablePrefixBags.length,
+            prefix: "",
+          } satisfies ImportCompiledRecipeBagInput))
+      ],
+    }
+  }
+
   private validateProtectedRoles(roles: ImportRoleInput[]) {
     if (!this.initStore) {
       if (roles.some((entry) => entry.role_name === "ADMIN"))
@@ -205,39 +263,48 @@ class SeedWikiImportWriter {
 
 export function importRoles(prisma: PrismaEngineClient, roles: ImportRoleInput[], initStore = false) {
   return prisma.$transaction(async (tx) => {
-    const importer = new SeedWikiImportWriter(tx, initStore);
+    const importer = new WikiImportWriter(tx, initStore);
     return importer.importRoles(roles);
   });
 }
 
 export function importUsers(prisma: PrismaEngineClient, users: ImportUserInput[], initStore = false) {
   return prisma.$transaction(async (tx) => {
-    const importer = new SeedWikiImportWriter(tx, initStore);
+    const importer = new WikiImportWriter(tx, initStore);
     return importer.importUsers(users);
   });
 }
 
 export function importBags(prisma: PrismaEngineClient, bags: ImportBagInput[], initStore = false) {
   return prisma.$transaction(async (tx) => {
-    const importer = new SeedWikiImportWriter(tx, initStore);
+    const importer = new WikiImportWriter(tx, initStore);
     return importer.importBags(bags);
   });
 }
 
 export function importTemplates(prisma: PrismaEngineClient, templates: ImportTemplateInput[], initStore = false) {
   return prisma.$transaction(async (tx) => {
-    const importer = new SeedWikiImportWriter(tx, initStore);
+    const importer = new WikiImportWriter(tx, initStore);
     return importer.importTemplates(templates);
   });
 }
 
 export function importRecipes(prisma: PrismaEngineClient, recipes: ImportRecipeInput[], initStore = false) {
   return prisma.$transaction(async (tx) => {
-    const importer = new SeedWikiImportWriter(tx, initStore);
+    const importer = new WikiImportWriter(tx, initStore);
     return importer.importRecipes(recipes);
   });
 }
 
-function toMappingRows(obj: Record<string, string>) {
+export function toMappingRows(obj: Record<string, string>) {
   return Object.entries(obj).map(([left, right]) => ({ left, right }));
 }
+
+export function toMappingObject(rows: readonly { left: string; right: string }[]) {
+  return Object.fromEntries(rows.map(({ left, right }) => [left, right]));
+}
+
+function uniqueStrings(values: string[]) {
+  return Array.from(new Set(values));
+}
+

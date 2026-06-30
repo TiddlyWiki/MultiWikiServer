@@ -82,8 +82,7 @@ import { join, resolve } from "path";
     case "prisma:migrate":
       await start("prisma migrate dev", [
         "--schema", "prisma/schema.prisma",
-        "--create-only",
-        "--skip-generate"
+        "--create-only"
       ], {
         DATABASE_URL: "file:test.sqlite"
       });

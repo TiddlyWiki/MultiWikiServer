@@ -1,3 +1,5 @@
+import { RecipeDefinition, TemplateDefinition } from "./wiki-actions";
+
 export type ImportPermissionLevel = "A_read" | "B_write" | "C_admin";
 
 export interface ImportRoleInput {
@@ -23,21 +25,6 @@ export interface ImportBagInput {
   permissions: ImportBagPermissionInput[];
 }
 
-export interface ImportTemplateInput {
-  type: "simpleV1";
-  definition: {
-    name: string;
-    description: string;
-    readonlyBags: string[];
-    writablePrefixBags: Record<string, string>;
-    plugins: string[];
-    requiredPluginsEnabled: boolean;
-    customHtmlEnabled: boolean;
-    htmlContent: string;
-    injectionArray: string;
-    injectionLocation: string;
-  };
-}
 
 export interface ImportRecipePermissionInput {
   roleId: string;
@@ -54,14 +41,14 @@ export interface ImportCompiledRecipeBagInput {
 export interface ImportRecipeInput {
   slug: string;
   templateId: string;
-  definition: {
-    displayName: string;
-    description: string;
-    readonlyBags: string[];
-    writablePrefixBags: Record<string, string>;
-    plugins: string[];
-  };
+  definition: RecipeDefinition;
   plugins: string[];
   permissions: ImportRecipePermissionInput[];
   compiledBags: ImportCompiledRecipeBagInput[];
+}
+
+
+export interface ImportTemplateInput {
+  type: "simpleV1";
+  definition: TemplateDefinition;
 }
