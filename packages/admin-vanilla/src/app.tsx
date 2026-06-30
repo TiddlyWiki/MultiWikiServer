@@ -1573,8 +1573,8 @@ export class App extends JSXElement {
               <strong>{itemsByTab.bags.length}</strong>
             </article>
             <article>
-              <span>Plugins</span>
-              <strong>{itemsByTab.plugins.length}</strong>
+              <span>Users</span>
+              <strong>{itemsByTab.users.length}</strong>
             </article>
           </div>
         </header>
@@ -1617,12 +1617,6 @@ export class App extends JSXElement {
               >{getCreateLabel(currentTab)}</button>
             </div>
           </div>
-
-          {storageError ? (
-            <div class="field-callout">
-              <p>{displayedStorageError.split("\n").map(e => <>{e}<br /></>)}</p>
-            </div>
-          ) : null}
 
           <div class="list-grid list-grid-header">
             {currentTab.columns.map((column) => (
