@@ -95,13 +95,14 @@ export class RecipeResolver {
    * bag in the ordering (including empty ones). Admins bypass. Lacking any one
    * yields a 403, not a filtered view.
    */
-  static async assertRecipe({ state, prisma, recipe_slug }: {
+  static async assertRecipe({ state, recipe_slug, needsWrite }: {
     state: ServerRequest<"json" | "ignore", any, any>;
-    prisma: PrismaTxnClient;
     recipe_slug: PrismaField<"Recipe", "slug">;
+    needsWrite: boolean;
   }) {
-
-    const role_ids = state.user.roles.map((r: { role_id: string }) => r.role_id)
+    const prisma = state.engine;
+    const isAdmin = state.user.isAdmin;
+    const role_ids = state.user.roles.map((r) => r.role_id)
     const recipe = await prisma.recipe.findUnique({
       where: { slug: recipe_slug },
       select: {
@@ -109,10 +110,8 @@ export class RecipeResolver {
         slug: true,
         plugins: true,
         permissions: {
-          // any level gives read permission
           where: { role_id: { in: role_ids } },
-          select: { role_id: true },
-          take: 1,
+          select: { role_id: true, level: true },
         },
         recipe_bags: {
           orderBy: { priority: "asc" },
@@ -127,8 +126,7 @@ export class RecipeResolver {
                 permissions: {
                   where: { role_id: { in: role_ids } },
                   orderBy: { level: "desc" },
-                  select: { level: true },
-                  take: 1,
+                  select: { role_id: true, level: true },
                 },
               },
             },
@@ -147,52 +145,8 @@ export class RecipeResolver {
         throw state.sendEmpty(403, { "x-reason": "missing read access on a bag in this wiki" });
     }
 
-    return recipe;
-  }
+    // TODO: this was from assert access
 
-  static async assertRecipeAccess({ prisma, recipe_slug, role_ids, needsWrite, isAdmin }: {
-    prisma: PrismaTxnClient;
-    recipe_slug: PrismaField<"Recipe", "slug">;
-    role_ids: PrismaField<"Roles", "role_id">[];
-    needsWrite: boolean;
-    isAdmin: boolean;
-  }) {
-    if (isAdmin) return;
-    const recipe = await prisma.recipe.findUnique({
-      where: { slug: recipe_slug },
-      select: {
-        id: true,
-        permissions: {
-          where: { role_id: { in: role_ids } },
-          select: {
-            role_id: true,
-            level: true,
-          },
-        },
-        recipe_bags: {
-          orderBy: { priority: "asc" },
-          select: {
-            bag_id: true,
-            priority: true,
-            is_writable: true,
-            prefix: true,
-            bag: {
-              select: {
-                name: true,
-                permissions: {
-                  where: { role_id: { in: role_ids } },
-                  orderBy: { level: "desc" },
-                  select: {
-                    role_id: true,
-                    level: true,
-                  },
-                },
-              },
-            },
-          },
-        },
-      },
-    })
     if (!recipe)
       throw new SendError("RECIPE_NOT_FOUND", 404, { recipeName: recipe_slug })
 
@@ -208,18 +162,22 @@ export class RecipeResolver {
     if (hasBagDeniedAccess)
       throw new SendError("BAG_NO_READ_PERMISSION", 403, { bagName: hasBagDeniedAccess.bag_id })
 
-    if (!needsWrite) return;
+    if (needsWrite) {
 
-    const hasWriteAccess = recipe.recipe_bags
-      .filter(recipeBag => recipeBag.is_writable)
-      .some(recipeBag =>
-        recipeBag.bag.permissions.some(permission => inArray(WRITE_LEVELS, permission.level))
-      );
+      const hasWriteAccess = recipe.recipe_bags
+        .filter(recipeBag => recipeBag.is_writable)
+        .some(recipeBag =>
+          recipeBag.bag.permissions.some(permission => inArray(WRITE_LEVELS, permission.level))
+        );
 
-    if (!hasWriteAccess)
-      throw new SendError("BAG_NO_WRITE_PERMISSION", 403, { bagName: "" });
+      if (!hasWriteAccess)
+        throw new SendError("BAG_NO_WRITE_PERMISSION", 403, { bagName: "" });
 
+    }
+
+    return recipe;
   }
+
 
   constructor(
     private recipe: RecipeInfo,

@@ -12,9 +12,7 @@
     "@types/react": "^19.2.2",
     "esbuild-plugin-copy": "^2.1.1",
     "events": "^3.3.0",
-
     "luxon": "^3.7.1",
-    "mdui": "file:mdui-2.1.4.tgz",
     "normalize.css": "^8.0.1",
     "react": "^19.2.0",
     "replicache": "^15.3.0",

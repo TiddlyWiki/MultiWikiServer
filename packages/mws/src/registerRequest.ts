@@ -36,8 +36,8 @@ declare module "@tiddlywiki/server" {
 Router.allowedRequestedWithHeaders.TiddlyWiki = true;
 
 export const clientBuildDef: ClientBuildDefinition = {
-  // rootdir: dist_resolve("../packages/mdui-admin"),
-  // publicdir: dist_resolve("../public/mdui-admin"),
+  // rootdir: dist_resolve("../packages/admin-mdui"),
+  // publicdir: dist_resolve("../public/admin-mdui"),
   // title: "MWS Admin",
   rootdir: dist_resolve("../packages/admin-vanilla"),
   publicdir: dist_resolve("../public/admin-vanilla"),

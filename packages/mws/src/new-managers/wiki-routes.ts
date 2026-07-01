@@ -34,20 +34,16 @@ export class NewWikiRecipeRoutes {
     }),
     inner: async (state) => {
       const { recipe_slug } = state.pathParams;
-
-      await RecipeResolver.assertRecipeAccess({
-
-        prisma: state.engine,
+      const recipe = await RecipeResolver.assertRecipe({
+        state,
         recipe_slug,
-        role_ids: state.user.roles.map(e => e.role_id),
-        isAdmin: state.user.isAdmin,
         needsWrite: false
-      }).then(() => { state.asserted = true; });
-
+      }).then(e => {
+        state.asserted = true;
+        return e;
+      });
       return await state.$transaction(async (prisma) => {
-        const recipe = await RecipeResolver.assertRecipe({ state, prisma, recipe_slug });
         const r = new RecipeResolver(recipe, prisma, state.user.isAdmin);
-
         const { isAdmin, user_id, username, isLoggedIn } = state.user;
         return {
           isAdmin,
@@ -77,17 +73,15 @@ export class NewWikiRecipeRoutes {
     }),
     inner: async (state) => {
       const { recipe_slug } = state.pathParams;
-
-      await RecipeResolver.assertRecipeAccess({
-        prisma: state.engine,
+      const recipe = await RecipeResolver.assertRecipe({
+        state,
         recipe_slug,
-        role_ids: state.user.roles.map(e => e.role_id),
-        isAdmin: state.user.isAdmin,
         needsWrite: false
-      }).then(() => { state.asserted = true; });
-
+      }).then(e => {
+        state.asserted = true;
+        return e;
+      });
       return await state.$transaction(async (prisma) => {
-        const recipe = await RecipeResolver.assertRecipe({ state, prisma, recipe_slug });
         const r = new RecipeResolver(recipe, prisma, state.user.isAdmin);
         return await r.listTiddlers();
       });
@@ -106,30 +100,24 @@ export class NewWikiRecipeRoutes {
     zodQueryKeys: ["since"],
     inner: async (state) => {
       const { recipe_slug } = state.pathParams;
-
-      await RecipeResolver.assertRecipeAccess({
-        prisma: state.engine,
+      const recipe = await RecipeResolver.assertRecipe({
+        state,
         recipe_slug,
-        role_ids: state.user.roles.map(e => e.role_id),
-        isAdmin: state.user.isAdmin,
         needsWrite: false
-      }).then(() => { state.asserted = true; });
-
-      const since = Number(state.query.get("since")) || 0;
+      }).then(e => {
+        state.asserted = true;
+        return e;
+      });
 
       return await state.$transaction(async (prisma) => {
-        const recipe = await RecipeResolver.assertRecipe({ state, prisma, recipe_slug });
         const r = new RecipeResolver(recipe, prisma, state.user.isAdmin);
         const bagIDMap = new Map(recipe.recipe_bags.map(b => [b.bag_id, b]));
-
+        const since = Number(state.query.get("since")) || 0;
         const events = await prisma.tiddlerEvent.findMany({
           where: { bag_id: { in: Array.from(bagIDMap.keys()) }, seq: { gt: since } },
           orderBy: { seq: "asc" },
           select: { seq: true, title: true, type: true, bag_id: true },
         });
-
-
-
 
         const lastSeq = events.at(-1)?.seq ?? since;
 
@@ -175,17 +163,17 @@ export class NewWikiRecipeRoutes {
     inner: async (state) => {
       const { recipe_slug, op } = state.pathParams;
 
-      await RecipeResolver.assertRecipeAccess({
-        prisma: state.engine,
+      const recipe = await RecipeResolver.assertRecipe({
+        state,
         recipe_slug,
-        role_ids: state.user.roles.map(e => e.role_id),
-        isAdmin: state.user.isAdmin,
         needsWrite: op !== "list" && op !== "read"
-      }).then(() => { state.asserted = true; });
-
+      }).then(e => {
+        state.asserted = true;
+        return e;
+      });
 
       return await state.$transaction(async (prisma) => {
-        const recipe = await RecipeResolver.assertRecipe({ state, prisma, recipe_slug });
+
         const r = new RecipeResolver(recipe, prisma, state.user.isAdmin);
 
         if (op === "list") {
@@ -204,6 +192,7 @@ export class NewWikiRecipeRoutes {
             throw new SendError("ARGUMENT_REQUIRED", 400, { name: "tiddlers" });
           return await r.saveTiddlers({ tiddlers: state.data.tiddlers });
         }
+
         if (op === "delete") {
           state.data.titles = Array.from(new Set(state.data.titles));
           if (!Array.isArray(state.data.titles))
@@ -212,6 +201,7 @@ export class NewWikiRecipeRoutes {
         }
 
         { const t: never = op; }
+
         throw new Error("Invalid op should have been caught by zod");
       });
     },
@@ -290,18 +280,17 @@ serverEvents.on("mws.routes", (root) => {
     }), new Error());
 
     const { recipe_slug } = state.pathParams;
-
-    await RecipeResolver.assertRecipeAccess({
-      prisma: state.engine,
+    const recipe = await RecipeResolver.assertRecipe({
+      state,
       recipe_slug,
-      role_ids: state.user.roles.map(e => e.role_id),
-      isAdmin: state.user.isAdmin,
       needsWrite: false
-    }).then(() => { state.asserted = true; });
+    }).then(e => {
+      state.asserted = true;
+      return e;
+    });
 
     // we get close the transaction before we start sending the data so the transaction isn't held up by client bandwidth
-    const { recipe, bagTiddlers, maxSeq } = await state.$transaction(async (prisma) => {
-      const recipe = await RecipeResolver.assertRecipe({ state, prisma, recipe_slug });
+    const { bagTiddlers, maxSeq } = await state.$transaction(async (prisma) => {
       const { bagTiddlers, maxSeq }
         = await new RecipeResolver(recipe, prisma, state.user.isAdmin)
           .getIndexData(state.method === "GET");

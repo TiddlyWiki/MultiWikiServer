@@ -359,15 +359,17 @@ Delete is valid even when lower bags still contain the title. In that case the t
 
 ### Batch
 
-Batch operations are per-title and non-atomic.
+Batch operations succeed or fail as a whole.
 
-Each item returns its own result object.
+The request is treated as one operation at the API contract level. If any item in the batch is invalid or denied, the batch fails rather than returning a mixed per-item result set.
+
+Atomicity of the underlying writes is not yet defined.
 
 Reasons:
 
-- write denial is a routine outcome, not a system failure
-- titles in a batch may route to different bags
-- partial success is expected in collaborative use
+- callers should not have to reconcile mixed success and failure outcomes inside one batch response
+- the server contract is simpler if batch validation and authorization failures abort the batch response
+- routing may still differ per title, but that no longer implies partial success is part of the public contract
 
 ## Change Log and Sync
 
@@ -490,3 +492,242 @@ The implementation should keep a strict separation between:
 - resolved state: tiddler reads and write targets for a given title and principal
 
 If the code preserves that split, the model remains understandable as new wiki types are added.
+
+## Structure Lockdown
+
+The current code is close enough to a stable shape that the next work should not be more exploratory refactoring. It should be convergence work against a fixed set of module responsibilities.
+
+This section defines the intended ownership boundaries.
+
+### Module Responsibilities
+
+#### `wiki-contract.ts`
+
+This file owns transport and persistence input contracts only.
+
+It should contain:
+
+- import and upsert DTOs
+- compiled row DTOs
+- no Prisma reads
+- no normalization logic
+- no routing logic
+
+#### `wiki-actions.ts`
+
+This file is the admin-facing translation boundary.
+
+It should contain:
+
+- conversion between admin tab rows and domain input DTOs
+- normalization of user-edited arrays and mapping rows
+- orchestration of save operations through import writers
+- projection from persisted state back into admin datastore rows
+
+It should not contain:
+
+- request-time routing logic
+- bag selection rules
+- direct write logic that bypasses import writers
+
+#### `wiki-import.ts`
+
+This file owns authored-state persistence and compilation.
+
+It should contain:
+
+- upsert behavior for roles, users, bags, templates, and wikis
+- rename propagation rules for authored definitions
+- compilation from authored JSON into derived recipe rows
+- validation that referenced bags and plugins exist before commit
+
+It should not contain:
+
+- route handling
+- request-time tiddler reads and writes
+- ad hoc resolver behavior
+
+#### `RecipeResolver.ts`
+
+This file is the only authority for request-time wiki resolution.
+
+It should contain:
+
+- wiki access gating for runtime endpoints
+- read resolution for one title and many titles
+- write target resolution for one title and many titles
+- list, read, save, delete, and update semantics derived from one shared routing model
+- index-page data assembly for an already-compiled wiki view
+
+It should not contain:
+
+- admin save orchestration
+- compilation from template/wiki definitions into derived recipe rows
+- direct knowledge of UI tab storage shapes
+
+#### `wiki-store.ts`
+
+This file owns low-level tiddler persistence and event emission.
+
+It should contain:
+
+- upsert and delete against the concrete bag target
+- append-only event creation
+
+It should not contain:
+
+- permission decisions
+- bag routing decisions
+- admin data transformations
+
+#### `wiki-routes.ts`
+
+This file is a transport shell.
+
+It should contain:
+
+- HTTP route declarations
+- request validation
+- auth preconditions delegated to resolver methods
+- transaction boundaries
+- translation between HTTP payloads and resolver calls
+
+It should not contain:
+
+- title routing rules
+- bag selection logic
+- duplicated permission policy
+
+#### `wiki-utils.ts`
+
+This file should stay narrowly generic.
+
+It should contain only helpers that are:
+
+- domain-neutral
+- side-effect free unless their name makes the side effect obvious
+- too small to deserve their own module
+
+### Enforcement Rules
+
+These rules are the practical way to keep the structure from drifting again.
+
+- Only `RecipeResolver` may decide `readFrom(title)` and `writeTo(title)`.
+- Only the import layer may compile authored JSON into `RecipeBag` and related derived rows.
+- Route handlers may validate inputs and start transactions, but may not implement wiki behavior.
+- `WikiStore` receives a concrete `bag_id`; it never figures out which bag to touch.
+- Admin save paths must go through the import writers; they should not issue parallel ad hoc Prisma updates elsewhere.
+- Authored JSON should be treated as immutable input. Any normalization or merge should produce new values rather than mutating caller-owned objects in place.
+- Runtime failures that cross module boundaries should be structured errors, not strings.
+- When a rule exists in both comments and code, tests should be written against the rule and the comment should be treated as a contract, not decoration.
+
+## Remaining Convergence Work
+
+The remaining work is not random cleanup. It is a short list of places where the implementation still violates the structure above or leaves the behavior under-specified.
+
+### 1. Unify the Permission Model in One Runtime Contract
+
+This is the highest-priority inconsistency.
+
+Today the code has two overlapping gates:
+
+- `assertRecipe(...)`
+- `assertRecipeAccess(...)`
+
+Those functions are close in purpose but not identical in behavior. They should either collapse into one runtime access contract or be split into clearly different responsibilities with names that reflect the split.
+
+Required outcome:
+
+- one definition of wiki read eligibility
+- one definition of wiki write eligibility
+- one consistent interpretation of permission hierarchy
+- no route that can pass one gate and fail another for the same reason
+
+### 2. Remove Policy Duplication From the Route Layer
+
+The route file is still doing repeated access choreography before every resolver call. That is a maintainability smell even if the logic is correct.
+
+Required outcome:
+
+- route handlers become thin wrappers
+- shared authorization and wiki-loading flow moves behind resolver-facing helpers
+- route code stops repeating the same state mutations and access calls
+
+### 3. Normalize Batch Error Semantics
+
+The design now says batch operations fail as a whole, while storage-level atomicity remains undefined. The implementation should reflect that explicitly rather than accidentally through whatever exception happens to escape.
+
+Required outcome:
+
+- resolver batch methods have one clear failure contract for validation, authorization, and routing errors
+- expected batch rejection uses structured errors, not raw thrown strings
+- transport code does not have to infer whether a thrown failure means full rejection or partial success
+- the code and docs do not imply transactionality unless the implementation actually guarantees it
+
+### 4. Separate Pure Compilation From Persistence Side Effects
+
+The compiler shape is good, but the layer is still too coupled to persistence concerns.
+
+Required outcome:
+
+- compilation logic can be reasoned about as a pure authored-definition to compiled-definition transform except for referenced-row lookup
+- persistence code applies the compiled result transactionally
+- rename propagation and recompilation rules are explicit about whether they edit authored definitions, compiled rows, or both
+
+### 5. Replace Type-System Escape Hatches With Domain Types
+
+Some of the remaining roughness comes from generic importer machinery and `any`-style escape hatches. Those shortcuts were useful during scaffolding, but they now obscure the domain model.
+
+Required outcome:
+
+- reduce mutation-through-casts patterns
+- reduce generic Prisma indirection where concrete model-specific logic is clearer
+- prefer explicit domain return types when a module is part of the core wiki model
+
+This does not mean removing every abstraction. It means keeping only the abstractions that make the rules easier to audit.
+
+### 6. Make Status, List, Read, and Update Contracts Explicitly Coherent
+
+The system goal is that all endpoint forms expose the same wiki view. That is mostly true structurally, but the exact payload contract is still partly implied by the code.
+
+Required outcome:
+
+- document which routing facts appear in status
+- document which routing facts appear in list and read responses
+- document which events count as meaningful updates for a wiki view
+- write tests that assert those surfaces agree on the same underlying resolution rules
+
+### 7. Define Rename and Recompile Guarantees
+
+Bag and template edits can affect many dependent rows. The code already attempts to keep that consistent, but the guarantees are not yet stated strongly enough.
+
+Required outcome:
+
+- define when authored definitions are rewritten during rename
+- define when dependent wikis are fully recompiled versus lightly rewritten
+- define whether partial completion is acceptable during fanout operations
+
+### 8. Add Structural Tests Before Further Feature Work
+
+The next productive step is not more feature branching. It is locking the existing model with tests around the invariants already claimed in this document.
+
+Minimum priority tests:
+
+- permission hierarchy and gating
+- resolver agreement across list, read, save, delete, and updates
+- prefix longest-match routing
+- delete uncover semantics
+- template-save recompilation of dependent wikis
+- batch rejection on one denied or invalid item
+- batch behavior under partial-write risk until atomicity is explicitly defined
+
+## Practical Plan
+
+If the goal is to lock the structure down without you manually rewriting everything first, the realistic sequence is:
+
+1. Treat this document as the contract for the current subsystem.
+2. Refactor only where the code violates one of the module boundaries or invariants above.
+3. Add tests for the runtime invariants before adding another wiki type or more admin behavior.
+4. After the tests are in place, simplify internals aggressively where they are still carrying scaffolding-era compromises.
+
+That is enough to move the subsystem from "partially stabilized" to "owned by a design" without pretending the remaining cleanup is trivial.

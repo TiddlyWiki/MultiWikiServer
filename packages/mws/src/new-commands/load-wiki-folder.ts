@@ -114,7 +114,7 @@ export class Command extends BaseCommand<[string], {
 			switch (template.type) {
 				case "simpleV1": {
 					const bag_id = await saveBagRow(prisma, {
-						id: "",
+						id: "", // a blank id will use the name if it exists
 						name: bagName,
 						description: bagDescription,
 						permissions: ownerRoles.map(role => ({ level: "C_admin", role: role })),
@@ -125,7 +125,7 @@ export class Command extends BaseCommand<[string], {
 					}
 
 					const recipe_id = await saveWikiRow(prisma, {
-						id: "",
+						id: "", // a blank id will use the slug if it exists
 						slug: recipeName,
 						templateRef: { id: template.id, name: template.name },
 						displayName: recipeName,
@@ -136,7 +136,12 @@ export class Command extends BaseCommand<[string], {
 						recipePermissions: ownerRoles.map(role => ({ level: "B_write", role })),
 					});
 
-					await saveLoadedTiddlers(prisma, recipe_id, bag_id, tiddlers);
+					const existingTitles = Array.from(await prisma.tiddler.findMany({
+						where: { bag_id },
+						select: { title: true }
+					}), e => e.title);
+
+					await saveLoadedTiddlers(prisma, recipe_id, bag_id, tiddlers, existingTitles);
 				}
 			}
 
@@ -155,23 +160,19 @@ async function saveLoadedTiddlers(
 	recipe_id: string,
 	bag_id: string,
 	tiddlers: TiddlerFields[],
+	existingTitles: string[],
 ) {
+	const newTitles = new Set(tiddlers.map(e => e.title));
+	const store = new WikiStore(tx);
+	for (const title of existingTitles) {
+		if (!newTitles.has(title)) {
+			await store.deleteTiddler({ recipe_id, bag_id, title, });
+		}
+	}
 	for (const fields of tiddlers) {
 		const title = fields.title;
-		if (!title) {
-			throw new Error("Tiddler must have a title");
-		}
-		const store = new WikiStore(tx);
-		await store.deleteTiddler({
-			recipe_id,
-			bag_id,
-			title,
-		});
-		await store.saveTiddler({
-			recipe_id,
-			bag_id,
-			fields,
-		});
+		if (!title) throw new Error("Tiddler must have a title");
+		await store.saveTiddler({ recipe_id, bag_id, fields, });
 	}
 }
 
