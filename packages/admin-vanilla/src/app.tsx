@@ -13,24 +13,18 @@ import {
   FieldType,
   Mode,
   TabDefinition,
-  TabDef,
   PermissionRow,
   AdminRecordStore,
-  DataStore,
-  TemplateAdminRecord,
   WikiAdminRecord,
-  BagAdminRecord,
-  PluginAdminRecord,
-  MappingRow,
-  RoleAdminRecord,
-  UserAdminRecord,
-  Reference,
+  WritablePrefixRow,
   getSectionHeading,
-  TemplateTypes
+  TemplateTypes,
+  IdString,
+  KeyString
 } from "./definition/tabs";
 
-import { adminStorage, createDraft, findTemplateRecordForWikiRecord, getEmptyItems, InMemoryAdminStorage } from "./definition/store";
-import { definitely, is, mapGetInit, ok } from "./definition/utils"
+import { adminStorage, createDraft, findTemplateRecordForWikiRecord, getEmptyItems } from "./definition/store";
+import { definitely, is } from "./definition/utils";
 
 
 // import icon1 from "@material-symbols/svg-400/{style}/{icon}.svg" // (Unfilled)
@@ -51,7 +45,7 @@ export class MaterialSymbol extends JSXElement {
 }
 
 
-export type AdminRecord = { id: string; };
+export type AdminRecord = { id: IdString; };
 
 type PermissionLevel = "A_read" | "B_write" | "C_admin";
 type RecipePermissionLevel = "A_read" | "B_write";
@@ -72,7 +66,7 @@ interface ModalState {
 
 export interface AdminStorage {
   loadAll(): Promise<AdminRecordStore>;
-  read(tabId: TabId, id: string): Promise<AdminRecord | null>;
+  read(tabId: TabId, id: IdString): Promise<AdminRecord | null>;
   save(tabId: TabId, record: AdminRecord): Promise<AdminRecord[]>;
 }
 
@@ -177,8 +171,8 @@ function isEditable(field: FieldDefinition, mode: ModalMode): boolean {
 function getSelectOptions(field: FieldDefinition, itemsByTab: AdminRecordStore): string[] {
   if (field.key === "status") return ["draft", "published", "archived"];
   if (field.key === "requiredPluginsEnabled" || field.key === "customHtmlEnabled") return ["enabled", "disabled"];
-  if (field.key === "templateRef") {
-    return Array.from(new Set(itemsByTab.templates.map((item) => item.name).filter(Boolean)));
+  if (field.key === "templateName") {
+    return Array.from(new Set(itemsByTab.templates.map((item) => item.name.toString()).filter(Boolean)));
   }
   return [];
 }
@@ -197,18 +191,18 @@ function getCreateLabel(tab: TabDefinition): string {
 
 function getLookupOptions(fieldKey: string, itemsByTab: AdminRecordStore): string[] {
   if (fieldKey === "readonlyBags" || fieldKey === "writablePrefixBags") {
-    return Array.from(new Set(itemsByTab.bags.map((item) => item.name).filter(Boolean)));
+    return Array.from(new Set(itemsByTab.bags.map((item) => item.name.toString()).filter(Boolean)));
   }
   if (fieldKey === "plugins") {
-    return Array.from(new Set(itemsByTab.plugins.map((item) => item.name).filter(Boolean)));
+    return Array.from(new Set(itemsByTab.plugins.map((item) => item.name.toString()).filter(Boolean)));
   }
   if (fieldKey === "userRoles") {
-    return Array.from(new Set(itemsByTab.roles.map((item) => item.name).filter(Boolean)));
+    return Array.from(new Set(itemsByTab.roles.map((item) => item.name.toString()).filter(Boolean)));
   }
   if (fieldKey === "permissions" || fieldKey === "recipePermissions") {
     return Array.from(new Set([
-      ...itemsByTab.bags.flatMap((item) => item.permissions.map((row) => row.role)),
-      ...itemsByTab.wikis.flatMap((item) => item.recipePermissions.map((row) => row.role)),
+      ...itemsByTab.bags.flatMap((item) => item.permissions.map((row) => row.role.toString())),
+      ...itemsByTab.wikis.flatMap((item) => item.recipePermissions.map((row) => row.role.toString())),
     ].filter(Boolean)));
   }
   return [];
@@ -254,16 +248,18 @@ export function uniqueLines(values: readonly string[]): string[] {
   return Array.from(new Set(values.map((value) => value.trim()).filter(Boolean)));
 }
 
-function buildEffectivePrefixObject(writablePrefixBags: (readonly MappingRow[])[]): readonly MappingRow[] {
+function buildEffectivePrefixObject(writablePrefixBags: (readonly WritablePrefixRow[])[]): readonly WritablePrefixRow[] {
   const result: Record<string, string> = {};
   for (const list of writablePrefixBags) {
     for (const row of list) {
-      if (typeof row.left !== "string" || typeof row.right !== "string")
-        throw new Error("Expects an object of { left: string; right: string; }.")
-      result[row.left] ??= row.right;
+      if (typeof row.prefix !== "string" || typeof row.bagName !== "string")
+        throw new Error("Expects an object of { prefix: string; bagName: string; }.")
+      result[row.prefix] ??= row.bagName;
     }
   }
-  return Object.entries(result).map(([left, right]) => ({ left, right })).sort((a, b) => b.left.length - a.left.length);
+  return Object.entries(result)
+    .map(([prefix, bagName]) => ({ prefix, bagName: new KeyString(bagName) }))
+    .sort((a, b) => b.prefix.length - a.prefix.length);
 }
 
 class LineListCodec {
@@ -335,8 +331,8 @@ function formatFieldValue(value: any): string {
     if (typeof value[0] === "string")
       return value.join("\n"); // value.length ?  : "—";
     if (typeof value[0] === "object") {
-      if (typeof value[0].left === "string")
-        return value.map(e => `${e.left}: ${e.right}`).join("\n");
+      if (typeof value[0].prefix === "string")
+        return value.map(e => `${e.prefix}: ${e.bagName}`).join("\n");
       if (typeof value[0].name === "string")
         return value.map(e => `${e.name}`).join("\n");
     }
@@ -367,7 +363,7 @@ function getListColumnLinkMappers(tabId: TabId): Partial<Record<string, ListColu
       return {
         slug: (item) => {
           definitely<WikiAdminRecord>(item);
-          return item.slug ? `${pathPrefix}/wiki/${encodeURIComponent(item.slug)}` : null;
+          return item.slug ? `${pathPrefix}/wiki/${encodeURIComponent(item.slug.toString())}` : null;
         },
       };
     case "templates":
@@ -468,7 +464,7 @@ function renderTableField(ctx: ReadonlyFieldContext) {
   definitely<readonly string[]>(value);
   const missingCheck =
     itemsByTab ?
-      field.key === "effectiveReadonlyBags" ? itemsByTab.availableBagNames :
+      field.key === "effectiveReadonlyBags" ? new Set(Array.from(itemsByTab.availableBagNames, e => e.toString())) :
         field.key === "effectivePluginSet" ? itemsByTab.availablePluginNames :
           null : null;
   const lines = value.map(line => ({ line, missing: missingCheck && !missingCheck.has(line), }));
@@ -646,7 +642,7 @@ class SearchMultiselectFieldHandler extends FieldTypeHandler<string[]> {
           <div class="field-callout">
             <p>Readonly bags from template</p>
             <ul class="value-list">
-              {templateReadonlyBagLines.length ? templateReadonlyBagLines.map((bag) => <li>{bag}</li>) : <li>No template readonly bags</li>}
+              {templateReadonlyBagLines.length ? templateReadonlyBagLines.map((bag) => <li>{bag.toString()}</li>) : <li>No template readonly bags</li>}
             </ul>
           </div>
         ) : null}
@@ -682,7 +678,7 @@ class PermissionTableFieldHandler extends FieldTypeHandler<readonly PermissionRo
     const transientPermissionRows = modalState.transientPermissionRows[field.key] ?? [];
     const displayedPermissionRows = permissionRows.length || transientPermissionRows.length
       ? [...permissionRows, ...transientPermissionRows]
-      : [{ role: "", level: availableLevels[0] as PermissionLevel }];
+      : [{ role: new KeyString(""), level: availableLevels[0] as PermissionLevel }];
 
     const persistPermissionRows = (rows: PermissionRow[]) => {
       const persistedRows = rows.filter((row) => row.role.trim());
@@ -697,13 +693,13 @@ class PermissionTableFieldHandler extends FieldTypeHandler<readonly PermissionRo
           <div key={`${field.key}-permission-${index}`} class="row-editor-row row-editor-row-wide row-editor-row-permission">
             {renderSearchableInput({
               id: `${inputId}-${index}-role`,
-              currentValue: row.role,
+              currentValue: row.role.toString(),
               placeholder: "Role",
               options: lookupOptions,
               disabled: ctx.disabled,
               onInput: (nextValue) => {
                 const nextRows = [...displayedPermissionRows];
-                nextRows[index] = { ...row, role: nextValue };
+                nextRows[index] = { ...row, role: new KeyString(nextValue) };
                 persistPermissionRows(nextRows);
               },
             })}
@@ -722,31 +718,34 @@ class PermissionTableFieldHandler extends FieldTypeHandler<readonly PermissionRo
             }}>Remove</button>
           </div>
         ))}
-        <button type="button" class="ghost-button" disabled={disabled} onclick={() => onTransientPermissionRowsChange(field.key, [...transientPermissionRows, { role: "", level: availableLevels[0] as PermissionLevel }])}>Add permission</button>
+        <button type="button" class="ghost-button" disabled={disabled} onclick={() =>
+          onTransientPermissionRowsChange(field.key, [...transientPermissionRows, {
+            role: new KeyString(""), level: availableLevels[0] as PermissionLevel
+          }])}>Add permission</button>
       </div>
     );
   }
 }
 
-class PrefixTableFieldHandler extends FieldTypeHandler<MappingRow[]> {
+class PrefixTableFieldHandler extends FieldTypeHandler<WritablePrefixRow[]> {
   constructor() {
     super();
   }
 
-  public initCreate(): MappingRow[] {
+  public initCreate(): WritablePrefixRow[] {
     return [];
   }
 
   public override renderEditor(ctx: FieldEditorContext) {
     const { field, value, disabled, modalState, itemsByTab, inputId, onDraftChange, onPendingRowsChange } = ctx;
     const forDisplay = field.mode === "server";
-    definitely<MappingRow[]>(value);
+    definitely<WritablePrefixRow[]>(value);
     const mappingRows = value;
     const pendingRowCount = modalState.pendingRows[field.key] ?? 0;
     const lookupOptions = getLookupOptions(field.key, itemsByTab);
     const displayedMappingRows = mappingRows.length
-      ? [...mappingRows, ...Array.from({ length: pendingRowCount }, () => ({ left: "", right: "" }))]
-      : [{ left: "", right: "" }, ...Array.from({ length: pendingRowCount }, () => ({ left: "", right: "" }))];
+      ? [...mappingRows, ...Array.from({ length: pendingRowCount }, () => ({ prefix: "", bagName: new KeyString("") }))]
+      : [{ prefix: "", bagName: new KeyString("") }, ...Array.from({ length: pendingRowCount }, () => ({ prefix: "", bagName: new KeyString("") }))];
     const templateRecord = is<WikiAdminRecord>(modalState.draft, modalState.tabId === "wikis")
       ? findTemplateRecordForWikiRecord(modalState.draft, itemsByTab) : undefined;
     const inheritedRoutingRows = modalState.tabId === "wikis" && templateRecord ? templateRecord.writablePrefixBags : [];
@@ -759,24 +758,24 @@ class PrefixTableFieldHandler extends FieldTypeHandler<MappingRow[]> {
         {displayedMappingRows.map((row, index) => (
           <div class="row-editor-row row-editor-row-wide">
             <div class="prefix-input-shell">
-              <input class={this.hasTrimMismatch(row.left) ? "field-input is-invalid" : "field-input"}
+              <input class={this.hasTrimMismatch(row.prefix) ? "field-input is-invalid" : "field-input"}
                 type="text"
-                value={row.left}
+                value={row.prefix}
                 placeholder="Prefix, leave blank for default"
-                aria-invalid={this.hasTrimMismatch(row.left) ? "true" : undefined}
-                title={this.hasTrimMismatch(row.left) ? "Prefix has leading or trailing whitespace. Is this intentional?" : undefined}
+                aria-invalid={this.hasTrimMismatch(row.prefix) ? "true" : undefined}
+                title={this.hasTrimMismatch(row.prefix) ? "Prefix has leading or trailing whitespace. Is this intentional?" : undefined}
                 disabled={disabled}
                 oninput={(event) => {
                   const element = event.currentTarget as HTMLInputElement;
                   const hadStoredRow = index < mappingRows.length;
-                  const nextRows = mappingRows.length ? [...mappingRows] : [{ left: "", right: "" }];
-                  nextRows[index] = { ...row, left: element.value };
+                  const nextRows = mappingRows.length ? [...mappingRows] : [{ prefix: "", bagName: "" }];
+                  nextRows[index] = { ...row, prefix: element.value };
                   onDraftChange(field.key, nextRows);
-                  if (!hadStoredRow && (element.value || row.right.trim())) onPendingRowsChange(field.key, (count) => count - 1);
+                  if (!hadStoredRow && (element.value || row.bagName.trim())) onPendingRowsChange(field.key, (count) => count - 1);
                 }} ref={(element) => {
-                  if (element.value !== row.left) element.value = row.left;
+                  if (element.value !== row.prefix) element.value = row.prefix;
                 }} />
-              {this.hasTrimMismatch(row.left) ? <span
+              {this.hasTrimMismatch(row.prefix) ? <span
                 class="prefix-input-alert missing-marker"
                 aria-label="Prefix has leading or trailing whitespace"
                 title="Prefix has leading or trailing whitespace. Is this intentional?"
@@ -784,16 +783,16 @@ class PrefixTableFieldHandler extends FieldTypeHandler<MappingRow[]> {
             </div>
             {renderSearchableInput({
               id: `${inputId}-${index}-target`,
-              currentValue: row.right,
+              currentValue: row.bagName.toString(),
               placeholder: "Target bag",
               options: lookupOptions,
               disabled: ctx.disabled,
               onInput: (nextValue) => {
                 const hadStoredRow = index < mappingRows.length;
-                const nextRows = mappingRows.length ? [...mappingRows] : [{ left: "", right: "" }];
-                nextRows[index] = { ...row, right: nextValue };
+                const nextRows = mappingRows.length ? [...mappingRows] : [{ prefix: "", bagName: "" }];
+                nextRows[index] = { ...row, bagName: nextValue };
                 onDraftChange(field.key, nextRows);
-                if (!hadStoredRow && (row.left || nextValue.trim())) onPendingRowsChange(field.key, (count) => count - 1);
+                if (!hadStoredRow && (row.prefix || nextValue.trim())) onPendingRowsChange(field.key, (count) => count - 1);
               },
             })}
             {<button type="button" class="row-action-button" disabled={disabled} onclick={() => {
@@ -817,12 +816,12 @@ class PrefixTableFieldHandler extends FieldTypeHandler<MappingRow[]> {
       </div>
     );
   }
-  private displayMappingRows(displayedMappingRows: readonly MappingRow[]) {
+  private displayMappingRows(displayedMappingRows: readonly WritablePrefixRow[]) {
     return <table class="value-table">
       {displayedMappingRows.map((row) => (
         <tr>
-          <td>{row.left ? <code>{'"' + row.left + '"'}</code> : <span class="pill-value pill-value-small">default</span>}</td>
-          <td>{row.right}</td>
+          <td>{row.prefix ? <code>{'"' + row.prefix + '"'}</code> : <span class="pill-value pill-value-small">default</span>}</td>
+          <td>{row.bagName.toString()}</td>
         </tr>
       ))}
     </table>;
@@ -843,20 +842,20 @@ class SelectFieldHandler extends StringFieldTypeHandler {
   }
 }
 
-class AutocompleteFieldHandler extends FieldTypeHandler<Reference | null> {
+class AutocompleteFieldHandler extends FieldTypeHandler<string | null> {
   constructor() {
     super();
   }
 
-  public initCreate(): Reference | null {
+  public initCreate(): string | null {
     return null;
   }
 
-  renderSidebar(ctx: ReadonlyFieldContext<Reference | null>) {
-    return ctx.value?.name ?? "";
+  renderSidebar(ctx: ReadonlyFieldContext<string | null>) {
+    return ctx.value ?? "";
   }
 
-  public override renderEditor(ctx: FieldEditorContext<Reference | null>) {
+  public override renderEditor(ctx: FieldEditorContext<string | null>) {
     const { field, value, disabled, itemsByTab, inputId, onDraftChange } = ctx;
     const datalistId = `${inputId}-options`;
     const optionMap = new Map(itemsByTab.templates.map(e => [e.name, e.id]))
@@ -865,21 +864,20 @@ class AutocompleteFieldHandler extends FieldTypeHandler<Reference | null> {
       target: Element;
     }) => {
       const name = event.currentTarget.value;
-      const id = optionMap.get(name);
-      if (!id) return event.preventDefault();
-      onDraftChange(field.key, { id, name });
+      if (!name) return event.preventDefault();
+      onDraftChange(field.key, name);
     }
     return (
       <>
-        <input id={inputId} class="field-input" type="text" value={value?.name} disabled={disabled}
+        <input id={inputId} class="field-input" type="text" value={value ?? ""} disabled={disabled}
           ref={(element) => {
-            if (value && element.value !== value.name) element.value = value.name;
+            if (value && element.value !== value) element.value = value;
           }}
           list={datalistId}
           oninput={oninput}
         />
         <datalist id={datalistId}>
-          {Array.from(optionMap.keys(), (option) => <option value={option} />)}
+          {Array.from(optionMap.keys(), (option) => <option value={option.toString()} />)}
         </datalist>
       </>
     );
@@ -893,14 +891,14 @@ class ResolverPreviewFieldHandler extends StringFieldTypeHandler {
 
   private computeResolverPreview(draft: WikiAdminRecord, title: string) {
     const normalizedTitle = title.trim();
-    const targets = draft.effectiveWritableBags.filter((row) => row.right).sort((a, b) => b.left.length - a.left.length);
+    const targets = draft.effectiveWritableBags.filter((row) => row.bagName).sort((a, b) => b.prefix.length - a.prefix.length);
     const writeTarget = normalizedTitle
-      ? (targets.find((target) => target.left && normalizedTitle.startsWith(target.left)) ?? targets.find((target) => target.left === ""))
+      ? (targets.find((target) => target.prefix && normalizedTitle.startsWith(target.prefix)) ?? targets.find((target) => target.prefix === ""))
       : undefined;
     return {
       title: normalizedTitle,
-      writeTo: writeTarget?.right ?? "No writable target",
-      matchedPrefix: writeTarget ? (writeTarget.left || "default") : "none",
+      writeTo: writeTarget?.bagName.toString() ?? "No writable target",
+      matchedPrefix: writeTarget ? (writeTarget.prefix || "default") : "none",
     };
   }
 
@@ -1430,7 +1428,7 @@ export class App extends JSXElement {
     const isModalLoading = Boolean(modalState?.loading);
     const isListInteractionDisabled = isOpeningItem || isSaving;
 
-    const openItem = async (tabId: TabId, recordId: string) => {
+    const openItem = async (tabId: TabId, recordId: IdString) => {
       const tab = getTab(tabId);
       setStorageError("");
       setActiveTab(tabId);

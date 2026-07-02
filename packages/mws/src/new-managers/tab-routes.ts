@@ -1,0 +1,531 @@
+import { DataSave, DataStore, IdString, KeyString, WritablePrefixRow, PermissionRow, TabId, TemplateTypes } from "@mws/admin-vanilla/src/definition/tabs";
+import { ServerRequest } from "@tiddlywiki/server";
+import { BagImportWriter, RecipeImportWriter, RoleImportWriter, TemplateImportWriter, UserImportWriter } from "./TabImportWriter";
+import {
+  BagPermissionLevel,
+  RecipePermissionLevel
+} from "@tiddlywiki/mws-prisma";
+import { CompiledRecipeBagInput, UpsertTemplateInput } from "./wiki-contract";
+
+type IRecipeRow = DataStore["wikis"][number];
+type ITemplateRow = DataStore["templates"][number];
+type IBagRow = DataStore["bags"][number];
+type IPluginRow = DataStore["plugins"][number];
+type IUserRow = DataStore["users"][number];
+type IRoleRow = DataStore["roles"][number];
+
+
+export type TemplateDefinition = Omit<
+  DataStore["templates"][number],
+  | "id"
+  | "name"
+  | "lastUpdatedAt"
+  | "templatePermissions"
+  | "dependentWikis"
+>;
+
+export type RecipeDefinition = Omit<
+  DataStore["wikis"][number],
+  | "id"
+  | "slug"
+  | "templateName"
+  | "lastCompiledAt"
+  | "recipePermissions"
+  | "effectiveWritableBags"
+  | "effectiveReadonlyBags"
+  | "effectivePluginSet"
+>;
+
+declare global {
+  namespace PrismaJson {
+    type Template_definition = TemplateDefinition;
+    type Recipe_definition = RecipeDefinition;
+  }
+}
+
+export type {
+  UpsertBagInput,
+  UpsertRecipeInput,
+  UpsertRoleInput,
+  UpsertTemplateInput,
+  UpsertUserInput,
+} from "./wiki-contract";
+export {
+  importBags,
+  importRecipes,
+  importRoles,
+  importTemplates,
+  importUsers,
+  type ImportedBagRows,
+  type ImportedRecipeRows,
+  type ImportedRoleRows,
+  type ImportedTemplateRow,
+  type ImportedUserRows,
+} from "./TabImportWriter";
+
+
+// #region abstracts
+
+function normalizeLineList<T extends string | KeyString | IdString>(values: readonly T[]): T[] {
+  return values.map((entry) => entry.trim() as T).filter(Boolean);
+}
+
+function normalizePrefixRows(rows: readonly WritablePrefixRow[]): WritablePrefixRow[] {
+  return rows
+    .map((row) => ({ prefix: row.prefix, bagName: new KeyString(row.bagName.trim()) }))
+    .filter((row) => row.bagName)
+    .sort((a, b) => b.prefix.length - a.prefix.length);
+}
+
+function normalizePermissions<Level extends string>(rows: readonly PermissionRow<Level>[]): PermissionRow<Level>[] {
+  return rows
+    .map((row) => ({ role: new KeyString(row.role.trim()), level: row.level }))
+    .filter((row) => row.role);
+}
+
+
+abstract class TabDataAdapter<TAB extends TabId> {
+  abstract saveRow(prisma: PrismaTxnClient, data: DataSave[TAB][number]): Promise<DataStore[TAB][number]>;
+  // roles aren't connected to data tables so they can be swapped out for SSO
+  abstract getList(prisma: PrismaTxnClient, roles: (key: IdString) => KeyString): Promise<DataStore[TAB]>;
+}
+// #region Recipe Adapter
+export class RecipeDataAdapter extends TabDataAdapter<"wikis"> {
+
+  async saveRow(prisma: PrismaTxnClient, data: DataSave["wikis"][number]): Promise<DataStore["wikis"][number]> {
+    const importer = new RecipeImportWriter(prisma, false);
+    if (!data.templateName) throw new Error("wiki template reference is required");
+    const template = await prisma.template.findUnique({ where: { name: KeyString.cast(data.templateName) } });
+    if (!template) throw new Error("wiki template not found");
+
+    const authoredDefinition: PrismaJson.Recipe_definition = {
+      displayName: data.displayName,
+      description: data.description,
+      readonlyBags: normalizeLineList(data.readonlyBags),
+      writablePrefixBags: normalizePrefixRows(data.writablePrefixBags),
+      plugins: normalizeLineList(data.plugins),
+    };
+
+    await importer.checkExisting(data.id, data.slug);
+
+    const { bags, plugins } = importer.compileRecipeSimpleV1(
+      authoredDefinition,
+      template.definition
+    );
+
+    const recipePermissions = normalizePermissions(data.recipePermissions);
+    const roles = await getRolesMapper(prisma, recipePermissions.map((row) => row.role));
+
+    const [[id, lastCompiledAt]] = await importer.upsert([{
+      slug: data.slug,
+      templateId: new IdString(template.id),
+      compiledBags: bags,
+      plugins: plugins,
+      definition: authoredDefinition,
+      permissions: recipePermissions.map(row => ({
+        level: row.level,
+        role_id: roles(row.role),
+        role_name: row.role,
+      })),
+    }]);
+
+    return this.buildResponse({
+      id: new IdString(id),
+      slug: data.slug,
+      definition: authoredDefinition,
+      templateName: new KeyString(template.name),
+      lastCompiledAt,
+      allbags: bags,
+      plugins,
+      recipePermissions,
+    });
+
+  }
+
+  private buildResponse({ definition, plugins, allbags, id, slug, templateName, lastCompiledAt, recipePermissions }: {
+    id: IdString;
+    slug: KeyString;
+    lastCompiledAt: Date;
+    definition: RecipeDefinition;
+    allbags: CompiledRecipeBagInput[];
+    plugins: string[];
+    recipePermissions: PermissionRow<RecipePermissionLevel>[];
+    templateName: KeyString;
+  }) {
+    const effectivePluginSet = plugins;
+    const effectiveReadonlyBags = allbags
+      .filter(e => !e.isWritable)
+      .map((row) => row.bagName);
+    const effectiveWritableBags = allbags
+      .filter((row) => row.isWritable)
+      .sort((a, b) => b.prefix.length - a.prefix.length)
+      .map((row) => ({ prefix: row.prefix, bagName: row.bagName }));
+
+    return {
+      ...definition,
+      id,
+      slug,
+      templateName,
+      lastCompiledAt: lastCompiledAt.toISOString(),
+      recipePermissions,
+      effectiveWritableBags,
+      effectiveReadonlyBags,
+      effectivePluginSet,
+    };
+  }
+
+  async getList(prisma: PrismaTxnClient, roles: (key: IdString) => KeyString) {
+
+    const recipes = await prisma.recipe.findMany({
+      select: {
+        id: true,
+        slug: true,
+        definition: true,
+        plugins: true,
+        template_id: true,
+        compiledAt: true,
+        permissions: {
+          select: {
+            level: true,
+            role_id: true,
+          },
+        },
+        recipe_bags: {
+          select: {
+            bag_id: true,
+            priority: true,
+            is_writable: true,
+            prefix: true,
+          },
+        },
+      },
+    });
+
+    // these are connected but I figured this could result in simpler queries
+    // it could also lend itself better to future changes
+    const templates = await new TemplateImportWriter(prisma, false).getIdMapper();
+    const bags = await new BagImportWriter(prisma, false).getIdMapper();
+
+    return recipes.map((recipe): IRecipeRow => {
+      recipe.recipe_bags.sort(e => e.priority);
+      return this.buildResponse({
+        allbags: recipe.recipe_bags.map(e => ({
+          bagName: bags(new IdString(e.bag_id)),
+          isWritable: e.is_writable,
+          prefix: e.prefix,
+          priority: e.priority,
+        })),
+        definition: recipe.definition,
+        id: new IdString(recipe.id),
+        slug: new KeyString(recipe.slug),
+        lastCompiledAt: recipe.compiledAt,
+        plugins: recipe.plugins,
+        recipePermissions: recipe.permissions.map(e => ({
+          level: e.level,
+          role: roles(new IdString(e.role_id)),
+        })),
+        templateName: templates(new IdString(recipe.template_id)),
+      });
+    })
+  }
+
+}
+
+// #region Template Adapter
+
+export class TemplateDataAdapter extends TabDataAdapter<"templates"> {
+  async saveRow(prisma: PrismaTxnClient, data: DataSave["templates"][number]): Promise<DataStore["templates"][number]> {
+    const importer = new TemplateImportWriter(prisma, false);
+    await importer.checkExisting(data.id, data.name);
+    // roles aren't connected to data tables so they can be swapped out for SSO
+    const roles = await new RoleImportWriter(prisma, false).getIdMapper();
+    const template: UpsertTemplateInput = {
+      name: data.name,
+      definition: {
+        type: "simpleV1",
+        description: data.description,
+        readonlyBags: normalizeLineList(data.readonlyBags),
+        writablePrefixBags: normalizePrefixRows(data.writablePrefixBags),
+        plugins: normalizeLineList(data.plugins),
+        requiredPluginsEnabled: data.requiredPluginsEnabled,
+        customHtmlEnabled: data.customHtmlEnabled,
+        htmlContent: data.htmlContent,
+        injectionArray: data.injectionArray,
+        injectionLocation: data.injectionLocation,
+      },
+      permissions: data.templatePermissions.map(e => ({ level: e.level, role_id: roles(e.role), })),
+    };
+
+    const [{ id: template_id, updated }] = await importer.upsert([template]);
+
+    const recipes = await prisma.recipe.findMany({
+      where: { template_id },
+      include: { permissions: true }
+    });
+
+    const importerRecipe = new RecipeImportWriter(prisma, false);
+
+    for (const recipe of recipes) {
+      const compiled = importerRecipe.compileRecipeSimpleV1(
+        recipe.definition,
+        template.definition,
+      );
+
+      await importerRecipe.upsert([{
+        slug: recipe.slug,
+        templateId: template_id,
+        compiledBags: compiled.bags,
+        plugins: compiled.plugins,
+        definition: recipe.definition,
+        permissions: recipe.permissions.map(row => ({
+          level: row.level,
+          role_id: row.role_id,
+        })),
+      }]);
+    }
+
+    return {
+      ...template.definition,
+      id: template_id,
+      name: data.name,
+      type: "simpleV1",
+      lastUpdatedAt: updated.toISOString(),
+      templatePermissions: template.permissions.map(e => ({
+        level: e.level,
+        role: roles(e.role_id),
+      })),
+    };
+  }
+
+  async getList(prisma: PrismaTxnClient, roles: (key: IdString) => KeyString) {
+    const templates = await prisma.template.findMany({
+      select: {
+        id: true,
+        name: true,
+        definition: true,
+        type: true,
+        updated: true,
+        recipes: {
+          select: {
+            id: true,
+            slug: true,
+          },
+        },
+        permissions: {
+          select: {
+            level: true,
+            role_id: true,
+          }
+        }
+      },
+      orderBy: { id: "asc" },
+    });
+
+    return templates.map((template): ITemplateRow => {
+      return {
+        ...template.definition,
+        id: template.id,
+        name: template.name,
+        type: "simpleV1",
+        lastUpdatedAt: template.updated.toISOString(),
+        templatePermissions: template.permissions.map(e => ({
+          level: e.level,
+          role: roles(e.role_id),
+        })),
+      };
+    });
+  }
+}
+
+// #region saveBag
+
+export class BagDataAdapter extends TabDataAdapter<"bags"> {
+
+  async saveRow(prisma: PrismaTxnClient, data: DataSave["bags"][number]): Promise<DataStore["bags"][number]> {
+    const importer = new BagImportWriter(prisma, false);
+    await importer.checkExisting(data.id, data.name);
+    const permissions = normalizePermissions(data.permissions);
+    const roles = await getRolesMapper(prisma, permissions.map(e => e.role))
+
+    const [bag] = await importer.upsert([{
+      name: data.name,
+      description: data.description,
+      permissions: data.permissions.map(e => ({
+        role_id: roles(e.role),
+        level: e.level as BagPermissionLevel
+      }))
+    }]);
+
+    return {
+      id: bag.id,
+      name: data.name,
+      description: data.description,
+      permissions: data.permissions,
+    }
+  }
+  async getList(prisma: PrismaTxnClient, roles: (key: IdString) => KeyString): Promise<DataStore["bags"]> {
+
+    const bags = await prisma.bag.findMany({
+      select: {
+        id: true,
+        name: true,
+        description: true,
+        permissions: {
+          select: {
+            level: true,
+            role_id: true,
+          },
+        },
+      },
+    });
+
+    return bags.map((bag) => ({
+      id: bag.id,
+      name: bag.name,
+      description: bag.description,
+      permissions: bag.permissions.map((row) => ({
+        role: roles(row.role_id),
+        level: row.level,
+      })),
+    }));
+  }
+}
+
+async function getRolesMapper(prisma: PrismaTxnClient, roles: readonly KeyString[]) {
+  return await new RoleImportWriter(prisma, false).getNameMapper(roles);
+}
+
+// #region saveRole
+
+export class RoleDataAdapter extends TabDataAdapter<"roles"> {
+  async saveRow(prisma: PrismaTxnClient, data: DataSave["roles"][number]): Promise<DataStore["roles"][number]> {
+    const importer = new RoleImportWriter(prisma, false);
+    await importer.checkExisting(data.id, data.name);
+
+    const [role] = await importer.upsert([{
+      description: data.description,
+      name: data.name,
+    }]);
+
+    return {
+      id: role.role_id,
+      name: role.role_name,
+      description: role.description ?? "",
+    }
+  }
+  // roles aren't connected to data tables so they can be swapped out for SSO
+  async getList(prisma: PrismaTxnClient): Promise<DataStore["roles"]> {
+    const roles = await prisma.roles.findMany({
+      select: {
+        role_id: true,
+        role_name: true,
+        description: true,
+      },
+    });
+    return roles.map((role) => ({
+      id: role.role_id,
+      name: role.role_name,
+      description: role.description ?? "",
+    }));
+
+  }
+}
+
+// #region saveUser
+export class UserDataAdapter extends TabDataAdapter<"users"> {
+  async saveRow(prisma: PrismaTxnClient, data: DataSave["users"][number]): Promise<DataStore["users"][number]> {
+
+    const importer = new UserImportWriter(prisma, false);
+    await importer.checkExisting(data.id, data.username);
+
+    const rolesMapper = await getRolesMapper(prisma, data.userRoles);
+    const roleLinks = data.userRoles.map(e => rolesMapper(e));
+
+    const [user] = await importer.upsert([{
+      username: data.username,
+      email: data.email,
+      roleIds: roleLinks,
+    }])
+
+    return {
+      id: user.user_id,
+      username: user.username,
+      email: user.email,
+      userRoles: data.userRoles
+    }
+  }
+  // roles aren't connected to data tables so they can be swapped out for SSO
+  async getList(prisma: PrismaTxnClient, roles: (key: IdString) => KeyString): Promise<DataStore["users"]> {
+    const users = await prisma.users.findMany({
+      select: {
+        user_id: true,
+        username: true,
+        email: true,
+        password: true,
+        roles: {
+          select: {
+            role_name: true,
+          },
+          orderBy: { role_name: "asc" },
+        },
+      },
+      orderBy: { username: "asc" },
+    })
+    return users.map((user) => ({
+      id: user.user_id,
+      username: user.username,
+      email: user.email,
+      userRoles: user.roles.map((role) => role.role_name),
+    }));
+  }
+}
+
+// #region savePlugin
+async function savePluginRow(_prisma: PrismaTxnClient, _data: DataSave["plugins"][number]): Promise<string> {
+  throw new Error("Plugin admin save is not implemented in the database-backed admin path.");
+}
+
+export async function doAdminDataOp({ prisma, pluginCache, op, tab, data }: {
+  prisma: PrismaTxnClient;
+  pluginCache: ServerRequest["pluginCache"];
+  op: "save";
+  tab: TabId;
+  data: any;
+}) {
+  if (op !== "save") throw new Error(`Unsupported admin operation: ${op}`);
+
+  let id: string;
+  switch (tab) {
+    case "wikis": return await new RecipeDataAdapter().saveRow(prisma, data as IRecipeRow);
+    case "templates": return await new TemplateDataAdapter().saveRow(prisma, data as ITemplateRow);
+    case "bags": return await new BagDataAdapter().saveRow(prisma, data as IBagRow);
+    case "roles": return await new RoleDataAdapter().saveRow(prisma, data as IRoleRow);
+    case "users": return await new UserDataAdapter().saveRow(prisma, data as IUserRow);
+    case "plugins": return await savePluginRow(prisma, data as IPluginRow);
+    default: {
+      const _exhaustive: never = tab;
+      throw new Error(`Unsupported admin tab: ${_exhaustive}`);
+    }
+  }
+}
+// #region getDataStore
+export async function getAdminDataStore(prisma: PrismaTxnClient, pluginCache: ServerRequest["pluginCache"]) {
+  const roles = await new RoleImportWriter(prisma, false).getIdMapper();
+
+  return {
+    wikis: await new RecipeDataAdapter().getList(prisma, roles),
+    templates: await new TemplateDataAdapter().getList(prisma, roles),
+    bags: await new BagDataAdapter().getList(prisma, roles),
+    plugins: pluginCache.pluginsList.map(e => ({
+      id: e.title,
+      name: e.title,
+      description: `${e.name}: ${e.description}`,
+      pluginPath: e.path,
+    } satisfies IPluginRow)),
+    roles: await new RoleDataAdapter().getList(prisma),
+    users: await new UserDataAdapter().getList(prisma, roles),
+  };
+
+
+}
+

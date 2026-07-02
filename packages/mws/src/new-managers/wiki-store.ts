@@ -1,4 +1,6 @@
+import { IdString } from "@mws/admin-vanilla/src/definition/tabs";
 import { serverEvents } from "@tiddlywiki/events";
+import { TiddlerEventType } from "@tiddlywiki/mws-prisma";
 
 
 
@@ -19,12 +21,16 @@ declare module "@tiddlywiki/events" {
 
 export class WikiStore {
   constructor(private tx: PrismaTxnClient) { }
-  async saveTiddler({ recipe_id, bag_id, fields }: {
+  async saveTiddler(options: {
     /** Only used for the mws.tiddler.events log. */
-    recipe_id?: string;
-    bag_id: string;
+    recipe_id?: IdString;
+    bag_id: IdString;
     fields: any;
   }) {
+    // { recipe_id, bag_id, fields }
+    const recipe_id = options.recipe_id as string | undefined;
+    const bag_id = options.bag_id as string;
+    const fields = options.fields;
     const title = fields.title;
     if (!title) {
       throw new Error("Tiddler must have a title");
@@ -54,12 +60,16 @@ export class WikiStore {
 
   }
 
-  async deleteTiddler({ recipe_id, bag_id, title }: {
+
+  async deleteTiddler(options: {
     /** Only used for the mws.tiddler.events log. */
-    recipe_id?: string;
-    bag_id: string;
+    recipe_id?: IdString;
+    bag_id: IdString;
     title: string;
   }) {
+    const recipe_id = options.recipe_id as string | undefined;
+    const bag_id = options.bag_id as string;
+    const title = options.title as string;
     const deleted = await this.tx.tiddler.deleteMany({
       where: { bag_id, title }
     });

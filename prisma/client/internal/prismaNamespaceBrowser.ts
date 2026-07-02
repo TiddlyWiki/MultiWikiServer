@@ -56,6 +56,7 @@ export const ModelName = {
   Tiddler: 'Tiddler',
   TiddlerEvent: 'TiddlerEvent',
   Template: 'Template',
+  TemplatePermission: 'TemplatePermission',
   Recipe: 'Recipe',
   RecipePermission: 'RecipePermission',
   RecipeBag: 'RecipeBag',
@@ -81,6 +82,8 @@ export type TransactionIsolationLevel = (typeof TransactionIsolationLevel)[keyof
 export const BagScalarFieldEnum = {
   id: 'id',
   name: 'name',
+  created: 'created',
+  updated: 'updated',
   description: 'description'
 } as const
 
@@ -99,6 +102,8 @@ export type BagPermissionScalarFieldEnum = (typeof BagPermissionScalarFieldEnum)
 export const TiddlerScalarFieldEnum = {
   bag_id: 'bag_id',
   title: 'title',
+  created: 'created',
+  updated: 'updated',
   revision: 'revision',
   fields: 'fields'
 } as const
@@ -119,6 +124,8 @@ export type TiddlerEventScalarFieldEnum = (typeof TiddlerEventScalarFieldEnum)[k
 export const TemplateScalarFieldEnum = {
   id: 'id',
   name: 'name',
+  created: 'created',
+  updated: 'updated',
   type: 'type',
   definition: 'definition'
 } as const
@@ -126,12 +133,24 @@ export const TemplateScalarFieldEnum = {
 export type TemplateScalarFieldEnum = (typeof TemplateScalarFieldEnum)[keyof typeof TemplateScalarFieldEnum]
 
 
+export const TemplatePermissionScalarFieldEnum = {
+  template_id: 'template_id',
+  role_id: 'role_id',
+  level: 'level'
+} as const
+
+export type TemplatePermissionScalarFieldEnum = (typeof TemplatePermissionScalarFieldEnum)[keyof typeof TemplatePermissionScalarFieldEnum]
+
+
 export const RecipeScalarFieldEnum = {
   id: 'id',
   slug: 'slug',
+  created: 'created',
+  updated: 'updated',
   template_id: 'template_id',
   definition: 'definition',
-  plugins: 'plugins'
+  plugins: 'plugins',
+  compiledAt: 'compiledAt'
 } as const
 
 export type RecipeScalarFieldEnum = (typeof RecipeScalarFieldEnum)[keyof typeof RecipeScalarFieldEnum]
@@ -159,7 +178,8 @@ export type RecipeBagScalarFieldEnum = (typeof RecipeBagScalarFieldEnum)[keyof t
 
 export const SettingsScalarFieldEnum = {
   key: 'key',
-  value: 'value'
+  value: 'value',
+  updated: 'updated'
 } as const
 
 export type SettingsScalarFieldEnum = (typeof SettingsScalarFieldEnum)[keyof typeof SettingsScalarFieldEnum]

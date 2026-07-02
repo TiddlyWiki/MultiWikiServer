@@ -4,9 +4,10 @@ import { TiddlerFields, TW } from "tiddlywiki";
 import * as fs from "fs";
 import * as path from "path";
 import { truthy } from "@tiddlywiki/server";
-import { toMappingRows } from "../new-managers/wiki-import";
-import { saveBagRow, saveWikiRow } from "../new-managers/wiki-actions";
+import { toMappingRows } from "../new-managers/TabImportWriter";
 import { WikiStore } from "../new-managers/wiki-store";
+import { BagDataAdapter, RecipeDataAdapter } from "../new-managers/tab-routes";
+import { IdString } from "@mws/admin-vanilla/src/definition/tabs";
 
 export const info: CommandInfo = {
 	name: "load-wiki-folder",
@@ -113,21 +114,17 @@ export class Command extends BaseCommand<[string], {
 
 			switch (template.type) {
 				case "simpleV1": {
-					const bag_id = await saveBagRow(prisma, {
+					const bag = await new BagDataAdapter().saveRow(prisma, {
 						id: "", // a blank id will use the name if it exists
 						name: bagName,
 						description: bagDescription,
 						permissions: ownerRoles.map(role => ({ level: "C_admin", role: role })),
 					});
 
-					if (!bag_id) {
-						throw new Error(`Failed to create bag ${bagName}`);
-					}
-
-					const recipe_id = await saveWikiRow(prisma, {
+					const recipe = await new RecipeDataAdapter().saveRow(prisma, {
 						id: "", // a blank id will use the slug if it exists
 						slug: recipeName,
-						templateRef: { id: template.id, name: template.name },
+						templateName: template.name,
 						displayName: recipeName,
 						description: recipeDescription,
 						plugins: pluginTitles,
@@ -137,11 +134,11 @@ export class Command extends BaseCommand<[string], {
 					});
 
 					const existingTitles = Array.from(await prisma.tiddler.findMany({
-						where: { bag_id },
+						where: { bag_id: IdString.cast(bag.id) },
 						select: { title: true }
 					}), e => e.title);
 
-					await saveLoadedTiddlers(prisma, recipe_id, bag_id, tiddlers, existingTitles);
+					await saveLoadedTiddlers(prisma, recipe.id, bag.id, tiddlers, existingTitles);
 				}
 			}
 
@@ -157,8 +154,8 @@ export class Command extends BaseCommand<[string], {
 
 async function saveLoadedTiddlers(
 	tx: PrismaTxnClient,
-	recipe_id: string,
-	bag_id: string,
+	recipe_id: IdString,
+	bag_id: IdString,
 	tiddlers: TiddlerFields[],
 	existingTitles: string[],
 ) {

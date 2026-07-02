@@ -396,10 +396,6 @@ export type UsersUncheckedUpdateManyWithoutRolesNestedInput = {
   deleteMany?: Prisma.UsersScalarWhereInput | Prisma.UsersScalarWhereInput[]
 }
 
-export type DateTimeFieldUpdateOperationsInput = {
-  set?: Date | string
-}
-
 export type NullableDateTimeFieldUpdateOperationsInput = {
   set?: Date | string | null
 }

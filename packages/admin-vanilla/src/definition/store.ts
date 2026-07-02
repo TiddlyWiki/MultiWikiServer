@@ -1,5 +1,5 @@
 import { AdminStorage, AdminRecord, isServerField, getAdminRecordValue, setAdminRecordValue, getFieldHandler, uniqueLines, lineListCodec } from "../app";
-import { DataStore, AdminRecordStore, TabId, getTab, TabDefinition, TemplateAdminRecord, WikiAdminRecord, BagAdminRecord, PermissionRow, PluginAdminRecord, MappingRow } from "./tabs";
+import { DataStore, AdminRecordStore, TabId, getTab, TabDefinition, TemplateAdminRecord, WikiAdminRecord, BagAdminRecord, PermissionRow, PluginAdminRecord, WritablePrefixRow, KeyString, IdString } from "./tabs";
 import { mapGetInit } from "./utils";
 
 export class InMemoryAdminStorage implements AdminStorage {
@@ -10,7 +10,15 @@ export class InMemoryAdminStorage implements AdminStorage {
   }
 
   public async loadAll(): Promise<AdminRecordStore> {
-    this.data = await (await fetch(pathPrefix + "/admin/load")).json();
+    const data = await (await fetch(pathPrefix + "/admin/load")).text();
+
+    this.data = JSON.parse(data, (key, val) => {
+      if (typeof val === "string" && val.startsWith("IdString____"))
+        return new IdString(val.slice("IdString____".length));
+      if (typeof val === "string" && val.startsWith("KeyString____"))
+        return new KeyString(val.slice("KeyString____".length));
+      return val;
+    });
     return this.deriveItems(this.data);
   }
   private wait(ms: number): Promise<void> {
@@ -19,7 +27,7 @@ export class InMemoryAdminStorage implements AdminStorage {
     });
   }
 
-  public async read(tabId: TabId, id: string): Promise<AdminRecord | null> {
+  public async read(tabId: TabId, id: IdString): Promise<AdminRecord | null> {
     if (!this.data) await this.loadAll();
     return this.deriveItems(this.data)[tabId].find((record) => record.id === id) ?? null;
   }
@@ -86,8 +94,7 @@ export function createDraft(tab: TabDefinition, source?: AdminRecord): AdminReco
 }
 
 export function findTemplateRecordForWikiRecord(draft: DataStore["wikis"][number], itemsByTab: DataStore) {
-  const id = draft.templateRef?.id;
-  return itemsByTab.templates.find((template) => id === template.id);
+  return itemsByTab.templates.find((template) => draft.templateName === template.name);
 }
 
 
@@ -102,11 +109,9 @@ function deriveBagRecords(items: DataStore, templates: TemplateAdminRecord[], wi
   const wikiWritableUsage = new Map<string, Set<string>>();
   const wikiDefaultUsage = new Map<string, Set<string>>();
 
-  const addUsage = (map: Map<string, Set<string>>, bagName: string, recordName: string) => {
+  const addUsage = (map: Map<string, Set<string>>, bagName: KeyString, recordName: KeyString) => {
     if (!bagName || !recordName) return;
-    const next = map.get(bagName) ?? new Set<string>();
-    next.add(recordName);
-    map.set(bagName, next);
+    mapGetInit(map, bagName.toString(), () => new Set).add(recordName.toString());
   };
 
   for (const template of templates) {
@@ -120,21 +125,21 @@ function deriveBagRecords(items: DataStore, templates: TemplateAdminRecord[], wi
     const effectiveReadonlyBags = uniqueLines([
       ...wiki.readonlyBags ?? [],
       ...templateRecord?.readonlyBags ?? [],
-    ]);
-    effectiveReadonlyBags.forEach((bagName) => addUsage(wikiReadonlyUsage, bagName, wikiName));
+    ].map(e => e.toString()));
+    effectiveReadonlyBags.forEach((bagName) => addUsage(wikiReadonlyUsage, new KeyString(bagName), wikiName));
 
     const prefixRows = wiki.writablePrefixBags;
-    prefixRows.forEach((row) => addUsage(wikiWritableUsage, row.right, wikiName));
-    const defaultBag = prefixRows.find((row) => row.left === "")?.right ?? "";
+    prefixRows.forEach((row) => addUsage(wikiWritableUsage, row.bagName, wikiName));
+    const defaultBag = prefixRows.find((row) => row.prefix === "")?.bagName ?? new KeyString("");
     addUsage(wikiDefaultUsage, defaultBag, wikiName);
   }
 
   return items.bags.map((bag) => {
     const name = bag.name ?? "";
-    const referencedByTemplates = Array.from(templateReadonlyUsage.get(name) ?? []);
-    const referencedByWikis = Array.from(wikiReadonlyUsage.get(name) ?? new Set<string>());
-    const writableByWikis = Array.from(wikiWritableUsage.get(name) ?? new Set<string>());
-    const defaultByWikis = Array.from(wikiDefaultUsage.get(name) ?? new Set<string>());
+    const referencedByTemplates = Array.from(templateReadonlyUsage.get(name.toString()) ?? []);
+    const referencedByWikis = Array.from(wikiReadonlyUsage.get(name.toString()) ?? new Set<string>());
+    const writableByWikis = Array.from(wikiWritableUsage.get(name.toString()) ?? new Set<string>());
+    const defaultByWikis = Array.from(wikiDefaultUsage.get(name.toString()) ?? new Set<string>());
     const routingRoles = uniqueLines([
       referencedByWikis.length ? "readonly layer" : "",
       writableByWikis.length ? "writable prefix target" : "",
@@ -168,12 +173,12 @@ function derivePluginRecords(items: DataStore, templates: TemplateAdminRecord[],
     wiki.effectivePluginSet.forEach((pluginValue) => {
       const pluginName = pluginValue.split("@")[0]?.trim() ?? pluginValue.trim();
       if (!pluginName || !wikiName) return;
-      mapGetInit(pluginUsage, pluginName, () => new Set<string>()).add(wikiName);
+      mapGetInit(pluginUsage, pluginName, () => new Set()).add(wikiName.toString());
     });
   }
 
   return items.plugins.map((plugin) => {
-    const usedByWikis = Array.from(pluginUsage.get(plugin.name ?? "") ?? []);
+    const usedByWikis = Array.from(pluginUsage.get(plugin.name.toString() ?? "") ?? []).map(e => new KeyString(e));
     return {
       ...plugin as unknown as PluginAdminRecord,
       usedByWikis,
@@ -187,18 +192,18 @@ function buildEffectiveBagStack({
   templateReadonlyBags,
   wikiReadonlyBags,
 }: {
-  writablePrefixBags: readonly MappingRow[];
-  templateReadonlyBags: readonly string[];
-  wikiReadonlyBags: readonly string[];
+  writablePrefixBags: readonly WritablePrefixRow[];
+  templateReadonlyBags: readonly KeyString[];
+  wikiReadonlyBags: readonly KeyString[];
 }): string[] {
-  const defaultTargets = prefixRows.filter((row) => row.left === "").map((row) => row.right);
-  const prefixedTargets = prefixRows.filter((row) => row.left !== "").map((row) => row.right);
+  const defaultTargets = prefixRows.filter((row) => row.prefix === "").map((row) => row.bagName);
+  const prefixedTargets = prefixRows.filter((row) => row.prefix !== "").map((row) => row.bagName);
   return uniqueLines([
-    ...defaultTargets,
-    ...prefixedTargets,
-    ...wikiReadonlyBags,
-    ...templateReadonlyBags,
-  ]);
+    ...defaultTargets.map(e => e.toString()),
+    ...prefixedTargets.map(e => e.toString()),
+    ...wikiReadonlyBags.map(e => e.toString()),
+    ...templateReadonlyBags.map(e => e.toString()),
+  ]) as string[];
 }
 
 function buildEffectivePluginSet({
@@ -233,9 +238,9 @@ function syncWikiRecord(draft: DataStore["wikis"][number], data: DataStore) {
   const templateReadonlyBags = templateRecord ? templateRecord.readonlyBags : [];
   const templatePlugins = templateRecord ? templateRecord.plugins : [];
   const wikiReadonlyBags = draft.readonlyBags;
-  const wikiPlugins = draft.readonlyBags;
+  const wikiPlugins = draft.plugins;
 
-  const mergedReadonlyBags = uniqueLines([...wikiReadonlyBags, ...templateReadonlyBags]);
+  const mergedReadonlyBags = uniqueLines([...wikiReadonlyBags, ...templateReadonlyBags].map(e => e.toString()));
   const mergedPlugins = buildEffectivePluginSet({
     previousEffectivePlugins: (draft as WikiAdminRecord).effectivePluginSet,
     templatePlugins,
@@ -244,7 +249,7 @@ function syncWikiRecord(draft: DataStore["wikis"][number], data: DataStore) {
   });
   const writablePrefixBags = draft.writablePrefixBags
 
-  const defaultWritableBag = writablePrefixBags.find((row) => row.left === "")?.right ?? "";
+  const defaultWritableBag = writablePrefixBags.find((row) => row.prefix === "")?.bagName ?? new KeyString("");
   const prefixRuleCount = String(writablePrefixBags.length);
   const readableBagOrder = buildEffectiveBagStack({
     writablePrefixBags,
@@ -265,7 +270,7 @@ function syncWikiRecord(draft: DataStore["wikis"][number], data: DataStore) {
 
   return {
     ...draft,
-    templateName: templateRecord?.name ?? draft.templateRef?.name ?? "",
+    templateName: new KeyString(templateRecord?.name.toString() ?? draft.templateName?.toString() ?? ""),
     defaultWritableBag,
     readonlyBagCount: String(mergedReadonlyBags.length),
     prefixRuleCount,
@@ -279,17 +284,16 @@ function syncWikiRecord(draft: DataStore["wikis"][number], data: DataStore) {
 }
 
 function deriveItems(items: DataStore): AdminRecordStore {
-  items.availableBagNames = new Set(items.bags.map((bag) => bag.name).filter(Boolean));
-  items.availablePluginNames = new Set(items.plugins.map((plugin) => plugin.name).filter(Boolean));
+  items.availableBagNames = new Set(items.bags.map((bag) => bag.name.toString()).filter(Boolean));
+  items.availablePluginNames = new Set(items.plugins.map((plugin) => plugin.name.toString()).filter(Boolean));
   const wikis = items.wikis.map((wiki) => syncWikiRecord(wiki, items));
-  const dependentWikiMap = new Map<string, string[]>();
+  const dependentWikiMap = new Map<KeyString, KeyString[]>();
   for (const wiki of wikis) {
-    const id = wiki.templateRef?.id;
-    mapGetInit(dependentWikiMap, id, () => []).push(wiki.slug || wiki.displayName);
+    mapGetInit(dependentWikiMap, wiki.templateName, () => []).push(wiki.slug);
   }
 
   const templates = items.templates.map((template) => {
-    const dependentWikis = dependentWikiMap.get(template.id) ?? [];
+    const dependentWikis = dependentWikiMap.get(template.name) ?? [];
     const readonlyBags = template.readonlyBags
     const prefixRows = template.writablePrefixBags
     return {
@@ -297,7 +301,7 @@ function deriveItems(items: DataStore): AdminRecordStore {
       readonlyBagsSummary: readonlyBags.join(", "),
       dependentWikis: dependentWikis.join("\n"),
       dependentWikiCount: String(dependentWikis.length),
-      defaultWritableBag: prefixRows.find((row) => row.left === "")?.right ?? "",
+      defaultWritableBag: prefixRows.find((row) => row.prefix === "")?.bagName ?? new KeyString(""),
       validationReport: "placeholder",
       validationStatus: "placeholder",
       lastUpdatedAt: new Date().toISOString(),

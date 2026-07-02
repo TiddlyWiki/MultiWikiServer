@@ -32,3 +32,11 @@ export const RecipePermissionLevel = {
 } as const
 
 export type RecipePermissionLevel = (typeof RecipePermissionLevel)[keyof typeof RecipePermissionLevel]
+
+
+export const TemplatePermissionLevel = {
+  A_read: 'A_read',
+  B_write: 'B_write'
+} as const
+
+export type TemplatePermissionLevel = (typeof TemplatePermissionLevel)[keyof typeof TemplatePermissionLevel]

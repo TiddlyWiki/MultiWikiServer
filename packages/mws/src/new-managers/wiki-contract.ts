@@ -1,54 +1,56 @@
-import { BagPermissionLevel } from "@tiddlywiki/mws-prisma";
-import { RecipeDefinition, TemplateDefinition } from "./wiki-actions";
+import { BagPermissionLevel, RecipePermissionLevel, TemplatePermissionLevel } from "@tiddlywiki/mws-prisma";
+import { RecipeDefinition, TemplateDefinition } from "./tab-routes";
+import { IdString, KeyString, PermissionRow } from "@mws/admin-vanilla/src/definition/tabs";
 
 export interface UpsertRoleInput {
-  name: string;
+  name: KeyString;
   description: string;
 }
 
 export interface UpsertUserInput {
-  username: string;
+  username: KeyString;
   email: string;
-  password: string;
   /** these are the role ids, not the role names */
-  roleIds: string[];
+  roleIds: IdString[];
 }
 
 export interface ImportBagPermissionInput {
-  role_id: string;
+  role_id: IdString;
   level: BagPermissionLevel;
 }
 
 export interface UpsertBagInput {
-  name: string;
+  name: KeyString;
   description: string;
-  permissions: ImportBagPermissionInput[];
+  permissions: PermissionInput<BagPermissionLevel>[];
 }
 
-
-export interface RecipePermissionInput {
-  role_id: string;
-  level: "A_read" | "B_write";
+export interface PermissionInput<Level> {
+  role_id: IdString;
+  level: Level;
 }
 
 export interface CompiledRecipeBagInput {
-  bagId: string;
+  // bagId: string;
+  bagName: KeyString;
   priority: number;
   isWritable: boolean;
   prefix: string;
 }
 
 export interface UpsertRecipeInput {
-  slug: string;
+  slug: KeyString;
   /** this is the primary key of the template, not the name */
-  templateId: string;
+  templateId: IdString;
   definition: RecipeDefinition;
   plugins: string[];
-  permissions: RecipePermissionInput[];
   compiledBags: CompiledRecipeBagInput[];
+  permissions: PermissionInput<RecipePermissionLevel>[];
 }
 
 
-export interface UpsertTemplateInput extends TemplateDefinition {
-  name: string;
+export interface UpsertTemplateInput {
+  name: KeyString;
+  definition: TemplateDefinition;
+  permissions: PermissionInput<TemplatePermissionLevel>[];
 }

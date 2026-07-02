@@ -1,4 +1,4 @@
-import { BagPermissionLevel, RecipePermissionLevel } from "@tiddlywiki/mws-prisma";
+import { BagPermissionLevel, RecipePermissionLevel, TemplatePermissionLevel } from "@tiddlywiki/mws-prisma";
 
 const halfWidth = "half" as const;
 const fullWidth = "full" as const;
@@ -99,7 +99,7 @@ const tabs = {
       { key: "slug", label: "Slug", type: "string", section: "authored", mode: "create edit" },
       { key: "displayName", label: "Display name", type: "string", section: "authored", mode: "create edit" },
       { key: "description", label: "Description", type: "text", section: "authored", mode: "create edit" },
-      { key: "templateRef", label: "Template", type: "search", section: "authored", mode: "create" },
+      { key: "templateName", label: "Template", type: "search", section: "authored", mode: "create" },
       { key: "readonlyBags", label: "Readonly bags", type: "search-multiselect", section: "authored", mode: "create edit" },
       { key: "plugins", label: "Plugins", type: "search-multiselect", section: "authored", mode: "create edit" },
       { key: "lastCompiledAt", label: "Compiled", type: "string", section: "runtime", mode: "server" },
@@ -162,7 +162,7 @@ const tabs = {
     ],
     fieldGroups: {
       authored: [
-        { title: "Wiki identity", description: "Name the wiki, describe it, and choose the template that provides its base routing model.", keys: ["slug", "displayName", "description", "templateRef"], width: fullWidth, layout: stackLayout },
+        { title: "Wiki identity", description: "Name the wiki, describe it, and choose the template that provides its base routing model.", keys: ["slug", "displayName", "description", "templateName"], width: fullWidth, layout: stackLayout },
         { title: "Writable routing", description: "Define the write targets for title prefixes, including the default fallback bag. The resolver matches prefixes from longest to shortest, so most specific prefix gets the tiddler.", keys: ["writablePrefixBags"], width: fullWidth },
         { title: "Bags", description: "Add wiki-specific readonly bags on top of anything inherited from the template.", keys: ["readonlyBags"], width: halfWidth },
         { title: "Plugins", description: "Add wiki-specific plugins on top of the template plugin set.", keys: ["plugins"], width: halfWidth },
@@ -186,7 +186,7 @@ const tabs = {
     sidebarDisplay: [
       "displayName",
       "slug",
-      "templateRef",
+      "templateName",
       "effectiveReadonlyBags",
       "effectivePluginSet",
     ]
@@ -558,23 +558,22 @@ export interface DataSave {
 // #region Wiki
 export interface WikiAdminRecord {
   // server fields
-  id: string;
-  slug: string;
+  id: IdString;
+  slug: KeyString;
   displayName: string;
   description: string;
-  templateRef: Reference | null;
-  writablePrefixBags: readonly MappingRow[];
-  readonlyBags: readonly string[];
+  templateName: KeyString | null;
+  writablePrefixBags: readonly WritablePrefixRow[];
+  readonlyBags: readonly KeyString[];
   plugins: readonly string[];
   recipePermissions: readonly PermissionRow<RecipePermissionLevel>[];
   // client field
-  templateName: string;
-  defaultWritableBag: string;
+  defaultWritableBag: KeyString;
   readonlyBagCount: string;
   prefixRuleCount: string;
   pluginCount: string;
-  effectiveWritableBags: readonly MappingRow[];
-  effectiveReadonlyBags: readonly string[];
+  effectiveWritableBags: readonly WritablePrefixRow[];
+  effectiveReadonlyBags: readonly KeyString[];
   effectivePluginSet: readonly string[];
   compileValidation: string;
   lastCompiledAt: string;
@@ -588,21 +587,21 @@ export type TemplateTypes = "simpleV1";
 // #region Template
 export interface TemplateAdminRecord {
   // server fields
-  id: string;
+  id: IdString;
   type: TemplateTypes;
-  name: string;
+  name: KeyString;
   description: string;
-  writablePrefixBags: readonly MappingRow[];
-  readonlyBags: readonly string[];
+  writablePrefixBags: readonly WritablePrefixRow[];
+  readonlyBags: readonly KeyString[];
   plugins: readonly string[];
-  templatePermissions: readonly PermissionRow<RecipePermissionLevel>[];
+  templatePermissions: readonly PermissionRow<TemplatePermissionLevel>[];
   requiredPluginsEnabled: boolean;
   customHtmlEnabled: boolean;
   htmlContent: string;
   injectionArray: string;
   injectionLocation: string;
   // client fields
-  defaultWritableBag: string;
+  defaultWritableBag: KeyString;
   readonlyBagsSummary: string;
   dependentWikis: string;
   dependentWikiCount: string;
@@ -612,8 +611,8 @@ export interface TemplateAdminRecord {
 }
 // #region Bag
 export interface BagAdminRecord {
-  id: string;
-  name: string;
+  id: IdString;
+  name: KeyString;
   description: string;
   permissions: readonly PermissionRow<BagPermissionLevel>[];
   usedByCount: string;
@@ -630,36 +629,34 @@ export interface BagAdminRecord {
 }
 // #region Plugin
 export interface PluginAdminRecord {
-  id: string;
-  name: string;
+  id: IdString;
+  name: KeyString;
   description: string;
   pluginPath: string;
   usageCount: string;
-  usedByWikis: string[];
+  usedByWikis: KeyString[];
 }
 // #region Role
 export interface RoleAdminRecord {
-  id: string;
-  name: string;
+  id: IdString;
+  name: KeyString;
   description: string;
 }
 // #region User
 export interface UserAdminRecord {
-  id: string;
-  username: string;
+  id: IdString;
+  username: KeyString;
   email: string;
   userRoles: readonly string[];
-  password: string;
-  confirmPassword: string;
 }
 
-export interface MappingRow {
-  left: string;
-  right: string;
+export interface WritablePrefixRow {
+  prefix: string;
+  bagName: KeyString;
 }
 
 export interface PermissionRow<Level extends string = string> {
-  role: string;
+  role: KeyString;
   level: Level;
 }
 
@@ -669,7 +666,15 @@ export interface KeyValueRow {
 }
 
 
-export interface Reference {
-  readonly id: string;
-  readonly name: string;
+export class IdString extends String {
+  static cast(val: IdString): string { return val.toString(); }
+  name = "IdString" as const;
+  constructor(value: string) { super(value); }
+  toJSON() { return this.valueOf(); }
+}
+export class KeyString extends String {
+  static cast(val: KeyString): string { return val.toString(); }
+  name = "KeyString" as const;
+  constructor(value: string) { super(value); }
+  toJSON() { return this.valueOf(); }
 }

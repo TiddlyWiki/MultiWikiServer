@@ -14,6 +14,7 @@ import { readFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { WikiStore } from "./wiki-store";
 import { mapGetInit } from "./wiki-utils";
+import { IdString } from "@mws/admin-vanilla/src/definition/tabs";
 
 
 // ---------------------------------------------------------------------------
@@ -85,7 +86,7 @@ interface EverythingV1TemplateType {
 
 export class RecipeResolver {
 
-
+  // #region assertRecipe
   /**
    * Asserts the recipe exists and the user passes the read gate, then returns
    * the recipe's bags in display / read order (top first). Single round-trip:
@@ -178,6 +179,7 @@ export class RecipeResolver {
     return recipe;
   }
 
+  // #region constructor
 
   constructor(
     private recipe: RecipeInfo,
@@ -251,7 +253,7 @@ export class RecipeResolver {
     const readFromBag = existsIn.find(b => b.is_writable ? (target !== null && b.bag_id === target.bag_id) : true);
     return { readFromBag, existsIn, writeTarget: target };
   }
-
+  // #region listTiddlers
   async listTiddlers() {
     const rows = await this.prisma.tiddler.findMany({
       where: { bag_id: { in: this.recipe.recipe_bags.map(b => b.bag_id) } },
@@ -273,7 +275,7 @@ export class RecipeResolver {
       return this.mapResolveInfo({ title, info });
     });
   }
-
+  // #region readTiddlers
   async readTiddlers({ titles }: { titles: PrismaField<"Tiddler", "title">[]; }) {
 
     const rows = await this.prisma.tiddler.findMany({
@@ -318,6 +320,7 @@ export class RecipeResolver {
       });
     }).flat();
   }
+  // #region saveTiddlers
   async saveTiddlers({ tiddlers }: { tiddlers: Record<string, any>[]; }): Promise<BatchMutationResult[]> {
     return await Promise.all((tiddlers ?? []).map(async fields => {
       const title = fields.title as PrismaField<"Tiddler", "title">;
@@ -325,8 +328,8 @@ export class RecipeResolver {
       const bag = this.getWriteTarget({ title });
       if (!bag || !this.canWriteBag(bag)) throw "write not permitted";
       const tiddler = await new WikiStore(this.prisma).saveTiddler({
-        recipe_id: this.recipe.id,
-        bag_id: bag.bag_id,
+        recipe_id: new IdString(this.recipe.id),
+        bag_id: new IdString(bag.bag_id),
         fields
       });
       return {
@@ -336,7 +339,7 @@ export class RecipeResolver {
       };
     }));
   }
-
+  //#region deleteTiddlers
   async deleteTiddlers({ titles }: { titles: PrismaField<"Tiddler", "title">[]; }): Promise<(BatchMutationResult | null)[]> {
     return await Promise.all((titles ?? []).map(async title => {
 
@@ -344,8 +347,8 @@ export class RecipeResolver {
       if (!bag || !this.canWriteBag(bag)) throw "write not permitted";
 
       const event = await new WikiStore(this.prisma).deleteTiddler({
-        recipe_id: this.recipe.id,
-        bag_id: bag.bag_id,
+        recipe_id: new IdString(this.recipe.id),
+        bag_id: new IdString(bag.bag_id),
         title,
       });
 
@@ -356,7 +359,7 @@ export class RecipeResolver {
       };
     }));
   }
-
+  // #region getIndexData
   async getIndexData(includeTiddlers: boolean) {
     const maxSeq = await this.prisma.tiddlerEvent.aggregate({ _max: { seq: true } });
 
@@ -379,7 +382,7 @@ export class RecipeResolver {
 
 }
 
-
+// #region IndexSender
 export class IndexSender {
 
   constructor(

@@ -39,18 +39,24 @@ export type TiddlerSumAggregateOutputType = {
 export type TiddlerMinAggregateOutputType = {
   bag_id: string | null
   title: string | null
+  created: Date | null
+  updated: Date | null
   revision: bigint | null
 }
 
 export type TiddlerMaxAggregateOutputType = {
   bag_id: string | null
   title: string | null
+  created: Date | null
+  updated: Date | null
   revision: bigint | null
 }
 
 export type TiddlerCountAggregateOutputType = {
   bag_id: number
   title: number
+  created: number
+  updated: number
   revision: number
   fields:PrismaJson.Tiddler_fields
   _all: number
@@ -68,18 +74,24 @@ export type TiddlerSumAggregateInputType = {
 export type TiddlerMinAggregateInputType = {
   bag_id?: true
   title?: true
+  created?: true
+  updated?: true
   revision?: true
 }
 
 export type TiddlerMaxAggregateInputType = {
   bag_id?: true
   title?: true
+  created?: true
+  updated?: true
   revision?: true
 }
 
 export type TiddlerCountAggregateInputType = {
   bag_id?: true
   title?: true
+  created?: true
+  updated?: true
   revision?: true
   fields?: true
   _all?: true
@@ -174,6 +186,8 @@ export type TiddlerGroupByArgs<ExtArgs extends runtime.Types.Extensions.Internal
 export type TiddlerGroupByOutputType = {
   bag_id: string
   title: string
+  created: Date
+  updated: Date
   revision: bigint
   fields:PrismaJson.Tiddler_fields
   _count: TiddlerCountAggregateOutputType | null
@@ -204,6 +218,8 @@ export type TiddlerWhereInput = {
   NOT?: Prisma.TiddlerWhereInput | Prisma.TiddlerWhereInput[]
   bag_id?: Prisma.StringFilter<"Tiddler"> | string
   title?: Prisma.StringFilter<"Tiddler"> | string
+  created?: Prisma.DateTimeFilter<"Tiddler"> | Date | string
+  updated?: Prisma.DateTimeFilter<"Tiddler"> | Date | string
   revision?: Prisma.BigIntFilter<"Tiddler"> | bigint | number
   fields?: Prisma.JsonFilter<"Tiddler">
   bag?: Prisma.XOR<Prisma.BagScalarRelationFilter, Prisma.BagWhereInput>
@@ -212,6 +228,8 @@ export type TiddlerWhereInput = {
 export type TiddlerOrderByWithRelationInput = {
   bag_id?: Prisma.SortOrder
   title?: Prisma.SortOrder
+  created?: Prisma.SortOrder
+  updated?: Prisma.SortOrder
   revision?: Prisma.SortOrder
   fields?: Prisma.SortOrder
   bag?: Prisma.BagOrderByWithRelationInput
@@ -224,6 +242,8 @@ export type TiddlerWhereUniqueInput = Prisma.AtLeast<{
   NOT?: Prisma.TiddlerWhereInput | Prisma.TiddlerWhereInput[]
   bag_id?: Prisma.StringFilter<"Tiddler"> | string
   title?: Prisma.StringFilter<"Tiddler"> | string
+  created?: Prisma.DateTimeFilter<"Tiddler"> | Date | string
+  updated?: Prisma.DateTimeFilter<"Tiddler"> | Date | string
   revision?: Prisma.BigIntFilter<"Tiddler"> | bigint | number
   fields?: Prisma.JsonFilter<"Tiddler">
   bag?: Prisma.XOR<Prisma.BagScalarRelationFilter, Prisma.BagWhereInput>
@@ -232,6 +252,8 @@ export type TiddlerWhereUniqueInput = Prisma.AtLeast<{
 export type TiddlerOrderByWithAggregationInput = {
   bag_id?: Prisma.SortOrder
   title?: Prisma.SortOrder
+  created?: Prisma.SortOrder
+  updated?: Prisma.SortOrder
   revision?: Prisma.SortOrder
   fields?: Prisma.SortOrder
   _count?: Prisma.TiddlerCountOrderByAggregateInput
@@ -247,12 +269,16 @@ export type TiddlerScalarWhereWithAggregatesInput = {
   NOT?: Prisma.TiddlerScalarWhereWithAggregatesInput | Prisma.TiddlerScalarWhereWithAggregatesInput[]
   bag_id?: Prisma.StringWithAggregatesFilter<"Tiddler"> | string
   title?: Prisma.StringWithAggregatesFilter<"Tiddler"> | string
+  created?: Prisma.DateTimeWithAggregatesFilter<"Tiddler"> | Date | string
+  updated?: Prisma.DateTimeWithAggregatesFilter<"Tiddler"> | Date | string
   revision?: Prisma.BigIntWithAggregatesFilter<"Tiddler"> | bigint | number
   fields?: Prisma.JsonWithAggregatesFilter<"Tiddler">
 }
 
 export type TiddlerCreateInput = {
   title: string
+  created?: Date | string
+  updated?: Date | string
   revision?: bigint | number
   fields:PrismaJson.Tiddler_fields
   bag: Prisma.BagCreateNestedOneWithoutTiddlersInput
@@ -261,12 +287,16 @@ export type TiddlerCreateInput = {
 export type TiddlerUncheckedCreateInput = {
   bag_id: string
   title: string
+  created?: Date | string
+  updated?: Date | string
   revision?: bigint | number
   fields:PrismaJson.Tiddler_fields
 }
 
 export type TiddlerUpdateInput = {
   title?: Prisma.StringFieldUpdateOperationsInput | string
+  created?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updated?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   revision?: Prisma.BigIntFieldUpdateOperationsInput | bigint | number
   fields?:PrismaJson.Tiddler_fields
   bag?: Prisma.BagUpdateOneRequiredWithoutTiddlersNestedInput
@@ -275,6 +305,8 @@ export type TiddlerUpdateInput = {
 export type TiddlerUncheckedUpdateInput = {
   bag_id?: Prisma.StringFieldUpdateOperationsInput | string
   title?: Prisma.StringFieldUpdateOperationsInput | string
+  created?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updated?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   revision?: Prisma.BigIntFieldUpdateOperationsInput | bigint | number
   fields?:PrismaJson.Tiddler_fields
 }
@@ -282,12 +314,16 @@ export type TiddlerUncheckedUpdateInput = {
 export type TiddlerCreateManyInput = {
   bag_id: string
   title: string
+  created?: Date | string
+  updated?: Date | string
   revision?: bigint | number
   fields:PrismaJson.Tiddler_fields
 }
 
 export type TiddlerUpdateManyMutationInput = {
   title?: Prisma.StringFieldUpdateOperationsInput | string
+  created?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updated?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   revision?: Prisma.BigIntFieldUpdateOperationsInput | bigint | number
   fields?:PrismaJson.Tiddler_fields
 }
@@ -295,6 +331,8 @@ export type TiddlerUpdateManyMutationInput = {
 export type TiddlerUncheckedUpdateManyInput = {
   bag_id?: Prisma.StringFieldUpdateOperationsInput | string
   title?: Prisma.StringFieldUpdateOperationsInput | string
+  created?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updated?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   revision?: Prisma.BigIntFieldUpdateOperationsInput | bigint | number
   fields?:PrismaJson.Tiddler_fields
 }
@@ -317,6 +355,8 @@ export type TiddlerBag_idTitleCompoundUniqueInput = {
 export type TiddlerCountOrderByAggregateInput = {
   bag_id?: Prisma.SortOrder
   title?: Prisma.SortOrder
+  created?: Prisma.SortOrder
+  updated?: Prisma.SortOrder
   revision?: Prisma.SortOrder
   fields?: Prisma.SortOrder
 }
@@ -328,12 +368,16 @@ export type TiddlerAvgOrderByAggregateInput = {
 export type TiddlerMaxOrderByAggregateInput = {
   bag_id?: Prisma.SortOrder
   title?: Prisma.SortOrder
+  created?: Prisma.SortOrder
+  updated?: Prisma.SortOrder
   revision?: Prisma.SortOrder
 }
 
 export type TiddlerMinOrderByAggregateInput = {
   bag_id?: Prisma.SortOrder
   title?: Prisma.SortOrder
+  created?: Prisma.SortOrder
+  updated?: Prisma.SortOrder
   revision?: Prisma.SortOrder
 }
 
@@ -393,12 +437,16 @@ export type BigIntFieldUpdateOperationsInput = {
 
 export type TiddlerCreateWithoutBagInput = {
   title: string
+  created?: Date | string
+  updated?: Date | string
   revision?: bigint | number
   fields:PrismaJson.Tiddler_fields
 }
 
 export type TiddlerUncheckedCreateWithoutBagInput = {
   title: string
+  created?: Date | string
+  updated?: Date | string
   revision?: bigint | number
   fields:PrismaJson.Tiddler_fields
 }
@@ -434,30 +482,40 @@ export type TiddlerScalarWhereInput = {
   NOT?: Prisma.TiddlerScalarWhereInput | Prisma.TiddlerScalarWhereInput[]
   bag_id?: Prisma.StringFilter<"Tiddler"> | string
   title?: Prisma.StringFilter<"Tiddler"> | string
+  created?: Prisma.DateTimeFilter<"Tiddler"> | Date | string
+  updated?: Prisma.DateTimeFilter<"Tiddler"> | Date | string
   revision?: Prisma.BigIntFilter<"Tiddler"> | bigint | number
   fields?: Prisma.JsonFilter<"Tiddler">
 }
 
 export type TiddlerCreateManyBagInput = {
   title: string
+  created?: Date | string
+  updated?: Date | string
   revision?: bigint | number
   fields:PrismaJson.Tiddler_fields
 }
 
 export type TiddlerUpdateWithoutBagInput = {
   title?: Prisma.StringFieldUpdateOperationsInput | string
+  created?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updated?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   revision?: Prisma.BigIntFieldUpdateOperationsInput | bigint | number
   fields?:PrismaJson.Tiddler_fields
 }
 
 export type TiddlerUncheckedUpdateWithoutBagInput = {
   title?: Prisma.StringFieldUpdateOperationsInput | string
+  created?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updated?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   revision?: Prisma.BigIntFieldUpdateOperationsInput | bigint | number
   fields?:PrismaJson.Tiddler_fields
 }
 
 export type TiddlerUncheckedUpdateManyWithoutBagInput = {
   title?: Prisma.StringFieldUpdateOperationsInput | string
+  created?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updated?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   revision?: Prisma.BigIntFieldUpdateOperationsInput | bigint | number
   fields?:PrismaJson.Tiddler_fields
 }
@@ -467,6 +525,8 @@ export type TiddlerUncheckedUpdateManyWithoutBagInput = {
 export type TiddlerSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
   bag_id?: boolean
   title?: boolean
+  created?: boolean
+  updated?: boolean
   revision?: boolean
   fields?: boolean
   bag?: boolean | Prisma.BagDefaultArgs<ExtArgs>
@@ -475,6 +535,8 @@ export type TiddlerSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs 
 export type TiddlerSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
   bag_id?: boolean
   title?: boolean
+  created?: boolean
+  updated?: boolean
   revision?: boolean
   fields?: boolean
   bag?: boolean | Prisma.BagDefaultArgs<ExtArgs>
@@ -483,6 +545,8 @@ export type TiddlerSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Exten
 export type TiddlerSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
   bag_id?: boolean
   title?: boolean
+  created?: boolean
+  updated?: boolean
   revision?: boolean
   fields?: boolean
   bag?: boolean | Prisma.BagDefaultArgs<ExtArgs>
@@ -491,11 +555,13 @@ export type TiddlerSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Exten
 export type TiddlerSelectScalar = {
   bag_id?: boolean
   title?: boolean
+  created?: boolean
+  updated?: boolean
   revision?: boolean
   fields?: boolean
 }
 
-export type TiddlerOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"bag_id" | "title" | "revision" | "fields", ExtArgs["result"]["tiddler"]>
+export type TiddlerOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"bag_id" | "title" | "created" | "updated" | "revision" | "fields", ExtArgs["result"]["tiddler"]>
 export type TiddlerInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   bag?: boolean | Prisma.BagDefaultArgs<ExtArgs>
 }
@@ -514,6 +580,8 @@ export type $TiddlerPayload<ExtArgs extends runtime.Types.Extensions.InternalArg
   scalars: runtime.Types.Extensions.GetPayloadResult<{
     bag_id: string
     title: string
+    created: Date
+    updated: Date
     revision: bigint
     /**
      * [Tiddler_fields]
@@ -945,6 +1013,8 @@ export interface Prisma__TiddlerClient<T, Null = never, ExtArgs extends runtime.
 export interface TiddlerFieldRefs {
   readonly bag_id: Prisma.FieldRef<"Tiddler", 'String'>
   readonly title: Prisma.FieldRef<"Tiddler", 'String'>
+  readonly created: Prisma.FieldRef<"Tiddler", 'DateTime'>
+  readonly updated: Prisma.FieldRef<"Tiddler", 'DateTime'>
   readonly revision: Prisma.FieldRef<"Tiddler", 'BigInt'>
   readonly fields: Prisma.FieldRef<"Tiddler", 'Json'>
 }

@@ -29,18 +29,24 @@ export type AggregateTemplate = {
 export type TemplateMinAggregateOutputType = {
   id: string | null
   name: string | null
+  created: Date | null
+  updated: Date | null
   type:PrismaJson.Template_type | null
 }
 
 export type TemplateMaxAggregateOutputType = {
   id: string | null
   name: string | null
+  created: Date | null
+  updated: Date | null
   type:PrismaJson.Template_type | null
 }
 
 export type TemplateCountAggregateOutputType = {
   id: number
   name: number
+  created: number
+  updated: number
   type:PrismaJson.Template_type
   definition:PrismaJson.Template_definition
   _all: number
@@ -50,18 +56,24 @@ export type TemplateCountAggregateOutputType = {
 export type TemplateMinAggregateInputType = {
   id?: true
   name?: true
+  created?: true
+  updated?: true
   type?: true
 }
 
 export type TemplateMaxAggregateInputType = {
   id?: true
   name?: true
+  created?: true
+  updated?: true
   type?: true
 }
 
 export type TemplateCountAggregateInputType = {
   id?: true
   name?: true
+  created?: true
+  updated?: true
   type?: true
   definition?: true
   _all?: true
@@ -142,6 +154,8 @@ export type TemplateGroupByArgs<ExtArgs extends runtime.Types.Extensions.Interna
 export type TemplateGroupByOutputType = {
   id: string
   name: string
+  created: Date
+  updated: Date
   type:PrismaJson.Template_type
   definition:PrismaJson.Template_definition
   _count: TemplateCountAggregateOutputType | null
@@ -170,17 +184,23 @@ export type TemplateWhereInput = {
   NOT?: Prisma.TemplateWhereInput | Prisma.TemplateWhereInput[]
   id?: Prisma.StringFilter<"Template"> | string
   name?: Prisma.StringFilter<"Template"> | string
+  created?: Prisma.DateTimeFilter<"Template"> | Date | string
+  updated?: Prisma.DateTimeFilter<"Template"> | Date | string
   type?:PJTG.TypedStringFilter<PrismaJson.Template_type> | PrismaJson.Template_type
   definition?: Prisma.JsonFilter<"Template">
   recipes?: Prisma.RecipeListRelationFilter
+  permissions?: Prisma.TemplatePermissionListRelationFilter
 }
 
 export type TemplateOrderByWithRelationInput = {
   id?: Prisma.SortOrder
   name?: Prisma.SortOrder
+  created?: Prisma.SortOrder
+  updated?: Prisma.SortOrder
   type?: Prisma.SortOrder
   definition?: Prisma.SortOrder
   recipes?: Prisma.RecipeOrderByRelationAggregateInput
+  permissions?: Prisma.TemplatePermissionOrderByRelationAggregateInput
 }
 
 export type TemplateWhereUniqueInput = Prisma.AtLeast<{
@@ -189,14 +209,19 @@ export type TemplateWhereUniqueInput = Prisma.AtLeast<{
   AND?: Prisma.TemplateWhereInput | Prisma.TemplateWhereInput[]
   OR?: Prisma.TemplateWhereInput[]
   NOT?: Prisma.TemplateWhereInput | Prisma.TemplateWhereInput[]
+  created?: Prisma.DateTimeFilter<"Template"> | Date | string
+  updated?: Prisma.DateTimeFilter<"Template"> | Date | string
   type?: Prisma.StringFilter<"Template"> | string
   definition?: Prisma.JsonFilter<"Template">
   recipes?: Prisma.RecipeListRelationFilter
+  permissions?: Prisma.TemplatePermissionListRelationFilter
 }, "id" | "name">
 
 export type TemplateOrderByWithAggregationInput = {
   id?: Prisma.SortOrder
   name?: Prisma.SortOrder
+  created?: Prisma.SortOrder
+  updated?: Prisma.SortOrder
   type?: Prisma.SortOrder
   definition?: Prisma.SortOrder
   _count?: Prisma.TemplateCountOrderByAggregateInput
@@ -210,6 +235,8 @@ export type TemplateScalarWhereWithAggregatesInput = {
   NOT?: Prisma.TemplateScalarWhereWithAggregatesInput | Prisma.TemplateScalarWhereWithAggregatesInput[]
   id?: Prisma.StringWithAggregatesFilter<"Template"> | string
   name?: Prisma.StringWithAggregatesFilter<"Template"> | string
+  created?: Prisma.DateTimeWithAggregatesFilter<"Template"> | Date | string
+  updated?: Prisma.DateTimeWithAggregatesFilter<"Template"> | Date | string
   type?:PJTG.TypedStringWithAggregatesFilter<PrismaJson.Template_type> | PrismaJson.Template_type
   definition?: Prisma.JsonWithAggregatesFilter<"Template">
 }
@@ -217,38 +244,52 @@ export type TemplateScalarWhereWithAggregatesInput = {
 export type TemplateCreateInput = {
   id?: string
   name: string
+  created?: Date | string
+  updated?: Date | string
   type:PrismaJson.Template_type
   definition:PrismaJson.Template_definition
   recipes?: Prisma.RecipeCreateNestedManyWithoutTemplateInput
+  permissions?: Prisma.TemplatePermissionCreateNestedManyWithoutTemplateInput
 }
 
 export type TemplateUncheckedCreateInput = {
   id?: string
   name: string
+  created?: Date | string
+  updated?: Date | string
   type:PrismaJson.Template_type
   definition:PrismaJson.Template_definition
   recipes?: Prisma.RecipeUncheckedCreateNestedManyWithoutTemplateInput
+  permissions?: Prisma.TemplatePermissionUncheckedCreateNestedManyWithoutTemplateInput
 }
 
 export type TemplateUpdateInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   name?: Prisma.StringFieldUpdateOperationsInput | string
+  created?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updated?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   type?:PJTG.TypedStringFieldUpdateOperationsInput<PrismaJson.Template_type> | PrismaJson.Template_type
   definition?:PrismaJson.Template_definition
   recipes?: Prisma.RecipeUpdateManyWithoutTemplateNestedInput
+  permissions?: Prisma.TemplatePermissionUpdateManyWithoutTemplateNestedInput
 }
 
 export type TemplateUncheckedUpdateInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   name?: Prisma.StringFieldUpdateOperationsInput | string
+  created?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updated?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   type?:PJTG.TypedStringFieldUpdateOperationsInput<PrismaJson.Template_type> | PrismaJson.Template_type
   definition?:PrismaJson.Template_definition
   recipes?: Prisma.RecipeUncheckedUpdateManyWithoutTemplateNestedInput
+  permissions?: Prisma.TemplatePermissionUncheckedUpdateManyWithoutTemplateNestedInput
 }
 
 export type TemplateCreateManyInput = {
   id?: string
   name: string
+  created?: Date | string
+  updated?: Date | string
   type:PrismaJson.Template_type
   definition:PrismaJson.Template_definition
 }
@@ -256,6 +297,8 @@ export type TemplateCreateManyInput = {
 export type TemplateUpdateManyMutationInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   name?: Prisma.StringFieldUpdateOperationsInput | string
+  created?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updated?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   type?:PJTG.TypedStringFieldUpdateOperationsInput<PrismaJson.Template_type> | PrismaJson.Template_type
   definition?:PrismaJson.Template_definition
 }
@@ -263,6 +306,8 @@ export type TemplateUpdateManyMutationInput = {
 export type TemplateUncheckedUpdateManyInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   name?: Prisma.StringFieldUpdateOperationsInput | string
+  created?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updated?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   type?:PJTG.TypedStringFieldUpdateOperationsInput<PrismaJson.Template_type> | PrismaJson.Template_type
   definition?:PrismaJson.Template_definition
 }
@@ -270,6 +315,8 @@ export type TemplateUncheckedUpdateManyInput = {
 export type TemplateCountOrderByAggregateInput = {
   id?: Prisma.SortOrder
   name?: Prisma.SortOrder
+  created?: Prisma.SortOrder
+  updated?: Prisma.SortOrder
   type?: Prisma.SortOrder
   definition?: Prisma.SortOrder
 }
@@ -277,18 +324,36 @@ export type TemplateCountOrderByAggregateInput = {
 export type TemplateMaxOrderByAggregateInput = {
   id?: Prisma.SortOrder
   name?: Prisma.SortOrder
+  created?: Prisma.SortOrder
+  updated?: Prisma.SortOrder
   type?: Prisma.SortOrder
 }
 
 export type TemplateMinOrderByAggregateInput = {
   id?: Prisma.SortOrder
   name?: Prisma.SortOrder
+  created?: Prisma.SortOrder
+  updated?: Prisma.SortOrder
   type?: Prisma.SortOrder
 }
 
 export type TemplateScalarRelationFilter = {
   is?: Prisma.TemplateWhereInput
   isNot?: Prisma.TemplateWhereInput
+}
+
+export type TemplateCreateNestedOneWithoutPermissionsInput = {
+  create?: Prisma.XOR<Prisma.TemplateCreateWithoutPermissionsInput, Prisma.TemplateUncheckedCreateWithoutPermissionsInput>
+  connectOrCreate?: Prisma.TemplateCreateOrConnectWithoutPermissionsInput
+  connect?: Prisma.TemplateWhereUniqueInput
+}
+
+export type TemplateUpdateOneRequiredWithoutPermissionsNestedInput = {
+  create?: Prisma.XOR<Prisma.TemplateCreateWithoutPermissionsInput, Prisma.TemplateUncheckedCreateWithoutPermissionsInput>
+  connectOrCreate?: Prisma.TemplateCreateOrConnectWithoutPermissionsInput
+  upsert?: Prisma.TemplateUpsertWithoutPermissionsInput
+  connect?: Prisma.TemplateWhereUniqueInput
+  update?: Prisma.XOR<Prisma.XOR<Prisma.TemplateUpdateToOneWithWhereWithoutPermissionsInput, Prisma.TemplateUpdateWithoutPermissionsInput>, Prisma.TemplateUncheckedUpdateWithoutPermissionsInput>
 }
 
 export type TemplateCreateNestedOneWithoutRecipesInput = {
@@ -305,18 +370,80 @@ export type TemplateUpdateOneRequiredWithoutRecipesNestedInput = {
   update?: Prisma.XOR<Prisma.XOR<Prisma.TemplateUpdateToOneWithWhereWithoutRecipesInput, Prisma.TemplateUpdateWithoutRecipesInput>, Prisma.TemplateUncheckedUpdateWithoutRecipesInput>
 }
 
+export type TemplateCreateWithoutPermissionsInput = {
+  id?: string
+  name: string
+  created?: Date | string
+  updated?: Date | string
+  type:PrismaJson.Template_type
+  definition:PrismaJson.Template_definition
+  recipes?: Prisma.RecipeCreateNestedManyWithoutTemplateInput
+}
+
+export type TemplateUncheckedCreateWithoutPermissionsInput = {
+  id?: string
+  name: string
+  created?: Date | string
+  updated?: Date | string
+  type:PrismaJson.Template_type
+  definition:PrismaJson.Template_definition
+  recipes?: Prisma.RecipeUncheckedCreateNestedManyWithoutTemplateInput
+}
+
+export type TemplateCreateOrConnectWithoutPermissionsInput = {
+  where: Prisma.TemplateWhereUniqueInput
+  create: Prisma.XOR<Prisma.TemplateCreateWithoutPermissionsInput, Prisma.TemplateUncheckedCreateWithoutPermissionsInput>
+}
+
+export type TemplateUpsertWithoutPermissionsInput = {
+  update: Prisma.XOR<Prisma.TemplateUpdateWithoutPermissionsInput, Prisma.TemplateUncheckedUpdateWithoutPermissionsInput>
+  create: Prisma.XOR<Prisma.TemplateCreateWithoutPermissionsInput, Prisma.TemplateUncheckedCreateWithoutPermissionsInput>
+  where?: Prisma.TemplateWhereInput
+}
+
+export type TemplateUpdateToOneWithWhereWithoutPermissionsInput = {
+  where?: Prisma.TemplateWhereInput
+  data: Prisma.XOR<Prisma.TemplateUpdateWithoutPermissionsInput, Prisma.TemplateUncheckedUpdateWithoutPermissionsInput>
+}
+
+export type TemplateUpdateWithoutPermissionsInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  name?: Prisma.StringFieldUpdateOperationsInput | string
+  created?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updated?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  type?:PJTG.TypedStringFieldUpdateOperationsInput<PrismaJson.Template_type> | PrismaJson.Template_type
+  definition?:PrismaJson.Template_definition
+  recipes?: Prisma.RecipeUpdateManyWithoutTemplateNestedInput
+}
+
+export type TemplateUncheckedUpdateWithoutPermissionsInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  name?: Prisma.StringFieldUpdateOperationsInput | string
+  created?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updated?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  type?:PJTG.TypedStringFieldUpdateOperationsInput<PrismaJson.Template_type> | PrismaJson.Template_type
+  definition?:PrismaJson.Template_definition
+  recipes?: Prisma.RecipeUncheckedUpdateManyWithoutTemplateNestedInput
+}
+
 export type TemplateCreateWithoutRecipesInput = {
   id?: string
   name: string
+  created?: Date | string
+  updated?: Date | string
   type:PrismaJson.Template_type
   definition:PrismaJson.Template_definition
+  permissions?: Prisma.TemplatePermissionCreateNestedManyWithoutTemplateInput
 }
 
 export type TemplateUncheckedCreateWithoutRecipesInput = {
   id?: string
   name: string
+  created?: Date | string
+  updated?: Date | string
   type:PrismaJson.Template_type
   definition:PrismaJson.Template_definition
+  permissions?: Prisma.TemplatePermissionUncheckedCreateNestedManyWithoutTemplateInput
 }
 
 export type TemplateCreateOrConnectWithoutRecipesInput = {
@@ -338,15 +465,21 @@ export type TemplateUpdateToOneWithWhereWithoutRecipesInput = {
 export type TemplateUpdateWithoutRecipesInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   name?: Prisma.StringFieldUpdateOperationsInput | string
+  created?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updated?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   type?:PJTG.TypedStringFieldUpdateOperationsInput<PrismaJson.Template_type> | PrismaJson.Template_type
   definition?:PrismaJson.Template_definition
+  permissions?: Prisma.TemplatePermissionUpdateManyWithoutTemplateNestedInput
 }
 
 export type TemplateUncheckedUpdateWithoutRecipesInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   name?: Prisma.StringFieldUpdateOperationsInput | string
+  created?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updated?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   type?:PJTG.TypedStringFieldUpdateOperationsInput<PrismaJson.Template_type> | PrismaJson.Template_type
   definition?:PrismaJson.Template_definition
+  permissions?: Prisma.TemplatePermissionUncheckedUpdateManyWithoutTemplateNestedInput
 }
 
 
@@ -356,10 +489,12 @@ export type TemplateUncheckedUpdateWithoutRecipesInput = {
 
 export type TemplateCountOutputType = {
   recipes: number
+  permissions: number
 }
 
 export type TemplateCountOutputTypeSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   recipes?: boolean | TemplateCountOutputTypeCountRecipesArgs
+  permissions?: boolean | TemplateCountOutputTypeCountPermissionsArgs
 }
 
 /**
@@ -379,19 +514,31 @@ export type TemplateCountOutputTypeCountRecipesArgs<ExtArgs extends runtime.Type
   where?: Prisma.RecipeWhereInput
 }
 
+/**
+ * TemplateCountOutputType without action
+ */
+export type TemplateCountOutputTypeCountPermissionsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  where?: Prisma.TemplatePermissionWhereInput
+}
+
 
 export type TemplateSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
   id?: boolean
   name?: boolean
+  created?: boolean
+  updated?: boolean
   type?: boolean
   definition?: boolean
   recipes?: boolean | Prisma.Template$recipesArgs<ExtArgs>
+  permissions?: boolean | Prisma.Template$permissionsArgs<ExtArgs>
   _count?: boolean | Prisma.TemplateCountOutputTypeDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["template"]>
 
 export type TemplateSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
   id?: boolean
   name?: boolean
+  created?: boolean
+  updated?: boolean
   type?: boolean
   definition?: boolean
 }, ExtArgs["result"]["template"]>
@@ -399,6 +546,8 @@ export type TemplateSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Exte
 export type TemplateSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
   id?: boolean
   name?: boolean
+  created?: boolean
+  updated?: boolean
   type?: boolean
   definition?: boolean
 }, ExtArgs["result"]["template"]>
@@ -406,13 +555,16 @@ export type TemplateSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Exte
 export type TemplateSelectScalar = {
   id?: boolean
   name?: boolean
+  created?: boolean
+  updated?: boolean
   type?: boolean
   definition?: boolean
 }
 
-export type TemplateOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "name" | "type" | "definition", ExtArgs["result"]["template"]>
+export type TemplateOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "name" | "created" | "updated" | "type" | "definition", ExtArgs["result"]["template"]>
 export type TemplateInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   recipes?: boolean | Prisma.Template$recipesArgs<ExtArgs>
+  permissions?: boolean | Prisma.Template$permissionsArgs<ExtArgs>
   _count?: boolean | Prisma.TemplateCountOutputTypeDefaultArgs<ExtArgs>
 }
 export type TemplateIncludeCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {}
@@ -422,10 +574,13 @@ export type $TemplatePayload<ExtArgs extends runtime.Types.Extensions.InternalAr
   name: "Template"
   objects: {
     recipes: Prisma.$RecipePayload<ExtArgs>[]
+    permissions: Prisma.$TemplatePermissionPayload<ExtArgs>[]
   }
   scalars: runtime.Types.Extensions.GetPayloadResult<{
     id: string
     name: string
+    created: Date
+    updated: Date
     /**
      * [Template_type]
      */
@@ -829,6 +984,7 @@ readonly fields: TemplateFieldRefs;
 export interface Prisma__TemplateClient<T, Null = never, ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs, GlobalOmitOptions = {}> extends Prisma.PrismaPromise<T> {
   readonly [Symbol.toStringTag]: "PrismaPromise"
   recipes<T extends Prisma.Template$recipesArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Template$recipesArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$RecipePayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+  permissions<T extends Prisma.Template$permissionsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Template$permissionsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$TemplatePermissionPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   /**
    * Attaches callbacks for the resolution and/or rejection of the Promise.
    * @param onfulfilled The callback to execute when the Promise is resolved.
@@ -860,6 +1016,8 @@ export interface Prisma__TemplateClient<T, Null = never, ExtArgs extends runtime
 export interface TemplateFieldRefs {
   readonly id: Prisma.FieldRef<"Template", 'String'>
   readonly name: Prisma.FieldRef<"Template", 'String'>
+  readonly created: Prisma.FieldRef<"Template", 'DateTime'>
+  readonly updated: Prisma.FieldRef<"Template", 'DateTime'>
   readonly type: Prisma.FieldRef<"Template", 'String'>
   readonly definition: Prisma.FieldRef<"Template", 'Json'>
 }
@@ -1269,6 +1427,30 @@ export type Template$recipesArgs<ExtArgs extends runtime.Types.Extensions.Intern
   take?: number
   skip?: number
   distinct?: Prisma.RecipeScalarFieldEnum | Prisma.RecipeScalarFieldEnum[]
+}
+
+/**
+ * Template.permissions
+ */
+export type Template$permissionsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the TemplatePermission
+   */
+  select?: Prisma.TemplatePermissionSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the TemplatePermission
+   */
+  omit?: Prisma.TemplatePermissionOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.TemplatePermissionInclude<ExtArgs> | null
+  where?: Prisma.TemplatePermissionWhereInput
+  orderBy?: Prisma.TemplatePermissionOrderByWithRelationInput | Prisma.TemplatePermissionOrderByWithRelationInput[]
+  cursor?: Prisma.TemplatePermissionWhereUniqueInput
+  take?: number
+  skip?: number
+  distinct?: Prisma.TemplatePermissionScalarFieldEnum | Prisma.TemplatePermissionScalarFieldEnum[]
 }
 
 /**

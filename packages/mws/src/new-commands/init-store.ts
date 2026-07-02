@@ -2,7 +2,7 @@ import { dist_require_resolve, dist_resolve } from "@tiddlywiki/server";
 import { BaseCommand, CommandInfo } from "@tiddlywiki/commander";
 import { resolve } from "path";
 import { Command as LoadWikiFolderCommand } from "./load-wiki-folder";
-import { RoleImportWriter, TemplateImportWriter, UserImportWriter } from "../new-managers/wiki-import";
+import { RoleImportWriter, TemplateImportWriter, UserImportWriter } from "../new-managers/TabImportWriter";
 
 export const info: CommandInfo = {
 	name: "init-store",
@@ -24,20 +24,6 @@ export class Command extends BaseCommand {
 			const userCount = await prisma.users.count();
 			if (userCount) return;
 
-			await new TemplateImportWriter(prisma, true).upsert([{
-				type: "simpleV1",
-				name: "Blank Template",
-				description: "The default template, blank and uneditable.",
-				readonlyBags: [],
-				writablePrefixBags: [],
-				plugins: [],
-				requiredPluginsEnabled: true,
-				customHtmlEnabled: false,
-				htmlContent: "",
-				injectionArray: "",
-				injectionLocation: "",
-			}]);
-
 
 			const roles = await new RoleImportWriter(prisma, true).upsert([
 				{ name: "ADMIN", description: "System Administrator" },
@@ -47,8 +33,27 @@ export class Command extends BaseCommand {
 			if (!roles[0])
 				throw new Error("Failed to create ADMIN role during store initialization.");
 
+
+			await new TemplateImportWriter(prisma, true).upsert([{
+				name: "Blank Template",
+				definition: {
+					type: "simpleV1",
+					description: "The default template, blank and uneditable.",
+					readonlyBags: [],
+					writablePrefixBags: [],
+					plugins: [],
+					requiredPluginsEnabled: true,
+					customHtmlEnabled: false,
+					htmlContent: "",
+					injectionArray: "",
+					injectionLocation: "",
+				},
+				permissions: [{ level: "B_write", role_id: roles[0].role_id }]
+			}]);
+
+
 			const [admin] = await new UserImportWriter(prisma, true).upsert([
-				{ username: "admin", email: "", password: "", roleIds: [roles[0].role_id] },
+				{ username: "admin", email: "", roleIds: [roles[0].role_id] },
 			]);
 
 			const password = await this.config.PasswordService.PasswordCreation(admin.user_id, "1234");

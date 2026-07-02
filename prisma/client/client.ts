@@ -65,6 +65,11 @@ export type TiddlerEvent = Prisma.TiddlerEventModel
  */
 export type Template = Prisma.TemplateModel
 /**
+ * Model TemplatePermission
+ * 
+ */
+export type TemplatePermission = Prisma.TemplatePermissionModel
+/**
  * Model Recipe
  * 
  */

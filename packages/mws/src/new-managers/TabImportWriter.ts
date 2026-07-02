@@ -1,5 +1,5 @@
 import { SendError } from "@tiddlywiki/server";
-import { RecipeDefinition, TemplateDefinition } from "./wiki-actions";
+import { RecipeDefinition, TemplateDefinition } from "./tab-routes";
 import {
   CompiledRecipeBagInput,
   type UpsertBagInput,
@@ -10,7 +10,8 @@ import {
 } from "./wiki-contract";
 import { Prisma } from "@tiddlywiki/mws-prisma";
 import { mapGetInit, thrower } from "./wiki-utils";
-import { TabId } from "@mws/admin-vanilla/src/definition/tabs";
+import { IdString, KeyString, TabId } from "@mws/admin-vanilla/src/definition/tabs";
+
 
 export type ImportedRoleRows = Awaited<ReturnType<PrismaTxnClient["roles"]["findMany"]>>;
 export type ImportedUserRows = Awaited<ReturnType<PrismaTxnClient["users"]["findMany"]>>;
@@ -57,7 +58,7 @@ type PrismaModalKeys = Prisma.TypeMap["meta"]["modelProps"]
 type PrismaScalarKeys<Modal extends PrismaModalKeys> =
   keyof PrismaTxnClient[Modal][symbol]["types"]["payload"]["scalars"];
 
-abstract class PerClassImportWriter<Modal extends PrismaModalKeys> {
+export abstract class PerClassImportWriter<Modal extends PrismaModalKeys> {
   constructor(
     protected tx: PrismaTxnClient,
     private tabid: TabId,
@@ -69,7 +70,7 @@ abstract class PerClassImportWriter<Modal extends PrismaModalKeys> {
 
   }
 
-  async checkExisting(id: string, name: string) {
+  async checkExisting(id: IdString, name: KeyString) {
     if (id) {
       const existing = await (this.tx[this.modal] as any).findUnique({
         where: { [this.id]: id },
@@ -83,21 +84,36 @@ abstract class PerClassImportWriter<Modal extends PrismaModalKeys> {
 
   }
 
-  async rename(renames: [string, string][]) {
+  async rename(renames: [KeyString, KeyString][]) {
     await Promise.all(renames.map(([oldName, newName]) =>
       (this.tx[this.modal] as any).update({
         where: { [this.name]: oldName },
         data: { [this.name]: newName }
       })));
   }
+  /** Maps names to ids */
+  async getNameMapper(names?: readonly KeyString[]) {
+    return this.mapRowsToNameKey(await this.getMapperFunc({ names }))
+  }
+  /** Maps ids to names */
+  async getIdMapper(ids?: readonly IdString[]) {
+    return this.mapRowsToIdKey(await this.getMapperFunc({ ids }))
+  }
 
-  async getNameMapper(names: readonly string[]) {
-    names = Array.from(new Set(names));
-    const rows = await (this.tx[this.modal] as any).findMany({
-      where: { [this.name]: { in: names.slice() } },
+  getMapperFunc({ ids, names }: { ids?: readonly IdString[], names?: readonly KeyString[] }) {
+    return (this.tx[this.modal] as any).findMany({
+      ...(ids ? { where: { [this.id]: { in: Array.from(new Set(ids)) } } } : {}),
+      ...(names ? { where: { [this.name]: { in: Array.from(new Set(names)) } } } : {}),
       select: { [this.id]: true, [this.name]: true },
     });
-    return recordKeyMapper(new Map(rows.map((row: any) => [row[this.name], row[this.id]])), this.tabid);
+  }
+
+  mapRowsToIdKey(rows: any[]) {
+    return recordKeyMapper(new Map(rows.map((row: any) => [row[this.id] as any as IdString, new KeyString(row[this.name])])), this.tabid)
+  }
+
+  mapRowsToNameKey(rows: any[]) {
+    return recordKeyMapper(new Map(rows.map((row: any) => [row[this.name] as any as KeyString, new IdString(row[this.id])])), this.tabid);
   }
 
   abstract upsert(rows: unknown[]): Promise<unknown[]>;
@@ -112,9 +128,9 @@ export class RoleImportWriter extends PerClassImportWriter<"roles"> {
   async upsert(roles: UpsertRoleInput[]) {
     this.validateProtectedRoles(roles);
     return Promise.all(roles.map((role) => this.tx.roles.upsert({
-      where: { role_name: role.name },
+      where: { role_name: KeyString.cast(role.name) },
       update: { description: role.description },
-      create: { role_name: role.name, description: role.description },
+      create: { role_name: KeyString.cast(role.name), description: role.description },
     })));
   }
 
@@ -138,18 +154,17 @@ export class UserImportWriter extends PerClassImportWriter<"users"> {
 
   async upsert(users: UpsertUserInput[]) {
     return Promise.all(users.map((user) => {
-      const roleLinks = user.roleIds.map((roleId) => ({ role_id: roleId }));
+      const roleLinks = user.roleIds.map((roleId) => ({ role_id: IdString.cast(roleId) }));
       return this.tx.users.upsert({
-        where: { username: user.username },
+        where: { username: KeyString.cast(user.username) },
         update: {
           email: user.email,
-          password: user.password,
           roles: { set: roleLinks },
         },
         create: {
-          username: user.username,
+          username: KeyString.cast(user.username),
           email: user.email,
-          password: user.password,
+          password: "",
           roles: { connect: roleLinks },
         },
       });
@@ -164,10 +179,10 @@ export class BagImportWriter extends PerClassImportWriter<"bag"> {
     super(tx, "bags", "bag", "name", "id", initStore)
   }
 
-  async rename(renames: [string, string][]) {
+  async rename(renames: [KeyString, KeyString][]) {
     const renamesMap = new Map(renames);
     const bags = await this.tx.bag.findMany({
-      where: { name: { in: Array.from(renamesMap.keys()) } },
+      where: { name: { in: Array.from(renamesMap.keys(), e => IdString.cast(e)) } },
       include: { recipe_bags: { select: { recipe: { select: { id: true, template_id: true } } } }, }
     });
 
@@ -189,8 +204,8 @@ export class BagImportWriter extends PerClassImportWriter<"bag"> {
 
     for (const recipe of recipes) {
       recipe.definition.writablePrefixBags.forEach(e => {
-        const newName = renamesMap.get(e.right);
-        if (newName !== undefined) e.right = newName;
+        const newName = renamesMap.get(e.bagName);
+        if (newName !== undefined) e.bagName = newName;
       });
       recipe.definition.readonlyBags
         = recipe.definition.readonlyBags
@@ -209,8 +224,8 @@ export class BagImportWriter extends PerClassImportWriter<"bag"> {
 
     for (const template of templates) {
       template.definition.writablePrefixBags.forEach(e => {
-        const newName = renamesMap.get(e.right);
-        if (newName !== undefined) e.right = newName;
+        const newName = renamesMap.get(e.bagName);
+        if (newName !== undefined) e.bagName = newName;
       });
       template.definition.readonlyBags
         = template.definition.readonlyBags
@@ -225,35 +240,27 @@ export class BagImportWriter extends PerClassImportWriter<"bag"> {
 
   async upsert(bags: UpsertBagInput[]) {
     const bagRows = await Promise.all(bags.map((bag) => this.tx.bag.upsert({
-      where: { name: bag.name },
+      where: { name: KeyString.cast(bag.name) },
       update: {
         description: bag.description,
         permissions: {
           deleteMany: {},
-          create: bag.permissions.map(e => ({
-            level: e.level,
-            role_id: e.role_id,
-          })),
+          create: bag.permissions.map(e => ({ level: e.level, role_id: IdString.cast(e.role_id) })),
         }
       },
       create: {
-        name: bag.name,
+        name: KeyString.cast(bag.name),
         description: bag.description,
         permissions: {
-          create: bag.permissions.map(e => ({
-            level: e.level,
-            role_id: e.role_id,
-          })),
+          create: bag.permissions.map(e => ({ level: e.level, role_id: IdString.cast(e.role_id) })),
         }
       },
-      include: { permissions: true, }
+      select: { id: true, _count: { select: { permissions: true } } },
     })));
 
     for (let i = 0; i < bags.length; i++) {
-      for (let j = 0; j < bags[i].permissions.length; j++) {
-        if (bagRows[i].permissions[j].role_id !== bags[i].permissions[j].role_id)
-          throw new Error("Data partially saved but permissions did not save properly");
-      }
+      if (bagRows[i]._count.permissions !== bags[i].permissions.length)
+        throw new Error("Permissions length did not match");
     }
 
     return bagRows;
@@ -272,25 +279,39 @@ export class TemplateImportWriter extends PerClassImportWriter<"template"> {
    * and modify it if it does exist. 
    * You must include the existing id if you want to rename a template.
    */
-  async upsert(definitions: UpsertTemplateInput[]) {
+  async upsert(templates: UpsertTemplateInput[]) {
     const defaultName = "Blank Template";
 
-    const templateRows = await Promise.all(definitions.map((definition) => {
+    const templateRows = await Promise.all(templates.map((template) => {
 
-      if (!this.initStore && definition.name === defaultName)
+      if (!this.initStore && template.name === defaultName)
         throw new Error("Cannot modify the blank template.");
 
-      const { name, type } = definition;
-
-      definition.name = undefined as any;
-
-      const data = { name, type, definition, };
+      const name = KeyString.cast(template.name);
+      const type = template.definition.type;
+      const definition = template.definition;
 
       return this.tx.template.upsert({
-        create: data,
-        update: data,
+        create: {
+          name,
+          type,
+          definition,
+          permissions: {
+            create: template.permissions.map(e => ({ level: e.level, role_id: IdString.cast(e.role_id) })),
+          }
+        },
+        update: {
+          name,
+          type,
+          definition,
+          permissions: {
+            deleteMany: {},
+            create: template.permissions.map(e => ({ level: e.level, role_id: IdString.cast(e.role_id) })),
+          }
+        },
         // prevents the template type from changing if it exists
-        where: { name, type }
+        where: { name, type },
+        select: { id: true, updated: true }
       });
 
     }));
@@ -310,17 +331,19 @@ export class RecipeImportWriter extends PerClassImportWriter<"recipe"> {
 
   async upsert(recipes: UpsertRecipeInput[]) {
 
-    const upserter = async (recipe: UpsertRecipeInput) => {
+    const upserter = async (recipe: UpsertRecipeInput, compiledAt: Date) => {
+      recipe.compiledBags.sort((a, b) => a.priority - b.priority)
       return await this.tx.recipe.upsert({
-        where: { slug: recipe.slug },
+        where: { slug: recipe.slug as string },
         update: {
           definition: recipe.definition,
-          template_id: recipe.templateId,
+          template_id: recipe.templateId as KeyString as string,
           plugins: recipe.plugins,
+          compiledAt,
           recipe_bags: {
             deleteMany: {},
             create: recipe.compiledBags.map(e => ({
-              bag_id: e.bagId,
+              bag: { connect: { name: e.bagName as string } },
               is_writable: e.isWritable,
               prefix: e.prefix,
               priority: e.priority,
@@ -328,62 +351,55 @@ export class RecipeImportWriter extends PerClassImportWriter<"recipe"> {
           },
           permissions: {
             deleteMany: {},
-            create: recipe.permissions.map(e => ({
-              level: e.level,
-              role_id: e.role_id,
-            }))
+            create: recipe.permissions.map(e => ({ level: e.level, role_id: e.role_id as string }))
           }
         },
         create: {
-          slug: recipe.slug,
+          slug: KeyString.cast(recipe.slug),
           definition: recipe.definition,
-          template_id: recipe.templateId,
+          template_id: IdString.cast(recipe.templateId),
           plugins: recipe.plugins,
+          compiledAt,
           recipe_bags: {
             create: recipe.compiledBags.map(e => ({
-              bag_id: e.bagId,
+              bag: { connect: { name: KeyString.cast(e.bagName) } },
               is_writable: e.isWritable,
               prefix: e.prefix,
               priority: e.priority,
             })),
           },
           permissions: {
-            create: recipe.permissions.map(e => ({
-              level: e.level,
-              role_id: e.role_id,
-            }))
+            create: recipe.permissions.map(e => ({ level: e.level, role_id: e.role_id as string }))
           }
         },
-        include: {
-          recipe_bags: true,
-          permissions: true,
+        select: {
+          id: true,
+          _count: { select: { permissions: true, recipe_bags: true } },
         }
       });
     }
-    const results: ART<typeof upserter>[] = [];
+    const results: [string, Date][] = [];
     for (const recipe of recipes) {
-      const row = await upserter(recipe);
+      const compiledAt = new Date();
+      const row = await upserter(recipe, compiledAt);
       // if either of these ever throws, it is very likely because 
-      // having deleteMany and create in the same nested operation is undefined behavior.
-      for (let i = 0; i < recipe.permissions.length; i++) {
-        if (row.permissions[i].role_id !== recipe.permissions[i].role_id)
-          throw new Error("Data partially saved but permissions did not save properly");
-      }
-      for (let i = 0; i < recipe.compiledBags.length; i++) {
-        if (row.recipe_bags[i].bag_id !== recipe.compiledBags[i].bagId)
-          throw new Error("Data partially saved but compiledBags did not save properly");
-      }
-      results.push(row);
+      // having deleteMany and create in the same nested operation 
+      // is undocumented but appears to work.
+      if (recipe.permissions.length !== row._count.permissions)
+        throw new Error("Permissions length did not match");
+      if (recipe.compiledBags.length !== row._count.recipe_bags)
+        throw new Error("Compiled bags length did not match");
+      results.push([row.id, compiledAt]);
     }
-    this.logRecipes(results);
+
     return results;
 
   }
   // #region COMPILE
-  async compileRecipeSimpleV1(
+  compileRecipeSimpleV1(
     recipeDefinition: RecipeDefinition,
     templateDefinition: TemplateDefinition
-  ): Promise<{ bags: CompiledRecipeBagInput[], plugins: string[] }> {
+  ): { bags: CompiledRecipeBagInput[], plugins: string[] } {
     // Set takes the order of first appearance.
     const plugins = Array.from(new Set([
       ...recipeDefinition.plugins,
@@ -401,35 +417,21 @@ export class RecipeImportWriter extends PerClassImportWriter<"recipe"> {
       .sort(([a], [b]) => b.length - a.length)
       .map(([prefix, bagName]) => ({ prefix, bagName }));
 
-    const bagLookup = new Map((await this.tx.bag.findMany({
-      where: {
-        name: {
-          in: [
-            ...readonlyBags,
-            ...writablePrefixBags.map(e => e.bagName)]
-        }
-      }
-    })).map(e => [e.name, e]));
-
-    const missingWritableBags = writablePrefixBags.filter(e => !bagLookup.has(e.bagName));
-    const missingReadonlyBags = readonlyBags.filter(e => !bagLookup.has(e));
-
-    if (missingWritableBags.length || missingReadonlyBags.length)
-      throw new Error("Some bag names could not be found: " + JSON.stringify([...missingWritableBags, ...missingReadonlyBags]))
-
     return {
       plugins,
       bags: [
         ...writablePrefixBags
           .map((e, i) => ({
-            bagId: bagLookup.get(e.bagName)!.id,
+            // bagId: bagLookup.get(e.bagName)!.id,
+            bagName: e.bagName,
             isWritable: true,
             priority: i,
             prefix: e.prefix,
           } satisfies CompiledRecipeBagInput)),
         ...readonlyBags
           .map((e, i) => ({
-            bagId: bagLookup.get(e)!.id,
+            // bagId: bagLookup.get(e)!.id,
+            bagName: e,
             isWritable: false,
             priority: i + writablePrefixBags.length,
             prefix: "",
@@ -438,16 +440,10 @@ export class RecipeImportWriter extends PerClassImportWriter<"recipe"> {
     }
   }
 
-  // #region OTHER
 
 
-  private logRecipes(recipeRows: ImportedRecipeRows) {
-    recipeRows.forEach((recipe) => {
-      console.log(`/wiki/${recipe.slug}`);
-    });
-  }
 }
-
+// #region OTHER
 
 export function importRoles(prisma: PrismaEngineClient, roles: UpsertRoleInput[], initStore = false) {
   return prisma.$transaction(async (tx) => {
@@ -485,11 +481,11 @@ export function importRecipes(prisma: PrismaEngineClient, recipes: UpsertRecipeI
 }
 
 export function toMappingRows(obj: Record<string, string>) {
-  return Object.entries(obj).map(([left, right]) => ({ left, right }));
+  return Object.entries(obj).map(([prefix, bagName]) => ({ prefix, bagName }));
 }
 
-export function toMappingObject(rows: readonly { left: string; right: string }[]) {
-  return Object.fromEntries(rows.map(({ left, right }) => [left, right]));
+export function toMappingObject(rows: readonly { prefix: string; bagName: KeyString }[]) {
+  return Object.fromEntries(rows.map(({ prefix, bagName }) => [prefix, bagName]));
 }
 
 function uniqueStrings(values: string[]) {
@@ -497,6 +493,6 @@ function uniqueStrings(values: string[]) {
 }
 
 
-function recordKeyMapper(map: Map<string, string>, table: TabId): (key: string) => string {
-  return key => map.get(key) ?? thrower(new SendError("RECORD_KEY_NOT_FOUND", 400, { table, name: key }))
+function recordKeyMapper<K extends String, T>(map: Map<K, T>, table: TabId): (key: K) => T {
+  return key => map.get(key) ?? thrower(new SendError("RECORD_KEY_NOT_FOUND", 400, { table, name: key.toString() }))
 }

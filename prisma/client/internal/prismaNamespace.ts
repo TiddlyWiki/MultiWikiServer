@@ -389,6 +389,7 @@ export const ModelName = {
   Tiddler: 'Tiddler',
   TiddlerEvent: 'TiddlerEvent',
   Template: 'Template',
+  TemplatePermission: 'TemplatePermission',
   Recipe: 'Recipe',
   RecipePermission: 'RecipePermission',
   RecipeBag: 'RecipeBag',
@@ -411,7 +412,7 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
     omit: GlobalOmitOptions
   }
   meta: {
-    modelProps: "bag" | "bagPermission" | "tiddler" | "tiddlerEvent" | "template" | "recipe" | "recipePermission" | "recipeBag" | "settings" | "roles" | "users" | "sessions"
+    modelProps: "bag" | "bagPermission" | "tiddler" | "tiddlerEvent" | "template" | "templatePermission" | "recipe" | "recipePermission" | "recipeBag" | "settings" | "roles" | "users" | "sessions"
     txIsolationLevel: TransactionIsolationLevel
   }
   model: {
@@ -782,6 +783,80 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
         count: {
           args: Prisma.TemplateCountArgs<ExtArgs>
           result: runtime.Types.Utils.Optional<Prisma.TemplateCountAggregateOutputType> | number
+        }
+      }
+    }
+    TemplatePermission: {
+      payload: Prisma.$TemplatePermissionPayload<ExtArgs>
+      fields: Prisma.TemplatePermissionFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.TemplatePermissionFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$TemplatePermissionPayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.TemplatePermissionFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$TemplatePermissionPayload>
+        }
+        findFirst: {
+          args: Prisma.TemplatePermissionFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$TemplatePermissionPayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.TemplatePermissionFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$TemplatePermissionPayload>
+        }
+        findMany: {
+          args: Prisma.TemplatePermissionFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$TemplatePermissionPayload>[]
+        }
+        create: {
+          args: Prisma.TemplatePermissionCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$TemplatePermissionPayload>
+        }
+        createMany: {
+          args: Prisma.TemplatePermissionCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.TemplatePermissionCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$TemplatePermissionPayload>[]
+        }
+        delete: {
+          args: Prisma.TemplatePermissionDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$TemplatePermissionPayload>
+        }
+        update: {
+          args: Prisma.TemplatePermissionUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$TemplatePermissionPayload>
+        }
+        deleteMany: {
+          args: Prisma.TemplatePermissionDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.TemplatePermissionUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.TemplatePermissionUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$TemplatePermissionPayload>[]
+        }
+        upsert: {
+          args: Prisma.TemplatePermissionUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$TemplatePermissionPayload>
+        }
+        aggregate: {
+          args: Prisma.TemplatePermissionAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateTemplatePermission>
+        }
+        groupBy: {
+          args: Prisma.TemplatePermissionGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.TemplatePermissionGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.TemplatePermissionCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.TemplatePermissionCountAggregateOutputType> | number
         }
       }
     }
@@ -1342,6 +1417,8 @@ export type TransactionIsolationLevel = (typeof TransactionIsolationLevel)[keyof
 export const BagScalarFieldEnum = {
   id: 'id',
   name: 'name',
+  created: 'created',
+  updated: 'updated',
   description: 'description'
 } as const
 
@@ -1360,6 +1437,8 @@ export type BagPermissionScalarFieldEnum = (typeof BagPermissionScalarFieldEnum)
 export const TiddlerScalarFieldEnum = {
   bag_id: 'bag_id',
   title: 'title',
+  created: 'created',
+  updated: 'updated',
   revision: 'revision',
   fields: 'fields'
 } as const
@@ -1380,6 +1459,8 @@ export type TiddlerEventScalarFieldEnum = (typeof TiddlerEventScalarFieldEnum)[k
 export const TemplateScalarFieldEnum = {
   id: 'id',
   name: 'name',
+  created: 'created',
+  updated: 'updated',
   type: 'type',
   definition: 'definition'
 } as const
@@ -1387,12 +1468,24 @@ export const TemplateScalarFieldEnum = {
 export type TemplateScalarFieldEnum = (typeof TemplateScalarFieldEnum)[keyof typeof TemplateScalarFieldEnum]
 
 
+export const TemplatePermissionScalarFieldEnum = {
+  template_id: 'template_id',
+  role_id: 'role_id',
+  level: 'level'
+} as const
+
+export type TemplatePermissionScalarFieldEnum = (typeof TemplatePermissionScalarFieldEnum)[keyof typeof TemplatePermissionScalarFieldEnum]
+
+
 export const RecipeScalarFieldEnum = {
   id: 'id',
   slug: 'slug',
+  created: 'created',
+  updated: 'updated',
   template_id: 'template_id',
   definition: 'definition',
-  plugins: 'plugins'
+  plugins: 'plugins',
+  compiledAt: 'compiledAt'
 } as const
 
 export type RecipeScalarFieldEnum = (typeof RecipeScalarFieldEnum)[keyof typeof RecipeScalarFieldEnum]
@@ -1420,7 +1513,8 @@ export type RecipeBagScalarFieldEnum = (typeof RecipeBagScalarFieldEnum)[keyof t
 
 export const SettingsScalarFieldEnum = {
   key: 'key',
-  value: 'value'
+  value: 'value',
+  updated: 'updated'
 } as const
 
 export type SettingsScalarFieldEnum = (typeof SettingsScalarFieldEnum)[keyof typeof SettingsScalarFieldEnum]
@@ -1512,6 +1606,13 @@ export type StringFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 
 
 
 /**
+ * Reference to a field of type 'DateTime'
+ */
+export type DateTimeFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'DateTime'>
+    
+
+
+/**
  * Reference to a field of type 'BagPermissionLevel'
  */
 export type EnumBagPermissionLevelFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'BagPermissionLevel'>
@@ -1554,6 +1655,13 @@ export type EnumTiddlerEventTypeFieldRefInput<$PrismaModel> = FieldRefInputType<
 
 
 /**
+ * Reference to a field of type 'TemplatePermissionLevel'
+ */
+export type EnumTemplatePermissionLevelFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'TemplatePermissionLevel'>
+    
+
+
+/**
  * Reference to a field of type 'RecipePermissionLevel'
  */
 export type EnumRecipePermissionLevelFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'RecipePermissionLevel'>
@@ -1564,13 +1672,6 @@ export type EnumRecipePermissionLevelFieldRefInput<$PrismaModel> = FieldRefInput
  * Reference to a field of type 'Boolean'
  */
 export type BooleanFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'Boolean'>
-    
-
-
-/**
- * Reference to a field of type 'DateTime'
- */
-export type DateTimeFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'DateTime'>
     
 
 
@@ -1680,6 +1781,7 @@ export type GlobalOmitConfig = {
   tiddler?: Prisma.TiddlerOmit
   tiddlerEvent?: Prisma.TiddlerEventOmit
   template?: Prisma.TemplateOmit
+  templatePermission?: Prisma.TemplatePermissionOmit
   recipe?: Prisma.RecipeOmit
   recipePermission?: Prisma.RecipePermissionOmit
   recipeBag?: Prisma.RecipeBagOmit

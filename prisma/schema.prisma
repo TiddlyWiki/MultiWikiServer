@@ -19,6 +19,8 @@ generator json {
 model Bag {
   id             String          @id @default(uuid(7))
   name           String          @unique
+  created        DateTime        @default(now())
+  updated        DateTime        @updatedAt
   description    String
   permissions    BagPermission[]
   tiddlers       Tiddler[]
@@ -43,11 +45,13 @@ model BagPermission {
 model Tiddler {
   bag_id   String
   title    String
-  revision BigInt @default(0)
+  created  DateTime @default(now())
+  updated  DateTime @updatedAt
+  revision BigInt   @default(0)
   // partition_key String @default("")
   /// [Tiddler_fields]
   fields   Json
-  bag      Bag    @relation(fields: [bag_id], references: [id], onDelete: Cascade)
+  bag      Bag      @relation(fields: [bag_id], references: [id], onDelete: Cascade)
 
   @@id([bag_id, title])
   @@index([title])
@@ -72,20 +76,35 @@ enum TiddlerEventType {
 }
 
 model Template {
-  id         String   @id @default(uuid(7))
-  name       String   @unique
+  id          String               @id @default(uuid(7))
+  name        String               @unique
+  created     DateTime             @default(now())
+  updated     DateTime             @updatedAt
   /// [Template_type]
-  type       String
+  type        String
   /// [Template_definition]
-  definition Json
-  recipes    Recipe[]
+  definition  Json
+  recipes     Recipe[]
+  permissions TemplatePermission[]
 
   @@map("template")
+}
+
+model TemplatePermission {
+  template_id String
+  role_id     String
+  level       TemplatePermissionLevel
+  template    Template                @relation(fields: [template_id], references: [id], onDelete: Cascade)
+
+  @@id([template_id, role_id])
+  @@map("template_permission")
 }
 
 model Recipe {
   id          String             @id @default(uuid(7))
   slug        String             @unique
+  created     DateTime           @default(now())
+  updated     DateTime           @updatedAt
   template_id String
   /// [Recipe_definition]
   definition  Json
@@ -94,6 +113,7 @@ model Recipe {
   permissions RecipePermission[]
   /// [Recipe_plugins]
   plugins     Json
+  compiledAt  DateTime
 
   @@map("recipe")
 }
@@ -122,8 +142,9 @@ model RecipeBag {
 }
 
 model Settings {
-  key   String @id
-  value String
+  key     String   @id
+  value   String
+  updated DateTime @updatedAt
 
   @@map("settings")
 }
@@ -177,6 +198,11 @@ enum BagPermissionLevel {
 }
 
 enum RecipePermissionLevel {
+  A_read
+  B_write
+}
+
+enum TemplatePermissionLevel {
   A_read
   B_write
 }
