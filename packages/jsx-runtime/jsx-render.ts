@@ -224,7 +224,9 @@ function updateChildren(
       } else if (newChildDef === null || newChildDef === undefined || newChildDef === false) {
         newChildNode = "";
       } else {
-        newChildNode = `${newChildDef} `;
+
+        // 2026-07-22: Removed the trailing space that somehow crept in
+        newChildNode = String(newChildDef);
       }
       newChildNodes[i] = newChildNode;
     }

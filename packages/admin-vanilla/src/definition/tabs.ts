@@ -169,10 +169,10 @@ const tabs = {
         { title: "Access", description: "Control who can access the wiki surface itself. Bag access is handled separately on the participating bags.", keys: ["recipePermissions"], width: fullWidth },
       ],
       runtime: [
-        { title: "Computed Write Prefix", description: "", keys: ["effectiveWritableBags"], width: fullWidth },
-        { title: "Computed Bag Order", description: "", keys: ["effectiveReadonlyBags"], width: halfWidth },
-        { title: "Computed Plugin Set", description: "", keys: ["effectivePluginSet"], width: halfWidth },
-        { title: "Compilation status", description: "Validation and compilation outcome for the current authored state.", keys: ["compileValidation"], width: fullWidth },
+        // { title: "Computed Write Prefix", description: "", keys: ["effectiveWritableBags"], width: fullWidth },
+        // { title: "Computed Bag Order", description: "", keys: ["effectiveReadonlyBags"], width: halfWidth },
+        // { title: "Computed Plugin Set", description: "", keys: ["effectivePluginSet"], width: halfWidth },
+        // { title: "Compilation status", description: "Validation and compilation outcome for the current authored state.", keys: ["compileValidation"], width: fullWidth },
       ],
       operations: [
         {
@@ -187,6 +187,7 @@ const tabs = {
       "displayName",
       "slug",
       "templateName",
+      "effectiveWritableBags",
       "effectiveReadonlyBags",
       "effectivePluginSet",
     ]
@@ -500,7 +501,7 @@ export function getSectionHeading(section: FieldSection, mode: "create" | "edit"
     };
     case "operations": return {
       title: "Operations and diagnostics",
-      copy: "These controls run checks or actions against the current record instead of defining stored configuration.",
+      copy: "",
     };
     default: throw new Error("Section heading not implemented for " + section);
   }
@@ -668,13 +669,15 @@ export interface KeyValueRow {
 
 export class IdString extends String {
   static cast(val: IdString): string { return val.toString(); }
+  static prefix = "IdString____";
   name = "IdString" as const;
   constructor(value: string) { super(value); }
-  toJSON() { return this.valueOf(); }
+  toJSON() { return IdString.prefix + this.valueOf(); }
 }
 export class KeyString extends String {
   static cast(val: KeyString): string { return val.toString(); }
+  static prefix = "KeyString____";
   name = "KeyString" as const;
   constructor(value: string) { super(value); }
-  toJSON() { return this.valueOf(); }
+  toJSON() { return KeyString.prefix + this.valueOf(); }
 }

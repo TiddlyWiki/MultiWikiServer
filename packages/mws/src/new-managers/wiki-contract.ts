@@ -1,6 +1,6 @@
 import { BagPermissionLevel, RecipePermissionLevel, TemplatePermissionLevel } from "@tiddlywiki/mws-prisma";
-import { RecipeDefinition, TemplateDefinition } from "./tab-routes";
-import { IdString, KeyString, PermissionRow } from "@mws/admin-vanilla/src/definition/tabs";
+import { RecipeDefinition, TemplateDefinition } from "./TabDataAdapter";
+import { DataStore, IdString, KeyString, PermissionRow, TemplateTypes, WritablePrefixRow } from "@mws/admin-vanilla/src/definition/tabs";
 
 export interface UpsertRoleInput {
   name: KeyString;
@@ -53,4 +53,80 @@ export interface UpsertTemplateInput {
   name: KeyString;
   definition: TemplateDefinition;
   permissions: PermissionInput<TemplatePermissionLevel>[];
+}
+
+
+
+type IWikiRow = DataStore["wikis"][number];
+type ITemplateRow = DataStore["templates"][number];
+type IBagRow = DataStore["bags"][number];
+type IPluginRow = DataStore["plugins"][number];
+type IUserRow = DataStore["users"][number];
+type IRoleRow = DataStore["roles"][number];
+
+
+
+abstract class WikiRow implements IWikiRow {
+  abstract id: IdString;
+  abstract slug: KeyString;
+  abstract displayName: string;
+  abstract description: string;
+  abstract templateName: KeyString | null;
+  abstract lastCompiledAt: string;
+  abstract writablePrefixBags: readonly WritablePrefixRow[];
+  abstract readonlyBags: readonly KeyString[];
+  abstract plugins: readonly string[];
+  abstract effectiveWritableBags: readonly WritablePrefixRow[];
+  abstract effectiveReadonlyBags: readonly KeyString[];
+  abstract effectivePluginSet: readonly string[];
+  abstract recipePermissions: readonly PermissionRow<RecipePermissionLevel>[];
+}
+
+
+abstract class TemplateRow implements ITemplateRow {
+  abstract id: IdString;
+  abstract type: TemplateTypes;
+  abstract name: KeyString;
+  abstract description: string;
+  abstract plugins: readonly string[];
+  abstract readonlyBags: readonly KeyString[];
+  abstract writablePrefixBags: readonly WritablePrefixRow[];
+  abstract lastUpdatedAt: string;
+  abstract requiredPluginsEnabled: boolean;
+  abstract templatePermissions: readonly PermissionRow<RecipePermissionLevel>[];
+  abstract customHtmlEnabled: boolean;
+  abstract htmlContent: string;
+  abstract injectionArray: string;
+  abstract injectionLocation: string;
+  abstract dependentWikis: string;
+
+}
+
+abstract class BagRow implements IBagRow {
+  abstract id: IdString;
+  abstract name: KeyString;
+  abstract description: string;
+  abstract permissions: readonly PermissionRow<BagPermissionLevel>[];
+}
+
+abstract class PluginRow implements IPluginRow {
+  abstract id: IdString;
+  abstract name: KeyString;
+  abstract description: string;
+  abstract pluginPath: string;
+}
+
+abstract class RoleRow implements IRoleRow {
+  abstract id: IdString;
+  abstract description: string;
+  abstract name: KeyString;
+
+}
+
+abstract class UserRow implements IUserRow {
+  abstract id: IdString;
+  abstract username: KeyString;
+  abstract email: string;
+  abstract userRoles: readonly string[];
+  abstract password: string;
 }

@@ -1,5 +1,5 @@
 import { SendErrorItem } from "@tiddlywiki/server";
-import { TabId } from "./new-managers/tab-routes";
+import { TabId } from "./new-managers/TabDataAdapter";
 declare module "@tiddlywiki/server" {
   interface SendErrorReasonData {
     "RECIPE_NOT_FOUND":

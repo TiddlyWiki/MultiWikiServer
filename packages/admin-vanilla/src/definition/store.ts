@@ -8,17 +8,17 @@ export class InMemoryAdminStorage implements AdminStorage {
     private deriveItems: (data: DataStore) => AdminRecordStore
   ) {
   }
-
+  jsonReviver = (key: any, val: any) => {
+    if (typeof val === "string" && val.startsWith(IdString.prefix))
+      return new IdString(val.slice(IdString.prefix.length));
+    if (typeof val === "string" && val.startsWith(KeyString.prefix))
+      return new KeyString(val.slice(KeyString.prefix.length));
+    return val;
+  };
   public async loadAll(): Promise<AdminRecordStore> {
     const data = await (await fetch(pathPrefix + "/admin/load")).text();
 
-    this.data = JSON.parse(data, (key, val) => {
-      if (typeof val === "string" && val.startsWith("IdString____"))
-        return new IdString(val.slice("IdString____".length));
-      if (typeof val === "string" && val.startsWith("KeyString____"))
-        return new KeyString(val.slice("KeyString____".length));
-      return val;
-    });
+    this.data = JSON.parse(data, this.jsonReviver);
     return this.deriveItems(this.data);
   }
   private wait(ms: number): Promise<void> {
@@ -42,10 +42,12 @@ export class InMemoryAdminStorage implements AdminStorage {
       body: JSON.stringify(prunedRecord),
     });
 
+    const text = await response.text();
+
     if (response.status !== 200) {
-      throw new Error(await response.text());
+      throw new Error(text);
     } else {
-      const storedRecord = await response.json();
+      const storedRecord = JSON.parse(text, this.jsonReviver);
       console.log(storedRecord, prunedRecord);
       if (id) {
         if (storedRecord.id !== id) location.reload();

@@ -120,8 +120,8 @@ interface SidebarSectionProps {
 
 interface ToggleFieldProps {
   field: FieldDefinition;
-  value: unknown;
-  onDraftChange: DraftChangeHandler;
+  value: boolean;
+  onDraftChange: DraftChangeHandler<boolean>;
   headerOnly?: boolean;
 }
 
@@ -324,8 +324,10 @@ function formatStorageErrorForDisplay(storageError: string): string {
 
 
 function formatFieldValue(value: any): string {
-  if (typeof value === "string")
-    return value && value.trim() ? value : "—";
+  if (typeof value === "string"
+    || value instanceof IdString
+    || value instanceof KeyString)
+    return value.trim() || "—";
   if (Array.isArray(value)) {
     if (!value.length) return "—";
     if (typeof value[0] === "string")
@@ -462,18 +464,22 @@ function renderMetadataTableField(ctx: ReadonlyFieldContext<readonly string[]>) 
 function renderTableField(ctx: ReadonlyFieldContext) {
   const { field, value, itemsByTab } = ctx;
   definitely<readonly string[]>(value);
+  return renderLinesList(value, field.key, itemsByTab)
+}
+
+function renderLinesList(value: readonly string[], key: string, itemsByTab?: AdminRecordStore) {
   const missingCheck =
     itemsByTab ?
-      field.key === "effectiveReadonlyBags" ? new Set(Array.from(itemsByTab.availableBagNames, e => e.toString())) :
-        field.key === "effectivePluginSet" ? itemsByTab.availablePluginNames :
+      key === "effectiveReadonlyBags" ? new Set(Array.from(itemsByTab.availableBagNames, e => e.toString())) :
+        key === "effectivePluginSet" ? itemsByTab.availablePluginNames :
           null : null;
   const lines = value.map(line => ({ line, missing: missingCheck && !missingCheck.has(line), }));
   return <ul class="value-list">{lines.map(({ line, missing }) => <li>
-    {line}
+    {line.split("/").map((e, i, a) => <>{e}{(i !== a.length - 1) ? "/" : ""}<wbr/></>)}
     {missing ? <span class="missing-marker" aria-label="Missing dependency" title="Missing dependency"><MaterialSymbol icon={warningIcon} /></span> : null}
   </li>)}</ul>;
-}
 
+}
 function renderCalloutField(ctx: ReadonlyFieldContext) {
   definitely<string>(ctx.value);
   return <div class="field-callout"><p>{formatFieldValue(ctx.value)}</p></div>;
@@ -727,6 +733,7 @@ class PermissionTableFieldHandler extends FieldTypeHandler<readonly PermissionRo
   }
 }
 
+const defaultPrefixPill = <div class="prefix-bag-sidebar-pill">default</div>;
 class PrefixTableFieldHandler extends FieldTypeHandler<WritablePrefixRow[]> {
   constructor() {
     super();
@@ -734,6 +741,15 @@ class PrefixTableFieldHandler extends FieldTypeHandler<WritablePrefixRow[]> {
 
   public initCreate(): WritablePrefixRow[] {
     return [];
+  }
+
+  public override renderSidebar(ctx: ReadonlyFieldContext<WritablePrefixRow[]>): JSX.Node {
+    return <dl class="prefix-bag-sidebar">
+      {ctx.value.map(e => <>
+        <dt class="prefix-bag-sidebar-term">{e.prefix ? <span class="prefix-bag-sidebar-prefix">"{e.prefix}"</span> : defaultPrefixPill}</dt>
+        <dd class="prefix-bag-sidebar-value">{e.bagName.toString()}</dd>
+      </>)}
+    </dl>
   }
 
   public override renderEditor(ctx: FieldEditorContext) {
@@ -820,7 +836,7 @@ class PrefixTableFieldHandler extends FieldTypeHandler<WritablePrefixRow[]> {
     return <table class="value-table">
       {displayedMappingRows.map((row) => (
         <tr>
-          <td>{row.prefix ? <code>{'"' + row.prefix + '"'}</code> : <span class="pill-value pill-value-small">default</span>}</td>
+          <td>{row.prefix ? <code>{'"' + row.prefix + '"'}</code> : defaultPrefixPill}</td>
           <td>{row.bagName.toString()}</td>
         </tr>
       ))}
@@ -953,7 +969,7 @@ class ValueListFieldHandler extends FieldTypeHandler<string[]> {
     const lines = typeof ctx.value === "string"
       ? lineListCodec.parse(ctx.value)
       : ctx.value as readonly string[];
-    return <ul class="value-list">{lines.map((line) => <li>{line}</li>)}</ul>;
+    return renderLinesList(lines, ctx.field.key, ctx.itemsByTab);
   }
 
   public override renderEditor(ctx: FieldEditorContext) {
@@ -1064,6 +1080,7 @@ class FallbackFieldHandler extends StringFieldTypeHandler {
   }
 }
 
+
 const textInputFieldHandler = new TextInputFieldHandler("text");
 const numberInputFieldHandler = new TextInputFieldHandler("number");
 const textareaFieldHandler = new TextareaFieldHandler(4);
@@ -1116,7 +1133,7 @@ function renderFieldEditor(input: FieldEditorInput) {
 }
 
 @customElement("mws-field-block")
-class FieldBlockElement extends JSXElement {
+class FieldBlockElement<T> extends JSXElement {
   useLightDOM: boolean = true;
 
   @state() accessor props!: FieldBlockProps;
@@ -1136,6 +1153,7 @@ class FieldBlockElement extends JSXElement {
 ) : null} */}
 
         {useToggleEditor ? (
+          definitely<boolean>(value),
           <ToggleFieldElement field={field} value={value} onDraftChange={this.props.onDraftChange} />
         ) : (
           <div class="field-editor">
@@ -1196,7 +1214,7 @@ class ToggleFieldElement extends JSXElement {
 
   protected render() {
     const { field, value, onDraftChange, headerOnly } = this.props;
-    const checked = value === "enabled";
+    const checked = value === true;
 
     return (
       <div class="toggle-field-row">
@@ -1215,7 +1233,7 @@ class ToggleFieldElement extends JSXElement {
             ref={(element) => {
               if (element.checked !== checked) element.checked = checked;
             }}
-            onchange={(event) => onDraftChange(field.key, (event.currentTarget as HTMLInputElement).checked ? "enabled" : "disabled")}
+            onchange={(event) => onDraftChange(field.key, (event.currentTarget as HTMLInputElement).checked)}
           />
           <span class={checked ? "header-switch-track is-checked" : "header-switch-track"} aria-hidden="true">
             <span class="header-switch-thumb"></span>
@@ -1262,14 +1280,14 @@ class RecordModalElement extends JSXElement {
       }}>
         <section class="modal-card" role="dialog" aria-modal="true" aria-label={`${selectedTab.label} details`}>
           <header class="modal-header">
-            <div>
+            <div class="modal-title">
               <p class="eyebrow">{selectedTab.eyebrow}</p>
               <h3>{isModalLoading ? `Loading ${selectedTab.label.slice(0, -1).toLowerCase()}...` : modalState.mode === "create" ? `New ${selectedTab.label.slice(0, -1)}` : getPrimaryValue(selectedTab, modalState.draft)}</h3>
               <p>{isModalLoading ? "Fetching record details from async storage before rendering the form." : selectedTab.description}</p>
             </div>
-            <button class="close-button" type="button" onclick={onClose} aria-label="Close details">
+            <div class="close-button" onclick={onClose} aria-label="Close details">
               <MaterialSymbol icon={closeIcon} />
-            </button>
+            </div>
           </header>
 
           {isModalLoading ? (

@@ -89,7 +89,7 @@ abstract class TabDataAdapter<TAB extends TabId> {
   // roles aren't connected to data tables so they can be swapped out for SSO
   abstract getList(prisma: PrismaTxnClient, roles: (key: IdString) => KeyString): Promise<DataStore[TAB]>;
 }
-// #region Recipe Adapter
+// #region Recipe
 export class RecipeDataAdapter extends TabDataAdapter<"wikis"> {
 
   async saveRow(prisma: PrismaTxnClient, data: DataSave["wikis"][number]): Promise<DataStore["wikis"][number]> {
@@ -231,14 +231,14 @@ export class RecipeDataAdapter extends TabDataAdapter<"wikis"> {
 
 }
 
-// #region Template Adapter
+// #region Template
 
 export class TemplateDataAdapter extends TabDataAdapter<"templates"> {
   async saveRow(prisma: PrismaTxnClient, data: DataSave["templates"][number]): Promise<DataStore["templates"][number]> {
     const importer = new TemplateImportWriter(prisma, false);
     await importer.checkExisting(data.id, data.name);
     // roles aren't connected to data tables so they can be swapped out for SSO
-    const roles = await new RoleImportWriter(prisma, false).getIdMapper();
+    const roleIds = await getRolesMapper(prisma, data.templatePermissions.map((row) => row.role));
     const template: UpsertTemplateInput = {
       name: data.name,
       definition: {
@@ -253,7 +253,7 @@ export class TemplateDataAdapter extends TabDataAdapter<"templates"> {
         injectionArray: data.injectionArray,
         injectionLocation: data.injectionLocation,
       },
-      permissions: data.templatePermissions.map(e => ({ level: e.level, role_id: roles(e.role), })),
+      permissions: data.templatePermissions.map(e => ({ level: e.level, role_id: roleIds(e.role), })),
     };
 
     const [{ id: template_id, updated }] = await importer.upsert([template]);
@@ -264,6 +264,7 @@ export class TemplateDataAdapter extends TabDataAdapter<"templates"> {
     });
 
     const importerRecipe = new RecipeImportWriter(prisma, false);
+    const roleNames = await new RoleImportWriter(prisma, false).getIdMapper();
 
     for (const recipe of recipes) {
       const compiled = importerRecipe.compileRecipeSimpleV1(
@@ -272,27 +273,27 @@ export class TemplateDataAdapter extends TabDataAdapter<"templates"> {
       );
 
       await importerRecipe.upsert([{
-        slug: recipe.slug,
-        templateId: template_id,
+        slug: new KeyString(recipe.slug),
+        templateId: new IdString(template_id),
         compiledBags: compiled.bags,
         plugins: compiled.plugins,
         definition: recipe.definition,
         permissions: recipe.permissions.map(row => ({
           level: row.level,
-          role_id: row.role_id,
+          role_id: new IdString(row.role_id),
         })),
       }]);
     }
 
     return {
       ...template.definition,
-      id: template_id,
+      id: new IdString(template_id),
       name: data.name,
       type: "simpleV1",
       lastUpdatedAt: updated.toISOString(),
       templatePermissions: template.permissions.map(e => ({
         level: e.level,
-        role: roles(e.role_id),
+        role: roleNames(e.role_id),
       })),
     };
   }
@@ -324,20 +325,20 @@ export class TemplateDataAdapter extends TabDataAdapter<"templates"> {
     return templates.map((template): ITemplateRow => {
       return {
         ...template.definition,
-        id: template.id,
-        name: template.name,
+        id: new IdString(template.id),
+        name: new KeyString(template.name),
         type: "simpleV1",
         lastUpdatedAt: template.updated.toISOString(),
         templatePermissions: template.permissions.map(e => ({
           level: e.level,
-          role: roles(e.role_id),
+          role: roles(new IdString(e.role_id)),
         })),
       };
     });
   }
 }
 
-// #region saveBag
+// #region Bag
 
 export class BagDataAdapter extends TabDataAdapter<"bags"> {
 
@@ -357,7 +358,7 @@ export class BagDataAdapter extends TabDataAdapter<"bags"> {
     }]);
 
     return {
-      id: bag.id,
+      id: new IdString(bag.id),
       name: data.name,
       description: data.description,
       permissions: data.permissions,
@@ -380,11 +381,11 @@ export class BagDataAdapter extends TabDataAdapter<"bags"> {
     });
 
     return bags.map((bag) => ({
-      id: bag.id,
-      name: bag.name,
+      id: new IdString(bag.id),
+      name: new KeyString(bag.name),
       description: bag.description,
       permissions: bag.permissions.map((row) => ({
-        role: roles(row.role_id),
+        role: roles(new IdString(row.role_id)),
         level: row.level,
       })),
     }));
@@ -395,7 +396,7 @@ async function getRolesMapper(prisma: PrismaTxnClient, roles: readonly KeyString
   return await new RoleImportWriter(prisma, false).getNameMapper(roles);
 }
 
-// #region saveRole
+// #region Role
 
 export class RoleDataAdapter extends TabDataAdapter<"roles"> {
   async saveRow(prisma: PrismaTxnClient, data: DataSave["roles"][number]): Promise<DataStore["roles"][number]> {
@@ -408,8 +409,8 @@ export class RoleDataAdapter extends TabDataAdapter<"roles"> {
     }]);
 
     return {
-      id: role.role_id,
-      name: role.role_name,
+      id: new IdString(role.role_id),
+      name: new KeyString(role.role_name),
       description: role.description ?? "",
     }
   }
@@ -423,23 +424,24 @@ export class RoleDataAdapter extends TabDataAdapter<"roles"> {
       },
     });
     return roles.map((role) => ({
-      id: role.role_id,
-      name: role.role_name,
+      id: new IdString(role.role_id),
+      name: new KeyString(role.role_name),
       description: role.description ?? "",
     }));
 
   }
 }
 
-// #region saveUser
+// #region User
 export class UserDataAdapter extends TabDataAdapter<"users"> {
   async saveRow(prisma: PrismaTxnClient, data: DataSave["users"][number]): Promise<DataStore["users"][number]> {
 
     const importer = new UserImportWriter(prisma, false);
     await importer.checkExisting(data.id, data.username);
 
-    const rolesMapper = await getRolesMapper(prisma, data.userRoles);
-    const roleLinks = data.userRoles.map(e => rolesMapper(e));
+    const normalizedUserRoles = normalizeLineList(data.userRoles).map((role) => new KeyString(role));
+    const rolesMapper = await getRolesMapper(prisma, normalizedUserRoles);
+    const roleLinks = normalizedUserRoles.map(e => rolesMapper(e));
 
     const [user] = await importer.upsert([{
       username: data.username,
@@ -448,10 +450,10 @@ export class UserDataAdapter extends TabDataAdapter<"users"> {
     }])
 
     return {
-      id: user.user_id,
-      username: user.username,
+      id: new IdString(user.user_id),
+      username: new KeyString(user.username),
       email: user.email,
-      userRoles: data.userRoles
+      userRoles: normalizedUserRoles.map(KeyString.cast)
     }
   }
   // roles aren't connected to data tables so they can be swapped out for SSO
@@ -472,8 +474,8 @@ export class UserDataAdapter extends TabDataAdapter<"users"> {
       orderBy: { username: "asc" },
     })
     return users.map((user) => ({
-      id: user.user_id,
-      username: user.username,
+      id: new IdString(user.user_id),
+      username: new KeyString(user.username),
       email: user.email,
       userRoles: user.roles.map((role) => role.role_name),
     }));
@@ -493,7 +495,13 @@ export async function doAdminDataOp({ prisma, pluginCache, op, tab, data }: {
   data: any;
 }) {
   if (op !== "save") throw new Error(`Unsupported admin operation: ${op}`);
-
+  data = JSON.parse(JSON.stringify(data), (key: any, val: any) => {
+    if (typeof val === "string" && val.startsWith(IdString.prefix))
+      return new IdString(val.slice(IdString.prefix.length));
+    if (typeof val === "string" && val.startsWith(KeyString.prefix))
+      return new KeyString(val.slice(KeyString.prefix.length));
+    return val;
+  });
   let id: string;
   switch (tab) {
     case "wikis": return await new RecipeDataAdapter().saveRow(prisma, data as IRecipeRow);
@@ -517,8 +525,8 @@ export async function getAdminDataStore(prisma: PrismaTxnClient, pluginCache: Se
     templates: await new TemplateDataAdapter().getList(prisma, roles),
     bags: await new BagDataAdapter().getList(prisma, roles),
     plugins: pluginCache.pluginsList.map(e => ({
-      id: e.title,
-      name: e.title,
+      id: new IdString(e.title),
+      name: new KeyString(e.title),
       description: `${e.name}: ${e.description}`,
       pluginPath: e.path,
     } satisfies IPluginRow)),

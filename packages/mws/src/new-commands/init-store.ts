@@ -2,7 +2,8 @@ import { dist_require_resolve, dist_resolve } from "@tiddlywiki/server";
 import { BaseCommand, CommandInfo } from "@tiddlywiki/commander";
 import { resolve } from "path";
 import { Command as LoadWikiFolderCommand } from "./load-wiki-folder";
-import { RoleImportWriter, TemplateImportWriter, UserImportWriter } from "../new-managers/TabImportWriter";
+import { RoleImportWriter, TemplateImportWriter, UserImportWriter } from "../new-managers";
+import { IdString, KeyString } from "@mws/admin-vanilla/src/definition/tabs";
 
 export const info: CommandInfo = {
 	name: "init-store",
@@ -26,8 +27,8 @@ export class Command extends BaseCommand {
 
 
 			const roles = await new RoleImportWriter(prisma, true).upsert([
-				{ name: "ADMIN", description: "System Administrator" },
-				{ name: "USER", description: "Basic User" },
+				{ name: new KeyString("ADMIN"), description: "System Administrator" },
+				{ name: new KeyString("USER"), description: "Basic User" },
 			]);
 
 			if (!roles[0])
@@ -35,7 +36,7 @@ export class Command extends BaseCommand {
 
 
 			await new TemplateImportWriter(prisma, true).upsert([{
-				name: "Blank Template",
+				name: new KeyString("Blank Template"),
 				definition: {
 					type: "simpleV1",
 					description: "The default template, blank and uneditable.",
@@ -48,12 +49,12 @@ export class Command extends BaseCommand {
 					injectionArray: "",
 					injectionLocation: "",
 				},
-				permissions: [{ level: "B_write", role_id: roles[0].role_id }]
+				permissions: [{ level: "B_write", role_id: new IdString(roles[0].role_id) }]
 			}]);
 
 
 			const [admin] = await new UserImportWriter(prisma, true).upsert([
-				{ username: "admin", email: "", roleIds: [roles[0].role_id] },
+				{ username: new KeyString("admin"), email: "", roleIds: [new IdString(roles[0].role_id)] },
 			]);
 
 			const password = await this.config.PasswordService.PasswordCreation(admin.user_id, "1234");

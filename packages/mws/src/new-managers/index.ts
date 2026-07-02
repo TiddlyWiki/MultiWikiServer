@@ -12,9 +12,15 @@
 import { registerZodRoutes, RouterKeyMap, ServerRequest, truthy, checkPath } from "@tiddlywiki/server";
 import { serverEvents } from "@tiddlywiki/events";
 import { IndexSender, RecipeResolver, } from "./RecipeResolver";
-import { doAdminDataOp, getAdminDataStore, } from "./tab-routes";
+import { doAdminDataOp, getAdminDataStore, } from "./TabDataAdapter";
 import { TabId } from "@mws/admin-vanilla/src/definition/tabs";
 import { RecipeRoutes } from "./RecipeRoutes";
+
+export * from "./RecipeResolver";
+export * from "./TabDataAdapter";
+export * from "./TabImportWriter";
+export * from "./wiki-utils";
+export * from "./wiki-contract";
 
 // #region Routes
 // ---------------------------------------------------------------------------

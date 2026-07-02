@@ -1,5 +1,5 @@
 import { SendError } from "@tiddlywiki/server";
-import { RecipeDefinition, TemplateDefinition } from "./tab-routes";
+import { RecipeDefinition, TemplateDefinition } from "./TabDataAdapter";
 import {
   CompiledRecipeBagInput,
   type UpsertBagInput,
@@ -71,15 +71,15 @@ export abstract class PerClassImportWriter<Modal extends PrismaModalKeys> {
   }
 
   async checkExisting(id: IdString, name: KeyString) {
-    if (id) {
+    if (id.toString()) {
       const existing = await (this.tx[this.modal] as any).findUnique({
-        where: { [this.id]: id },
+        where: { [this.id]: id.toString() },
         select: { [this.id]: true, [this.name]: true }
       });
       if (!existing)
         throw new Error("existing wiki not found");
-      if (existing[this.name] !== name)
-        await this.rename([[existing[this.name], name]]);
+      if (existing[this.name] !== name.toString())
+        await this.rename([[new KeyString(existing[this.name]), name]]);
     }
 
   }
@@ -87,8 +87,8 @@ export abstract class PerClassImportWriter<Modal extends PrismaModalKeys> {
   async rename(renames: [KeyString, KeyString][]) {
     await Promise.all(renames.map(([oldName, newName]) =>
       (this.tx[this.modal] as any).update({
-        where: { [this.name]: oldName },
-        data: { [this.name]: newName }
+        where: { [this.name]: oldName.toString() },
+        data: { [this.name]: newName.toString() }
       })));
   }
   /** Maps names to ids */
@@ -102,18 +102,18 @@ export abstract class PerClassImportWriter<Modal extends PrismaModalKeys> {
 
   getMapperFunc({ ids, names }: { ids?: readonly IdString[], names?: readonly KeyString[] }) {
     return (this.tx[this.modal] as any).findMany({
-      ...(ids ? { where: { [this.id]: { in: Array.from(new Set(ids)) } } } : {}),
-      ...(names ? { where: { [this.name]: { in: Array.from(new Set(names)) } } } : {}),
+      ...(ids ? { where: { [this.id]: { in: Array.from(new Set(ids.map(e => e.toString()))) } } } : {}),
+      ...(names ? { where: { [this.name]: { in: Array.from(new Set(names.map(e => e.toString()))) } } } : {}),
       select: { [this.id]: true, [this.name]: true },
     });
   }
 
   mapRowsToIdKey(rows: any[]) {
-    return recordKeyMapper(new Map(rows.map((row: any) => [row[this.id] as any as IdString, new KeyString(row[this.name])])), this.tabid)
+    return recordKeyMapper(new Map(rows.map((row: any) => [row[this.id], new KeyString(row[this.name])])), this.tabid)
   }
 
   mapRowsToNameKey(rows: any[]) {
-    return recordKeyMapper(new Map(rows.map((row: any) => [row[this.name] as any as KeyString, new IdString(row[this.id])])), this.tabid);
+    return recordKeyMapper(new Map(rows.map((row: any) => [row[this.name], new IdString(row[this.id])])), this.tabid);
   }
 
   abstract upsert(rows: unknown[]): Promise<unknown[]>;
@@ -137,9 +137,9 @@ export class RoleImportWriter extends PerClassImportWriter<"roles"> {
 
   private validateProtectedRoles(roles: UpsertRoleInput[]) {
     if (!this.initStore) {
-      if (roles.some((entry) => entry.name === "ADMIN"))
+      if (roles.some((entry) => KeyString.cast(entry.name) === "ADMIN"))
         throw new Error("Cannot modify protected rows.");
-      if (roles.some((entry) => entry.name === "USER"))
+      if (roles.some((entry) => KeyString.cast(entry.name) === "USER"))
         throw new Error("Cannot modify protected rows.");
     }
   }
@@ -182,7 +182,7 @@ export class BagImportWriter extends PerClassImportWriter<"bag"> {
   async rename(renames: [KeyString, KeyString][]) {
     const renamesMap = new Map(renames);
     const bags = await this.tx.bag.findMany({
-      where: { name: { in: Array.from(renamesMap.keys(), e => IdString.cast(e)) } },
+      where: { name: { in: Array.from(renamesMap.keys(), e => KeyString.cast(e)) } },
       include: { recipe_bags: { select: { recipe: { select: { id: true, template_id: true } } } }, }
     });
 
@@ -284,7 +284,7 @@ export class TemplateImportWriter extends PerClassImportWriter<"template"> {
 
     const templateRows = await Promise.all(templates.map((template) => {
 
-      if (!this.initStore && template.name === defaultName)
+      if (!this.initStore && KeyString.cast(template.name) === defaultName)
         throw new Error("Cannot modify the blank template.");
 
       const name = KeyString.cast(template.name);
@@ -334,16 +334,16 @@ export class RecipeImportWriter extends PerClassImportWriter<"recipe"> {
     const upserter = async (recipe: UpsertRecipeInput, compiledAt: Date) => {
       recipe.compiledBags.sort((a, b) => a.priority - b.priority)
       return await this.tx.recipe.upsert({
-        where: { slug: recipe.slug as string },
+        where: { slug: KeyString.cast(recipe.slug) },
         update: {
           definition: recipe.definition,
-          template_id: recipe.templateId as KeyString as string,
+          template_id: IdString.cast(recipe.templateId),
           plugins: recipe.plugins,
           compiledAt,
           recipe_bags: {
             deleteMany: {},
             create: recipe.compiledBags.map(e => ({
-              bag: { connect: { name: e.bagName as string } },
+              bag: { connect: { name: KeyString.cast(e.bagName) } },
               is_writable: e.isWritable,
               prefix: e.prefix,
               priority: e.priority,
@@ -351,7 +351,7 @@ export class RecipeImportWriter extends PerClassImportWriter<"recipe"> {
           },
           permissions: {
             deleteMany: {},
-            create: recipe.permissions.map(e => ({ level: e.level, role_id: e.role_id as string }))
+            create: recipe.permissions.map(e => ({ level: e.level, role_id: IdString.cast(e.role_id) }))
           }
         },
         create: {
@@ -369,7 +369,7 @@ export class RecipeImportWriter extends PerClassImportWriter<"recipe"> {
             })),
           },
           permissions: {
-            create: recipe.permissions.map(e => ({ level: e.level, role_id: e.role_id as string }))
+            create: recipe.permissions.map(e => ({ level: e.level, role_id: IdString.cast(e.role_id) }))
           }
         },
         select: {
@@ -493,6 +493,6 @@ function uniqueStrings(values: string[]) {
 }
 
 
-function recordKeyMapper<K extends String, T>(map: Map<K, T>, table: TabId): (key: K) => T {
-  return key => map.get(key) ?? thrower(new SendError("RECORD_KEY_NOT_FOUND", 400, { table, name: key.toString() }))
+function recordKeyMapper<K extends String, T>(map: Map<string, T>, table: TabId): (key: K) => T {
+  return key => map.get(key.toString()) ?? thrower(new SendError("RECORD_KEY_NOT_FOUND", 400, { table, name: key.toString() }))
 }

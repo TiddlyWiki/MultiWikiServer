@@ -4,10 +4,8 @@ import { TiddlerFields, TW } from "tiddlywiki";
 import * as fs from "fs";
 import * as path from "path";
 import { truthy } from "@tiddlywiki/server";
-import { toMappingRows } from "../new-managers/TabImportWriter";
-import { WikiStore } from "../new-managers/wiki-store";
-import { BagDataAdapter, RecipeDataAdapter } from "../new-managers/tab-routes";
-import { IdString } from "@mws/admin-vanilla/src/definition/tabs";
+import { WikiStore, BagDataAdapter, RecipeDataAdapter, toMappingRows } from "../new-managers";
+import { IdString, KeyString } from "@mws/admin-vanilla/src/definition/tabs";
 
 export const info: CommandInfo = {
 	name: "load-wiki-folder",
@@ -65,7 +63,7 @@ export class Command extends BaseCommand<[string], {
 		const recipeName = this.options["recipe-name"][0];
 		const recipeDescription = this.options["recipe-description"][0];
 
-		const ownerRoles = this.options["owner-roles"] ?? [];
+		const ownerRoles = (this.options["owner-roles"] ?? []).map((role) => new KeyString(role));
 
 		if (!templateName) {
 			throw new Error(`Template ${templateName} does not exist.`);
@@ -115,21 +113,24 @@ export class Command extends BaseCommand<[string], {
 			switch (template.type) {
 				case "simpleV1": {
 					const bag = await new BagDataAdapter().saveRow(prisma, {
-						id: "", // a blank id will use the name if it exists
-						name: bagName,
+						id: new IdString(""), // a blank id will use the name if it exists
+						name: new KeyString(bagName),
 						description: bagDescription,
-						permissions: ownerRoles.map(role => ({ level: "C_admin", role: role })),
+						permissions: ownerRoles.map(role => ({ level: "C_admin", role })),
 					});
 
 					const recipe = await new RecipeDataAdapter().saveRow(prisma, {
-						id: "", // a blank id will use the slug if it exists
-						slug: recipeName,
-						templateName: template.name,
+						id: new IdString(""), // a blank id will use the slug if it exists
+						slug: new KeyString(recipeName),
+						templateName: new KeyString(template.name),
 						displayName: recipeName,
 						description: recipeDescription,
 						plugins: pluginTitles,
 						readonlyBags: [],
-						writablePrefixBags: toMappingRows({ "": bagName }),
+						writablePrefixBags: toMappingRows({ "": bagName }).map((row) => ({
+							prefix: row.prefix,
+							bagName: new KeyString(row.bagName),
+						})),
 						recipePermissions: ownerRoles.map(role => ({ level: "B_write", role })),
 					});
 
