@@ -2,6 +2,7 @@
 // global css (not scoped)
 import "./main.css";
 import { App } from "./app";
+import { LoginForm } from "./app-login";
 
 // disables the "flash of white" styles
 document.documentElement.classList.add("loaded");
@@ -33,7 +34,9 @@ if (isInStandaloneMode()) {
 
 
 function setup() {
-  document.body.appendChild(new App());
+  false
+    ? document.body.appendChild(new LoginForm())
+    : document.body.appendChild(new App())
 }
 
 if (document.readyState === "loading") {

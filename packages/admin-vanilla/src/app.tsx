@@ -20,10 +20,11 @@ import {
   getSectionHeading,
   TemplateTypes,
   IdString,
-  KeyString
+  KeyString,
+  KeyFields
 } from "./definition/tabs";
 
-import { adminStorage, createDraft, findTemplateRecordForWikiRecord, getEmptyItems } from "./definition/store";
+import { adminStorage, createDraft, findTemplateRecordForWikiRecord, getEmptyItems, jsonReviver } from "./definition/store";
 import { definitely, is } from "./definition/utils";
 
 
@@ -51,30 +52,93 @@ type PermissionLevel = "A_read" | "B_write" | "C_admin";
 type RecipePermissionLevel = "A_read" | "B_write";
 type ModalMode = "create" | "edit";
 
-interface ModalState {
-  tabId: TabId;
-  mode: ModalMode;
-  draft: AdminRecord;
-  /** The unedited original the draft was from. */
-  saved: AdminRecord;
-  resolverTitle: string;
-  operationMessages: Record<string, string>;
-  pendingRows: Record<string, number>;
-  transientPermissionRows: Record<string, PermissionRow[]>;
-  loading?: boolean;
+type ModalState = {
+  [K in TabId]: {
+    tabId: K;
+    mode: ModalMode;
+    draft: AdminRecordStore[K][number];
+    /** The unedited original the draft was from. */
+    saved: AdminRecordStore[K][number];
+    resolverTitle: string;
+    operationMessages: Record<string, string>;
+    pendingRows: Record<string, number>;
+    transientPermissionRows: Record<string, PermissionRow[]>;
+    loading?: boolean;
+  };
+}[TabId];
+
+type ModalStateForTab<T extends TabId> = Extract<ModalState, { tabId: T }>;
+
+export interface PerTabFieldState {
+  readonly tabId: TabId;
+  readonly mode: ModalMode;
+  readonly draft: AdminRecord;
+  readonly saved: AdminRecord;
+  readonly resolverTitle: string;
+  readonly operationMessages: Record<string, string>;
+  readonly pendingRows: Record<string, number>;
+  readonly transientPermissionRows: Record<string, PermissionRow[]>;
+  readonly loading?: boolean;
+}
+
+interface PerTabStore {
+  readonly fieldState: PerTabFieldState | null;
+  readonly selectedTab: TabDefinition | null;
+  readonly itemsByTab: AdminRecordStore;
+  readonly displayedStorageError: string;
+  readonly isModalLoading: boolean;
+  readonly isSaving: boolean;
+  readonly isOpeningItem: boolean;
+  readonly isOpen: boolean;
+  readonly isBusy: boolean;
+  readonly clearStorageError: () => void;
+  readonly closeModal: () => void;
+  readonly openCreate: (tabId: TabId) => void;
+  readonly openItem: (tabId: TabId, recordId: IdString) => Promise<void>;
+  readonly saveDraft: () => Promise<void>;
+  readonly updateDraft: DraftChangeHandler;
+  readonly updatePendingRows: PendingRowsChangeHandler;
+  readonly updateTransientPermissionRows: PermissionRowsChangeHandler;
+  readonly updateResolverTitle: ResolverTitleChangeHandler;
+  readonly triggerOperation: OperationTriggerHandler;
+}
+
+interface AppStoreState {
+  activeTab: TabId;
+  itemsByTab: AdminRecordStore;
+  isLoadingData: boolean;
+  storageError: string;
+}
+
+interface PerTabStoreState {
+  modalState: ModalState | null;
+  isOpeningItem: boolean;
+  isSaving: boolean;
+  storageError: string;
+}
+
+interface PerTabStoreDependencies {
+  getItemsByTab(): AdminRecordStore;
+  replaceItemsByTab(itemsByTab: AdminRecordStore): void;
+  setActiveTab(tabId: TabId): void;
+  requestUpdate(): void;
+}
+
+interface UpdateHost {
+  requestUpdate(): void;
 }
 
 export interface AdminStorage {
   loadAll(): Promise<AdminRecordStore>;
-  read(tabId: TabId, id: IdString): Promise<AdminRecord | null>;
-  save(tabId: TabId, record: AdminRecord): Promise<AdminRecord[]>;
+  read<T extends TabId>(tabId: T, id: IdString): Promise<AdminRecordStore[T][number] | null>;
+  save<T extends TabId>(tabId: T, record: AdminRecordStore[T][number]): Promise<AdminRecordStore[T]>;
 }
 
-type DraftChangeHandler<T = unknown> = (fieldKey: string, value: T) => void;
-type PendingRowsChangeHandler = (fieldKey: string, updater: (count: number) => number) => void;
-type PermissionRowsChangeHandler = (fieldKey: string, rows: PermissionRow[]) => void;
-type ResolverTitleChangeHandler = (value: string) => void;
-type OperationTriggerHandler = (fieldKey: string, message: string) => void;
+export type DraftChangeHandler<T = unknown> = (fieldKey: string, value: T) => void;
+export type PendingRowsChangeHandler = (fieldKey: string, updater: (count: number) => number) => void;
+export type PermissionRowsChangeHandler = (fieldKey: string, rows: PermissionRow[]) => void;
+export type ResolverTitleChangeHandler = (value: string) => void;
+export type OperationTriggerHandler = (fieldKey: string, message: string) => void;
 
 /** The subset of FieldEditorContext that the readonly renderers need. */
 interface ReadonlyFieldContext<T = unknown> {
@@ -87,7 +151,7 @@ interface ReadonlyFieldContext<T = unknown> {
 interface FieldEditorInput<T = unknown> extends ReadonlyFieldContext<T> {
   saved?: T;
   disabled?: boolean;
-  modalState: ModalState;
+  fieldState: PerTabFieldState;
   itemsByTab: AdminRecordStore;
   onDraftChange: DraftChangeHandler<T>;
   onPendingRowsChange: PendingRowsChangeHandler;
@@ -97,14 +161,18 @@ interface FieldEditorInput<T = unknown> extends ReadonlyFieldContext<T> {
 }
 
 
-interface FieldBlockProps extends FieldEditorInput {
-  modalMode: ModalMode;
+interface FieldBlockProps {
+  field: FieldDefinition;
+  value: unknown;
+  saved?: unknown;
+  disabled?: boolean;
   useCardTitle?: boolean;
+  store: PerTabStore;
 }
 
 
 /** FieldEditorInput plus the derived inputId, shared by the per-type render functions. */
-interface FieldEditorContext<T = unknown> extends FieldEditorInput<T> {
+export interface FieldEditorContext<T = unknown> extends FieldEditorInput<T> {
   inputId: string;
 }
 
@@ -126,21 +194,7 @@ interface ToggleFieldProps {
 }
 
 interface RecordModalProps {
-  selectedTab: TabDefinition;
-  modalState: ModalState;
-  itemsByTab: AdminRecordStore;
-  storageError: string;
-  onClearStorageError: () => void;
-  isModalLoading: boolean;
-  isSaving: boolean;
-  isOpeningItem: boolean;
-  onClose: () => void;
-  onSave: () => void;
-  onDraftChange: DraftChangeHandler;
-  onPendingRowsChange: PendingRowsChangeHandler;
-  onTransientPermissionRowsChange: PermissionRowsChangeHandler;
-  onResolverTitleChange: ResolverTitleChangeHandler;
-  onTriggerOperation: OperationTriggerHandler;
+  store: PerTabStore;
 }
 
 const bagPermissionLevels: PermissionLevel[] = ["A_read", "B_write", "C_admin"];
@@ -275,22 +329,11 @@ class LineListCodec {
 
 class PermissionRowsCodec {
   public parse(value: PermissionRow[]): PermissionRow[] {
-    return JSON.parse(JSON.stringify(value));
-    // return value.split("\n").map((entry) => entry.trim()).filter(Boolean).map((row) => {
-    //   const [role, levelText] = row.split(":").map((part) => part?.trim() ?? "");
-    //   const allPermissionLevels = [...bagPermissionLevels];
-    //   const level = allPermissionLevels.includes(levelText as PermissionLevel) ? levelText as PermissionLevel : "A_read";
-    //   return { role, level };
-    // });
+    return JSON.parse(JSON.stringify(value), jsonReviver);
   }
 
   public stringify(value: PermissionRow[]): PermissionRow[] {
-    return JSON.parse(JSON.stringify(value));
-    // return rows
-    //   .map((row) => ({ role: row.role.trim(), level: row.level }))
-    //   .filter((row) => row.role)
-    //   .map((row) => `${row.role}:${row.level}`)
-    //   .join("\n");
+    return JSON.parse(JSON.stringify(value), jsonReviver);
   }
 }
 
@@ -321,7 +364,322 @@ function formatStorageErrorForDisplay(storageError: string): string {
   return storageError;
 }
 
+// #region - AppStore
 
+class PerTabStoreImpl implements PerTabStore {
+  private readonly state: PerTabStoreState = {
+    modalState: null,
+    isOpeningItem: false,
+    isSaving: false,
+    storageError: "",
+  };
+
+  constructor(
+    private readonly storage: AdminStorage,
+    private readonly deps: PerTabStoreDependencies,
+  ) { }
+
+  public get fieldState(): PerTabFieldState | null {
+    return this.state.modalState as PerTabFieldState | null;
+  }
+
+  public get selectedTab(): TabDefinition | null {
+    return this.fieldState ? getTab(this.fieldState.tabId) : null;
+  }
+
+  public get itemsByTab(): AdminRecordStore {
+    return this.deps.getItemsByTab();
+  }
+
+  public get displayedStorageError(): string {
+    return formatStorageErrorForDisplay(this.state.storageError);
+  }
+
+  public get isModalLoading(): boolean {
+    return Boolean(this.fieldState?.loading);
+  }
+
+  public get isSaving(): boolean {
+    return this.state.isSaving;
+  }
+
+  public get isOpeningItem(): boolean {
+    return this.state.isOpeningItem;
+  }
+
+  public get isOpen(): boolean {
+    return Boolean(this.fieldState);
+  }
+
+  public get isBusy(): boolean {
+    return this.isOpeningItem || this.isSaving;
+  }
+
+  public readonly clearStorageError = () => {
+    if (!this.state.storageError) return;
+    this.patchState({ storageError: "" });
+  };
+
+  public readonly closeModal = () => {
+    if (!this.state.modalState) return;
+    this.patchState({ modalState: null });
+  };
+
+  public readonly openCreate = (tabId: TabId) => {
+    const draft = this.createDraftFor(tabId);
+    this.deps.setActiveTab(tabId);
+    this.patchState({
+      modalState: this.createModalState(tabId, "create", draft, draft, false),
+    });
+  };
+
+  public readonly openItem = async (tabId: TabId, recordId: IdString) => {
+    const emptyDraft = this.createDraftFor(tabId);
+    this.deps.setActiveTab(tabId);
+    this.patchState({
+      storageError: "",
+      modalState: this.createModalState(tabId, "edit", emptyDraft, emptyDraft, true),
+      isOpeningItem: true,
+    });
+
+    const item = await this.storage.read(tabId, recordId).catch((error) => {
+      this.patchState({
+        storageError: error instanceof Error ? error.message : "Failed to load record details.",
+      });
+      return null;
+    });
+
+    this.patchState({ isOpeningItem: false });
+    if (!item) {
+      this.closeModal();
+      return;
+    }
+
+    const draft = this.createDraftFor(tabId, item);
+    this.patchState({
+      modalState: this.createModalState(tabId, "edit", draft, draft, false),
+    });
+  };
+
+  public readonly updateDraft: DraftChangeHandler = (fieldKey, value) => {
+    const modalState = this.state.modalState;
+    if (!modalState) return;
+
+    if (fieldKey === KeyFields[modalState.tabId] && typeof value === "string") {
+      value = new KeyString(value);
+    }
+
+    const nextDraft = { ...modalState.draft } as typeof modalState.draft;
+    (nextDraft as unknown as Record<string, unknown>)[fieldKey] = value;
+
+    this.patchState({
+      modalState: {
+        ...modalState,
+        draft: nextDraft,
+      } as ModalState,
+    });
+  };
+
+  public readonly updatePendingRows: PendingRowsChangeHandler = (fieldKey, updater) => {
+    const modalState = this.state.modalState;
+    if (!modalState) return;
+
+    const nextCount = Math.max(0, updater(modalState.pendingRows[fieldKey] ?? 0));
+    this.patchState({
+      modalState: {
+        ...modalState,
+        pendingRows: {
+          ...modalState.pendingRows,
+          [fieldKey]: nextCount,
+        },
+      },
+    });
+  };
+
+  public readonly updateTransientPermissionRows: PermissionRowsChangeHandler = (fieldKey, rows) => {
+    const modalState = this.state.modalState;
+    if (!modalState) return;
+
+    this.patchState({
+      modalState: {
+        ...modalState,
+        transientPermissionRows: {
+          ...modalState.transientPermissionRows,
+          [fieldKey]: rows,
+        },
+      },
+    });
+  };
+
+  public readonly updateResolverTitle: ResolverTitleChangeHandler = (value) => {
+    const modalState = this.state.modalState;
+    if (!modalState) return;
+    this.patchState({
+      modalState: { ...modalState, resolverTitle: value },
+    });
+  };
+
+  public readonly triggerOperation: OperationTriggerHandler = (fieldKey, message) => {
+    const modalState = this.state.modalState;
+    if (!modalState) return;
+    this.patchState({
+      modalState: {
+        ...modalState,
+        operationMessages: {
+          ...modalState.operationMessages,
+          [fieldKey]: message,
+        },
+      },
+    });
+  };
+
+  public readonly saveDraft = async () => {
+    const snapshot = this.state.modalState;
+    if (!snapshot) return;
+
+    this.patchState({
+      storageError: "",
+      isSaving: true,
+    });
+
+    const savedTabItems = await this.storage.save(
+      snapshot.tabId,
+      snapshot.draft,
+    ).catch((error) => {
+      this.patchState({
+        storageError: error instanceof Error ? error.message : "Failed to save record.",
+      });
+      return null;
+    });
+
+    this.patchState({ isSaving: false });
+    if (!savedTabItems) return;
+
+    this.deps.replaceItemsByTab({
+      ...this.itemsByTab,
+      [snapshot.tabId]: savedTabItems,
+    } as AdminRecordStore);
+    this.patchState({ modalState: null });
+  };
+
+  private createDraftFor<T extends TabId>(tabId: T, source?: AdminRecordStore[T][number]): AdminRecordStore[T][number] {
+    return createDraft(getTab(tabId), source) as AdminRecordStore[T][number];
+  }
+
+  private createModalState<T extends TabId>(
+    tabId: T,
+    mode: ModalMode,
+    draft: AdminRecordStore[T][number],
+    saved: AdminRecordStore[T][number],
+    loading: boolean,
+  ): ModalStateForTab<T> {
+    return {
+      tabId,
+      mode,
+      draft,
+      saved,
+      resolverTitle: "Docs/Welcome",
+      operationMessages: {},
+      pendingRows: {},
+      transientPermissionRows: {},
+      loading,
+    } as ModalStateForTab<T>;
+  }
+
+  private patchState(patch: Partial<PerTabStoreState>): void {
+    Object.assign(this.state, patch);
+    this.deps.requestUpdate();
+  }
+}
+
+class AppStore {
+  public readonly state: AppStoreState = {
+    activeTab: "wikis",
+    itemsByTab: getEmptyItems(),
+    isLoadingData: true,
+    storageError: "",
+  };
+
+  public readonly perTabStore: PerTabStore;
+
+  private hasLoaded = false;
+  private loadPromise: Promise<void> | null = null;
+
+  constructor(
+    private readonly host: UpdateHost,
+    private readonly storage: AdminStorage,
+  ) {
+    this.perTabStore = new PerTabStoreImpl(storage, {
+      getItemsByTab: () => this.state.itemsByTab,
+      replaceItemsByTab: (itemsByTab) => this.patchState({ itemsByTab }),
+      setActiveTab: (tabId) => this.setActiveTab(tabId),
+      requestUpdate: () => this.host.requestUpdate(),
+    });
+  }
+
+  public get currentTab(): TabDefinition {
+    return getTab(this.state.activeTab);
+  }
+
+  public get activeTabItems(): AdminRecordStore[TabId] {
+    return this.state.itemsByTab[this.state.activeTab];
+  }
+
+  public get isListInteractionDisabled(): boolean {
+    return this.perTabStore.isBusy;
+  }
+
+  public ensureLoaded(): Promise<void> {
+    if (this.hasLoaded) return Promise.resolve();
+    if (!this.loadPromise) {
+      this.loadPromise = this.loadAllInternal().finally(() => {
+        this.loadPromise = null;
+      });
+    }
+    return this.loadPromise;
+  }
+
+  public readonly setActiveTab = (tabId: TabId) => {
+    if (tabId === this.state.activeTab) return;
+    this.patchState({ activeTab: tabId });
+  };
+
+  public readonly openCreate = (tabId: TabId) => {
+    this.perTabStore.openCreate(tabId);
+  };
+
+  public readonly openItem = async (tabId: TabId, recordId: IdString) => {
+    await this.perTabStore.openItem(tabId, recordId);
+  };
+
+  private async loadAllInternal(): Promise<void> {
+    this.patchState({
+      isLoadingData: true,
+      storageError: "",
+    });
+
+    try {
+      const loadedItems = await this.storage.loadAll();
+      this.hasLoaded = true;
+      this.patchState({
+        itemsByTab: loadedItems,
+        isLoadingData: false,
+      });
+    } catch (error) {
+      this.patchState({
+        storageError: error instanceof Error ? error.message : "Failed to load admin records.",
+        isLoadingData: false,
+      });
+    }
+  }
+
+  private patchState(patch: Partial<AppStoreState>): void {
+    Object.assign(this.state, patch);
+    this.host.requestUpdate();
+  }
+}
+
+// #region - renders
 
 function formatFieldValue(value: any): string {
   if (typeof value === "string"
@@ -419,7 +777,7 @@ function renderSearchableInput({ id, currentValue, placeholder, options, onInput
   );
 }
 
-function renderTextInputField(ctx: FieldEditorContext, type: "text" | "number") {
+function renderTextInputField(ctx: FieldEditorContext, type: "text" | "number" | "password") {
   const { field, value, disabled, inputId, onDraftChange } = ctx;
   definitely<string>(value);
   return <input id={inputId} class="field-input" type={type} value={value} ref={(element) => {
@@ -475,7 +833,7 @@ function renderLinesList(value: readonly string[], key: string, itemsByTab?: Adm
           null : null;
   const lines = value.map(line => ({ line, missing: missingCheck && !missingCheck.has(line), }));
   return <ul class="value-list">{lines.map(({ line, missing }) => <li>
-    {line.split("/").map((e, i, a) => <>{e}{(i !== a.length - 1) ? "/" : ""}<wbr/></>)}
+    {line.split("/").map((e, i, a) => <>{e}{(i !== a.length - 1) ? "/" : ""}<wbr /></>)}
     {missing ? <span class="missing-marker" aria-label="Missing dependency" title="Missing dependency"><MaterialSymbol icon={warningIcon} /></span> : null}
   </li>)}</ul>;
 
@@ -494,7 +852,15 @@ function renderPreField(ctx: ReadonlyFieldContext) {
   );
 }
 
-abstract class FieldTypeHandler<T = unknown> {
+
+function renderFieldEditor(input: FieldEditorInput) {
+  const ctx: FieldEditorContext = { ...input, inputId: `field-${input.field.key}` };
+  return getFieldHandler(ctx.field.type).renderEditor(ctx);
+}
+
+// #region field handlers
+
+export abstract class FieldTypeHandler<T = unknown> {
 
   public abstract initCreate(): T;
 
@@ -563,6 +929,60 @@ class TextareaFieldHandler extends StringFieldTypeHandler {
   }
 }
 
+class PasswordInputFieldHandler extends StringFieldTypeHandler {
+  public override renderEditor(ctx: FieldEditorContext) {
+    return renderTextInputField(ctx, "password");
+  }
+
+  public override renderSidebar(): JSX.Node {
+    return null;
+  }
+}
+
+class ConfirmPasswordFieldHandler extends StringFieldTypeHandler {
+  public override renderEditor(ctx: FieldEditorContext<string>) {
+    const { field, value, disabled, fieldState, inputId, onDraftChange, onTriggerOperation } = ctx;
+    definitely<string>(value);
+    const confirmationValue = fieldState.operationMessages[field.key] ?? "";
+    const hasConfirmation = Boolean(confirmationValue);
+    const hasMismatch = hasConfirmation && confirmationValue !== value;
+
+    return (
+      <div class="row-editor-stack">
+        <input
+          id={inputId}
+          class="field-input"
+          type="password"
+          value={value}
+          disabled={disabled}
+          placeholder="Enter password"
+          ref={(element) => {
+            if (element.value !== value) element.value = value;
+          }}
+          oninput={(event) => onDraftChange(field.key, (event.currentTarget as HTMLInputElement).value)}
+        />
+        <input
+          id={`${inputId}-confirm`}
+          class="field-input"
+          type="password"
+          value={confirmationValue}
+          disabled={disabled}
+          placeholder="Confirm password"
+          ref={(element) => {
+            if (element.value !== confirmationValue) element.value = confirmationValue;
+          }}
+          oninput={(event) => onTriggerOperation(field.key, (event.currentTarget as HTMLInputElement).value)}
+        />
+        {hasConfirmation ? <p class="field-helper">{hasMismatch ? "Passwords do not match yet." : "Passwords match."}</p> : null}
+      </div>
+    );
+  }
+
+  public override renderSidebar(): JSX.Node {
+    return null;
+  }
+}
+
 class SearchMultiselectFieldHandler extends FieldTypeHandler<string[]> {
   constructor() {
     super();
@@ -587,21 +1007,21 @@ class SearchMultiselectFieldHandler extends FieldTypeHandler<string[]> {
   }
 
   public override renderEditor(ctx: FieldEditorContext<readonly string[]>) {
-    const { field, value, disabled, modalState, itemsByTab, inputId, onDraftChange, onPendingRowsChange } = ctx;
+    const { field, value, disabled, fieldState, itemsByTab, inputId, onDraftChange, onPendingRowsChange } = ctx;
     if (typeof value === "string") {
       console.log(ctx);
       throw new Error("value is a string");
     }
     const editableLines = value;
-    const pendingRowCount = modalState.pendingRows[field.key] ?? 0;
+    const pendingRowCount = fieldState.pendingRows[field.key] ?? 0;
     const lookupOptions = getLookupOptions(field.key, itemsByTab);
     const itemLabel = field.key === "plugins"
       ? "plugin"
       : field.key === "userRoles"
         ? "role id"
         : "bag";
-    const templateRecord = is<WikiAdminRecord>(modalState.draft, modalState.tabId === "wikis")
-      ? findTemplateRecordForWikiRecord(modalState.draft, itemsByTab as AdminRecordStore) : undefined;
+    const templateRecord = is<WikiAdminRecord>(fieldState.draft, fieldState.tabId === "wikis")
+      ? findTemplateRecordForWikiRecord(fieldState.draft, itemsByTab as AdminRecordStore) : undefined;
     const templateReadonlyBagLines = field.key === "readonlyBags" && templateRecord ? templateRecord.readonlyBags : [];
     const templatePluginLines = field.key === "plugins" && templateRecord ? templateRecord.plugins : [];
     const templateCorePluginsEnabled = Boolean(templateRecord?.requiredPluginsEnabled);
@@ -644,7 +1064,7 @@ class SearchMultiselectFieldHandler extends FieldTypeHandler<string[]> {
           </div>
         ))}
         <button type="button" class="ghost-button" disabled={disabled} onclick={() => onPendingRowsChange(field.key, (count) => count + 1)}>{`Add ${itemLabel}`}</button>
-        {field.key === "readonlyBags" && modalState.tabId === "wikis" && templateRecord ? (
+        {field.key === "readonlyBags" && fieldState.tabId === "wikis" && templateRecord ? (
           <div class="field-callout">
             <p>Readonly bags from template</p>
             <ul class="value-list">
@@ -652,7 +1072,7 @@ class SearchMultiselectFieldHandler extends FieldTypeHandler<string[]> {
             </ul>
           </div>
         ) : null}
-        {field.key === "plugins" && modalState.tabId === "wikis" && templateRecord ? (
+        {field.key === "plugins" && fieldState.tabId === "wikis" && templateRecord ? (
           <div class="field-callout">
             <p>Plugins from template</p>
             <ul class="value-list">
@@ -676,12 +1096,12 @@ class PermissionTableFieldHandler extends FieldTypeHandler<readonly PermissionRo
   }
 
   public override renderEditor(ctx: FieldEditorContext<readonly PermissionRow[]>) {
-    const { field, disabled, modalState, itemsByTab, inputId, onDraftChange, onTransientPermissionRowsChange } = ctx;
+    const { field, disabled, fieldState, itemsByTab, inputId, onDraftChange, onTransientPermissionRowsChange } = ctx;
     definitely<readonly PermissionRow[]>(ctx.value);
     const permissionRows = ctx.value;
     const lookupOptions = getLookupOptions(field.key, itemsByTab);
     const availableLevels = getPermissionLevelsForField(field.key);
-    const transientPermissionRows = modalState.transientPermissionRows[field.key] ?? [];
+    const transientPermissionRows = fieldState.transientPermissionRows[field.key] ?? [];
     const displayedPermissionRows = permissionRows.length || transientPermissionRows.length
       ? [...permissionRows, ...transientPermissionRows]
       : [{ role: new KeyString(""), level: availableLevels[0] as PermissionLevel }];
@@ -753,18 +1173,18 @@ class PrefixTableFieldHandler extends FieldTypeHandler<WritablePrefixRow[]> {
   }
 
   public override renderEditor(ctx: FieldEditorContext) {
-    const { field, value, disabled, modalState, itemsByTab, inputId, onDraftChange, onPendingRowsChange } = ctx;
+    const { field, value, disabled, fieldState, itemsByTab, inputId, onDraftChange, onPendingRowsChange } = ctx;
     const forDisplay = field.mode === "server";
     definitely<WritablePrefixRow[]>(value);
     const mappingRows = value;
-    const pendingRowCount = modalState.pendingRows[field.key] ?? 0;
+    const pendingRowCount = fieldState.pendingRows[field.key] ?? 0;
     const lookupOptions = getLookupOptions(field.key, itemsByTab);
     const displayedMappingRows = mappingRows.length
       ? [...mappingRows, ...Array.from({ length: pendingRowCount }, () => ({ prefix: "", bagName: new KeyString("") }))]
       : [{ prefix: "", bagName: new KeyString("") }, ...Array.from({ length: pendingRowCount }, () => ({ prefix: "", bagName: new KeyString("") }))];
-    const templateRecord = is<WikiAdminRecord>(modalState.draft, modalState.tabId === "wikis")
-      ? findTemplateRecordForWikiRecord(modalState.draft, itemsByTab) : undefined;
-    const inheritedRoutingRows = modalState.tabId === "wikis" && templateRecord ? templateRecord.writablePrefixBags : [];
+    const templateRecord = is<WikiAdminRecord>(fieldState.draft, fieldState.tabId === "wikis")
+      ? findTemplateRecordForWikiRecord(fieldState.draft, itemsByTab) : undefined;
+    const inheritedRoutingRows = fieldState.tabId === "wikis" && templateRecord ? templateRecord.writablePrefixBags : [];
 
     if (forDisplay) {
       return this.displayMappingRows(displayedMappingRows)
@@ -920,14 +1340,14 @@ class ResolverPreviewFieldHandler extends StringFieldTypeHandler {
 
 
   public override renderEditor(ctx: FieldEditorContext) {
-    const { modalState, inputId, onResolverTitleChange } = ctx;
-    definitely<WikiAdminRecord>(modalState.draft);
-    const preview = this.computeResolverPreview(modalState.draft, modalState.resolverTitle);
+    const { fieldState, inputId, onResolverTitleChange } = ctx;
+    definitely<WikiAdminRecord>(fieldState.draft);
+    const preview = this.computeResolverPreview(fieldState.draft, fieldState.resolverTitle);
     return (
       <div class="tool-panel resolver-tool">
         <label class="field-label" for={inputId}>Title to test</label>
-        <input id={inputId} class="field-input" type="text" value={modalState.resolverTitle} ref={(element) => {
-          if (element.value !== modalState.resolverTitle) element.value = modalState.resolverTitle;
+        <input id={inputId} class="field-input" type="text" value={fieldState.resolverTitle} ref={(element) => {
+          if (element.value !== fieldState.resolverTitle) element.value = fieldState.resolverTitle;
         }} oninput={(event) => onResolverTitleChange((event.currentTarget as HTMLInputElement).value)} />
         <div class="resolver-grid">
           <div class="resolver-stat">
@@ -1084,6 +1504,8 @@ class FallbackFieldHandler extends StringFieldTypeHandler {
 const textInputFieldHandler = new TextInputFieldHandler("text");
 const numberInputFieldHandler = new TextInputFieldHandler("number");
 const textareaFieldHandler = new TextareaFieldHandler(4);
+const enterPasswordFieldHandler = new PasswordInputFieldHandler();
+const confirmPasswordFieldHandler = new ConfirmPasswordFieldHandler();
 const searchMultiselectFieldHandler = new SearchMultiselectFieldHandler();
 const permissionTableFieldHandler = new PermissionTableFieldHandler();
 const prefixTableFieldHandler = new PrefixTableFieldHandler();
@@ -1097,11 +1519,13 @@ const tableFieldHandler = new TableFieldHandler();
 const calloutFieldHandler = new CalloutFieldHandler();
 const templateTypeFieldHandler = new TemplateTypeFieldHandler();
 
-const fieldTypeHandlers = {
+export const fieldTypeHandlers = {
   "string": textInputFieldHandler,
   "version": textInputFieldHandler,
   "number": numberInputFieldHandler,
   "text": textareaFieldHandler,
+  "enter-password": enterPasswordFieldHandler,
+  "confirm-password": confirmPasswordFieldHandler,
   "search-multiselect": searchMultiselectFieldHandler,
   "permission-table": permissionTableFieldHandler,
   "prefix-table": prefixTableFieldHandler,
@@ -1125,12 +1549,7 @@ export function getFieldHandler(fieldType: FieldType): FieldTypeHandler {
   return fieldTypeHandlers[fieldType] ?? fallbackFieldHandler;
 }
 
-
-
-function renderFieldEditor(input: FieldEditorInput) {
-  const ctx: FieldEditorContext = { ...input, inputId: `field-${input.field.key}` };
-  return getFieldHandler(ctx.field.type).renderEditor(ctx);
-}
+// #region field block
 
 @customElement("mws-field-block")
 class FieldBlockElement<T> extends JSXElement {
@@ -1139,7 +1558,11 @@ class FieldBlockElement<T> extends JSXElement {
   @state() accessor props!: FieldBlockProps;
 
   protected render() {
-    const { field, modalMode, useCardTitle, value, saved: savedValue, modalState } = this.props;
+    const { field, useCardTitle, value, saved: savedValue, store } = this.props;
+    const fieldState = store.fieldState;
+    if (!fieldState) return null;
+
+    const modalMode = fieldState.mode;
     const editable = isEditable(field, modalMode);
     const disabled = Boolean(this.props.disabled) || !editable;
     const useToggleEditor = editable && field.key === "requiredPluginsEnabled";
@@ -1154,7 +1577,7 @@ class FieldBlockElement<T> extends JSXElement {
 
         {useToggleEditor ? (
           definitely<boolean>(value),
-          <ToggleFieldElement field={field} value={value} onDraftChange={this.props.onDraftChange} />
+          <ToggleFieldElement field={field} value={value} onDraftChange={store.updateDraft} />
         ) : (
           <div class="field-editor">
             {!useCardTitle ? <label class="field-label" for={`field-${field.key}`}>{field.label}</label> : null}
@@ -1164,13 +1587,13 @@ class FieldBlockElement<T> extends JSXElement {
               value,
               saved: savedValue,
               disabled,
-              modalState,
-              itemsByTab: this.props.itemsByTab,
-              onDraftChange: this.props.onDraftChange,
-              onPendingRowsChange: this.props.onPendingRowsChange,
-              onTransientPermissionRowsChange: this.props.onTransientPermissionRowsChange,
-              onResolverTitleChange: this.props.onResolverTitleChange,
-              onTriggerOperation: this.props.onTriggerOperation,
+              fieldState,
+              itemsByTab: store.itemsByTab,
+              onDraftChange: store.updateDraft,
+              onPendingRowsChange: store.updatePendingRows,
+              onTransientPermissionRowsChange: store.updateTransientPermissionRows,
+              onResolverTitleChange: store.updateResolverTitle,
+              onTriggerOperation: store.triggerOperation,
             })}
           </div>
         )}
@@ -1244,6 +1667,8 @@ class ToggleFieldElement extends JSXElement {
   }
 }
 
+// #region tab detail
+
 @customElement("mws-record-modal")
 class RecordModalElement extends JSXElement {
   useLightDOM: boolean = true;
@@ -1251,23 +1676,23 @@ class RecordModalElement extends JSXElement {
   @state() accessor props!: RecordModalProps;
 
   protected render() {
-    const {
-      selectedTab,
-      modalState,
-      itemsByTab,
-      storageError,
-      onClearStorageError,
-      isModalLoading,
-      isSaving,
-      isOpeningItem,
-      onClose,
-      onSave,
-      onDraftChange,
-      onPendingRowsChange,
-      onTransientPermissionRowsChange,
-      onResolverTitleChange,
-      onTriggerOperation,
-    } = this.props;
+    const { store } = this.props;
+    const { selectedTab, fieldState } = store;
+    if (!selectedTab || !fieldState) return null;
+
+    const itemsByTab = store.itemsByTab;
+    const storageError = store.displayedStorageError;
+    const isModalLoading = store.isModalLoading;
+    const isSaving = store.isSaving;
+    const isOpeningItem = store.isOpeningItem;
+    const onClose = store.closeModal;
+    const onSave = store.saveDraft;
+    const onDraftChange = store.updateDraft;
+    const onPendingRowsChange = store.updatePendingRows;
+    const onTransientPermissionRowsChange = store.updateTransientPermissionRows;
+    const onResolverTitleChange = store.updateResolverTitle;
+    const onTriggerOperation = store.triggerOperation;
+    const onClearStorageError = store.clearStorageError;
 
     const authoredFields = !isModalLoading ? getSectionFields(selectedTab, "authored") : [];
     const runtimeFields = !isModalLoading ? getSectionFields(selectedTab, "runtime") : [];
@@ -1282,7 +1707,7 @@ class RecordModalElement extends JSXElement {
           <header class="modal-header">
             <div class="modal-title">
               <p class="eyebrow">{selectedTab.eyebrow}</p>
-              <h3>{isModalLoading ? `Loading ${selectedTab.label.slice(0, -1).toLowerCase()}...` : modalState.mode === "create" ? `New ${selectedTab.label.slice(0, -1)}` : getPrimaryValue(selectedTab, modalState.draft)}</h3>
+              <h3>{isModalLoading ? `Loading ${selectedTab.label.slice(0, -1).toLowerCase()}...` : fieldState.mode === "create" ? `New ${selectedTab.label.slice(0, -1)}` : getPrimaryValue(selectedTab, fieldState.draft)}</h3>
               <p>{isModalLoading ? "Fetching record details from async storage before rendering the form." : selectedTab.description}</p>
             </div>
             <div class="close-button" onclick={onClose} aria-label="Close details">
@@ -1298,7 +1723,7 @@ class RecordModalElement extends JSXElement {
           ) : (
             <div class="modal-layout">
               <aside class="field-index modal-sidebar">
-                {sidebarFields.map(field => sidebarField(field, modalState.draft, modalState.saved, itemsByTab))}
+                {sidebarFields.map(field => sidebarField(field, fieldState.draft, fieldState.saved, itemsByTab))}
               </aside>
 
               <div class="field-stack modal-main">
@@ -1308,7 +1733,7 @@ class RecordModalElement extends JSXElement {
                   ["operations", operationFields],
                 ] as [FieldSection, FieldDefinition[]][]).map(([section, fields]) => {
                   if (!fields.length) return null;
-                  const heading = getSectionHeading(section, modalState.mode);
+                  const heading = getSectionHeading(section, fieldState.mode);
                   return (
                     <section class="modal-section">
                       {heading ? (
@@ -1328,7 +1753,7 @@ class RecordModalElement extends JSXElement {
                           const headerField = group.headerFieldKey
                             ? fields.find((field) => field.key === group.headerFieldKey)
                             : undefined;
-                          const groupDisabled = Boolean(group.disabledWhenHeaderOff && headerField && (getAdminRecordValue(headerField, modalState.draft) ?? "disabled") !== "enabled");
+                          const groupDisabled = Boolean(group.disabledWhenHeaderOff && headerField && (getAdminRecordValue(headerField, fieldState.draft) ?? "disabled") !== "enabled");
                           const headerDescription = group.description ?? (!group.footerDescriptionFromHeader ? headerField?.description : undefined) ?? "";
                           const footerDescription = group.footerDescriptionFromHeader ? headerField?.description : undefined;
                           if (!groupFields.length) return null;
@@ -1340,7 +1765,7 @@ class RecordModalElement extends JSXElement {
                                   <h4>{group.title ?? (groupFields.length === 1 ? groupFields[0].label : groupFields.map((field) => field.label).join(" and "))}</h4>
                                   {headerField ? <ToggleFieldElement
                                     field={headerField}
-                                    value={getAdminRecordValue(headerField, modalState.draft) ?? ""}
+                                    value={getAdminRecordValue(headerField, fieldState.draft) ?? ""}
                                     onDraftChange={onDraftChange}
                                     headerOnly={true}
                                   /> : null}
@@ -1352,18 +1777,11 @@ class RecordModalElement extends JSXElement {
                                 {groupFields.map((field) => (
                                   <FieldBlockElement
                                     field={field}
-                                    value={getAdminRecordValue(field, modalState.draft)}
-                                    saved={getAdminRecordValue(field, modalState.saved)}
-                                    modalState={modalState}
-                                    modalMode={modalState.mode}
+                                    value={getAdminRecordValue(field, fieldState.draft)}
+                                    saved={getAdminRecordValue(field, fieldState.saved)}
                                     disabled={groupDisabled}
-                                    itemsByTab={itemsByTab}
                                     useCardTitle={groupFields.length === 1}
-                                    onDraftChange={onDraftChange}
-                                    onPendingRowsChange={onPendingRowsChange}
-                                    onTransientPermissionRowsChange={onTransientPermissionRowsChange}
-                                    onResolverTitleChange={onResolverTitleChange}
-                                    onTriggerOperation={onTriggerOperation}
+                                    store={store}
                                   />
                                 ))}
                               </div>
@@ -1376,10 +1794,10 @@ class RecordModalElement extends JSXElement {
                   );
                 })}
 
-                {modalState.tabId !== "plugins"
+                {fieldState.tabId !== "plugins"
                   ? <footer class="modal-actions">
                     <button class="ghost-button" type="button" onclick={onClose} disabled={isSaving}>Cancel</button>
-                    <button class="primary-button" type="button" onclick={onSave} disabled={isSaving || isOpeningItem}>{isSaving ? "Saving..." : modalState.mode === "create" ? `Save ${selectedTab.label.slice(0, -1)}` : "Save changes"}</button>
+                    <button class="primary-button" type="button" onclick={onSave} disabled={isSaving || isOpeningItem}>{isSaving ? "Saving..." : fieldState.mode === "create" ? `Save ${selectedTab.label.slice(0, -1)}` : "Save changes"}</button>
                   </footer>
                   : <footer class="modal-actions">
                     <button class="ghost-button" type="button" onclick={onClose} disabled={isSaving}>Close</button>
@@ -1402,167 +1820,33 @@ class RecordModalElement extends JSXElement {
   }
 }
 
+// #region tab main
+
+
 @addstyles(css)
 @customElement("mws-app")
 export class App extends JSXElement {
   // don't use shadow dom. allows inheriting main.css styles.
   useLightDOM: boolean = true;
 
+  private readonly store = new AppStore(this, adminStorage);
+
   constructor() {
     super()
   }
 
+  connectedCallback(): void {
+    super.connectedCallback();
+    void this.store.ensureLoaded();
+  }
+
   protected render() {
-    const [activeTab, setActiveTab] = this.useState<TabId>("wikis");
-    const [itemsByTab, setItemsByTab] = this.useState<AdminRecordStore>(() => getEmptyItems());
-    const [modalState, setModalState] = this.useState<ModalState | null>(null);
-    const [isLoadingData, setIsLoadingData] = this.useState<boolean>(true);
-    const [isOpeningItem, setIsOpeningItem] = this.useState<boolean>(false);
-    const [isSaving, setIsSaving] = this.useState<boolean>(false);
-    const [storageError, setStorageError] = this.useState<string>("");
-
-    this.useEffect(() => {
-      let cancelled = false;
-      setIsLoadingData(true);
-      setStorageError("");
-
-      adminStorage.loadAll().then((loadedItems) => {
-        if (cancelled) return;
-        setItemsByTab(loadedItems);
-        setIsLoadingData(false);
-      }).catch((error) => {
-        if (cancelled) return;
-        setStorageError(error instanceof Error ? error.message : "Failed to load admin records.");
-        setIsLoadingData(false);
-      });
-
-      return () => { cancelled = true; };
-    }, []);
-
-    const currentTab = getTab(activeTab);
-    const activeTabItems = itemsByTab[activeTab];
-    const selectedTab = modalState ? getTab(modalState.tabId) : null;
-    const displayedStorageError = formatStorageErrorForDisplay(storageError);
-    const isModalLoading = Boolean(modalState?.loading);
-    const isListInteractionDisabled = isOpeningItem || isSaving;
-
-    const openItem = async (tabId: TabId, recordId: IdString) => {
-      const tab = getTab(tabId);
-      setStorageError("");
-      setActiveTab(tabId);
-      setModalState({
-        tabId,
-        mode: "edit",
-        draft: createDraft(tab),
-        saved: createDraft(tab),
-        resolverTitle: "Docs/Welcome",
-        operationMessages: {},
-        pendingRows: {},
-        transientPermissionRows: {},
-        loading: true,
-      });
-      setIsOpeningItem(true);
-      const item = await adminStorage.read(tabId, recordId).catch((error) => {
-        setStorageError(error instanceof Error ? error.message : "Failed to load record details.");
-        return null;
-      });
-      setIsOpeningItem(false);
-      if (!item) {
-        closeModal();
-        return;
-      }
-      setModalState({
-        tabId,
-        mode: "edit",
-        draft: createDraft(tab, item),
-        saved: createDraft(tab, item),
-        resolverTitle: "Docs/Welcome",
-        operationMessages: {},
-        pendingRows: {},
-        transientPermissionRows: {},
-        loading: false,
-      });
-    };
-
-    const openCreate = (tabId: TabId) => {
-      const tab = getTab(tabId);
-      setActiveTab(tabId);
-      setModalState({
-        tabId,
-        mode: "create",
-        draft: createDraft(tab),
-        saved: createDraft(tab),
-        resolverTitle: "Docs/Welcome",
-        operationMessages: {},
-        pendingRows: {},
-        transientPermissionRows: {},
-        loading: false,
-      });
-    };
-
-    const closeModal = () => setModalState(null);
-
-    const updateDraft = (fieldKey: string, value: unknown) => {
-      setModalState((state) => state
-        ? { ...state, draft: { ...state.draft, [fieldKey]: value } }
-        : state);
-    };
-
-    const updatePendingRows = (fieldKey: string, updater: (count: number) => number) => {
-      setModalState((state) => {
-        if (!state) return state;
-        const nextCount = Math.max(0, updater(state.pendingRows[fieldKey] ?? 0));
-        return {
-          ...state,
-          pendingRows: {
-            ...state.pendingRows,
-            [fieldKey]: nextCount,
-          },
-        };
-      });
-    };
-
-    const updateTransientPermissionRows = (fieldKey: string, rows: PermissionRow[]) => {
-      setModalState((state) => {
-        if (!state) return state;
-        return {
-          ...state,
-          transientPermissionRows: {
-            ...state.transientPermissionRows,
-            [fieldKey]: rows,
-          },
-        };
-      });
-    };
-
-    const saveDraft = async () => {
-      if (!modalState) return;
-      const snapshot = modalState; // nah, ai be tripping
-      setStorageError("");
-      setIsSaving(true);
-      const savedTabItems = await adminStorage.save(
-        snapshot.tabId,
-        snapshot.draft,
-      ).catch((error) => {
-        debugger;
-        setStorageError(error instanceof Error ? error.message : "Failed to save record.");
-        return null;
-      });
-      setIsSaving(false);
-      if (!savedTabItems) return;
-      setItemsByTab((current) => ({ ...current, [snapshot.tabId]: savedTabItems }));
-      closeModal();
-    };
-
-    const updateResolverTitle = (value: string) => {
-      setModalState((state) => state ? { ...state, resolverTitle: value } : state);
-    };
-
-    const triggerOperation = (fieldKey: string, message: string) => {
-      setModalState((state) => state
-        ? { ...state, operationMessages: { ...state.operationMessages, [fieldKey]: message } }
-        : state);
-    };
+    const store = this.store;
+    const { activeTab, itemsByTab, isLoadingData } = store.state;
+    const perTabStore = store.perTabStore;
+    const currentTab = store.currentTab;
+    const activeTabItems = store.activeTabItems;
+    const isListInteractionDisabled = store.isListInteractionDisabled;
 
     return (
       <div class="admin-shell">
@@ -1599,7 +1883,7 @@ export class App extends JSXElement {
           {getAllTabs().map((tab) => (
             <button
               class={tab.id === activeTab ? "tab-button is-active" : "tab-button"}
-              onclick={() => setActiveTab(tab.id)}
+              onclick={() => store.setActiveTab(tab.id)}
               type="button"
             >
               <span>{tab.label}</span>
@@ -1628,8 +1912,8 @@ export class App extends JSXElement {
               <button
                 class="ghost-button"
                 type="button"
-                onclick={() => openCreate(currentTab.id)}
-                disabled={isLoadingData || isOpeningItem || isSaving}
+                onclick={() => store.openCreate(currentTab.id)}
+                disabled={isLoadingData || perTabStore.isOpeningItem || perTabStore.isSaving}
               >{getCreateLabel(currentTab)}</button>
             </div>
           </div>
@@ -1652,13 +1936,13 @@ export class App extends JSXElement {
                 tabindex={isListInteractionDisabled ? -1 : 0}
                 aria-disabled={isListInteractionDisabled ? "true" : undefined}
                 onclick={() => {
-                  if (!isListInteractionDisabled) void openItem(currentTab.id, item.id);
+                  if (!isListInteractionDisabled) void store.openItem(currentTab.id, item.id);
                 }}
                 onkeydown={(event) => {
                   if (isListInteractionDisabled) return;
                   if (event.key !== "Enter" && event.key !== " ") return;
                   event.preventDefault();
-                  void openItem(currentTab.id, item.id);
+                  void store.openItem(currentTab.id, item.id);
                 }}
               >
                 {currentTab.columns.map((column) => (
@@ -1683,26 +1967,14 @@ export class App extends JSXElement {
           </div>
         </section>
 
-        {modalState && selectedTab ? (
+        {perTabStore.isOpen ? (
           <RecordModalElement
-            selectedTab={selectedTab}
-            modalState={modalState}
-            itemsByTab={itemsByTab}
-            storageError={displayedStorageError}
-            onClearStorageError={() => setStorageError("")}
-            isModalLoading={isModalLoading}
-            isSaving={isSaving}
-            isOpeningItem={isOpeningItem}
-            onClose={closeModal}
-            onSave={saveDraft}
-            onDraftChange={updateDraft}
-            onPendingRowsChange={updatePendingRows}
-            onTransientPermissionRowsChange={updateTransientPermissionRows}
-            onResolverTitleChange={updateResolverTitle}
-            onTriggerOperation={triggerOperation}
+            store={perTabStore}
           />
         ) : null}
       </div>
     );
   }
 }
+
+

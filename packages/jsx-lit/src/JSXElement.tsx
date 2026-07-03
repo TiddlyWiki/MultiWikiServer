@@ -1,5 +1,5 @@
 import EventEmitter from 'events';
-import { adoptStyles, CSSResult, LitElement, PropertyDeclaration, PropertyValues, ReactiveElement } from 'lit';
+import { CSSResult, PropertyValues, ReactiveElement } from '@lit/reactive-element';
 import { is, render } from '@tiddlywiki/jsx-runtime';
 import { Subscription } from 'rxjs';
 import { observeResize, unobserveResize } from './resizeObserver';

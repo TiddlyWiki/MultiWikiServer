@@ -51,8 +51,8 @@ export function defineZodRoute(
     securityChecks,
   } = route;
 
-  if (method.includes("OPTIONS"))
-    throw new Error(key + " includes OPTIONS. Use corsRequest instead.");
+  if (method.includes("OPTIONS") && method.length > 1)
+    throw new Error(key + " includes OPTIONS. The OPTIONS method should be set on its own handler since it is path-specific and setting it more than once per path will result in confusing behavior.");
 
   const pathregex = typeof path === "string" ? buildPathRegex(path, key, keyReplacer ?? "") : path;
   try {

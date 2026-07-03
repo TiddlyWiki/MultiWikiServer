@@ -12,7 +12,7 @@ function optionsTyped(options) {
   return options;
 }
 
-const prod = false;
+const prod = true;
 /**
  * 
  * @param {{ rootdir: string; publicdir: string; }} param0 
@@ -43,6 +43,7 @@ export default async function({ rootdir, publicdir }) {
     splitting: false,
     loader: { '.inline.css': 'text', ".svg": "text" },
     format: "esm",
+    treeShaking: true,
     minify: prod && !process.env.NOMINIFY,
     external: ['node:crypto'],
     define: prod ? {

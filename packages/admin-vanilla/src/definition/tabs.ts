@@ -1,4 +1,10 @@
-import { BagPermissionLevel, RecipePermissionLevel, TemplatePermissionLevel } from "@tiddlywiki/mws-prisma";
+import {
+  BagPermissionLevel,
+  RecipePermissionLevel,
+  TemplatePermissionLevel
+} from "@tiddlywiki/mws-prisma";
+import { zod as z } from "@tiddlywiki/server/src/Z2";
+
 
 const halfWidth = "half" as const;
 const fullWidth = "full" as const;
@@ -25,6 +31,8 @@ export type FieldType =
   | "template-type"
   | "string"
   | "text"
+  | "enter-password"
+  | "confirm-password"
   | "search"
   // | "json-editor"
   | "structured-preview"
@@ -464,8 +472,8 @@ const tabs = {
       { key: "username", label: "Username", type: "string", section: "authored", mode: "create edit" },
       { key: "email", label: "Email", type: "string", section: "authored", mode: "create edit" },
       { key: "userRoles", label: "Roles", type: "search-multiselect", section: "authored", mode: "create edit" },
-      { key: "password", label: "Password", type: "string", section: "authored", mode: "create edit" },
-      { key: "confirmPassword", label: "Confirm password", type: "string", section: "authored", mode: "create edit temp" },
+      // { key: "password", label: "Password", type: "string", section: "authored", mode: "create edit" },
+      // { key: "confirmPassword", label: "Confirm password", type: "string", section: "authored", mode: "create edit temp" },
     ],
     fieldGroups: {
       authored: [
@@ -481,6 +489,15 @@ const tabs = {
     ]
   },
 } as const satisfies Record<string, TabDefinition>;
+
+export const KeyFields = {
+  bags: "name",
+  plugins: "name",
+  roles: "name",
+  templates: "name",
+  users: "username",
+  wikis: "slug",
+} satisfies { [K in keyof typeof tabs]: typeof tabs[K]["fields"][number]["key"] }
 
 export function getTab(tabId: TabId): TabDefinition {
   return tabs[tabId];
@@ -680,4 +697,68 @@ export class KeyString extends String {
   name = "KeyString" as const;
   constructor(value: string) { super(value); }
   toJSON() { return KeyString.prefix + this.valueOf(); }
+}
+
+const stringLikeFieldShape = z.union([z.string(), z.instanceof(String)]);
+const stringListFieldShape = z.array(stringLikeFieldShape);
+const writablePrefixRowFieldShape = z.object({
+  prefix: z.string(),
+  bagName: stringLikeFieldShape,
+});
+const permissionRowFieldShape = z.object({
+  role: stringLikeFieldShape,
+  level: z.string(),
+});
+
+export const fieldTypeZodShapes = {
+  "template-type": z.enum(["simpleV1"]),
+  "string": z.string(),
+  "text": z.string(),
+  "enter-password": z.string(),
+  "confirm-password": z.string(),
+  "search": z.union([stringLikeFieldShape, z.null()]),
+  "structured-preview": z.string(),
+  "table": stringListFieldShape,
+  "permission-table": z.array(permissionRowFieldShape),
+  "validation-report": z.string(),
+  "resolver-preview": z.string(),
+  "search-multiselect": stringListFieldShape,
+  "prefix-table": z.array(writablePrefixRowFieldShape),
+  "parameter-list": stringListFieldShape,
+  "relationship-table": stringListFieldShape,
+  "summary-list": stringListFieldShape,
+  "number": z.string(),
+  "activity-feed": stringListFieldShape,
+  "version": z.string(),
+  "select": z.boolean(),
+  "metadata-table": stringListFieldShape,
+} satisfies Record<FieldType, any>;
+
+export type TabZodObjectFilter = "DataStore" | "DataSave";
+
+function shouldIncludeFieldInTabZodObject(mode: Mode, filter?: TabZodObjectFilter): boolean {
+  if (filter === "DataStore") {
+    return mode !== "" && mode !== "create edit temp" && mode !== "create temp" && mode !== "edit temp";
+  }
+  if (filter === "DataSave") {
+    return mode !== "" && mode !== "create edit temp" && mode !== "create temp" && mode !== "edit temp" && mode !== "server";
+  }
+  return true;
+}
+
+export function buildTabZodObject<T extends TabId>(tabId: T, filter?: TabZodObjectFilter) {
+  const tab = tabs[tabId];
+  const fieldEntries = tab.fields
+    .filter((field) => shouldIncludeFieldInTabZodObject(field.mode, filter))
+    .map((field) => [
+      field.key,
+      KeyFields[tabId] === field.key
+        ? z.instanceof(KeyString)
+        : fieldTypeZodShapes[field.type]
+    ] as const);
+
+  return z.object({
+    id: stringLikeFieldShape,
+    ...Object.fromEntries(fieldEntries),
+  });
 }

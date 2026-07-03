@@ -1,4 +1,4 @@
-import { SendError } from "@tiddlywiki/server";
+import { SendError, ServerRequest } from "@tiddlywiki/server";
 import { RecipeDefinition, TemplateDefinition } from "./TabDataAdapter";
 import {
   CompiledRecipeBagInput,
@@ -58,6 +58,15 @@ type PrismaModalKeys = Prisma.TypeMap["meta"]["modelProps"]
 type PrismaScalarKeys<Modal extends PrismaModalKeys> =
   keyof PrismaTxnClient[Modal][symbol]["types"]["payload"]["scalars"];
 
+type ObjectsWithPermissions = {
+  [K in PrismaModalKeys as PrismaTxnClient[K][symbol] extends
+  { types: { payload: { objects: { permissions: any } } } } ? K : never]:
+  PrismaTxnClient[K][symbol]["types"]["payload"]["objects"]
+};
+type ObjectPermissionLevels = {
+  [K in keyof ObjectsWithPermissions]:
+  ObjectsWithPermissions[K]["permissions"][number]["scalars"]["level"]
+}
 export abstract class PerClassImportWriter<Modal extends PrismaModalKeys> {
   constructor(
     protected tx: PrismaTxnClient,
@@ -65,12 +74,57 @@ export abstract class PerClassImportWriter<Modal extends PrismaModalKeys> {
     private modal: Modal,
     private name: PrismaScalarKeys<Modal>,
     private id: PrismaScalarKeys<Modal>,
+    private adminLevel: Modal extends keyof ObjectPermissionLevels ? ObjectPermissionLevels[Modal] : undefined,
     protected initStore: boolean,
   ) {
 
   }
 
-  async checkExisting(id: IdString, name: KeyString) {
+  private asserted = false;
+  assertPermissions() {
+    if (!this.asserted)
+      throw new Error("Permissions must be asserted first.")
+  }
+
+  async checkExisting(id: IdString, name: KeyString, user: ServerRequest["user"]) {
+    if (user.isAdmin) { this.asserted = true; }
+    if (!user.isAdmin && this.adminLevel) {
+      if (!id.toString()) {
+        throw new SendError("OPERATION_NOT_PERMITTED", 403, {
+          reason: "You don't have permission to create " + this.tabid + "."
+        });
+      }
+      const hasPermission: number = await (this.tx[this.modal] as any).count({
+        where: {
+          id: id.toString(),
+          permissions: {
+            some: {
+              level: this.adminLevel,
+              role_id: { in: user.roles.map(e => e.role_id) }
+            }
+          }
+        }
+      })
+      if (!hasPermission) {
+        throw new SendError("OPERATION_NOT_PERMITTED", 403, {
+          reason: "You don't have permission to modify " + this.tabid + "."
+        });
+      }
+      this.asserted = true;
+    }
+    if (!user.isAdmin && this.tabid === "users") {
+      if (user.user_id !== id.toString())
+        throw new SendError("OPERATION_NOT_PERMITTED", 403, {
+          reason: "You must be an admin to edit other users"
+        });
+      this.asserted = true;
+    }
+    if (!user.isAdmin && this.tabid === "roles") {
+      throw new SendError("OPERATION_NOT_PERMITTED", 403, {
+        reason: "You must be an admin to edit other users"
+      });
+      // this.asserted = true;
+    }
     if (id.toString()) {
       const existing = await (this.tx[this.modal] as any).findUnique({
         where: { [this.id]: id.toString() },
@@ -85,6 +139,7 @@ export abstract class PerClassImportWriter<Modal extends PrismaModalKeys> {
   }
 
   async rename(renames: [KeyString, KeyString][]) {
+    this.assertPermissions();
     await Promise.all(renames.map(([oldName, newName]) =>
       (this.tx[this.modal] as any).update({
         where: { [this.name]: oldName.toString() },
@@ -109,23 +164,24 @@ export abstract class PerClassImportWriter<Modal extends PrismaModalKeys> {
   }
 
   mapRowsToIdKey(rows: any[]) {
-    return recordKeyMapper(new Map(rows.map((row: any) => [row[this.id], new KeyString(row[this.name])])), this.tabid)
+    return recordKeyMapper<IdString, KeyString>(new Map(rows.map((row: any) => [row[this.id], new KeyString(row[this.name])])), this.tabid)
   }
 
   mapRowsToNameKey(rows: any[]) {
-    return recordKeyMapper(new Map(rows.map((row: any) => [row[this.name], new IdString(row[this.id])])), this.tabid);
+    return recordKeyMapper<KeyString, IdString>(new Map(rows.map((row: any) => [row[this.name], new IdString(row[this.id])])), this.tabid);
   }
 
-  abstract upsert(rows: unknown[]): Promise<unknown[]>;
+  abstract upsert(rows: unknown[], role_ids: readonly IdString[]): Promise<unknown[]>;
 }
 
 // #region ROLES
 export class RoleImportWriter extends PerClassImportWriter<"roles"> {
   constructor(tx: PrismaTxnClient, initStore: boolean) {
-    super(tx, "users", "roles", "role_name", "role_id", initStore)
+    super(tx, "users", "roles", "role_name", "role_id", undefined, initStore)
   }
 
   async upsert(roles: UpsertRoleInput[]) {
+    this.assertPermissions();
     this.validateProtectedRoles(roles);
     return Promise.all(roles.map((role) => this.tx.roles.upsert({
       where: { role_name: KeyString.cast(role.name) },
@@ -138,9 +194,10 @@ export class RoleImportWriter extends PerClassImportWriter<"roles"> {
   private validateProtectedRoles(roles: UpsertRoleInput[]) {
     if (!this.initStore) {
       if (roles.some((entry) => KeyString.cast(entry.name) === "ADMIN"))
-        throw new Error("Cannot modify protected rows.");
+        throw new SendError("CANNOT_WRITE_STATIC_ROWS", 400, { table: "roles", name: "ADMIN" })
       if (roles.some((entry) => KeyString.cast(entry.name) === "USER"))
-        throw new Error("Cannot modify protected rows.");
+        throw new SendError("CANNOT_WRITE_STATIC_ROWS", 400, { table: "roles", name: "USER" })
+
     }
   }
 
@@ -149,10 +206,11 @@ export class RoleImportWriter extends PerClassImportWriter<"roles"> {
 // #region USERS
 export class UserImportWriter extends PerClassImportWriter<"users"> {
   constructor(tx: PrismaTxnClient, initStore: boolean) {
-    super(tx, "users", "users", "username", "user_id", initStore)
+    super(tx, "users", "users", "username", "user_id", undefined, initStore)
   }
 
   async upsert(users: UpsertUserInput[]) {
+    this.assertPermissions();
     return Promise.all(users.map((user) => {
       const roleLinks = user.roleIds.map((roleId) => ({ role_id: IdString.cast(roleId) }));
       return this.tx.users.upsert({
@@ -176,10 +234,11 @@ export class UserImportWriter extends PerClassImportWriter<"users"> {
 
 export class BagImportWriter extends PerClassImportWriter<"bag"> {
   constructor(tx: PrismaTxnClient, initStore: boolean) {
-    super(tx, "bags", "bag", "name", "id", initStore)
+    super(tx, "bags", "bag", "name", "id", "C_admin", initStore)
   }
 
   async rename(renames: [KeyString, KeyString][]) {
+    this.assertPermissions();
     const renamesMap = new Map(renames);
     const bags = await this.tx.bag.findMany({
       where: { name: { in: Array.from(renamesMap.keys(), e => KeyString.cast(e)) } },
@@ -239,6 +298,7 @@ export class BagImportWriter extends PerClassImportWriter<"bag"> {
   }
 
   async upsert(bags: UpsertBagInput[]) {
+    this.assertPermissions();
     const bagRows = await Promise.all(bags.map((bag) => this.tx.bag.upsert({
       where: { name: KeyString.cast(bag.name) },
       update: {
@@ -271,7 +331,7 @@ export class BagImportWriter extends PerClassImportWriter<"bag"> {
 // #region TEMPLATES
 export class TemplateImportWriter extends PerClassImportWriter<"template"> {
   constructor(tx: PrismaTxnClient, initStore: boolean) {
-    super(tx, "templates", "template", "name", "id", initStore)
+    super(tx, "templates", "template", "name", "id", "B_write", initStore)
   }
 
   /** 
@@ -280,12 +340,13 @@ export class TemplateImportWriter extends PerClassImportWriter<"template"> {
    * You must include the existing id if you want to rename a template.
    */
   async upsert(templates: UpsertTemplateInput[]) {
+    this.assertPermissions();
     const defaultName = "Blank Template";
 
     const templateRows = await Promise.all(templates.map((template) => {
 
       if (!this.initStore && KeyString.cast(template.name) === defaultName)
-        throw new Error("Cannot modify the blank template.");
+        throw new SendError("CANNOT_WRITE_STATIC_ROWS", 400, { table: "templates", name: defaultName })
 
       const name = KeyString.cast(template.name);
       const type = template.definition.type;
@@ -325,12 +386,12 @@ export class TemplateImportWriter extends PerClassImportWriter<"template"> {
 
 export class RecipeImportWriter extends PerClassImportWriter<"recipe"> {
   constructor(tx: PrismaTxnClient, initStore: boolean) {
-    super(tx, "wikis", "recipe", "slug", "id", initStore)
+    super(tx, "wikis", "recipe", "slug", "id", "B_write", initStore)
   }
 
 
   async upsert(recipes: UpsertRecipeInput[]) {
-
+    this.assertPermissions();
     const upserter = async (recipe: UpsertRecipeInput, compiledAt: Date) => {
       recipe.compiledBags.sort((a, b) => a.priority - b.priority)
       return await this.tx.recipe.upsert({

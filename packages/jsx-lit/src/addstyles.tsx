@@ -7,6 +7,9 @@ export const addstyles = (styles: string) => (
   target: target,
   context: ClassDecoratorContext<target>
 ) => {
+  addstylesinner(styles, target);
+};
+export const addstylesinner = (styles: string, target: any) => {
   const css = new CSSStyleSheet();
   css.replaceSync(styles);
   if (Array.isArray(target.styles)) {
@@ -16,4 +19,4 @@ export const addstyles = (styles: string) => (
   } else {
     target.styles = [css];
   }
-};
+}

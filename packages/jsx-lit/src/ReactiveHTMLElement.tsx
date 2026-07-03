@@ -1,4 +1,4 @@
-import { CSSResultOrNative, getCompatibleStyle, adoptStyles } from "lit";
+import { CSSResultOrNative, getCompatibleStyle, adoptStyles } from "@lit/reactive-element";
 
 export type ReactiveAttributeObserver<T extends ReactiveHTMLElement> = (this: T, oldV: string | null, newV: string | null) => void;
 export function observed<T extends ReactiveHTMLElement>(_attributeName: string, observer?: ReactiveAttributeObserver<T>) {

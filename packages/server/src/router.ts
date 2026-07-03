@@ -44,7 +44,7 @@ export interface ServerRequest<
   /** type-narrowing helper function. This affects anywhere T is used. */
   isBodyFormat: <T extends B, S extends { [K in B]: ServerRequest<K, M, D> }[T]>(format: T) => this is S;
   readMultipartData: (
-    this: ServerRequest<"stream", M>,
+    this: ServerRequest<"stream", any>,
     options: {
       cbPartStart: (part: MultipartPart) => Promise<void>;
       cbPartChunk: (part: MultipartPart, chunk: Buffer) => Promise<void>;
@@ -286,7 +286,7 @@ export class Router {
     // 3. The server checks the CSRF token against the session.
     // 4. If the CSRF token is valid, the request is processed.
     // 5. If the CSRF token is invalid, the request is rejected with a 403 Forbidden.
-    const reqwith = headers.get("x-requested-with") as keyof AllowedRequestedWithHeaderKeys | undefined;
+    const reqwith = headers.get("X-Requested-With") as keyof AllowedRequestedWithHeaderKeys | undefined;
     // If the route requires a CSRF check,
     if (routePath.some(e => e.route.securityChecks?.requestedWithHeader))
       // If the method is not GET, HEAD, or OPTIONS, 

@@ -1,5 +1,5 @@
+import { TabId } from "@mws/admin-vanilla/src/definition/tabs";
 import { SendErrorItem } from "@tiddlywiki/server";
-import { TabId } from "./new-managers/TabDataAdapter";
 declare module "@tiddlywiki/server" {
   interface SendErrorReasonData {
     "RECIPE_NOT_FOUND":
@@ -67,5 +67,11 @@ declare module "@tiddlywiki/server" {
 
     "RECORD_KEY_NOT_FOUND":
     SendErrorItem<400, { table: TabId; name: string; }>
+
+    "CANNOT_WRITE_STATIC_ROWS":
+    SendErrorItem<400, { table: TabId; name: string; }>
+
+    "OPERATION_NOT_PERMITTED":
+    SendErrorItem<403, { reason: string }>
   }
 }

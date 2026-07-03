@@ -12,7 +12,7 @@ export function zodRoute<
   B extends "GET" | "HEAD" extends M ? "ignore" : BodyFormat,
   P extends Record<string, z.ZodType<any, string | undefined>>,
   Q extends Record<string, z.ZodType<any, string[] | undefined>>,
-  Q2 extends string[],
+  const Q2 extends string[],
   T extends z.ZodTypeAny,
   R
 >(route: Omit<ZodRoute<M, B, P, Q, Q2, T, R>, "registerError">): ZodRoute<M, B, P, Q, Q2, T, R> {

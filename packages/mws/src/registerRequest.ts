@@ -70,7 +70,8 @@ serverEvents.on("listen.router.init", async (listen, router) => {
   await serverEvents.emitAsync("mws.routes.important", router.rootRoute, router.config);
   await serverEvents.emitAsync("mws.routes", router.rootRoute, router.config);
   registerStatsRoute(router.rootRoute, {
-    "react-admin": dist_resolve("../public/react-admin.json"),
+    "react": dist_resolve("../public/admin-react.json"),
+    "vanilla": dist_resolve("../public/admin-vanilla.json"),
     "server": dist_resolve("metafile-esm.json"),
   });
   await serverEvents.emitAsync("mws.routes.fallback", router.rootRoute, router.config);

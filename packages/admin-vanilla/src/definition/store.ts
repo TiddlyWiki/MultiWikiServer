@@ -1,6 +1,14 @@
 import { AdminStorage, AdminRecord, isServerField, getAdminRecordValue, setAdminRecordValue, getFieldHandler, uniqueLines, lineListCodec } from "../app";
-import { DataStore, AdminRecordStore, TabId, getTab, TabDefinition, TemplateAdminRecord, WikiAdminRecord, BagAdminRecord, PermissionRow, PluginAdminRecord, WritablePrefixRow, KeyString, IdString } from "./tabs";
+import { DataStore, AdminRecordStore, TabId, getTab, TabDefinition, TemplateAdminRecord, WikiAdminRecord, BagAdminRecord, PermissionRow, PluginAdminRecord, WritablePrefixRow, KeyString, IdString, buildTabZodObject } from "./tabs";
 import { mapGetInit } from "./utils";
+
+export const jsonReviver = (key: any, val: any) => {
+  if (typeof val === "string" && val.startsWith(IdString.prefix))
+    return new IdString(val.slice(IdString.prefix.length));
+  if (typeof val === "string" && val.startsWith(KeyString.prefix))
+    return new KeyString(val.slice(KeyString.prefix.length));
+  return val;
+};
 
 export class InMemoryAdminStorage implements AdminStorage {
   private data!: DataStore;
@@ -8,17 +16,15 @@ export class InMemoryAdminStorage implements AdminStorage {
     private deriveItems: (data: DataStore) => AdminRecordStore
   ) {
   }
-  jsonReviver = (key: any, val: any) => {
-    if (typeof val === "string" && val.startsWith(IdString.prefix))
-      return new IdString(val.slice(IdString.prefix.length));
-    if (typeof val === "string" && val.startsWith(KeyString.prefix))
-      return new KeyString(val.slice(KeyString.prefix.length));
-    return val;
-  };
-  public async loadAll(): Promise<AdminRecordStore> {
-    const data = await (await fetch(pathPrefix + "/admin/load")).text();
 
-    this.data = JSON.parse(data, this.jsonReviver);
+  public async loadAll(): Promise<AdminRecordStore> {
+    const data = await (await fetch(pathPrefix + "/admin/load", {
+      headers: {
+        "X-Requested-With": "TiddlyWiki"
+      }
+    })).text();
+
+    this.data = JSON.parse(data, jsonReviver);
     return this.deriveItems(this.data);
   }
   private wait(ms: number): Promise<void> {
@@ -27,12 +33,12 @@ export class InMemoryAdminStorage implements AdminStorage {
     });
   }
 
-  public async read(tabId: TabId, id: IdString): Promise<AdminRecord | null> {
+  public async read<T extends TabId>(tabId: T, id: IdString): Promise<AdminRecordStore[T][number] | null> {
     if (!this.data) await this.loadAll();
-    return this.deriveItems(this.data)[tabId].find((record) => record.id === id) ?? null;
+    return this.deriveItems(this.data)[tabId].find((record) => record.id?.toString() === id?.toString()) ?? null;
   }
 
-  public async save(tabId: TabId, record: AdminRecord): Promise<AdminRecord[]> {
+  public async save<T extends TabId>(tabId: T, record: AdminRecordStore[T][number]): Promise<AdminRecordStore[T]> {
     if (!this.data) throw new Error("data should be loaded first");
     console.log(record);
     const prunedRecord = this.pruneStoredRecord(tabId, record);
@@ -40,6 +46,9 @@ export class InMemoryAdminStorage implements AdminStorage {
     const response = await fetch(pathPrefix + "/admin/save/" + tabId, {
       method: "PUT",
       body: JSON.stringify(prunedRecord),
+      headers: {
+        "X-Requested-With": "TiddlyWiki"
+      }
     });
 
     const text = await response.text();
@@ -47,19 +56,23 @@ export class InMemoryAdminStorage implements AdminStorage {
     if (response.status !== 200) {
       throw new Error(text);
     } else {
-      const storedRecord = JSON.parse(text, this.jsonReviver);
+      const storedRecord = JSON.parse(text, jsonReviver);
       console.log(storedRecord, prunedRecord);
-      if (id) {
-        if (storedRecord.id !== id) location.reload();
-        const index = this.data[tabId].findIndex(e => e.id === id);
-        this.data[tabId][index] = storedRecord as any;
+      if (id?.toString()) {
+        if (storedRecord.id?.toString() !== id.toString()) location.reload();
+        const index = this.data[tabId].findIndex((item) => item.id?.toString() === id.toString());
+        if (index >= 0) {
+          this.data[tabId][index] = storedRecord as any;
+        } else {
+          this.data[tabId].push(storedRecord as any);
+        }
       } else {
         this.data[tabId].push(storedRecord as any);
       }
     }
 
     this.data = { ...this.data, [tabId]: [...this.data[tabId]] };
-    return this.deriveItems(this.data)[tabId].map((item) => ({ ...item }));
+    return this.deriveItems(this.data)[tabId].map((item) => ({ ...item })) as AdminRecordStore[T];
   }
 
   private pruneStoredRecord(tabId: TabId, record: AdminRecord): AdminRecord {
@@ -91,6 +104,8 @@ export function createDraft(tab: TabDefinition, source?: AdminRecord): AdminReco
     draft2.customHtmlEnabled = false;
     draft2.injectionArray = "$tw.preloadTiddlers";
   }
+
+  // console.log(buildTabZodObject(tab.id).safeParse(draft), KeyString.name, IdString.name);
 
   return draft;
 }

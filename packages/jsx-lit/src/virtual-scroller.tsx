@@ -1,8 +1,11 @@
 import { render, createHybridRef } from "@tiddlywiki/jsx-runtime";
-import { addstyles, customElement, JSXElement, state } from "@tiddlywiki/jsx-lit";
+import { addstylesinner, JSXElement } from "@tiddlywiki/jsx-lit";
 import { Card } from "mdui";
 
-@addstyles(/*css*/`
+export class VirtualScroller extends JSXElement {
+  private static registered = false;
+  private static register() {
+    addstylesinner(/*css*/`
 :host {
   overflow-y: auto;
   overflow-x: hidden;
@@ -23,12 +26,21 @@ import { Card } from "mdui";
 .list-end {
   flex: 0 0 var(--virtualized-end);
 }  
-`)
-@customElement("virtual-scroller")
-export class VirtualScroller extends JSXElement {
-  "webjsx-donotdescend" = true;
+`, this);
+    customElements.define("virtual-scroller", this);
 
-  @state() accessor props!: {
+  }
+
+  constructor() {
+    // lazy register to allow tree shaking
+    // this only works because VirtualScroller is used by reference.
+    VirtualScroller.register();
+    super();
+  }
+
+  get "webjsx-donotdescend"() { return true; }
+
+  #props!: {
     renderItem: (index: number) => JSX.Node;
     itemCount: number;
     itemHeight: number;
@@ -36,6 +48,8 @@ export class VirtualScroller extends JSXElement {
     listVisible: boolean;
   };
 
+  get props() { return this.#props; }
+  set props(v) { this.#props = v; this.requestUpdate(); }
 
   lastStart = 0;
   lastEnd = 100;

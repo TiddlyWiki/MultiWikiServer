@@ -9,12 +9,12 @@
 // single, batch, and list operations always present the same view and can
 // never disagree about where a title routes.
 
-import { registerZodRoutes, RouterKeyMap, ServerRequest, truthy, checkPath } from "@tiddlywiki/server";
+import { checkPath, defineZodRoute, jsonify, RemoveNever, zod, ZodRoute } from "@tiddlywiki/server";
 import { serverEvents } from "@tiddlywiki/events";
 import { IndexSender, RecipeResolver, } from "./RecipeResolver";
-import { doAdminDataOp, getAdminDataStore, } from "./TabDataAdapter";
-import { TabId } from "@mws/admin-vanilla/src/definition/tabs";
-import { RecipeRoutes } from "./RecipeRoutes";
+import { AdminLoad, AdminSave, user_update_password } from "./TabDataAdapter";
+import { RecipeStatus, RecipeUpdates, TiddlerBatch, TiddlerList } from "./RecipeRoutes";
+import { IdString, KeyString } from "@mws/admin-vanilla/src/definition/tabs";
 
 export * from "./RecipeResolver";
 export * from "./TabDataAdapter";
@@ -26,58 +26,69 @@ export * from "./wiki-contract";
 // ---------------------------------------------------------------------------
 // Route registration
 // ---------------------------------------------------------------------------
+export type jsonify2Tuple<T> = T extends [infer A, ...infer B] ? [jsonify2<A>, ...jsonify2Tuple<B>] : T extends [infer A] ? [jsonify<A>] : [];
+
+export type jsonify2<T> =
+  T extends IdString ? string :
+  T extends KeyString ? string :
+  T extends [...any[]] ? number extends T["length"] ? jsonify2<T[number]>[] : [...jsonify2Tuple<T>] :
+  T extends Array<infer U> ? jsonify2<U>[] :
+  T extends ReadonlyArray<infer U> ? jsonify2<U>[] :
+  T extends object ? { [K in keyof T as T[K] extends never ? never : K]: jsonify2<T[K]> } :
+  jsonify<T>;
+
+type ExtractTypes<PATH, Q2 extends string[], REQ, RES> = (args: {
+  path: { [K in keyof PATH]: zod.input<PATH[K]>; };
+  query: string extends Q2[number] ? undefined : Record<Q2[number], string[]>;
+  data: zod.input<REQ>;
+}) => Promise<RES>;
+
+export type RouterRouteMap<T> = {
+  [K in keyof T as T[K] extends ZodRoute<any, any, any, any, any, any, any> ? K : never]:
+  T[K] extends ZodRoute<any, any, infer PATH, any, infer Q2, infer REQ, infer RES>
+  ? ExtractTypes<PATH, Q2, REQ, RES>
+  : `${K & string} does not extend`;
+}
+
+export type ClientRoute<T> =
+  T extends ZodRoute<any, any, infer PATH, any, infer Q2, infer REQ, infer RES>
+  ? ExtractTypes<PATH, Q2, REQ, RES>
+  : never;
+
+type t1 = ART<ClientRoute<typeof user_update_password>>
+
+const ApiRoutes = {
+  RecipeStatus,
+  RecipeUpdates,
+  TiddlerBatch,
+  TiddlerList,
+  AdminLoad,
+  AdminSave,
+  user_update_password,
+};
+
+// type t1 = RouterRouteMap<typeof ApiRoutes>;
+// const test: t1 = {} as any;
+// test.AdminLoad({})
+// test.AdminSave({})
+// test.TiddlerBatch({})
+// test.TiddlerList({})
+// test.RecipeStatus({})
+// test.RecipeUpdates({})
 
 serverEvents.on("mws.routes", (root) => {
 
   const parent = root.defineRoute({
     method: [],
     denyFinal: true,
-    path: new RegExp(`^(?=/recipe/|/wiki/|/admin/)`),
+    path: new RegExp(`^(?=/recipe/|/wiki/|/admin/|/api/)`),
   }, async (state) => {
     state.user.isAdmin = true;
     state.user.isLoggedIn = true;
   });
 
-  registerZodRoutes(parent, new RecipeRoutes(), Object.keys({
-    handleGetRecipeStatus: true,
-    handleGetRecipeUpdates: true,
-    rpcRecipeTiddlerBatch: true,
-    rpcRecipeTiddlerListGet: true,
-  } satisfies RouterKeyMap<RecipeRoutes, true>));
-
-
-  parent.defineRoute<"ignore">({
-    method: ["GET", "HEAD",],
-    path: new RegExp(`^/admin/load$`),
-    bodyFormat: "ignore",
-  }, async (state) => {
-    state.asserted = state.user.isAdmin;
-    state.sendJSON(200, await state.$transaction(async prisma => {
-      return await getAdminDataStore(prisma, state.pluginCache);
-    }));
-  });
-
-  parent.defineRoute<"ignore">({
-    method: ["PUT", "OPTIONS"],
-    path: new RegExp(`^/admin/(?<op>[^/]+)/(?<tab>.*)$`),
-    bodyFormat: "json",
-  }, async (state) => {
-    if (state.method === "OPTIONS")
-      return state.sendEmpty(200);
-    state.asserted = state.user.isAdmin;
-    checkPath(state, z => ({
-      op: z.enum(["save"]),
-      tab: z.enum(["wikis", "templates", "bags", "plugins", "users", "roles"] satisfies TabId[])
-    }), new Error())
-    return state.sendJSON(200, await state.$transaction(async prisma => {
-      return await doAdminDataOp({
-        prisma,
-        pluginCache: state.pluginCache,
-        op: state.pathParams.op,
-        tab: state.pathParams.tab,
-        data: state.data
-      });
-    }));
+  (Object.entries(ApiRoutes)).forEach(([key, val]) => {
+    defineZodRoute(parent, key, val as any);
   });
 
   parent.defineRoute<"ignore">({

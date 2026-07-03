@@ -627,17 +627,8 @@ export class IndexedDBKVStore {
  * @example
  * const db = createKVStore({ dbName: 'myApp', version: 2 });
  */
-export const createKVStore = (options?: KVStoreOptions): IndexedDBKVStore => {
+export function createKVStore(options?: KVStoreOptions): IndexedDBKVStore {
   return new IndexedDBKVStore(options);
-};
+}
 
-/**
- * Default singleton instance of the key-value store.
- * Uses default options (dbName: 'kvStore', storeName: 'keyValuePairs', version: 1).
- * @type {IndexedDBKVStore}
- * @example
- * import { defaultKVStore } from './indexeddb';
- * await defaultKVStore.open();
- * await defaultKVStore.set('key', 'value');
- */
-export const defaultKVStore = new IndexedDBKVStore();
+

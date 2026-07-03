@@ -1,11 +1,37 @@
-import { DataSave, DataStore, IdString, KeyString, WritablePrefixRow, PermissionRow, TabId, TemplateTypes } from "@mws/admin-vanilla/src/definition/tabs";
-import { ServerRequest } from "@tiddlywiki/server";
-import { BagImportWriter, RecipeImportWriter, RoleImportWriter, TemplateImportWriter, UserImportWriter } from "./TabImportWriter";
+import {
+  DataSave,
+  DataStore,
+  IdString,
+  KeyString,
+  WritablePrefixRow,
+  PermissionRow,
+  TabId,
+  TemplateTypes,
+  buildTabZodObject
+} from "@mws/admin-vanilla/src/definition/tabs";
+import {
+  checkData,
+  SendError,
+  ServerRequest,
+  Z2,
+  zodRoute
+} from "@tiddlywiki/server";
+import {
+  BagImportWriter,
+  RecipeImportWriter,
+  RoleImportWriter,
+  TemplateImportWriter,
+  UserImportWriter
+} from "./TabImportWriter";
 import {
   BagPermissionLevel,
   RecipePermissionLevel
 } from "@tiddlywiki/mws-prisma";
-import { CompiledRecipeBagInput, UpsertTemplateInput } from "./wiki-contract";
+import {
+  CompiledRecipeBagInput,
+  UpsertTemplateInput
+} from "./wiki-contract";
+import { createHash } from "crypto";
 
 type IRecipeRow = DataStore["wikis"][number];
 type ITemplateRow = DataStore["templates"][number];
@@ -85,6 +111,7 @@ function normalizePermissions<Level extends string>(rows: readonly PermissionRow
 
 
 abstract class TabDataAdapter<TAB extends TabId> {
+  constructor(protected user: ServerRequest["user"]) { }
   abstract saveRow(prisma: PrismaTxnClient, data: DataSave[TAB][number]): Promise<DataStore[TAB][number]>;
   // roles aren't connected to data tables so they can be swapped out for SSO
   abstract getList(prisma: PrismaTxnClient, roles: (key: IdString) => KeyString): Promise<DataStore[TAB]>;
@@ -106,7 +133,7 @@ export class RecipeDataAdapter extends TabDataAdapter<"wikis"> {
       plugins: normalizeLineList(data.plugins),
     };
 
-    await importer.checkExisting(data.id, data.slug);
+    await importer.checkExisting(data.id, data.slug, this.user);
 
     const { bags, plugins } = importer.compileRecipeSimpleV1(
       authoredDefinition,
@@ -236,7 +263,7 @@ export class RecipeDataAdapter extends TabDataAdapter<"wikis"> {
 export class TemplateDataAdapter extends TabDataAdapter<"templates"> {
   async saveRow(prisma: PrismaTxnClient, data: DataSave["templates"][number]): Promise<DataStore["templates"][number]> {
     const importer = new TemplateImportWriter(prisma, false);
-    await importer.checkExisting(data.id, data.name);
+    await importer.checkExisting(data.id, data.name, this.user);
     // roles aren't connected to data tables so they can be swapped out for SSO
     const roleIds = await getRolesMapper(prisma, data.templatePermissions.map((row) => row.role));
     const template: UpsertTemplateInput = {
@@ -344,9 +371,9 @@ export class BagDataAdapter extends TabDataAdapter<"bags"> {
 
   async saveRow(prisma: PrismaTxnClient, data: DataSave["bags"][number]): Promise<DataStore["bags"][number]> {
     const importer = new BagImportWriter(prisma, false);
-    await importer.checkExisting(data.id, data.name);
+    await importer.checkExisting(data.id, data.name, this.user);
     const permissions = normalizePermissions(data.permissions);
-    const roles = await getRolesMapper(prisma, permissions.map(e => e.role))
+    const roles = await getRolesMapper(prisma, permissions.map(e => e.role));
 
     const [bag] = await importer.upsert([{
       name: data.name,
@@ -400,8 +427,9 @@ async function getRolesMapper(prisma: PrismaTxnClient, roles: readonly KeyString
 
 export class RoleDataAdapter extends TabDataAdapter<"roles"> {
   async saveRow(prisma: PrismaTxnClient, data: DataSave["roles"][number]): Promise<DataStore["roles"][number]> {
+
     const importer = new RoleImportWriter(prisma, false);
-    await importer.checkExisting(data.id, data.name);
+    await importer.checkExisting(data.id, data.name, this.user);
 
     const [role] = await importer.upsert([{
       description: data.description,
@@ -437,7 +465,7 @@ export class UserDataAdapter extends TabDataAdapter<"users"> {
   async saveRow(prisma: PrismaTxnClient, data: DataSave["users"][number]): Promise<DataStore["users"][number]> {
 
     const importer = new UserImportWriter(prisma, false);
-    await importer.checkExisting(data.id, data.username);
+    await importer.checkExisting(data.id, data.username, this.user);
 
     const normalizedUserRoles = normalizeLineList(data.userRoles).map((role) => new KeyString(role));
     const rolesMapper = await getRolesMapper(prisma, normalizedUserRoles);
@@ -487,53 +515,158 @@ async function savePluginRow(_prisma: PrismaTxnClient, _data: DataSave["plugins"
   throw new Error("Plugin admin save is not implemented in the database-backed admin path.");
 }
 
-export async function doAdminDataOp({ prisma, pluginCache, op, tab, data }: {
-  prisma: PrismaTxnClient;
-  pluginCache: ServerRequest["pluginCache"];
-  op: "save";
-  tab: TabId;
-  data: any;
-}) {
-  if (op !== "save") throw new Error(`Unsupported admin operation: ${op}`);
-  data = JSON.parse(JSON.stringify(data), (key: any, val: any) => {
-    if (typeof val === "string" && val.startsWith(IdString.prefix))
-      return new IdString(val.slice(IdString.prefix.length));
-    if (typeof val === "string" && val.startsWith(KeyString.prefix))
-      return new KeyString(val.slice(KeyString.prefix.length));
-    return val;
-  });
-  let id: string;
-  switch (tab) {
-    case "wikis": return await new RecipeDataAdapter().saveRow(prisma, data as IRecipeRow);
-    case "templates": return await new TemplateDataAdapter().saveRow(prisma, data as ITemplateRow);
-    case "bags": return await new BagDataAdapter().saveRow(prisma, data as IBagRow);
-    case "roles": return await new RoleDataAdapter().saveRow(prisma, data as IRoleRow);
-    case "users": return await new UserDataAdapter().saveRow(prisma, data as IUserRow);
-    case "plugins": return await savePluginRow(prisma, data as IPluginRow);
-    default: {
-      const _exhaustive: never = tab;
-      throw new Error(`Unsupported admin tab: ${_exhaustive}`);
-    }
+
+export const AdminSave = zodRoute({
+  method: ["PUT"],
+  path: "/admin/:op/:tab",
+  bodyFormat: "json",
+  securityChecks: { requestedWithHeader: true },
+  zodPathParams: z => ({
+    op: z.enum(["save"]),
+    tab: z.enum(["wikis", "templates", "bags", "plugins", "users", "roles"] satisfies TabId[])
+  }),
+  zodRequestBody: z => z.any(),
+  inner: async (state) => {
+
+    state.asserted = state.user.isAdmin;
+    state.data = JSON.parse(JSON.stringify(state.data), (key: any, val: any) => {
+      if (typeof val === "string" && val.startsWith(IdString.prefix))
+        return new IdString(val.slice(IdString.prefix.length));
+      if (typeof val === "string" && val.startsWith(KeyString.prefix))
+        return new KeyString(val.slice(KeyString.prefix.length));
+      return val;
+    });
+
+    checkData(state, () => buildTabZodObject(state.pathParams.tab, "DataSave"), new Error());
+
+    return await state.$transaction(async prisma => {
+      const { pathParams: { op, tab }, data } = state;
+      if (op !== "save") throw new Error(`Unsupported admin operation: ${op}`);
+      switch (tab) {
+        case "wikis": {
+          return await new RecipeDataAdapter(state.user).saveRow(prisma, data as IRecipeRow);
+        }
+        case "templates": {
+          return await new TemplateDataAdapter(state.user).saveRow(prisma, data as ITemplateRow);
+        }
+        case "bags": {
+          return await new BagDataAdapter(state.user).saveRow(prisma, data as IBagRow);
+        }
+        case "roles": {
+          return await new RoleDataAdapter(state.user).saveRow(prisma, data as IRoleRow);
+        }
+        case "users": {
+          return await new UserDataAdapter(state.user).saveRow(prisma, data as IUserRow);
+        }
+        case "plugins": return await savePluginRow(prisma, data as IPluginRow);
+        default: {
+          const _exhaustive: never = tab;
+          throw new Error(`Unsupported admin tab: ${_exhaustive}`);
+        }
+      }
+    });
   }
+});
+
+export const AdminLoad = zodRoute({
+  method: ["GET"],
+  path: "/admin/load",
+  bodyFormat: "ignore",
+  securityChecks: { requestedWithHeader: true },
+  zodPathParams: z => ({}),
+  inner: async (state) => {
+    state.asserted = state.user.isAdmin;
+    return await state.$transaction(async prisma => {
+      const roles = await new RoleImportWriter(prisma, false).getIdMapper();
+      return {
+        wikis: await new RecipeDataAdapter(state.user).getList(prisma, roles),
+        templates: await new TemplateDataAdapter(state.user).getList(prisma, roles),
+        bags: await new BagDataAdapter(state.user).getList(prisma, roles),
+        plugins: state.pluginCache.pluginsList.map(e => ({
+          id: new IdString(e.title),
+          name: new KeyString(e.title),
+          description: `${e.name}: ${e.description}`,
+          pluginPath: e.path,
+        } satisfies IPluginRow)),
+        roles: await new RoleDataAdapter(state.user).getList(prisma),
+        users: await new UserDataAdapter(state.user).getList(prisma, roles),
+      };
+    });
+  }
+});
+
+const user_update_password_body = (z: Z2<"JSON">) => z.object({
+  user_id: z.prismaField("Users", "user_id", "string"),
+  registrationRequest: z.string().optional(),
+  registrationRecord: z.string().optional(),
+  session_id: z.string().optional(),
+  signature: z.string().optional(),
+});
+
+export const user_update_password = zodRoute({
+  method: ["PUT"],
+  path: "/admin/user_update_password",
+  bodyFormat: "json",
+  securityChecks: { requestedWithHeader: true },
+  zodPathParams: z => ({}),
+  zodRequestBody: z => z.object({
+    user_id: z.prismaField("Users", "user_id", "string"),
+    registrationRequest: z.string().optional(),
+    registrationRecord: z.string().optional(),
+    session_id: z.string().optional(),
+    signature: z.string().optional(),
+  }),
+  inner: async (state) => {
+    const { user_id, registrationRecord, registrationRequest } = state.data;
+
+    state.okUser();
+    return await state.$transaction(async prisma => {
+      if (!state.user.isAdmin) {
+        if (!state.data) throw "Session id and signature are required";
+        const session = await prisma.sessions.findUnique({
+          where: { session_id: state.data.session_id },
+        });
+
+        if (!session?.session_key)
+          throw "Session not found";
+        const { session_key } = session;
+        const { session_id, signature } = state.data;
+        if (!session_id || !signature)
+          throw "Session id and signature are required";
+        assertSignature({ session_id, session_key, signature });
+
+        if (session.user_id !== user_id)
+          throw "You must be an admin to update another user's password";
+
+        if (state.user.user_id !== user_id)
+          throw "You must be logged in as this user to update the password, "
+          + "but normally this isn't supposed to happen (this is a bug, please report it)";
+
+      }
+
+      const userExists = await prisma.users.count({ where: { user_id } });
+      if (!userExists) throw "User does not exist";
+
+      if (registrationRequest) {
+        return state.PasswordService.createRegistrationResponse({
+          userID: user_id,
+          registrationRequest
+        });
+      } else if (registrationRecord) {
+        await prisma.users.update({
+          where: { user_id },
+          data: { password: registrationRecord }
+        });
+      }
+
+      return null;
+    });
+  }
+});
+
+export function assertSignature({ session_id, signature, session_key }: {
+  session_id: string; signature: string; session_key: string;
+}) {
+  const hash = createHash("sha256").update(session_key + session_id).digest("base64");
+  if (hash !== signature) throw "Invalid session signature.";
 }
-// #region getDataStore
-export async function getAdminDataStore(prisma: PrismaTxnClient, pluginCache: ServerRequest["pluginCache"]) {
-  const roles = await new RoleImportWriter(prisma, false).getIdMapper();
-
-  return {
-    wikis: await new RecipeDataAdapter().getList(prisma, roles),
-    templates: await new TemplateDataAdapter().getList(prisma, roles),
-    bags: await new BagDataAdapter().getList(prisma, roles),
-    plugins: pluginCache.pluginsList.map(e => ({
-      id: new IdString(e.title),
-      name: new KeyString(e.title),
-      description: `${e.name}: ${e.description}`,
-      pluginPath: e.path,
-    } satisfies IPluginRow)),
-    roles: await new RoleDataAdapter().getList(prisma),
-    users: await new UserDataAdapter().getList(prisma, roles),
-  };
-
-
-}
-
