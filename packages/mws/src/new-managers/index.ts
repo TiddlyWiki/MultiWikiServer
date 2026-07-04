@@ -9,12 +9,13 @@
 // single, batch, and list operations always present the same view and can
 // never disagree about where a title routes.
 
-import { checkPath, defineZodRoute, jsonify, RemoveNever, zod, ZodRoute } from "@tiddlywiki/server";
+import { checkPath, defineZodRoute, jsonify, RemoveNever, zod, zodRoute, ZodRoute } from "@tiddlywiki/server";
 import { serverEvents } from "@tiddlywiki/events";
 import { IndexSender, RecipeResolver, } from "./RecipeResolver";
-import { AdminLoad, AdminSave, user_update_password } from "./TabDataAdapter";
+import { AdminLoad, AdminSave } from "./TabDataAdapter";
 import { RecipeStatus, RecipeUpdates, TiddlerBatch, TiddlerList } from "./RecipeRoutes";
 import { IdString, KeyString } from "@mws/admin-vanilla/src/definition/tabs";
+import { assertSignature } from "../services/sessions";
 
 export * from "./RecipeResolver";
 export * from "./TabDataAdapter";
@@ -54,18 +55,6 @@ export type ClientRoute<T> =
   T extends ZodRoute<any, any, infer PATH, any, infer Q2, infer REQ, infer RES>
   ? ExtractTypes<PATH, Q2, REQ, RES>
   : never;
-
-type t1 = ART<ClientRoute<typeof user_update_password>>
-
-const ApiRoutes = {
-  RecipeStatus,
-  RecipeUpdates,
-  TiddlerBatch,
-  TiddlerList,
-  AdminLoad,
-  AdminSave,
-  user_update_password,
-};
 
 // type t1 = RouterRouteMap<typeof ApiRoutes>;
 // const test: t1 = {} as any;
@@ -139,3 +128,76 @@ serverEvents.on("mws.routes", (root) => {
   });
 });
 
+
+export const user_update_password = zodRoute({
+  method: ["PUT"],
+  path: "/admin/user_update_password",
+  bodyFormat: "json",
+  securityChecks: { requestedWithHeader: true },
+  zodPathParams: z => ({}),
+  zodRequestBody: z => z.object({
+    user_id: z.prismaField("Users", "user_id", "string"),
+    registrationRequest: z.string().optional(),
+    registrationRecord: z.string().optional(),
+    session_id: z.string().optional(),
+    signature: z.string().optional(),
+  }),
+  
+  inner: async (state) => {
+    const { user_id, registrationRecord, registrationRequest } = state.data;
+
+    state.okUser();
+    return await state.$transaction(async prisma => {
+      if (!state.user.isAdmin) {
+        if (!state.data) throw "Session id and signature are required";
+        const session = await prisma.sessions.findUnique({
+          where: { session_id: state.data.session_id },
+        });
+
+        if (!session?.session_key)
+          throw "Session not found";
+        const { session_key } = session;
+        const { session_id, signature } = state.data;
+        if (!session_id || !signature)
+          throw "Session id and signature are required";
+        assertSignature({ session_id, session_key, signature });
+
+        if (session.user_id !== user_id)
+          throw "You must be an admin to update another user's password";
+
+        if (state.user.user_id !== user_id)
+          throw "You must be logged in as this user to update the password, "
+          + "but normally this isn't supposed to happen (this is a bug, please report it)";
+
+      }
+
+      const userExists = await prisma.users.count({ where: { user_id } });
+      if (!userExists) throw "User does not exist";
+
+      if (registrationRequest) {
+        return state.PasswordService.createRegistrationResponse({
+          userID: user_id,
+          registrationRequest
+        });
+      } else if (registrationRecord) {
+        await prisma.users.update({
+          where: { user_id },
+          data: { password: registrationRecord }
+        });
+      }
+
+      return null;
+    });
+  }
+});
+
+
+const ApiRoutes = {
+  RecipeStatus,
+  RecipeUpdates,
+  TiddlerBatch,
+  TiddlerList,
+  AdminLoad,
+  AdminSave,
+  user_update_password,
+};

@@ -7,7 +7,6 @@
   "browser": "browser.ts",
   "dependencies": {},
   "devDependencies": {
-    "@types/node": "^24.6.0",
-    "prettier": "^3.6.1"
+    "@types/node": "^24.6.0"
   }
 }

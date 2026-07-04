@@ -178,21 +178,6 @@ export async function loginWithOpaque(username: string, password: string, setCoo
 
 }
 
-function postManager<K extends keyof SessionManagerMap>(key: K): SessionManagerMap[K]
-function postManager(key: string) {
-  return async (data: any) => {
-    const req = await fetch(pathPrefix + "/rpc/" + key, {
-      method: "PUT",
-      headers: {
-        'Content-Type': 'application/json',
-        "X-Requested-With": "TiddlyWiki"
-      },
-      body: JSON.stringify(data),
-    });
-    if (!req.ok) throw new Error(`Failed to fetch data for /admin/${key}: ${await req.text()}`);
-    return req.status === 204 ? undefined : await req.json();
-  };
-
+export async function logout(){
+  await sessionRequest.logout(undefined)
 }
-
-

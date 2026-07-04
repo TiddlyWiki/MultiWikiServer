@@ -51,8 +51,8 @@ export class StateObject<
     this.pluginCache = router.config.pluginCache;
 
     this.asserted = false;
-    this.sendAdmin = (options?: { status: number, serverResponse: ServerToReactAdmin }): Promise<typeof STREAM_ENDED> =>
-      router.sendAdmin(this, options);
+    this.sendAdmin = (sendError?: SendError<any>): Promise<typeof STREAM_ENDED> =>
+      router.sendAdmin(this, sendError);
 
     if (this.compressor)
       this.compressor.enabled = router.config.enableGzip;

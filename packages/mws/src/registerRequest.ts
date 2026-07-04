@@ -3,9 +3,9 @@ import { Router, ServerRoute, BodyFormat, Streamer, RouteMatch, dist_resolve } f
 import { StateObject } from "./RequestState";
 import { ServerState } from "./ServerState";
 import { AuthUser, SessionManager } from "./services/sessions";
-import helmet from "helmet";
 import { IncomingMessage, request, ServerResponse } from "http";
 import { ClientBuildDefinition, registerStatsRoute, SendAdmin, setupClientBuild } from "./services/setupDevServer";
+import { secureHeaders } from 'hono/secure-headers';
 
 declare module "@tiddlywiki/events" {
   /**
@@ -25,7 +25,6 @@ declare module "@tiddlywiki/server" {
   interface Router {
     config: ServerState;
     sendAdmin: SendAdmin;
-    helmet: ART<typeof helmet>;
   }
 
   interface AllowedRequestedWithHeaderKeys {
@@ -58,12 +57,10 @@ serverEvents.on("listen.router.init", async (listen, router) => {
     const user = await SessionManager.parseIncomingRequest(request.cookies, router.config);
     return new StateObject(user, router, request, ...args);
   }
-
-  router.helmet = helmet({
-    contentSecurityPolicy: false,
+  router.hono = router.hono.use(secureHeaders({
     strictTransportSecurity: false,
-    referrerPolicy: { policy: "strict-origin-when-cross-origin" },
-  });
+    referrerPolicy: "strict-origin-when-cross-origin"
+  }));
 
   await serverEvents.emitAsync("mws.router.init", router);
 
@@ -87,14 +84,4 @@ serverEvents.on("mws.routes.fallback", (root, config) => {
     await state.sendAdmin();
     return STREAM_ENDED;
   });
-});
-
-serverEvents.on("request.middleware", async (router, req, res, options) => {
-  await new Promise<void>((resolve, reject) =>
-    router.helmet(
-      req as IncomingMessage,
-      res as ServerResponse,
-      err => err ? reject(err) : resolve()
-    )
-  );
 });

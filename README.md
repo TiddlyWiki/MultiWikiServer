@@ -31,7 +31,6 @@ Most of these features are still in development.
 
 ![this is fine](https://github.com/user-attachments/assets/49505d25-7a48-42f1-b4f7-73e8630c1ba1)
 
-
 ## Also, this is a database, please make backups
 
 Databases try very hard to be perfect, and data bugs are rare. But that doesn't mean things can't go wrong. Backups are pretty important. 

@@ -230,6 +230,7 @@ export class SessionManager {
 }
 
 
+
 async function createSession(prisma: PrismaTxnClient, user_id: PrismaField<"Users", "user_id">, session_key: string) {
   const session_id = randomBytes(16).toString("base64url");
   return await prisma.sessions.create({

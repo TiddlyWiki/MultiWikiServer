@@ -3,7 +3,8 @@
 
 import { spawn } from 'child_process';
 import { readFile, readFileSync, writeFileSync } from 'fs';
-import { defineConfig } from 'tsup';
+// the tsup node_modules in the tools directory
+import { defineConfig } from './tools/node_modules/tsup/dist/index.js';
 
 const prod = process.env.BUILD_ENV === 'runtime';
 

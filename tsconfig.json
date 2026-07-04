@@ -22,22 +22,19 @@
     "noFallthroughCasesInSwitch": true,
     "noUncheckedIndexedAccess": false,
     "allowArbitraryExtensions": true,
-    // "paths": {
-    //   "@tiddlywiki/mws-prisma": [
-    //     "./prisma/client"
-    //   ]
-    // },
-    // "jsx": "preserve",
     "jsx": "react-jsx",
     "jsxImportSource": "@tiddlywiki",
     "paths": {
       "@/server": [
         "./packages/mws/browser.ts"
       ],
-    }
+    },
+    "skipDefaultLibCheck": false,
+    "skipLibCheck": false
   },
   "include": [
     "packages/**/src",
+    "prisma/index.ts"
   ],
   "exclude": [
     "packages/admin-react",

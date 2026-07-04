@@ -16,7 +16,7 @@ import { join, resolve } from "path";
   switch(arg) {
     case "docs":
     case "start":
-      await run("tsup", {});
+      await run("tools/node_modules/.bin/tsup", {});
       await start("node --trace-warnings --trace-uncaught mws.dev.mjs", process.argv.slice(3), {
         DEVSERVER: true ? "watch" : "build",
         ENABLE_EXTERNAL_PLUGINS: "1",
@@ -24,13 +24,13 @@ import { join, resolve } from "path";
       });
       break;
     case "build":
-      await run("tsup", {});
+      await run("tools/node_modules/.bin/tsup", {});
       await run_bin({ CLIENT_BUILD: "1" });
       break;
     case "prisma:generate": {
-      await run("prisma validate", { "DATABASE_URL": "postgres://test" });
-      await run("prisma format", {});
-      await run("prisma generate", {});
+      await run("tools/node_modules/.bin/prisma validate", { "DATABASE_URL": "postgres://test" });
+      await run("tools/node_modules/.bin/prisma format", {});
+      await run("tools/node_modules/.bin/prisma generate", {});
       break;
     }
     case "dev-quick-reset": {
@@ -80,7 +80,7 @@ import { join, resolve } from "path";
       break;
     }
     case "prisma:migrate":
-      await start("prisma migrate dev", [
+      await start("tools/node_modules/.bin/prisma migrate dev", [
         "--schema", "prisma/schema.prisma",
         "--create-only"
       ], {

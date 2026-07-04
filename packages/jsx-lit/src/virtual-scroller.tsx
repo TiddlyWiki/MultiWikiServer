@@ -1,6 +1,5 @@
 import { render, createHybridRef } from "@tiddlywiki/jsx-runtime";
 import { addstylesinner, JSXElement } from "@tiddlywiki/jsx-lit";
-import { Card } from "mdui";
 
 export class VirtualScroller extends JSXElement {
   private static registered = false;
@@ -57,7 +56,6 @@ export class VirtualScroller extends JSXElement {
   lastMiddle = 0;
   lastScrollTop: number | undefined = 0;
   virtualListScrollPosition: number | null = null;
-  virtualList: Card | null = null;
 
   getVirtualListIndexes(scroller?: HTMLElement, curIndex: number | null = null) {
     if (!scroller) return {

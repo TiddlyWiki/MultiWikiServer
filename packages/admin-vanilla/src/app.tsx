@@ -2,6 +2,8 @@ import { customElement, JSXElement, addstyles, state } from "@tiddlywiki/jsx-lit
 import css from "./app.inline.css";
 import warningIcon from "@material-symbols/svg-400/outlined/warning.svg";
 import closeIcon from "@material-symbols/svg-400/outlined/close.svg";
+import accountCircleIcon from "@material-symbols/svg-400/outlined/account_circle.svg";
+import { MaterialSymbol } from "./material-symbol";
 import {
   getAllTabs,
   getTab,
@@ -24,32 +26,14 @@ import {
   KeyFields
 } from "./definition/tabs";
 
-import { adminStorage, createDraft, findTemplateRecordForWikiRecord, getEmptyItems, jsonReviver } from "./definition/store";
+import { adminStorage, createDraft, getEmptyItems, jsonReviver } from "./definition/store";
 import { definitely, is } from "./definition/utils";
-
-
-// import icon1 from "@material-symbols/svg-400/{style}/{icon}.svg" // (Unfilled)
-// import icon2 from "@material-symbols/svg-400/{style}/{icon}-fill.svg" // (Filled)
-// <MaterialSymbol icon={icon} />
-@customElement("material-symbol")
-export class MaterialSymbol extends JSXElement {
-  useLightDOM: boolean = true;
-
-  @state() accessor props!: {
-    icon: string;
-  }
-
-  protected render() {
-    this.innerHTML = this.props.icon;
-    return JSXElement.DO_NOT_RENDER;
-  }
-}
+import { logout } from "./passwords";
+import { fieldTypeRenderSidebars, formatFieldValue, renderFieldEditor, renderFieldSidebar } from "./definition/renders";
 
 
 export type AdminRecord = { id: IdString; };
 
-type PermissionLevel = "A_read" | "B_write" | "C_admin";
-type RecipePermissionLevel = "A_read" | "B_write";
 type ModalMode = "create" | "edit";
 
 type ModalState = {
@@ -140,27 +124,6 @@ export type PermissionRowsChangeHandler = (fieldKey: string, rows: PermissionRow
 export type ResolverTitleChangeHandler = (value: string) => void;
 export type OperationTriggerHandler = (fieldKey: string, message: string) => void;
 
-/** The subset of FieldEditorContext that the readonly renderers need. */
-interface ReadonlyFieldContext<T = unknown> {
-  field: FieldDefinition;
-  value: T;
-  itemsByTab?: AdminRecordStore;
-}
-
-
-interface FieldEditorInput<T = unknown> extends ReadonlyFieldContext<T> {
-  saved?: T;
-  disabled?: boolean;
-  fieldState: PerTabFieldState;
-  itemsByTab: AdminRecordStore;
-  onDraftChange: DraftChangeHandler<T>;
-  onPendingRowsChange: PendingRowsChangeHandler;
-  onTransientPermissionRowsChange: PermissionRowsChangeHandler;
-  onResolverTitleChange: ResolverTitleChangeHandler;
-  onTriggerOperation: OperationTriggerHandler;
-}
-
-
 interface FieldBlockProps {
   field: FieldDefinition;
   value: unknown;
@@ -171,10 +134,6 @@ interface FieldBlockProps {
 }
 
 
-/** FieldEditorInput plus the derived inputId, shared by the per-type render functions. */
-export interface FieldEditorContext<T = unknown> extends FieldEditorInput<T> {
-  inputId: string;
-}
 
 interface MissingDependencyLine {
   value: string;
@@ -197,8 +156,6 @@ interface RecordModalProps {
   store: PerTabStore;
 }
 
-const bagPermissionLevels: PermissionLevel[] = ["A_read", "B_write", "C_admin"];
-const recipePermissionLevels: RecipePermissionLevel[] = ["A_read", "B_write"];
 
 
 export function isServerField(mode: Mode) {
@@ -221,18 +178,6 @@ function isEditable(field: FieldDefinition, mode: ModalMode): boolean {
   return false;
 }
 
-// TODO: fold into tabs variable
-function getSelectOptions(field: FieldDefinition, itemsByTab: AdminRecordStore): string[] {
-  if (field.key === "status") return ["draft", "published", "archived"];
-  if (field.key === "requiredPluginsEnabled" || field.key === "customHtmlEnabled") return ["enabled", "disabled"];
-  if (field.key === "templateName") {
-    return Array.from(new Set(itemsByTab.templates.map((item) => item.name.toString()).filter(Boolean)));
-  }
-  return [];
-}
-
-
-
 function getPrimaryValue(tab: TabDefinition, item: AdminRecord): string {
   const primary = tab.columns[0] ?? tab.fields[0];
   return formatFieldValue(getAdminRecordValue(primary, item));
@@ -243,32 +188,6 @@ function getCreateLabel(tab: TabDefinition): string {
 }
 
 
-function getLookupOptions(fieldKey: string, itemsByTab: AdminRecordStore): string[] {
-  if (fieldKey === "readonlyBags" || fieldKey === "writablePrefixBags") {
-    return Array.from(new Set(itemsByTab.bags.map((item) => item.name.toString()).filter(Boolean)));
-  }
-  if (fieldKey === "plugins") {
-    return Array.from(new Set(itemsByTab.plugins.map((item) => item.name.toString()).filter(Boolean)));
-  }
-  if (fieldKey === "userRoles") {
-    return Array.from(new Set(itemsByTab.roles.map((item) => item.name.toString()).filter(Boolean)));
-  }
-  if (fieldKey === "permissions" || fieldKey === "recipePermissions") {
-    return Array.from(new Set([
-      ...itemsByTab.bags.flatMap((item) => item.permissions.map((row) => row.role.toString())),
-      ...itemsByTab.wikis.flatMap((item) => item.recipePermissions.map((row) => row.role.toString())),
-    ].filter(Boolean)));
-  }
-  return [];
-}
-
-function getPermissionLevelsForField(fieldKey: string): PermissionLevel[] | RecipePermissionLevel[] {
-  return fieldKey === "recipePermissions" ? recipePermissionLevels : bagPermissionLevels;
-}
-
-function formatPermissionLevel(level: string): string {
-  return level.replace(/^[A-Z]_/, "");
-}
 
 function getFieldSection(field: FieldDefinition): FieldSection {
   return field.section ?? (isAuthoredField(field.mode) ? "authored" : "runtime");
@@ -300,20 +219,6 @@ function getFieldGroups(tab: TabDefinition, section: FieldSection, fields: Field
 
 export function uniqueLines(values: readonly string[]): string[] {
   return Array.from(new Set(values.map((value) => value.trim()).filter(Boolean)));
-}
-
-function buildEffectivePrefixObject(writablePrefixBags: (readonly WritablePrefixRow[])[]): readonly WritablePrefixRow[] {
-  const result: Record<string, string> = {};
-  for (const list of writablePrefixBags) {
-    for (const row of list) {
-      if (typeof row.prefix !== "string" || typeof row.bagName !== "string")
-        throw new Error("Expects an object of { prefix: string; bagName: string; }.")
-      result[row.prefix] ??= row.bagName;
-    }
-  }
-  return Object.entries(result)
-    .map(([prefix, bagName]) => ({ prefix, bagName: new KeyString(bagName) }))
-    .sort((a, b) => b.prefix.length - a.prefix.length);
 }
 
 class LineListCodec {
@@ -679,877 +584,9 @@ class AppStore {
   }
 }
 
-// #region - renders
 
-function formatFieldValue(value: any): string {
-  if (typeof value === "string"
-    || value instanceof IdString
-    || value instanceof KeyString)
-    return value.trim() || "—";
-  if (Array.isArray(value)) {
-    if (!value.length) return "—";
-    if (typeof value[0] === "string")
-      return value.join("\n"); // value.length ?  : "—";
-    if (typeof value[0] === "object") {
-      if (typeof value[0].prefix === "string")
-        return value.map(e => `${e.prefix}: ${e.bagName}`).join("\n");
-      if (typeof value[0].name === "string")
-        return value.map(e => `${e.name}`).join("\n");
-    }
-  }
-  console.error("value is not supported", value)
-  throw new Error("value is not supported");
-}
 
-function renderListCellValue(columnKey: string, value: string | undefined) {
-  const formattedValue = formatFieldValue(value);
-
-  if (columnKey === "statusFlags" && value?.toLowerCase().includes("alert")) {
-    return (
-      <span class="missing-marker" aria-label={formattedValue} title={formattedValue}>
-        <MaterialSymbol icon={warningIcon} />
-      </span>
-    );
-  }
-
-  return formattedValue;
-}
-
-type ListColumnLinkMapper = (item: AdminRecord) => string | null;
-
-function getListColumnLinkMappers(tabId: TabId): Partial<Record<string, ListColumnLinkMapper>> {
-  switch (tabId) {
-    case "wikis":
-      return {
-        slug: (item) => {
-          definitely<WikiAdminRecord>(item);
-          return item.slug ? `${pathPrefix}/wiki/${encodeURIComponent(item.slug.toString())}` : null;
-        },
-      };
-    case "templates":
-    case "bags":
-    case "plugins":
-    case "roles":
-    case "users":
-      return {};
-    default: {
-      const exhaustive: never = tabId;
-      return exhaustive;
-    }
-  }
-}
-
-function getListColumnLink(tabId: TabId, columnKey: string, item: AdminRecord): string | null {
-  const mapper = getListColumnLinkMappers(tabId)[columnKey];
-  return mapper ? mapper(item) : null;
-}
-
-function renderSearchableInput({ id, currentValue, placeholder, options, onInput, disabled }: {
-  id: string;
-  currentValue: string;
-  placeholder: string;
-  options: string[];
-  onInput: (nextValue: string) => void;
-  disabled: boolean | undefined;
-}) {
-  const datalistId = `${id}-options`;
-  return (
-    <>
-      <input
-        id={id}
-        class="field-input"
-        type="text"
-        value={currentValue}
-        disabled={disabled}
-        ref={(element) => {
-          if (element.value !== currentValue) element.value = currentValue;
-        }}
-        placeholder={placeholder}
-        list={options.length ? datalistId : undefined}
-        oninput={(event) => onInput((event.currentTarget as HTMLInputElement).value)}
-      />
-      {options.length ? (
-        <datalist id={datalistId}>
-          {options.map((option) => <option value={option} />)}
-        </datalist>
-      ) : null}
-    </>
-  );
-}
-
-function renderTextInputField(ctx: FieldEditorContext, type: "text" | "number" | "password") {
-  const { field, value, disabled, inputId, onDraftChange } = ctx;
-  definitely<string>(value);
-  return <input id={inputId} class="field-input" type={type} value={value} ref={(element) => {
-    if (element.value !== value) element.value = value;
-  }} disabled={disabled} oninput={(event) => onDraftChange(field.key, (event.currentTarget as HTMLInputElement).value)} />;
-}
-
-function renderTextareaField(ctx: FieldEditorContext, rows: number, extraClass = "") {
-  const { field, value, disabled, inputId, onDraftChange } = ctx;
-  definitely<string>(value);
-  const className = extraClass ? `field-textarea ${extraClass}` : "field-textarea";
-  return <textarea id={inputId} class={className} rows={rows} ref={(element) => {
-    if (element.value !== value) element.value = value;
-  }} disabled={disabled} oninput={(event) => onDraftChange(field.key, (event.currentTarget as HTMLTextAreaElement).value)} />;
-}
-
-function renderSelectField(ctx: FieldEditorContext) {
-  const { field, value, disabled, itemsByTab, inputId, onDraftChange } = ctx;
-  definitely<string>(value);
-  const options = getSelectOptions(field, itemsByTab);
-  return (
-    <select id={inputId} class="field-select" disabled={disabled} onchange={(event) => onDraftChange(field.key, (event.currentTarget as HTMLSelectElement).value)}>
-      <option value="" selected={!value}>Select...</option>
-      {options.map((option) => <option value={option} selected={option === value}>{option}</option>)}
-    </select>
-  );
-}
-
-function renderActivityFeedField(ctx: ReadonlyFieldContext<readonly string[]>) {
-  const lines = ctx.value;
-  return <ul class="timeline-list">{lines.map((line) => <li>{line}</li>)}</ul>;
-}
-
-function renderMetadataTableField(ctx: ReadonlyFieldContext<readonly string[]>) {
-  const lines = ctx.value;
-  return <dl class="meta-list">{lines.map((line) => {
-    const [key, ...rest] = line.split(":");
-    return <><dt>{key}</dt><dd>{rest.join(":").trim()}</dd></>;
-  })}</dl>;
-}
-
-function renderTableField(ctx: ReadonlyFieldContext) {
-  const { field, value, itemsByTab } = ctx;
-  definitely<readonly string[]>(value);
-  return renderLinesList(value, field.key, itemsByTab)
-}
-
-function renderLinesList(value: readonly string[], key: string, itemsByTab?: AdminRecordStore) {
-  const missingCheck =
-    itemsByTab ?
-      key === "effectiveReadonlyBags" ? new Set(Array.from(itemsByTab.availableBagNames, e => e.toString())) :
-        key === "effectivePluginSet" ? itemsByTab.availablePluginNames :
-          null : null;
-  const lines = value.map(line => ({ line, missing: missingCheck && !missingCheck.has(line), }));
-  return <ul class="value-list">{lines.map(({ line, missing }) => <li>
-    {line.split("/").map((e, i, a) => <>{e}{(i !== a.length - 1) ? "/" : ""}<wbr /></>)}
-    {missing ? <span class="missing-marker" aria-label="Missing dependency" title="Missing dependency"><MaterialSymbol icon={warningIcon} /></span> : null}
-  </li>)}</ul>;
-
-}
-function renderCalloutField(ctx: ReadonlyFieldContext) {
-  definitely<string>(ctx.value);
-  return <div class="field-callout"><p>{formatFieldValue(ctx.value)}</p></div>;
-}
-
-function renderPreField(ctx: ReadonlyFieldContext) {
-  definitely<string>(ctx.value);
-  return (
-    <div class="field-value">
-      <pre>{formatFieldValue(ctx.value)}</pre>
-    </div>
-  );
-}
-
-
-function renderFieldEditor(input: FieldEditorInput) {
-  const ctx: FieldEditorContext = { ...input, inputId: `field-${input.field.key}` };
-  return getFieldHandler(ctx.field.type).renderEditor(ctx);
-}
-
-// #region field handlers
-
-export abstract class FieldTypeHandler<T = unknown> {
-
-  public abstract initCreate(): T;
-
-  public renderEditor(ctx: FieldEditorContext<any>): JSX.Node {
-    return renderTextareaField(ctx, 5);
-  }
-
-  public renderSidebar(ctx: ReadonlyFieldContext): JSX.Node {
-    if (typeof ctx.value !== "string") console.log(ctx);
-    return (
-      <div class="field-value">
-        <pre>{formatFieldValue(ctx.value)}</pre>
-      </div>
-    );
-  }
-}
-
-abstract class StringFieldTypeHandler extends FieldTypeHandler<string> {
-
-  public initCreate(): string {
-    return "";
-  }
-
-  public parse(item: string): string { return item; }
-
-  public stringify(item: string): string { return item; }
-
-  public renderEditor(ctx: FieldEditorContext<any>) {
-    return renderTextareaField(ctx, 5);
-  }
-
-}
-
-class TemplateTypeFieldHandler extends FieldTypeHandler<TemplateTypes> {
-  public initCreate() {
-    return "simpleV1" as const;
-  }
-
-  public renderEditor(ctx: FieldEditorContext<any>): JSX.Node {
-    return null;
-  }
-  public renderSidebar(ctx: ReadonlyFieldContext): JSX.Node {
-    return null;
-  }
-
-
-}
-
-class TextInputFieldHandler extends StringFieldTypeHandler {
-  constructor(private readonly inputType: "text" | "number") {
-    super();
-  }
-
-  public override renderEditor(ctx: FieldEditorContext) {
-    return renderTextInputField(ctx, this.inputType);
-  }
-}
-
-class TextareaFieldHandler extends StringFieldTypeHandler {
-  constructor(private readonly rows: number, private readonly extraClass = "") {
-    super();
-  }
-
-  public override renderEditor(ctx: FieldEditorContext) {
-    return renderTextareaField(ctx, this.rows, this.extraClass);
-  }
-}
-
-class PasswordInputFieldHandler extends StringFieldTypeHandler {
-  public override renderEditor(ctx: FieldEditorContext) {
-    return renderTextInputField(ctx, "password");
-  }
-
-  public override renderSidebar(): JSX.Node {
-    return null;
-  }
-}
-
-class ConfirmPasswordFieldHandler extends StringFieldTypeHandler {
-  public override renderEditor(ctx: FieldEditorContext<string>) {
-    const { field, value, disabled, fieldState, inputId, onDraftChange, onTriggerOperation } = ctx;
-    definitely<string>(value);
-    const confirmationValue = fieldState.operationMessages[field.key] ?? "";
-    const hasConfirmation = Boolean(confirmationValue);
-    const hasMismatch = hasConfirmation && confirmationValue !== value;
-
-    return (
-      <div class="row-editor-stack">
-        <input
-          id={inputId}
-          class="field-input"
-          type="password"
-          value={value}
-          disabled={disabled}
-          placeholder="Enter password"
-          ref={(element) => {
-            if (element.value !== value) element.value = value;
-          }}
-          oninput={(event) => onDraftChange(field.key, (event.currentTarget as HTMLInputElement).value)}
-        />
-        <input
-          id={`${inputId}-confirm`}
-          class="field-input"
-          type="password"
-          value={confirmationValue}
-          disabled={disabled}
-          placeholder="Confirm password"
-          ref={(element) => {
-            if (element.value !== confirmationValue) element.value = confirmationValue;
-          }}
-          oninput={(event) => onTriggerOperation(field.key, (event.currentTarget as HTMLInputElement).value)}
-        />
-        {hasConfirmation ? <p class="field-helper">{hasMismatch ? "Passwords do not match yet." : "Passwords match."}</p> : null}
-      </div>
-    );
-  }
-
-  public override renderSidebar(): JSX.Node {
-    return null;
-  }
-}
-
-class SearchMultiselectFieldHandler extends FieldTypeHandler<string[]> {
-  constructor() {
-    super();
-  }
-
-  public initCreate(): string[] {
-    return [];
-  }
-
-  public parse(value: string) {
-    return lineListCodec.parse(value);
-  }
-
-  public stringify(lines: string[]) {
-    return lineListCodec.stringify(lines);
-  }
-
-  public override renderSidebar(ctx: ReadonlyFieldContext<readonly string[]>): JSX.Node {
-    return <ul>
-      {ctx.value.map(e => <li>{e}</li>)}
-    </ul>
-  }
-
-  public override renderEditor(ctx: FieldEditorContext<readonly string[]>) {
-    const { field, value, disabled, fieldState, itemsByTab, inputId, onDraftChange, onPendingRowsChange } = ctx;
-    if (typeof value === "string") {
-      console.log(ctx);
-      throw new Error("value is a string");
-    }
-    const editableLines = value;
-    const pendingRowCount = fieldState.pendingRows[field.key] ?? 0;
-    const lookupOptions = getLookupOptions(field.key, itemsByTab);
-    const itemLabel = field.key === "plugins"
-      ? "plugin"
-      : field.key === "userRoles"
-        ? "role id"
-        : "bag";
-    const templateRecord = is<WikiAdminRecord>(fieldState.draft, fieldState.tabId === "wikis")
-      ? findTemplateRecordForWikiRecord(fieldState.draft, itemsByTab as AdminRecordStore) : undefined;
-    const templateReadonlyBagLines = field.key === "readonlyBags" && templateRecord ? templateRecord.readonlyBags : [];
-    const templatePluginLines = field.key === "plugins" && templateRecord ? templateRecord.plugins : [];
-    const templateCorePluginsEnabled = Boolean(templateRecord?.requiredPluginsEnabled);
-
-    const updateLineValueAt = (index: number, nextValue: string) => {
-      const lines = value.slice();
-      const hadStoredRow = index < lines.length;
-      while (lines.length <= index) lines.push("");
-      lines[index] = nextValue;
-      onDraftChange(field.key, lines);
-      if (!hadStoredRow && nextValue.trim()) onPendingRowsChange(field.key, (count) => count - 1);
-    };
-
-    const removeLineValueAt = (index: number) => {
-      const lines = value.slice();
-      if (index >= lines.length) {
-        onPendingRowsChange(field.key, (count) => count - 1);
-        return;
-      }
-      lines.splice(index, 1);
-      onDraftChange(field.key, lines);
-    };
-
-    const displayedLines = editableLines.length
-      ? [...editableLines, ...Array.from({ length: pendingRowCount }, () => "")]
-      : ["", ...Array.from({ length: pendingRowCount }, () => "")];
-    return (
-      <div class="row-editor-stack">
-        {displayedLines.map((line, index) => (
-          <div class="row-editor-row">
-            {renderSearchableInput({
-              id: `${inputId}-${index}`,
-              currentValue: line,
-              placeholder: `${itemLabel.charAt(0).toUpperCase()}${itemLabel.slice(1)} name`,
-              options: lookupOptions,
-              onInput: (nextValue) => updateLineValueAt(index, nextValue),
-              disabled: ctx.disabled
-            })}
-            <button type="button" class="row-action-button" disabled={disabled} onclick={() => removeLineValueAt(index)}>Remove</button>
-          </div>
-        ))}
-        <button type="button" class="ghost-button" disabled={disabled} onclick={() => onPendingRowsChange(field.key, (count) => count + 1)}>{`Add ${itemLabel}`}</button>
-        {field.key === "readonlyBags" && fieldState.tabId === "wikis" && templateRecord ? (
-          <div class="field-callout">
-            <p>Readonly bags from template</p>
-            <ul class="value-list">
-              {templateReadonlyBagLines.length ? templateReadonlyBagLines.map((bag) => <li>{bag.toString()}</li>) : <li>No template readonly bags</li>}
-            </ul>
-          </div>
-        ) : null}
-        {field.key === "plugins" && fieldState.tabId === "wikis" && templateRecord ? (
-          <div class="field-callout">
-            <p>Plugins from template</p>
-            <ul class="value-list">
-              {templatePluginLines.map((plugin) => <li>{plugin}</li>)}
-              {templateCorePluginsEnabled ? <li>core plugins</li> : <li>core plugins disabled</li>}
-            </ul>
-          </div>
-        ) : null}
-      </div>
-    );
-  }
-}
-
-class PermissionTableFieldHandler extends FieldTypeHandler<readonly PermissionRow[]> {
-  constructor() {
-    super();
-  }
-
-  public initCreate(): PermissionRow<string>[] {
-    return [];
-  }
-
-  public override renderEditor(ctx: FieldEditorContext<readonly PermissionRow[]>) {
-    const { field, disabled, fieldState, itemsByTab, inputId, onDraftChange, onTransientPermissionRowsChange } = ctx;
-    definitely<readonly PermissionRow[]>(ctx.value);
-    const permissionRows = ctx.value;
-    const lookupOptions = getLookupOptions(field.key, itemsByTab);
-    const availableLevels = getPermissionLevelsForField(field.key);
-    const transientPermissionRows = fieldState.transientPermissionRows[field.key] ?? [];
-    const displayedPermissionRows = permissionRows.length || transientPermissionRows.length
-      ? [...permissionRows, ...transientPermissionRows]
-      : [{ role: new KeyString(""), level: availableLevels[0] as PermissionLevel }];
-
-    const persistPermissionRows = (rows: PermissionRow[]) => {
-      const persistedRows = rows.filter((row) => row.role.trim());
-      const nextTransientRows = rows.filter((row) => !row.role.trim());
-      onDraftChange(field.key, permissionRowsCodec.stringify(persistedRows));
-      onTransientPermissionRowsChange(field.key, nextTransientRows);
-    };
-
-    return (
-      <div class="row-editor-stack">
-        {displayedPermissionRows.map((row, index) => (
-          <div key={`${field.key}-permission-${index}`} class="row-editor-row row-editor-row-wide row-editor-row-permission">
-            {renderSearchableInput({
-              id: `${inputId}-${index}-role`,
-              currentValue: row.role.toString(),
-              placeholder: "Role",
-              options: lookupOptions,
-              disabled: ctx.disabled,
-              onInput: (nextValue) => {
-                const nextRows = [...displayedPermissionRows];
-                nextRows[index] = { ...row, role: new KeyString(nextValue) };
-                persistPermissionRows(nextRows);
-              },
-            })}
-            <select class="field-select" onchange={(event) => {
-              if (disabled) return;
-              const nextRows = [...displayedPermissionRows];
-              nextRows[index] = { ...row, level: (event.currentTarget as HTMLSelectElement).value as PermissionLevel };
-              persistPermissionRows(nextRows);
-            }} disabled={disabled}>
-              {availableLevels.map((level) => <option key={`${field.key}-${index}-${level}`} value={level} selected={level === row.level}>{formatPermissionLevel(level)}</option>)}
-            </select>
-            <button type="button" class="row-action-button" disabled={disabled} onclick={() => {
-              const nextRows = [...displayedPermissionRows];
-              nextRows.splice(index, 1);
-              persistPermissionRows(nextRows);
-            }}>Remove</button>
-          </div>
-        ))}
-        <button type="button" class="ghost-button" disabled={disabled} onclick={() =>
-          onTransientPermissionRowsChange(field.key, [...transientPermissionRows, {
-            role: new KeyString(""), level: availableLevels[0] as PermissionLevel
-          }])}>Add permission</button>
-      </div>
-    );
-  }
-}
-
-const defaultPrefixPill = <div class="prefix-bag-sidebar-pill">default</div>;
-class PrefixTableFieldHandler extends FieldTypeHandler<WritablePrefixRow[]> {
-  constructor() {
-    super();
-  }
-
-  public initCreate(): WritablePrefixRow[] {
-    return [];
-  }
-
-  public override renderSidebar(ctx: ReadonlyFieldContext<WritablePrefixRow[]>): JSX.Node {
-    return <dl class="prefix-bag-sidebar">
-      {ctx.value.map(e => <>
-        <dt class="prefix-bag-sidebar-term">{e.prefix ? <span class="prefix-bag-sidebar-prefix">"{e.prefix}"</span> : defaultPrefixPill}</dt>
-        <dd class="prefix-bag-sidebar-value">{e.bagName.toString()}</dd>
-      </>)}
-    </dl>
-  }
-
-  public override renderEditor(ctx: FieldEditorContext) {
-    const { field, value, disabled, fieldState, itemsByTab, inputId, onDraftChange, onPendingRowsChange } = ctx;
-    const forDisplay = field.mode === "server";
-    definitely<WritablePrefixRow[]>(value);
-    const mappingRows = value;
-    const pendingRowCount = fieldState.pendingRows[field.key] ?? 0;
-    const lookupOptions = getLookupOptions(field.key, itemsByTab);
-    const displayedMappingRows = mappingRows.length
-      ? [...mappingRows, ...Array.from({ length: pendingRowCount }, () => ({ prefix: "", bagName: new KeyString("") }))]
-      : [{ prefix: "", bagName: new KeyString("") }, ...Array.from({ length: pendingRowCount }, () => ({ prefix: "", bagName: new KeyString("") }))];
-    const templateRecord = is<WikiAdminRecord>(fieldState.draft, fieldState.tabId === "wikis")
-      ? findTemplateRecordForWikiRecord(fieldState.draft, itemsByTab) : undefined;
-    const inheritedRoutingRows = fieldState.tabId === "wikis" && templateRecord ? templateRecord.writablePrefixBags : [];
-
-    if (forDisplay) {
-      return this.displayMappingRows(displayedMappingRows)
-    }
-    return (
-      <div class="row-editor-stack">
-        {displayedMappingRows.map((row, index) => (
-          <div class="row-editor-row row-editor-row-wide">
-            <div class="prefix-input-shell">
-              <input class={this.hasTrimMismatch(row.prefix) ? "field-input is-invalid" : "field-input"}
-                type="text"
-                value={row.prefix}
-                placeholder="Prefix, leave blank for default"
-                aria-invalid={this.hasTrimMismatch(row.prefix) ? "true" : undefined}
-                title={this.hasTrimMismatch(row.prefix) ? "Prefix has leading or trailing whitespace. Is this intentional?" : undefined}
-                disabled={disabled}
-                oninput={(event) => {
-                  const element = event.currentTarget as HTMLInputElement;
-                  const hadStoredRow = index < mappingRows.length;
-                  const nextRows = mappingRows.length ? [...mappingRows] : [{ prefix: "", bagName: "" }];
-                  nextRows[index] = { ...row, prefix: element.value };
-                  onDraftChange(field.key, nextRows);
-                  if (!hadStoredRow && (element.value || row.bagName.trim())) onPendingRowsChange(field.key, (count) => count - 1);
-                }} ref={(element) => {
-                  if (element.value !== row.prefix) element.value = row.prefix;
-                }} />
-              {this.hasTrimMismatch(row.prefix) ? <span
-                class="prefix-input-alert missing-marker"
-                aria-label="Prefix has leading or trailing whitespace"
-                title="Prefix has leading or trailing whitespace. Is this intentional?"
-              ><MaterialSymbol icon={warningIcon} /></span> : null}
-            </div>
-            {renderSearchableInput({
-              id: `${inputId}-${index}-target`,
-              currentValue: row.bagName.toString(),
-              placeholder: "Target bag",
-              options: lookupOptions,
-              disabled: ctx.disabled,
-              onInput: (nextValue) => {
-                const hadStoredRow = index < mappingRows.length;
-                const nextRows = mappingRows.length ? [...mappingRows] : [{ prefix: "", bagName: "" }];
-                nextRows[index] = { ...row, bagName: nextValue };
-                onDraftChange(field.key, nextRows);
-                if (!hadStoredRow && (row.prefix || nextValue.trim())) onPendingRowsChange(field.key, (count) => count - 1);
-              },
-            })}
-            {<button type="button" class="row-action-button" disabled={disabled} onclick={() => {
-              if (index >= mappingRows.length) {
-                onPendingRowsChange(field.key, (count) => count - 1);
-                return;
-              }
-              const nextRows = mappingRows.length ? [...mappingRows] : [];
-              nextRows.splice(index, 1);
-              onDraftChange(field.key, nextRows);
-            }}>Remove</button>}
-          </div>
-        ))}
-        {<button type="button" class="ghost-button" disabled={disabled} onclick={() => onPendingRowsChange(field.key, (count) => count + 1)}>Add prefix rule</button>}
-        {inheritedRoutingRows.length ? (
-          <div class="field-callout">
-            <p>Writable bags inherited from template:</p>
-            {this.displayMappingRows(buildEffectivePrefixObject([mappingRows, inheritedRoutingRows]))}
-          </div>
-        ) : null}
-      </div>
-    );
-  }
-  private displayMappingRows(displayedMappingRows: readonly WritablePrefixRow[]) {
-    return <table class="value-table">
-      {displayedMappingRows.map((row) => (
-        <tr>
-          <td>{row.prefix ? <code>{'"' + row.prefix + '"'}</code> : defaultPrefixPill}</td>
-          <td>{row.bagName.toString()}</td>
-        </tr>
-      ))}
-    </table>;
-  }
-
-  private hasTrimMismatch(value: string): boolean {
-    return value.trim() !== value;
-  }
-}
-
-class SelectFieldHandler extends StringFieldTypeHandler {
-  constructor() {
-    super();
-  }
-
-  public override renderEditor(ctx: FieldEditorContext) {
-    return renderSelectField(ctx);
-  }
-}
-
-class AutocompleteFieldHandler extends FieldTypeHandler<string | null> {
-  constructor() {
-    super();
-  }
-
-  public initCreate(): string | null {
-    return null;
-  }
-
-  renderSidebar(ctx: ReadonlyFieldContext<string | null>) {
-    return ctx.value ?? "";
-  }
-
-  public override renderEditor(ctx: FieldEditorContext<string | null>) {
-    const { field, value, disabled, itemsByTab, inputId, onDraftChange } = ctx;
-    const datalistId = `${inputId}-options`;
-    const optionMap = new Map(itemsByTab.templates.map(e => [e.name, e.id]))
-    const oninput = (event: InputEvent & {
-      currentTarget: HTMLInputElement;
-      target: Element;
-    }) => {
-      const name = event.currentTarget.value;
-      if (!name) return event.preventDefault();
-      onDraftChange(field.key, name);
-    }
-    return (
-      <>
-        <input id={inputId} class="field-input" type="text" value={value ?? ""} disabled={disabled}
-          ref={(element) => {
-            if (value && element.value !== value) element.value = value;
-          }}
-          list={datalistId}
-          oninput={oninput}
-        />
-        <datalist id={datalistId}>
-          {Array.from(optionMap.keys(), (option) => <option value={option.toString()} />)}
-        </datalist>
-      </>
-    );
-  }
-}
-
-class ResolverPreviewFieldHandler extends StringFieldTypeHandler {
-  constructor() {
-    super();
-  }
-
-  private computeResolverPreview(draft: WikiAdminRecord, title: string) {
-    const normalizedTitle = title.trim();
-    const targets = draft.effectiveWritableBags.filter((row) => row.bagName).sort((a, b) => b.prefix.length - a.prefix.length);
-    const writeTarget = normalizedTitle
-      ? (targets.find((target) => target.prefix && normalizedTitle.startsWith(target.prefix)) ?? targets.find((target) => target.prefix === ""))
-      : undefined;
-    return {
-      title: normalizedTitle,
-      writeTo: writeTarget?.bagName.toString() ?? "No writable target",
-      matchedPrefix: writeTarget ? (writeTarget.prefix || "default") : "none",
-    };
-  }
-
-
-  public override renderEditor(ctx: FieldEditorContext) {
-    const { fieldState, inputId, onResolverTitleChange } = ctx;
-    definitely<WikiAdminRecord>(fieldState.draft);
-    const preview = this.computeResolverPreview(fieldState.draft, fieldState.resolverTitle);
-    return (
-      <div class="tool-panel resolver-tool">
-        <label class="field-label" for={inputId}>Title to test</label>
-        <input id={inputId} class="field-input" type="text" value={fieldState.resolverTitle} ref={(element) => {
-          if (element.value !== fieldState.resolverTitle) element.value = fieldState.resolverTitle;
-        }} oninput={(event) => onResolverTitleChange((event.currentTarget as HTMLInputElement).value)} />
-        <div class="resolver-grid">
-          <div class="resolver-stat">
-            <span>Matched prefix</span>
-            <strong>{preview.matchedPrefix}</strong>
-          </div>
-          <div class="resolver-stat">
-            <span>Write target</span>
-            <strong>{preview.writeTo}</strong>
-          </div>
-        </div>
-        <div class="field-callout">
-          <p>{preview.title ? `Resolver would test the title against the longest matching prefix rule, then fall back to the default target if no explicit prefix matches. Final reads and write permission depend on live server state and are not shown here.` : `Enter a title to preview how this wiki would route it.`}</p>
-        </div>
-      </div>
-    );
-  }
-}
-
-class ValueListFieldHandler extends FieldTypeHandler<string[]> {
-  constructor() {
-    super();
-  }
-
-  public initCreate(): string[] {
-    return [];
-  }
-
-  public parse(value: string) {
-    return lineListCodec.parse(value);
-  }
-
-  public stringify(lines: string[]) {
-    return lineListCodec.stringify(lines);
-  }
-
-  public override renderSidebar(ctx: ReadonlyFieldContext) {
-    // TODO: string should probably be a separate class 
-    const lines = typeof ctx.value === "string"
-      ? lineListCodec.parse(ctx.value)
-      : ctx.value as readonly string[];
-    return renderLinesList(lines, ctx.field.key, ctx.itemsByTab);
-  }
-
-  public override renderEditor(ctx: FieldEditorContext) {
-    return this.renderSidebar(ctx);
-  }
-
-}
-
-class ActivityFeedFieldHandler extends FieldTypeHandler<readonly string[]> {
-  constructor() {
-    super();
-  }
-
-  public initCreate(): string[] {
-    return [];
-  }
-
-  public parse(value: string) {
-    return lineListCodec.parse(value);
-  }
-
-  public stringify(lines: string[]) {
-    return lineListCodec.stringify(lines);
-  }
-
-  public override renderSidebar(ctx: ReadonlyFieldContext<readonly string[]>) {
-    return renderActivityFeedField(ctx);
-  }
-
-  public override renderEditor(ctx: FieldEditorContext<readonly string[]>) {
-    return renderActivityFeedField(ctx);
-  }
-}
-
-class MetadataTableFieldHandler extends FieldTypeHandler<readonly string[]> {
-  constructor() {
-    super();
-  }
-
-  public initCreate(): string[] {
-    return [];
-  }
-
-  public parse(value: string) {
-    return lineListCodec.parse(value);
-  }
-
-  public stringify(lines: string[]) {
-    return lineListCodec.stringify(lines);
-  }
-
-  public override renderSidebar(ctx: ReadonlyFieldContext<readonly string[]>) {
-    return renderMetadataTableField(ctx);
-  }
-
-  public override renderEditor(ctx: FieldEditorContext<readonly string[]>) {
-    return renderMetadataTableField(ctx);
-  }
-}
-
-class TableFieldHandler extends FieldTypeHandler<string[]> {
-  constructor() {
-    super();
-  }
-
-  public initCreate(): string[] {
-    return [];
-  }
-
-  public parse(value: string) {
-    return lineListCodec.parse(value);
-  }
-
-  public stringify(lines: string[]) {
-    return lineListCodec.stringify(lines);
-  }
-
-  public override renderSidebar(ctx: ReadonlyFieldContext) {
-    return renderTableField(ctx);
-  }
-
-  public override renderEditor(ctx: FieldEditorContext) {
-    return renderTableField(ctx);
-  }
-}
-
-class CalloutFieldHandler extends FieldTypeHandler {
-  constructor() {
-    super();
-  }
-
-  public initCreate(): unknown {
-    return "";
-  }
-
-  public override renderSidebar(ctx: ReadonlyFieldContext) {
-    return renderCalloutField(ctx);
-  }
-
-  public override renderEditor(ctx: FieldEditorContext) {
-    return renderCalloutField(ctx);
-  }
-}
-
-class FallbackFieldHandler extends StringFieldTypeHandler {
-  constructor() {
-    super();
-  }
-}
-
-
-const textInputFieldHandler = new TextInputFieldHandler("text");
-const numberInputFieldHandler = new TextInputFieldHandler("number");
-const textareaFieldHandler = new TextareaFieldHandler(4);
-const enterPasswordFieldHandler = new PasswordInputFieldHandler();
-const confirmPasswordFieldHandler = new ConfirmPasswordFieldHandler();
-const searchMultiselectFieldHandler = new SearchMultiselectFieldHandler();
-const permissionTableFieldHandler = new PermissionTableFieldHandler();
-const prefixTableFieldHandler = new PrefixTableFieldHandler();
-const selectFieldHandler = new SelectFieldHandler();
-const autocompleteFieldHandler = new AutocompleteFieldHandler();
-const resolverPreviewFieldHandler = new ResolverPreviewFieldHandler();
-const valueListFieldHandler = new ValueListFieldHandler();
-const activityFeedFieldHandler = new ActivityFeedFieldHandler();
-const metadataTableFieldHandler = new MetadataTableFieldHandler();
-const tableFieldHandler = new TableFieldHandler();
-const calloutFieldHandler = new CalloutFieldHandler();
-const templateTypeFieldHandler = new TemplateTypeFieldHandler();
-
-export const fieldTypeHandlers = {
-  "string": textInputFieldHandler,
-  "version": textInputFieldHandler,
-  "number": numberInputFieldHandler,
-  "text": textareaFieldHandler,
-  "enter-password": enterPasswordFieldHandler,
-  "confirm-password": confirmPasswordFieldHandler,
-  "search-multiselect": searchMultiselectFieldHandler,
-  "permission-table": permissionTableFieldHandler,
-  "prefix-table": prefixTableFieldHandler,
-  "select": selectFieldHandler,
-  "search": autocompleteFieldHandler,
-  "resolver-preview": resolverPreviewFieldHandler,
-  "parameter-list": valueListFieldHandler,
-  "relationship-table": valueListFieldHandler,
-  "summary-list": valueListFieldHandler,
-  "activity-feed": activityFeedFieldHandler,
-  "metadata-table": metadataTableFieldHandler,
-  "table": tableFieldHandler,
-  "structured-preview": calloutFieldHandler,
-  "validation-report": calloutFieldHandler,
-  "template-type": templateTypeFieldHandler,
-} satisfies Record<FieldType, FieldTypeHandler>;
-
-const fallbackFieldHandler = new FallbackFieldHandler();
-
-export function getFieldHandler(fieldType: FieldType): FieldTypeHandler {
-  return fieldTypeHandlers[fieldType] ?? fallbackFieldHandler;
-}
-
-// #region field block
+// #region - field block
 
 @customElement("mws-field-block")
 class FieldBlockElement<T> extends JSXElement {
@@ -1569,12 +606,6 @@ class FieldBlockElement<T> extends JSXElement {
 
     return (
       <div class="field-block">
-        {/* {!useCardTitle && !editable ? (
-<div class="field-block-header">
-<h5>{field.label}</h5>
-</div>
-) : null} */}
-
         {useToggleEditor ? (
           definitely<boolean>(value),
           <ToggleFieldElement field={field} value={value} onDraftChange={store.updateDraft} />
@@ -1583,6 +614,7 @@ class FieldBlockElement<T> extends JSXElement {
             {!useCardTitle ? <label class="field-label" for={`field-${field.key}`}>{field.label}</label> : null}
             {field.description ? <p class="field-helper">{field.description}</p> : null}
             {renderFieldEditor({
+              inputId: `field-${field.key}`,
               field,
               value,
               saved: savedValue,
@@ -1615,8 +647,10 @@ function sidebarField(field: FieldDefinition, draft: AdminRecord, saved: AdminRe
   const value = getAdminRecordValue(field, saved);
   return sidebarSection({
     title: field.label,
-    content: getFieldHandler(field.type).renderSidebar({
-      field, value, itemsByTab
+    content: renderFieldSidebar({
+      field,
+      value: getAdminRecordValue(field, saved),
+      itemsByTab
     })
   })
 }
@@ -1688,10 +722,6 @@ class RecordModalElement extends JSXElement {
     const onClose = store.closeModal;
     const onSave = store.saveDraft;
     const onDraftChange = store.updateDraft;
-    const onPendingRowsChange = store.updatePendingRows;
-    const onTransientPermissionRowsChange = store.updateTransientPermissionRows;
-    const onResolverTitleChange = store.updateResolverTitle;
-    const onTriggerOperation = store.triggerOperation;
     const onClearStorageError = store.clearStorageError;
 
     const authoredFields = !isModalLoading ? getSectionFields(selectedTab, "authored") : [];
@@ -1707,7 +737,11 @@ class RecordModalElement extends JSXElement {
           <header class="modal-header">
             <div class="modal-title">
               <p class="eyebrow">{selectedTab.eyebrow}</p>
-              <h3>{isModalLoading ? `Loading ${selectedTab.label.slice(0, -1).toLowerCase()}...` : fieldState.mode === "create" ? `New ${selectedTab.label.slice(0, -1)}` : getPrimaryValue(selectedTab, fieldState.draft)}</h3>
+              <h3>{isModalLoading
+                ? `Loading ${selectedTab.label.slice(0, -1).toLowerCase()}...`
+                : fieldState.mode === "create"
+                  ? `New ${selectedTab.label.slice(0, -1)}`
+                  : getPrimaryValue(selectedTab, fieldState.draft)}</h3>
               <p>{isModalLoading ? "Fetching record details from async storage before rendering the form." : selectedTab.description}</p>
             </div>
             <div class="close-button" onclick={onClose} aria-label="Close details">
@@ -1723,7 +757,14 @@ class RecordModalElement extends JSXElement {
           ) : (
             <div class="modal-layout">
               <aside class="field-index modal-sidebar">
-                {sidebarFields.map(field => sidebarField(field, fieldState.draft, fieldState.saved, itemsByTab))}
+                {sidebarFields.map(field => sidebarSection({
+                  title: field.label,
+                  content: renderFieldSidebar({
+                    field,
+                    value: getAdminRecordValue(field, fieldState.saved),
+                    itemsByTab
+                  })
+                }))}
               </aside>
 
               <div class="field-stack modal-main">
@@ -1753,7 +794,7 @@ class RecordModalElement extends JSXElement {
                           const headerField = group.headerFieldKey
                             ? fields.find((field) => field.key === group.headerFieldKey)
                             : undefined;
-                          const groupDisabled = Boolean(group.disabledWhenHeaderOff && headerField && (getAdminRecordValue(headerField, fieldState.draft) ?? "disabled") !== "enabled");
+                          const groupDisabled = Boolean(group.disabledWhenHeaderOff && headerField && getAdminRecordValue(headerField, fieldState.draft) !== true);
                           const headerDescription = group.description ?? (!group.footerDescriptionFromHeader ? headerField?.description : undefined) ?? "";
                           const footerDescription = group.footerDescriptionFromHeader ? headerField?.description : undefined;
                           if (!groupFields.length) return null;
@@ -1830,6 +871,14 @@ export class App extends JSXElement {
   useLightDOM: boolean = true;
 
   private readonly store = new AppStore(this, adminStorage);
+  private readonly handleAccountMenuClick = (event: MouseEvent) => {
+    const accountMenu = this.querySelector(".hero-account-menu");
+    if (!(accountMenu instanceof HTMLDetailsElement) || !accountMenu.open) return;
+
+    const target = event.target;
+    if (target instanceof Node && accountMenu.contains(target)) return;
+    accountMenu.open = false;
+  };
 
   constructor() {
     super()
@@ -1837,7 +886,13 @@ export class App extends JSXElement {
 
   connectedCallback(): void {
     super.connectedCallback();
+    document.addEventListener("click", this.handleAccountMenuClick, true);
     void this.store.ensureLoaded();
+  }
+
+  disconnectedCallback(): void {
+    document.removeEventListener("click", this.handleAccountMenuClick, true);
+    super.disconnectedCallback();
   }
 
   protected render() {
@@ -1859,23 +914,35 @@ export class App extends JSXElement {
             </h1>
             <p class="hero-copy">All your thoughts, in as many places as you need them.</p>
           </div>
-          <div class="hero-stats">
-            <article>
-              <span>Wikis</span>
-              <strong>{itemsByTab.wikis.length}</strong>
-            </article>
-            <article>
-              <span>Templates</span>
-              <strong>{itemsByTab.templates.length}</strong>
-            </article>
-            <article>
-              <span>Bags</span>
-              <strong>{itemsByTab.bags.length}</strong>
-            </article>
-            <article>
-              <span>Users</span>
-              <strong>{itemsByTab.users.length}</strong>
-            </article>
+          <div class="hero-account-shell">
+            <details class="hero-account-menu">
+              <summary class="hero-account-trigger" aria-label="Open account menu">
+                <span class="hero-account-name">admin</span>
+                <span class="hero-account-icon" aria-hidden="true">
+                  <MaterialSymbol icon={accountCircleIcon} />
+                </span>
+              </summary>
+              <div class="hero-account-dropdown" role="menu" aria-label="Account options">
+                <button
+                  class="hero-account-action"
+                  type="button"
+                  role="menuitem"
+                  onclick={() => {
+                    // TODO: implement profile action.
+                  }}
+                >
+                  Profile
+                </button>
+                <button
+                  class="hero-account-action"
+                  type="button"
+                  role="menuitem"
+                  onclick={logout}
+                >
+                  Logout
+                </button>
+              </div>
+            </details>
           </div>
         </header>
 
@@ -1978,3 +1045,46 @@ export class App extends JSXElement {
 }
 
 
+function renderListCellValue(columnKey: string, value: string | undefined) {
+  const formattedValue = formatFieldValue(value);
+
+  if (columnKey === "statusFlags" && value?.toLowerCase().includes("alert")) {
+    return (
+      <span class="missing-marker" aria-label={formattedValue} title={formattedValue}>
+        <MaterialSymbol icon={warningIcon} />
+      </span>
+    );
+  }
+
+  return formattedValue;
+}
+
+function getListColumnLink(tabId: TabId, columnKey: string, item: AdminRecord): string | null {
+  const mapper = getListColumnLinkMappers(tabId)[columnKey];
+  return mapper ? mapper(item) : null;
+}
+
+
+function getListColumnLinkMappers(tabId: TabId): Partial<Record<string, ListColumnLinkMapper>> {
+  switch (tabId) {
+    case "wikis":
+      return {
+        slug: (item) => {
+          definitely<WikiAdminRecord>(item);
+          return item.slug ? `${pathPrefix}/wiki/${encodeURIComponent(item.slug.toString())}` : null;
+        },
+      };
+    case "templates":
+    case "bags":
+    case "plugins":
+    case "roles":
+    case "users":
+      return {};
+    default: {
+      const exhaustive: never = tabId;
+      return exhaustive;
+    }
+  }
+}
+
+type ListColumnLinkMapper = (item: AdminRecord) => string | null;

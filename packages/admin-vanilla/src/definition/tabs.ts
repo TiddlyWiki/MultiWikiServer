@@ -54,6 +54,72 @@ export type FieldType =
   | "select"
   | "metadata-table";
 
+
+
+const stringLikeFieldShape = z.union([z.string(), z.instanceof(String)]);
+const stringListFieldShape = z.array(stringLikeFieldShape);
+const writablePrefixRowFieldShape = z.object({
+  prefix: z.string(),
+  bagName: stringLikeFieldShape,
+});
+const permissionRowFieldShape = z.object({
+  role: stringLikeFieldShape,
+  level: z.string(),
+});
+
+
+export const fieldTypeZodShapes = {
+  "template-type": z.enum(["simpleV1"]),
+  "string": z.string(),
+  "text": z.string(),
+  "enter-password": z.string(),
+  "confirm-password": z.string(),
+  "search": z.union([stringLikeFieldShape, z.null()]),
+  "structured-preview": z.string(),
+  "table": stringListFieldShape,
+  "permission-table": z.array(permissionRowFieldShape),
+  "validation-report": z.string(),
+  "resolver-preview": z.string(),
+  "search-multiselect": stringListFieldShape,
+  "prefix-table": z.array(writablePrefixRowFieldShape),
+  "parameter-list": stringListFieldShape,
+  "relationship-table": stringListFieldShape,
+  "summary-list": stringListFieldShape,
+  "number": z.string(),
+  "activity-feed": stringListFieldShape,
+  "version": z.string(),
+  "select": z.boolean(),
+  "metadata-table": stringListFieldShape,
+} satisfies Record<FieldType, any>;
+
+export type FieldTypeCreateValue<T extends FieldType = FieldType> = z.infer<(typeof fieldTypeZodShapes)[T]>;
+
+export const fieldTypeCreateFactories = {
+  "template-type": () => "simpleV1",
+  "string": () => "",
+  "text": () => "",
+  "enter-password": () => "",
+  "confirm-password": () => "",
+  "search": () => null,
+  "structured-preview": () => "",
+  "table": () => [],
+  "permission-table": () => [],
+  "validation-report": () => "",
+  "resolver-preview": () => "",
+  "search-multiselect": () => [],
+  "prefix-table": () => [],
+  "parameter-list": () => [],
+  "relationship-table": () => [],
+  "summary-list": () => [],
+  "number": () => "",
+  "activity-feed": () => [],
+  "version": () => "",
+  "select": () => false,
+  "metadata-table": () => [],
+} satisfies { [K in FieldType]: () => FieldTypeCreateValue<K> };
+
+
+
 export type Mode = "create" | "create edit" | "edit" | "edit temp" | "create temp" | "create edit temp" | "server" | "";
 
 
@@ -121,7 +187,7 @@ const tabs = {
       },
       {
         key: "effectiveWritableBags",
-        label: "Effective writable bags",
+        label: "Current writable bags",
         type: "prefix-table",
         section: "runtime",
         mode: "server",
@@ -129,7 +195,7 @@ const tabs = {
       },
       {
         key: "effectiveReadonlyBags",
-        label: "Effective readonly bags",
+        label: "Current readonly bags",
         type: "table",
         section: "runtime",
         mode: "server",
@@ -137,7 +203,7 @@ const tabs = {
       },
       {
         key: "effectivePluginSet",
-        label: "Effective plugin set",
+        label: "Current plugin set",
         type: "table",
         section: "runtime",
         mode: "server",
@@ -525,8 +591,6 @@ export function getSectionHeading(section: FieldSection, mode: "create" | "edit"
 
 }
 
-
-
 type StoredTabRecord<D extends TabDefinition, T> = Pick<T, TabFieldKeys<D, "" | "create edit temp" | "create temp" | "edit temp"> & keyof T>;
 type SavedTabRecord<D extends TabDefinition, T> = Pick<T, TabFieldKeys<D, "" | "create edit temp" | "create temp" | "edit temp" | "server"> & keyof T>;
 
@@ -699,40 +763,6 @@ export class KeyString extends String {
   toJSON() { return KeyString.prefix + this.valueOf(); }
 }
 
-const stringLikeFieldShape = z.union([z.string(), z.instanceof(String)]);
-const stringListFieldShape = z.array(stringLikeFieldShape);
-const writablePrefixRowFieldShape = z.object({
-  prefix: z.string(),
-  bagName: stringLikeFieldShape,
-});
-const permissionRowFieldShape = z.object({
-  role: stringLikeFieldShape,
-  level: z.string(),
-});
-
-export const fieldTypeZodShapes = {
-  "template-type": z.enum(["simpleV1"]),
-  "string": z.string(),
-  "text": z.string(),
-  "enter-password": z.string(),
-  "confirm-password": z.string(),
-  "search": z.union([stringLikeFieldShape, z.null()]),
-  "structured-preview": z.string(),
-  "table": stringListFieldShape,
-  "permission-table": z.array(permissionRowFieldShape),
-  "validation-report": z.string(),
-  "resolver-preview": z.string(),
-  "search-multiselect": stringListFieldShape,
-  "prefix-table": z.array(writablePrefixRowFieldShape),
-  "parameter-list": stringListFieldShape,
-  "relationship-table": stringListFieldShape,
-  "summary-list": stringListFieldShape,
-  "number": z.string(),
-  "activity-feed": stringListFieldShape,
-  "version": z.string(),
-  "select": z.boolean(),
-  "metadata-table": stringListFieldShape,
-} satisfies Record<FieldType, any>;
 
 export type TabZodObjectFilter = "DataStore" | "DataSave";
 
@@ -762,3 +792,5 @@ export function buildTabZodObject<T extends TabId>(tabId: T, filter?: TabZodObje
     ...Object.fromEntries(fieldEntries),
   });
 }
+
+

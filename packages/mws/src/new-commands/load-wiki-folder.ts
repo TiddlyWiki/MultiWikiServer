@@ -112,14 +112,14 @@ export class Command extends BaseCommand<[string], {
 
 			switch (template.type) {
 				case "simpleV1": {
-					const bag = await new BagDataAdapter().saveRow(prisma, {
+					const bag = await new BagDataAdapter({ isAdmin: true } as any).saveRow(prisma, {
 						id: new IdString(""), // a blank id will use the name if it exists
 						name: new KeyString(bagName),
 						description: bagDescription,
 						permissions: ownerRoles.map(role => ({ level: "C_admin", role })),
 					});
 
-					const recipe = await new RecipeDataAdapter().saveRow(prisma, {
+					const recipe = await new RecipeDataAdapter({ isAdmin: true } as any).saveRow(prisma, {
 						id: new IdString(""), // a blank id will use the slug if it exists
 						slug: new KeyString(recipeName),
 						templateName: new KeyString(template.name),

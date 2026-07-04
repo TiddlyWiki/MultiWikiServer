@@ -9,16 +9,15 @@ import { objNumberSort } from "@tiddlywiki/server";
 import escapeStringRegexp from 'escape-string-regexp';
 
 
-export type ServerToReactAdmin
-  = { [k in keyof ServerToReactAdminMap]?: ServerToReactAdminMap[k] }
-  | null
+// export type ServerToReactAdmin = Partial<ServerToReactAdminMap> | null;
 
-export interface ServerToReactAdminMap {
-  sendError: ReturnType<SendError<keyof SendErrorReasonData>["toJSON"]>,
+export interface ServerToReactAdmin {
+  sendError?: SendError<any>;
+  userState: ServerRequest["user"];
 }
 
 export interface SendAdmin {
-  (state: ServerRequest<any, any, any>, sendIndex?: { status: number, serverResponse: ServerToReactAdmin }): Promise<typeof STREAM_ENDED>;
+  (state: ServerRequest<any, any, any>, sendError?: SendError<any>): Promise<typeof STREAM_ENDED>;
 }
 
 export interface ClientBuildDefinition {
@@ -113,7 +112,9 @@ async function generateHtml({ js, css, publicdir, rootdir, title }: {
 
 
 async function make_index_file({ publicdir, pathPrefix, serverResponseJSON }: {
-  publicdir: string; pathPrefix: string; serverResponseJSON: string;
+  publicdir: string;
+  pathPrefix: string;
+  serverResponseJSON: string;
 }) {
   pathPrefix = (pathPrefix).replaceAll("</script>", "<\\/script>").toString();
   serverResponseJSON = (serverResponseJSON).replaceAll("</script>", "<\\/script>").toString();
@@ -132,18 +133,18 @@ export async function setupClientBuild({ rootdir, publicdir, clientMounts, title
 
   if (!existsSync(publicdir)) throw new Error(`${publicdir} does not exist`);
 
-  return async function sendProdServer(state, indexOptions) {
-    if (indexOptions)
-      return await serveIndex({ state, publicdir, status: indexOptions.status, serverResponse: indexOptions.serverResponse });
+  return async function sendProdServer(state, sendError) {
+    if (sendError)
+      return await serveIndex({ state, publicdir, status: sendError.status, serverResponse: { userState: state.user, sendError, } });
 
     if (state.urlInfo.pathname === "/" || clientMounts?.some(e => state.urlInfo.pathname === e || state.urlInfo.pathname.startsWith(e + "/")))
-      return await serveIndex({ state, publicdir, status: 200, serverResponse: null });
+      return await serveIndex({ state, publicdir, status: 200, serverResponse: { userState: state.user, } });
 
     return state.sendFile(200, {}, {
       root: publicdir,
       reqpath: state.urlInfo.pathname,
       on404: !clientMounts ? (async () => {
-        await serveIndex({ state, publicdir, status: 200, serverResponse: null })
+        await serveIndex({ state, publicdir, status: 200, serverResponse: { userState: state.user } })
       }) : undefined
     });
   };
@@ -219,18 +220,28 @@ async function startDevServer({ rootdir, publicdir, clientMounts, title }: Clien
 
   serverEvents.on("exit", () => ctx.dispose());
 
-  return async function sendDevServer(state: ServerRequest, indexOptions?: { status: number, serverResponse: ServerToReactAdmin }): Promise<typeof STREAM_ENDED> {
+  return async function sendDevServer(state: ServerRequest, sendError): Promise<typeof STREAM_ENDED> {
     // this will rebuild the html on page load
     // if the build fails, esbuild will serve the error so we just ignore it
 
     if (state.headers.get("sec-fetch-dest") === "document")
       await rebuild().catch((e) => { if (!(e.errors && e.warnings)) throw e; });
 
-    if (indexOptions)
-      return await serveIndex({ state, publicdir, status: indexOptions.status, serverResponse: indexOptions.serverResponse });
+    if (sendError)
+      return await serveIndex({
+        state,
+        publicdir,
+        status: sendError.status,
+        serverResponse: { userState: state.user, sendError }
+      });
 
     if (state.urlInfo.pathname === "/" || clientMounts?.some(e => state.urlInfo.pathname === e || state.urlInfo.pathname.startsWith(e + "/")))
-      return await serveIndex({ state, publicdir, status: 200, serverResponse: null });
+      return await serveIndex({
+        state,
+        publicdir,
+        status: 200,
+        serverResponse: { userState: state.user }
+      });
 
     const headers = new Headers(state.headers);
     headers.set("host", "localhost");
@@ -250,7 +261,12 @@ async function startDevServer({ rootdir, publicdir, clientMounts, title }: Clien
       const resBuffer = Buffer.from(await proxyRes.arrayBuffer());
       if (resBuffer.every((e, i) => e === DEV_FALLBACK[i])) {
         if (clientMounts) return state.sendEmpty(404);
-        return await serveIndex({ state, publicdir, status: proxyRes.status, serverResponse: null });
+        return await serveIndex({
+          state,
+          publicdir,
+          status: proxyRes.status,
+          serverResponse: { userState: state.user }
+        });
       } else {
         return state.sendBuffer(proxyRes.status, {}, resBuffer);
       }

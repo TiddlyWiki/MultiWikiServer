@@ -1,5 +1,29 @@
-import { AdminStorage, AdminRecord, isServerField, getAdminRecordValue, setAdminRecordValue, getFieldHandler, uniqueLines, lineListCodec } from "../app";
-import { DataStore, AdminRecordStore, TabId, getTab, TabDefinition, TemplateAdminRecord, WikiAdminRecord, BagAdminRecord, PermissionRow, PluginAdminRecord, WritablePrefixRow, KeyString, IdString, buildTabZodObject } from "./tabs";
+import {
+  AdminStorage,
+  AdminRecord,
+  isServerField,
+  getAdminRecordValue,
+  setAdminRecordValue,
+  uniqueLines,
+  lineListCodec
+} from "../app";
+import {
+  DataStore,
+  AdminRecordStore,
+  TabId,
+  getTab,
+  TabDefinition,
+  TemplateAdminRecord,
+  WikiAdminRecord,
+  BagAdminRecord,
+  PermissionRow,
+  PluginAdminRecord,
+  WritablePrefixRow,
+  KeyString,
+  IdString,
+  fieldTypeCreateFactories,
+} from "./tabs";
+
 import { mapGetInit } from "./utils";
 
 export const jsonReviver = (key: any, val: any) => {
@@ -94,7 +118,7 @@ export function createDraft(tab: TabDefinition, source?: AdminRecord): AdminReco
   for (const field of tab.fields) {
     const value = source
       ? getAdminRecordValue(field, source)
-      : getFieldHandler(field.type).initCreate();
+      : fieldTypeCreateFactories[field.type]();
     setAdminRecordValue(field, draft, value, true);
   }
 

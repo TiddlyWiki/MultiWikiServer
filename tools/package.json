@@ -1,0 +1,27 @@
+{
+  "name": "@tiddlywiki/mws",
+  "description": "TiddlyWiki Multiple Wiki Server",
+  "private": false,
+  "version": "0.1.14",
+  "bin": {
+    "mws": "./mws.run.mjs"
+  },
+  "type": "module",
+  "repository": {
+    "url": "https://github.com/TiddlyWiki/MultiWikiServer"
+  },
+  "license": "BSD-3-Clause",
+  "author": "TiddlyWiki Community",
+  "scripts": {},
+  "dependencies": {
+    "@prisma/client": "7.2.0"
+  },
+  "devDependencies": {
+    "prettier": "^3.6.1",
+    "prisma": "7.2.0",
+    "prisma-json-schema-generator": "^5.1.5",
+    "prisma-json-types-generator": "^4.1.0",
+    "tsup": "^8.5.0",
+    "typescript": "^5.8.3"
+  }
+}

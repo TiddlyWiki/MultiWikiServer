@@ -6,7 +6,7 @@
   "types": "./src/index.ts",
   "module": "./src/index.ts",
   "dependencies": {
-    "@hono/node-server": "^2.0.1",
+    "@hono/node-server": "^2.0.8",
     "@remix-run/headers": "0.21.0",
     "@types/bytes": "^3.1.5",
     "@types/compression": "^1.8.0",
@@ -19,7 +19,7 @@
     "compressible": "^2.0.18",
     "compression": "^1.8.0",
     "debug": "^4.4.1",
-    "hono": "^4.12.16",
+    "hono": "4.12.27",
     "mime-types": "^2.1.35",
     "negotiator": "^1.0.0",
     "rxjs": "^7.8.2",

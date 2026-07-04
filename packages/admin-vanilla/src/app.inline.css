@@ -222,7 +222,7 @@ h6 {
 .list-toolbar p,
 .field-architecture p,
 .field-card-header p,
-.hero-stats span,
+.hero-account-name,
 .list-cell,
 .field-index li,
 .field-value pre {
@@ -237,25 +237,89 @@ h6 {
 	font-size: 1rem;
 }
 
-.hero-stats {
-	display: grid;
-	grid-template-columns: repeat(2, minmax(0, 1fr));
-	gap: 14px;
-	align-self: end;
+.hero-account-shell {
+	justify-self: end;
+	align-self: start;
+	position: relative;
 }
 
-.hero-stats article {
-	padding: 16px 18px;
-	border-radius: 18px;
+.hero-account-menu {
+	position: relative;
+}
+
+.hero-account-trigger {
+	list-style: none;
+	display: inline-flex;
+	align-items: center;
+	gap: 10px;
+	padding: 10px 12px 10px 14px;
+	border-radius: 999px;
+	border: 1px solid var(--color-border-soft);
 	background: var(--color-surface-stat);
+	cursor: pointer;
+	user-select: none;
 }
 
-.hero-stats strong {
-	display: block;
-	margin-top: 8px;
-	font-size: 1.9rem;
-	letter-spacing: -0.05em;
+.hero-account-trigger::-webkit-details-marker {
+	display: none;
+}
+
+.hero-account-name {
+	font-weight: 600;
 	color: var(--color-text-strong);
+}
+
+.hero-account-icon {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 28px;
+	height: 28px;
+	border-radius: 999px;
+	background: var(--color-surface-ghost-button);
+	color: var(--color-accent-heading);
+}
+
+.hero-account-icon material-symbol {
+	display: inline-flex;
+	width: 20px;
+	height: 20px;
+}
+
+.hero-account-icon material-symbol svg {
+	width: 20px;
+	height: 20px;
+	fill: currentColor;
+}
+
+.hero-account-dropdown {
+	position: absolute;
+	right: 0;
+	top: calc(100% + 8px);
+	min-width: 180px;
+	display: grid;
+	gap: 4px;
+	padding: 8px;
+	border-radius: 14px;
+	border: 1px solid var(--color-border-soft);
+	background: var(--color-surface-card);
+	box-shadow: 0 18px 40px var(--color-shadow-card);
+	z-index: 10;
+}
+
+.hero-account-action {
+	border: 0;
+	border-radius: 10px;
+	padding: 10px 12px;
+	text-align: left;
+	background: transparent;
+	color: var(--color-text-strong);
+	cursor: pointer;
+}
+
+.hero-account-action:hover,
+.hero-account-action:focus-visible {
+	background: var(--color-surface-field);
 }
 
 .tab-strip {
@@ -1594,10 +1658,6 @@ table.value-table td {
 		padding: 18px;
 	}
 
-	.hero-stats {
-		grid-template-columns: repeat(2, minmax(0, 1fr));
-	}
-
 	.list-panel {
 		overflow: auto;
 	}
@@ -1612,8 +1672,8 @@ table.value-table td {
 }
 
 @media (max-width: 640px) {
-	.hero-stats {
-		grid-template-columns: 1fr;
+	.hero-account-shell {
+		justify-self: start;
 	}
 
 	.login-options {
