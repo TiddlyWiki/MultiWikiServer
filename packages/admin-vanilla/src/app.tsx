@@ -221,31 +221,6 @@ export function uniqueLines(values: readonly string[]): string[] {
   return Array.from(new Set(values.map((value) => value.trim()).filter(Boolean)));
 }
 
-class LineListCodec {
-  public parse(value: string): string[] {
-    if (!value.trim()) return [];
-    return value.split("\n").map((entry) => entry.trim()).filter(Boolean);
-  }
-
-  public stringify(lines: string[]): string {
-    return lines.map((line) => line.trim()).filter(Boolean).join("\n");
-  }
-}
-
-class PermissionRowsCodec {
-  public parse(value: PermissionRow[]): PermissionRow[] {
-    return JSON.parse(JSON.stringify(value), jsonReviver);
-  }
-
-  public stringify(value: PermissionRow[]): PermissionRow[] {
-    return JSON.parse(JSON.stringify(value), jsonReviver);
-  }
-}
-
-export const lineListCodec = new LineListCodec();
-export const permissionRowsCodec = new PermissionRowsCodec();
-
-
 function formatStorageErrorForDisplay(storageError: string): string {
   if (!storageError) return storageError;
 
@@ -617,7 +592,6 @@ class FieldBlockElement<T> extends JSXElement {
               inputId: `field-${field.key}`,
               field,
               value,
-              saved: savedValue,
               disabled,
               fieldState,
               itemsByTab: store.itemsByTab,
@@ -906,10 +880,9 @@ export class App extends JSXElement {
     return (
       <div class="admin-shell">
         <header class="hero-panel">
-          <div>
+          <div class="hero-panel-content">
             <p class="eyebrow">Multi-wiki server administration</p>
             <h1 style="display:flex; gap: 1rem; align-items:center;">
-              {/* <img src={pathPrefix + "/favicon.png"} style="width:2rem;height:2rem;" /> */}
               <span>MWS</span>
             </h1>
             <p class="hero-copy">All your thoughts, in as many places as you need them.</p>
@@ -917,9 +890,12 @@ export class App extends JSXElement {
           <div class="hero-account-shell">
             <details class="hero-account-menu">
               <summary class="hero-account-trigger" aria-label="Open account menu">
-                <span class="hero-account-name">admin</span>
+                <span class="hero-account-name">{embeddedServerResponse.userState.username}</span>
                 <span class="hero-account-icon" aria-hidden="true">
-                  <MaterialSymbol icon={accountCircleIcon} />
+                  {/* <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/0/00/Crab_Nebula.jpg/250px-Crab_Nebula.jpg"/> */}
+                  {embeddedServerResponse.userState.avatarUrl
+                    ? <img src={embeddedServerResponse.userState.avatarUrl} />
+                    : <MaterialSymbol icon={accountCircleIcon} />}
                 </span>
               </summary>
               <div class="hero-account-dropdown" role="menu" aria-label="Account options">

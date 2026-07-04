@@ -1,18 +1,14 @@
-import { AdminRecord, DraftChangeHandler, lineListCodec, OperationTriggerHandler, PendingRowsChangeHandler, PermissionRowsChangeHandler, permissionRowsCodec, PerTabFieldState, ResolverTitleChangeHandler } from "../app";
+import { DraftChangeHandler, OperationTriggerHandler, PendingRowsChangeHandler, PermissionRowsChangeHandler, PerTabFieldState, ResolverTitleChangeHandler } from "../app";
 import { MaterialSymbol } from "../material-symbol";
-import { AdminRecordStore, FieldDefinition, FieldType, IdString, KeyString, PermissionRow, TabId, WikiAdminRecord, WritablePrefixRow } from "./tabs";
+import { AdminRecordStore, FieldDefinition, FieldType, IdString, KeyString, PermissionRow, WikiAdminRecord, WritablePrefixRow } from "./tabs";
 import { definitely, is } from "./utils";
 import warningIcon from "@material-symbols/svg-400/outlined/warning.svg";
-import closeIcon from "@material-symbols/svg-400/outlined/close.svg";
-import accountCircleIcon from "@material-symbols/svg-400/outlined/account_circle.svg";
-import { findTemplateRecordForWikiRecord } from "./store";
-import { zod as z } from "@tiddlywiki/server/src/Z2";
+import { findTemplateRecordForWikiRecord, jsonReviver } from "./store";
 
 
 
 interface FieldEditorContext<T = unknown> extends ReadonlyFieldContext<T> {
   inputId: string;
-  saved?: T;
   disabled?: boolean;
   fieldState: PerTabFieldState;
   itemsByTab: AdminRecordStore;
@@ -27,28 +23,15 @@ export function renderFieldEditor(ctx: FieldEditorContext<unknown>) {
   return (fieldTypeRenderEditors as any)[ctx.field.type](ctx);
 }
 
+
 /** The subset of FieldEditorContext that the readonly renderers need. */
 interface ReadonlyFieldContext<T = unknown> {
   field: FieldDefinition;
   value: T;
   itemsByTab?: AdminRecordStore;
 }
-
 export function renderFieldSidebar(ctx: ReadonlyFieldContext) {
   return (fieldTypeRenderSidebars as any)[ctx.field.type](ctx);
-  // sidebarFields.map(
-  //   )
-  // const t = field => 
-  // renderFieldSidebar({
-  // title: field.label,
-  // content: renderSidebar
-
-  // renderSidebar({
-  //   field, value, itemsByTab
-  // })
-  // })
-
-  // {(sidebarField(field, fieldState.draft, fieldState.saved, itemsByTab))}
 }
 
 
@@ -591,6 +574,32 @@ function renderValueListFieldSidebar(ctx: ReadonlyFieldContext<any>) {
 
 type FieldTypeRenderEditor = ((ctx: FieldEditorContext<any>) => JSX.Node) | null;
 type FieldTypeRenderSidebar = ((ctx: ReadonlyFieldContext<any>) => JSX.Node) | null;
+
+
+class LineListCodec {
+  public parse(value: string): string[] {
+    if (!value.trim()) return [];
+    return value.split("\n").map((entry) => entry.trim()).filter(Boolean);
+  }
+
+  public stringify(lines: string[]): string {
+    return lines.map((line) => line.trim()).filter(Boolean).join("\n");
+  }
+}
+
+class PermissionRowsCodec {
+  public parse(value: PermissionRow[]): PermissionRow[] {
+    return JSON.parse(JSON.stringify(value), jsonReviver);
+  }
+
+  public stringify(value: PermissionRow[]): PermissionRow[] {
+    return JSON.parse(JSON.stringify(value), jsonReviver);
+  }
+}
+
+export const lineListCodec = new LineListCodec();
+export const permissionRowsCodec = new PermissionRowsCodec();
+
 
 
 

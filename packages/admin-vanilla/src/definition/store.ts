@@ -5,8 +5,8 @@ import {
   getAdminRecordValue,
   setAdminRecordValue,
   uniqueLines,
-  lineListCodec
 } from "../app";
+import { lineListCodec } from "./renders";
 import {
   DataStore,
   AdminRecordStore,

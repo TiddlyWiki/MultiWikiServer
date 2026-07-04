@@ -49,8 +49,8 @@
     "dev-quick-reset": "node scripts/scripts.mjs dev-quick-reset",
     "env": "env",
     "test": "node scripts/scripts.mjs test",
-    "prisma:generate": "node scripts/scripts.mjs prisma:generate",
-    "prisma:migrate": "node scripts/scripts.mjs prisma:migrate",
+    "prisma:gen": "cd tools && npm run prisma:gen",
+    "prisma:mig": "cd tools && npm run prisma:mig",
     "postinstall": "(cd tools && npm i)"
   },
   "dependencies": {

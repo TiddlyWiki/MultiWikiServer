@@ -168,6 +168,8 @@ model Users {
   username   String     @unique
   email      String     @unique
   password   String
+  // sparse index: CREATE UNIQUE INDEX "users_resetCode_key" ON "users"("resetCode") WHERE "resetCode" IS NOT NULL;
+  resetCode  String?    @unique
   created_at DateTime   @default(now())
   last_login DateTime?
   sessions   Sessions[]

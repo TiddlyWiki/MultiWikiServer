@@ -219,10 +219,10 @@ export class Streamer extends StreamerRequest {
     class StreamerResponse {
       statusCode = 200
       // clone the middleware headers from hono
-      headers = new SuperHeaders(context.res.headers)
-      setCookie: SetCookie[] = [];
+      headers = new SuperHeaders(context.res.headers);
       stream = new PassThrough();
       headersSent = false;
+      get aborted() { return context.req.raw.signal.aborted; }
       constructor() {
         // this is the stream implementation of hono. 
         // we still have a lot of Node apis being used so we're not ready to switch yet.
@@ -303,10 +303,10 @@ export class Streamer extends StreamerRequest {
 
       }
       sendWriter = () => {
-        this.finalResponse = new Response(Readable.toWeb(this.stream) as any, {
-          status: this.statusCode,
-          headers: this.headers,
-        });
+        this.finalResponse = new Response(
+          this.statusCode === 204 ? undefined : Readable.toWeb(this.stream) as any,
+          { status: this.statusCode, headers: this.headers, }
+        );
       }
       sendResponse = (res: Response) => {
         this.finalResponse = res;
@@ -732,7 +732,7 @@ export class Streamer extends StreamerRequest {
     // if (options.secure) cookie += `; Secure`;
     // if (options.httpOnly) cookie += `; HttpOnly`;
     // if (options.sameSite) cookie += `; SameSite=${options.sameSite}`;
-    this.res.setCookie.push(new SetCookie(options));
+    this.res.headers.setCookie.push(new SetCookie(options));
   }
 
   // /**
@@ -815,7 +815,9 @@ export class Streamer extends StreamerRequest {
     return STREAM_ENDED;
   }
 
-
+  get canceled(){
+    return this.res.aborted;
+  }
   get headersSent() {
     return !!this.res.headersSent;
   }

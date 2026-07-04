@@ -178,8 +178,19 @@ textarea {
 	gap: 24px;
 	padding: 28px;
 	border-radius: 28px;
-	background: var(--color-surface-panel);
+	background-color: var(--color-surface-panel);
+	background-image: url("./fish2.svg");
+	background-position: center;
+	background-repeat: no-repeat;
+	background-size: contain;
 	backdrop-filter: blur(12px);
+	background-blend-mode: overlay;
+	background-position: center calc(50% + 12px);
+}
+
+.hero-panel-content {
+	display: grid;
+	align-content: start;
 }
 
 .eyebrow {
@@ -278,6 +289,14 @@ h6 {
 	border-radius: 999px;
 	background: var(--color-surface-ghost-button);
 	color: var(--color-accent-heading);
+	overflow: hidden;
+}
+
+.hero-account-icon img {
+	display: block;
+	width: 100%;
+	height: 100%;
+	object-fit: cover;
 }
 
 .hero-account-icon material-symbol {
@@ -750,7 +769,6 @@ footer.modal-header {
 	min-height: 0;
 	overflow: auto;
 	align-content: start;
-	min-height: 220px;
 }
 
 .modal-loading-bar {
@@ -768,7 +786,8 @@ footer.modal-header {
 	height: 100%;
 	border-radius: inherit;
 	background: linear-gradient(90deg, var(--color-accent-track-soft) 0%, var(--color-accent-track-mid) 48%, var(--color-accent-track) 100%);
-	animation: modal-loading-slide 1.15s ease-in-out infinite;
+	transform: translate3d(-120%, 0, 0);
+	animation: modal-loading-slide 1.2s ease-in-out infinite;
 	will-change: transform;
 }
 
@@ -780,15 +799,11 @@ footer.modal-header {
 
 @keyframes modal-loading-slide {
 	0% {
-		transform: translateX(-100%);
-	}
-
-	50% {
-		transform: translateX(120%);
+		transform: translate3d(-120%, 0, 0);
 	}
 
 	100% {
-		transform: translateX(240%);
+		transform: translate3d(280%, 0, 0);
 	}
 }
 
@@ -1672,10 +1687,6 @@ table.value-table td {
 }
 
 @media (max-width: 640px) {
-	.hero-account-shell {
-		justify-self: start;
-	}
-
 	.login-options {
 		align-items: flex-start;
 		flex-direction: column;

@@ -1,5 +1,5 @@
 
-import { BetterCookie, jsonify, JsonValue, registerZodRoutes, RouterKeyMap, ServerRoute, Streamer, Z2, zod, ZodRoute, zodRoute, ZodState } from "@tiddlywiki/server";
+import { BetterCookie, jsonify, JsonValue, registerZodRoutes, RouterKeyMap, SendError, ServerRoute, Streamer, Z2, zod, ZodRoute, zodRoute, ZodState } from "@tiddlywiki/server";
 import { createHash, randomBytes } from "node:crypto";
 import { ServerState } from "../ServerState";
 import { serverEvents } from "@tiddlywiki/events";
@@ -39,9 +39,10 @@ export const SessionKeyMap: RouterKeyMap<SessionManager, true> = {
  * @param inner the handler to call
  * @returns the ZodRoute
  */
-export function zodSession<P extends string, T extends zod.ZodTypeAny, R extends JsonValue>(
+export function zodSession<P extends string, T extends zod.ZodTypeAny, R extends JsonValue | undefined>(
   path: P,
   zodRequest: (z: Z2<"JSON">) => T,
+  preflight: (state: ZodState<"POST", "json", {}, {}, never, T>) => Promise<void>,
   inner: (state: ZodState<"POST", "json", {}, {}, never, T>, prisma: PrismaTxnClient) => Promise<R>
 ): ZodSessionRoute<P, T, R> {
   return {
@@ -55,6 +56,8 @@ export function zodSession<P extends string, T extends zod.ZodTypeAny, R extends
       zodRequestBody: zodRequest,
       securityChecks: { requestedWithHeader: true },
       inner: async (state) => {
+        await preflight(state);
+        if (state.canceled) throw STREAM_ENDED;
         state.asserted = true;
         return state.$transaction(async (prisma) => await inner(state, prisma));
       }
@@ -66,7 +69,7 @@ export function zodSession<P extends string, T extends zod.ZodTypeAny, R extends
 export interface ZodSessionRoute<
   PATH extends string,
   T extends zod.ZodTypeAny,
-  R extends JsonValue
+  R extends JsonValue | undefined
 > extends ZodRoute<"POST", "json", {}, {}, [], T, R> {
   path: PATH;
 }
@@ -85,10 +88,45 @@ serverEvents.on("mws.routes", (root, config) => {
   SessionManager.defineRoutes(root)
 });
 
+class RateLimiter {
+  private readonly nextRunAt = new Map<string, number>();
+
+  constructor(private readonly minIntervalMs: number) { }
+
+  async wait<T extends zod.ZodTypeAny>(state: ZodState<"POST", "json", {}, {}, never, T>, key: string): Promise<void> {
+
+    const now = Date.now();
+    const nextRunAt = this.nextRunAt.get(key) ?? 0;
+
+    if (nextRunAt > now) {
+      const delayedUntil = now + this.minIntervalMs;
+      this.nextRunAt.set(key, delayedUntil);
+      throw state.sendJSON(429, {
+        retryAfterMs: delayedUntil - now,
+      });
+    }
+
+    this.nextRunAt.set(key, now + this.minIntervalMs);
+
+    try {
+      await new Promise(resolve => setTimeout(resolve, this.minIntervalMs));
+    } finally {
+      if (this.nextRunAt.get(key)) {
+        this.nextRunAt.delete(key);
+      }
+    }
+
+  }
+}
+
+const passwordLookupRateLimiter = new RateLimiter(500);
+
 export class SessionManager {
 
   static defineRoutes(root: ServerRoute) {
-    registerZodRoutes(root, new SessionManager(), Object.keys(SessionKeyMap))
+    const route = new SessionManager();
+    const keys = Object.keys(route).filter(e => route[e] instanceof zodRoute);
+    registerZodRoutes(root, route, keys)
   }
 
   static async parseIncomingRequest(cookies: BetterCookie, config: ServerState): Promise<AuthUser> {
@@ -123,7 +161,7 @@ export class SessionManager {
   login1 = zodSession("/login/1", z => z.object({
     username: z.prismaField("Users", "username", "string"),
     startLoginRequest: z.string(),
-  }), async (state, prisma) => {
+  }), async () => { }, async (state, prisma) => {
     const { username, startLoginRequest } = state.data;
 
     const user = await prisma.users.findUnique({
@@ -155,7 +193,7 @@ export class SessionManager {
     finishLoginRequest: z.string(),
     loginSession: z.string(),
     skipCookie: z.boolean().optional().default(false),
-  }), async (state, prisma) => {
+  }), async () => { }, async (state, prisma) => {
     const { finishLoginRequest, skipCookie, loginSession } = state.data;
 
     if (!loginSession) throw "Login session not found.";
@@ -178,7 +216,7 @@ export class SessionManager {
         httpOnly: true,
         path: state.pathPrefix + "/",
         secure: state.assumeHTTPS,
-        sameSite: "Strict"
+        sameSite: "Lax"
       });
     }
 
@@ -191,7 +229,7 @@ export class SessionManager {
     session_id: z.string(),
     signature: z.string(),
     skipCookie: z.boolean().refine(e => e === true),
-  }).optional(), async (state, prisma) => {
+  }).optional(), async () => { }, async (state, prisma) => {
 
     if (state.data?.skipCookie) {
       const session = await prisma.sessions.findUnique({
@@ -203,7 +241,7 @@ export class SessionManager {
       const { session_id, signature } = state.data;
       assertSignature({ session_id, signature, session_key });
       await prisma.sessions.delete({ where: { session_id: state.data.session_id } });
-      return null;
+      return undefined;
     }
 
     if (state.user.isLoggedIn) {
@@ -223,7 +261,65 @@ export class SessionManager {
       });
     });
 
-    return null;
+    return undefined;
+  });
+
+  forgotPassword = zodSession("/login/forgot-password", z => z.object({
+    emailOrUsername: z.string(),
+    resetCode: z.string().optional(),
+  }), async state => {
+    if (state.data.resetCode)
+      await passwordLookupRateLimiter.wait(state, "");
+  }, async (state, prisma) => {
+    if (state.data.resetCode) {
+      const user = await prisma.users.findUnique({ where: { resetCode: state.data.resetCode }, });
+      const found = user && [user.email, user.username].includes(state.data.emailOrUsername);
+      if (!found) {
+        // an additional timeout if it's not found
+        await new Promise(r => { setTimeout(r, 500); });
+        throw new SendError("RECORD_KEY_NOT_FOUND", 400, { table: "users", name: "resetCode" });
+      }
+      return { user_id: user.user_id, username: user.username }
+    } else {
+      throw "Email system is not implemented";
+    }
+  })
+
+  resetPassword = zodSession("/login/reset-password", z => z.object({
+    resetCode: z.string(),
+    username: z.string(),
+    user_id: z.string(),
+    registrationRequest: z.string().optional(),
+    registrationRecord: z.string().optional(),
+  }), async () => { }, async (state, prisma) => {
+    const user = await prisma.users.findUnique({ where: { user_id: state.data.user_id, }, });
+    if (!user)
+      throw new SendError("RECORD_KEY_NOT_FOUND", 400, { table: "users", name: "user_id" });
+    if (user.username !== state.data.username)
+      throw new SendError("RECORD_KEY_NOT_FOUND", 400, { table: "users", name: "username" });
+    if (user.resetCode !== state.data.resetCode) {
+      // do this to prevent brute-force attempts to guess the reset code.
+      // programmatically this should only be called correctly as it's the second call. 
+      await prisma.users.update({ where: { user_id: state.data.user_id }, data: { resetCode: null } })
+      throw new SendError("RECORD_KEY_NOT_FOUND", 400, { table: "users", name: "resetCode" });
+    }
+
+    const { registrationRequest, registrationRecord } = state.data;
+
+    if (registrationRequest) {
+      return state.PasswordService.createRegistrationResponse({
+        userID: state.data.user_id,
+        registrationRequest
+      });
+    } else if (registrationRecord) {
+      await prisma.users.update({
+        where: { user_id: state.data.user_id },
+        data: { password: registrationRecord, resetCode: null }
+      });
+      return null;
+    } else {
+      return null;
+    }
   });
 
 

@@ -1,5 +1,5 @@
 
-import { SessionManagerMap } from "@tiddlywiki/mws/src/services/sessions";
+import { SessionManagerMap, AuthUser } from "@tiddlywiki/mws/src/services/sessions";
 import { Z2, zod, zod as z } from "@tiddlywiki/server/src/Z2";
 const LOGIN_FAILED = 'Login failed. Please check your credentials.';
 
@@ -7,6 +7,8 @@ const sessionRequest: SessionManagerMap = {
   login1: sessionManager("login1", "/login/1"),
   login2: sessionManager("login2", "/login/2"),
   logout: sessionManager("logout", "/logout"),
+  forgotPassword: sessionManager("forgotPassword", "/login/forgot-password"),
+  resetPassword: sessionManager("resetPassword", "/login/reset-password")
 }
 
 function sessionManager<K extends keyof SessionManagerMap>(key: K, path: SessionManagerMap[K]["path"]) {
@@ -15,12 +17,12 @@ function sessionManager<K extends keyof SessionManagerMap>(key: K, path: Session
       method: "POST",
       headers: {
         'Content-Type': 'application/json',
-        "X-Requested-With": "TiddlyWiki"
+        "X-Requested-With": "TiddlyWiki",
       },
       body: JSON.stringify(data),
     });
-    if (!req.ok) throw `${await req.text()}`;
-    return await req.json();
+    if (!req.ok) throw new Error(await req.text());
+    return req.status === 204 ? undefined : await req.json();
   };
   t.path = path;
   t.key = key;
@@ -124,32 +126,41 @@ export async function changeExistingPasswordAdmin({ user_id, newPassword }: { us
 
 }
 
-export async function changeExistingPassword({ username, password, newPassword }: {
+export async function changeExistingPasswordWithCode({ user_id, username, resetCode, newPassword }: {
+  user_id: string;
   username: string;
-  password: string;
+  resetCode: string;
   newPassword: string;
 }) {
 
-  const { user_id, session_id, sessionKey, opaque } = await loginWithOpaque(username, password);
+  const opaque = await import("@serenity-kit/opaque");
+
+  await opaque.ready;
 
   const { clientRegistrationState, registrationRequest } = opaque.client.startRegistration({ password: newPassword });
 
-  const signature = await generateSessionSignature(sessionKey, session_id);
-
-  const registrationResponse = await user_update_password({
-    user_id, registrationRequest, session_id, signature
+  const registrationResponse = await sessionRequest.resetPassword({
+    user_id,
+    username,
+    resetCode,
+    registrationRequest
   });
 
   if (!registrationResponse) throw 'Failed to update password'; // wierd, but shouldn't happen
 
   const { registrationRecord } = opaque.client.finishRegistration({
-    clientRegistrationState, registrationResponse, password: newPassword,
+    password: newPassword,
+    clientRegistrationState,
+    registrationResponse,
   });
 
-  await user_update_password({ user_id, registrationRecord, session_id, signature });
+  await sessionRequest.resetPassword({
+    user_id,
+    username,
+    resetCode,
+    registrationRecord
+  });
 
-  // this closes the login session we opened for the password change
-  await sessionRequest.logout({ session_id, signature, skipCookie: true });
 
 }
 
@@ -168,7 +179,7 @@ export async function loginWithOpaque(username: string, password: string, setCoo
 
   const loginResult = opaque.client.finishLogin({ clientLoginState, loginResponse, password, });
 
-  if (!loginResult) throw LOGIN_FAILED;
+  if (!loginResult) throw new Error(LOGIN_FAILED);
 
   const { finishLoginRequest, sessionKey, exportKey, serverStaticPublicKey } = loginResult;
 
@@ -178,6 +189,20 @@ export async function loginWithOpaque(username: string, password: string, setCoo
 
 }
 
-export async function logout(){
-  await sessionRequest.logout(undefined)
+export async function logout() {
+  await sessionRequest.logout(undefined);
+  location.reload();
+}
+
+export async function serverAcceptResetCode({ emailOrUsername, resetCode }: {
+  emailOrUsername: string;
+  resetCode?: string;
+  csrfToken: string;
+}): Promise<{
+  // required to create the new password
+  user_id: string;
+  // useful for user confirmation
+  username: string;
+}> {
+  return await sessionRequest.forgotPassword({ emailOrUsername, resetCode });
 }

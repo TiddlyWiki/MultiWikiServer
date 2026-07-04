@@ -12,8 +12,8 @@ import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, wri
 import { start, events, run, removeRecursive, run_bin, moveFile } from "./helpers.mjs";
 import { join, resolve } from "path";
 
-(async function(arg) {
-  switch(arg) {
+(async function (arg) {
+  switch (arg) {
     case "docs":
     case "start":
       await run("tools/node_modules/.bin/tsup", {});
@@ -28,9 +28,9 @@ import { join, resolve } from "path";
       await run_bin({ CLIENT_BUILD: "1" });
       break;
     case "prisma:generate": {
-      await run("tools/node_modules/.bin/prisma validate", { "DATABASE_URL": "postgres://test" });
-      await run("tools/node_modules/.bin/prisma format", {});
-      await run("tools/node_modules/.bin/prisma generate", {});
+      await run("prisma validate", {});
+      await run("prisma format", {});
+      await run("prisma generate", {});
       break;
     }
     case "dev-quick-reset": {
@@ -57,9 +57,9 @@ import { join, resolve } from "path";
         console.log(`Copying files`);
         readdirSync(filesFolder).forEach(file => {
           const oldPath = join(filesFolder, file);
-          if(!statSync(oldPath).isFile()) return;
+          if (!statSync(oldPath).isFile()) return;
           const newPath = join(testsFolder, file);
-          if(existsSync(newPath)) {
+          if (existsSync(newPath)) {
             console.log(`File ${file} already exists. Skipping...`);
             return;
           }
@@ -91,7 +91,7 @@ import { join, resolve } from "path";
       console.log("nothing ran");
   }
 })(process.argv[2]).catch((e) => {
-  if(e) console.log("caught error", e);
+  if (e) console.log("caught error", e);
   process.exitCode = 1;
 });
 

@@ -150,6 +150,13 @@ export interface TabDefinition {
   fieldGroups?: Partial<Record<FieldSection, FieldGroupDefinition[]>>;
 }
 
+
+const writableRoutingDescription =
+  "Define the write targets for title prefixes. " +
+  "The resolver matches prefixes from longest to shortest, so most specific prefix gets the tiddler. " +
+  "A tiddler will first be read from the single writable bag it matches, then from readonly bags, " +
+  "other writable bags are ignored. The default bag catches any titles that don't match a prefix. ";
+
 const tabs = {
   wikis: {
     id: "wikis",
@@ -183,7 +190,7 @@ const tabs = {
         type: "prefix-table",
         section: "authored",
         mode: "create edit",
-        architecture: "Edits the wiki-level prefix-to-bag routing table that drives write target selection. Longest prefix wins, and the empty string row is the fallback write target.",
+        architecture: "Edits the wiki-level prefix-to-bag routing table that drives write target selection. Longest prefix wins, and the empty string row is the fallback write target. A tiddler will only be read from the single write target it matches, after that the readonly bags are used, other write targets are ignored.",
       },
       {
         key: "effectiveWritableBags",
@@ -237,7 +244,7 @@ const tabs = {
     fieldGroups: {
       authored: [
         { title: "Wiki identity", description: "Name the wiki, describe it, and choose the template that provides its base routing model.", keys: ["slug", "displayName", "description", "templateName"], width: fullWidth, layout: stackLayout },
-        { title: "Writable routing", description: "Define the write targets for title prefixes, including the default fallback bag. The resolver matches prefixes from longest to shortest, so most specific prefix gets the tiddler.", keys: ["writablePrefixBags"], width: fullWidth },
+        { title: "Writable routing", description: writableRoutingDescription, keys: ["writablePrefixBags"], width: fullWidth },
         { title: "Bags", description: "Add wiki-specific readonly bags on top of anything inherited from the template.", keys: ["readonlyBags"], width: halfWidth },
         { title: "Plugins", description: "Add wiki-specific plugins on top of the template plugin set.", keys: ["plugins"], width: halfWidth },
         { title: "Access", description: "Control who can access the wiki surface itself. Bag access is handled separately on the participating bags.", keys: ["recipePermissions"], width: fullWidth },
@@ -372,7 +379,7 @@ const tabs = {
     fieldGroups: {
       authored: [
         { title: "Template basics", keys: ["name", "description"], width: fullWidth, layout: stackLayout },
-        { title: "Writable routing", description: "Define the write targets for title prefixes, including the default fallback bag. The resolver matches prefixes from longest to shortest, so most specific prefix gets the tiddler.", keys: ["writablePrefixBags"], width: fullWidth },
+        { title: "Writable routing", description: writableRoutingDescription, keys: ["writablePrefixBags"], width: fullWidth },
         { title: "Bags", keys: ["readonlyBags"], width: halfWidth },
         { title: "Plugins", keys: ["plugins", "requiredPluginsEnabled"], width: halfWidth, layout: stackLayout },
         { title: "Permissions", keys: ["templatePermissions"], width: fullWidth, layout: stackLayout },
@@ -538,6 +545,8 @@ const tabs = {
       { key: "username", label: "Username", type: "string", section: "authored", mode: "create edit" },
       { key: "email", label: "Email", type: "string", section: "authored", mode: "create edit" },
       { key: "userRoles", label: "Roles", type: "search-multiselect", section: "authored", mode: "create edit" },
+      { key: "resetCode", label: "Reset Code", type: "string", section: "authored", mode: "create edit" },
+
       // { key: "password", label: "Password", type: "string", section: "authored", mode: "create edit" },
       // { key: "confirmPassword", label: "Confirm password", type: "string", section: "authored", mode: "create edit temp" },
     ],
@@ -545,6 +554,7 @@ const tabs = {
       authored: [
         { title: "User identity", keys: ["username", "email"], width: fullWidth, layout: stackLayout },
         { title: "Roles", description: "Assign one or more role ids to this user account.", keys: ["userRoles"], width: halfWidth },
+        { title: "Reset Code", description: "Allow the user to reset their password with this code.", keys: ["resetCode"], width: halfWidth },
         { title: "Credentials", keys: ["password", "confirmPassword"], width: halfWidth, layout: stackLayout },
       ],
     },
@@ -729,6 +739,7 @@ export interface UserAdminRecord {
   id: IdString;
   username: KeyString;
   email: string;
+  resetCode: string;
   userRoles: readonly string[];
 }
 

@@ -12,7 +12,10 @@
   },
   "license": "BSD-3-Clause",
   "author": "TiddlyWiki Community",
-  "scripts": {},
+  "scripts": {
+    "prisma:gen": "prisma validate && prisma format && prisma generate",
+    "prisma:mig": "prisma migrate dev --create-only"
+  },
   "dependencies": {
     "@prisma/client": "7.2.0"
   },

@@ -3,6 +3,8 @@
 import "./main.css";
 import { App } from "./app";
 import { LoginForm } from "./app-login";
+import { AuthUser } from "@tiddlywiki/mws/src/services/sessions";
+import { SendError } from "@tiddlywiki/server";
 
 // disables the "flash of white" styles
 document.documentElement.classList.add("loaded");
@@ -12,8 +14,13 @@ window.addEventListener("drop", (e) => {
   console.log("Prevented the default browser behavior of doing stuff with dropped stuff. If you have a use case for this, please open an issue.");
 });
 
+
 declare global {
   const pathPrefix: string;
+  const embeddedServerResponse: {
+    userState: AuthUser;
+    sendError?: ReturnType<SendError<any>["toJSON"]>;
+  }
 }
 
 // Source - https://stackoverflow.com/a/52695341
@@ -34,7 +41,7 @@ if (isInStandaloneMode()) {
 
 
 function setup() {
-  false
+  !embeddedServerResponse.userState.isLoggedIn
     ? document.body.appendChild(new LoginForm())
     : document.body.appendChild(new App())
 }

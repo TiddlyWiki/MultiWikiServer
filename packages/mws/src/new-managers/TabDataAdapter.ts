@@ -475,12 +475,14 @@ export class UserDataAdapter extends TabDataAdapter<"users"> {
       username: data.username,
       email: data.email,
       roleIds: roleLinks,
+      resetCode: data.resetCode || null,
     }])
 
     return {
       id: new IdString(user.user_id),
       username: new KeyString(user.username),
       email: user.email,
+      resetCode: user.resetCode ?? "",
       userRoles: normalizedUserRoles.map(KeyString.cast)
     }
   }
@@ -492,6 +494,7 @@ export class UserDataAdapter extends TabDataAdapter<"users"> {
         username: true,
         email: true,
         password: true,
+        resetCode: true,
         roles: {
           select: {
             role_name: true,
@@ -506,6 +509,7 @@ export class UserDataAdapter extends TabDataAdapter<"users"> {
       username: new KeyString(user.username),
       email: user.email,
       userRoles: user.roles.map((role) => role.role_name),
+      resetCode: user.resetCode || "",
     }));
   }
 }

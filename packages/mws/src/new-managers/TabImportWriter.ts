@@ -77,7 +77,7 @@ export abstract class PerClassImportWriter<Modal extends PrismaModalKeys> {
     private adminLevel: Modal extends keyof ObjectPermissionLevels ? ObjectPermissionLevels[Modal] : undefined,
     protected initStore: boolean,
   ) {
-
+    if (initStore) this.asserted = true;
   }
 
   private asserted = false;
@@ -88,6 +88,8 @@ export abstract class PerClassImportWriter<Modal extends PrismaModalKeys> {
 
   async checkExisting(id: IdString, name: KeyString, user: ServerRequest["user"]) {
     if (user.isAdmin) { this.asserted = true; }
+    if(this.initStore && typeof user.isLoggedIn === "boolean")
+      throw new Error("This shouldn't happen.");
     if (!user.isAdmin && this.adminLevel) {
       if (!id.toString()) {
         throw new SendError("OPERATION_NOT_PERMITTED", 403, {
@@ -177,7 +179,7 @@ export abstract class PerClassImportWriter<Modal extends PrismaModalKeys> {
 // #region ROLES
 export class RoleImportWriter extends PerClassImportWriter<"roles"> {
   constructor(tx: PrismaTxnClient, initStore: boolean) {
-    super(tx, "users", "roles", "role_name", "role_id", undefined, initStore)
+    super(tx, "users", "roles", "role_name", "role_id", undefined, initStore);
   }
 
   async upsert(roles: UpsertRoleInput[]) {
@@ -218,12 +220,14 @@ export class UserImportWriter extends PerClassImportWriter<"users"> {
         update: {
           email: user.email,
           roles: { set: roleLinks },
+          resetCode: user.resetCode,
         },
         create: {
           username: KeyString.cast(user.username),
           email: user.email,
           password: "",
           roles: { connect: roleLinks },
+          resetCode: user.resetCode,
         },
       });
     }));

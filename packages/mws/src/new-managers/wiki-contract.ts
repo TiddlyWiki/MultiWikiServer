@@ -12,6 +12,7 @@ export interface UpsertUserInput {
   email: string;
   /** these are the role ids, not the role names */
   roleIds: IdString[];
+  resetCode: string | null;
 }
 
 export interface ImportBagPermissionInput {
@@ -129,4 +130,5 @@ abstract class UserRow implements IUserRow {
   abstract email: string;
   abstract userRoles: readonly string[];
   abstract password: string;
+  abstract resetCode: string;
 }

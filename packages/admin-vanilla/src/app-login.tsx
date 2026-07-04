@@ -12,6 +12,7 @@ import { getEmptyItems } from "./definition/store";
 import { FieldDefinition, PermissionRow, IdString } from "./definition/tabs";
 import css from "./app.inline.css";
 import { renderFieldEditor } from "./definition/renders";
+import { changeExistingPasswordWithCode, loginWithOpaque, serverAcceptResetCode } from "./passwords";
 
 // #region Login
 type LoginFormMode = "login" | "forgot-password" | "reset-code" | "update-password";
@@ -41,8 +42,8 @@ export class LoginForm extends JSXElement {
 
   private readonly forgotPasswordFields: FieldDefinition[] = [
     {
-      key: "email",
-      label: "Email address",
+      key: "emailOrUsername",
+      label: "Email / username",
       type: "string",
       mode: "create",
     },
@@ -74,7 +75,6 @@ export class LoginForm extends JSXElement {
   // #region state
   @state() accessor test: boolean = false;
   @state() accessor draft: LoginDraft = this.createDraft();
-  @state() accessor saved: LoginDraft = this.createDraft();
   @state() accessor mode: LoginFormMode = "login";
   @state() accessor isSubmitting: boolean = false;
   @state() accessor isResolvingServerState: boolean = false;
@@ -93,7 +93,7 @@ export class LoginForm extends JSXElement {
     return {
       id: new IdString(""),
       confirmNewPassword: "",
-      email: "",
+      emailOrUsername: "",
       newPassword: "",
       resetCode: "",
       username: "",
@@ -106,7 +106,7 @@ export class LoginForm extends JSXElement {
       tabId: "users",
       mode: "create",
       draft: this.draft,
-      saved: this.saved,
+      saved: this.draft,
       resolverTitle: "",
       operationMessages: this.operationMessages,
       pendingRows: this.pendingRows,
@@ -161,36 +161,74 @@ export class LoginForm extends JSXElement {
     }
     return this.serverStatePromise;
   }
-
-  // #region login
-  private readonly handleLoginSubmit = async () => {
+  // #region handleAny
+  private readonly handleAnySubmit = async (message: string, failed: string, cb: () => Promise<boolean>) => {
     this.isSubmitting = true;
-    this.submitMessage = "";
-
+    this.submitMessage = message;
     try {
-      this.submitMessage = "Logging in…";
-      if (await this.submitLogin()) {
-        location.href = location.origin + pathPrefix + "/";
-      } else {
-        this.submitMessage = "Login failed."
+      if (!await cb()) {
+        this.submitMessage = failed
       }
     } catch (error) {
-      this.submitMessage = error instanceof Error ? error.message : "Login failed.";
+      console.error(error);
+      if (error instanceof Error) {
+        try {
+          const se = JSON.parse(error.message);
+          if (se.reason && se.status) {
+            this.submitMessage = se.reason;
+            if (se.details) {
+              Object.entries(se.details).forEach(([k, v]) => {
+                this.submitMessage += "\n" + k + ": " + v;
+              });
+            }
+            return;
+          }
+        } catch (e) {
+
+        }
+      }
+      this.submitMessage = error instanceof Error ? error.message : failed;
     } finally {
       this.isSubmitting = false;
     }
+  }
+
+  private readonly handleLoginSubmit = async () => {
+    await this.handleAnySubmit(
+      "Logging in…",
+      "Login failed.",
+      () => this.submitLogin()
+    );
   };
 
-  // #region forgot
+  private readonly handleBackClick = async () => {
+    this.submitMessage = "";
+    switch (this.mode) {
+      case "login": break;
+      case "forgot-password": {
+        this.mode = "login";
+      }; break;
+      case "reset-code": {
+        const serverState = await this.ensureServerState();
+        if (!serverState.emailEnabled) {
+          this.mode = "login";
+        } else {
+          this.mode = "forgot-password";
+        }
+      }; break;
+      case "update-password": {
+        this.mode = "reset-code";
+      }; break;
+    }
+
+  }
 
   private readonly handleForgotPasswordClick = async () => {
-    this.isSubmitting = false;
     this.submitMessage = "";
     this.mode = "forgot-password";
     const serverState = await this.ensureServerState();
     if (!serverState.emailEnabled) {
       this.mode = "reset-code";
-      this.submitMessage = "Email services are not setup. Ask an admin for a reset code.";
       return;
     }
   }
@@ -199,45 +237,23 @@ export class LoginForm extends JSXElement {
     const serverState = await this.ensureServerState();
     if (!serverState.emailEnabled) {
       this.mode = "reset-code";
-      this.submitMessage = "Email services are not setup. Ask an admin for a reset code.";
       return;
     }
-    this.isSubmitting = true;
-    this.submitMessage = "Sending reset email…";
-
-    try {
-
-      if (await this.submitForgotPassword()) {
-        this.mode = "reset-code";
-        this.submitMessage = "";
-      } else {
-        this.submitMessage = "Reset email failed.";
-      }
-    } catch (error) {
-      this.submitMessage = error instanceof Error ? error.message : "Reset email failed.";
-    } finally {
-      this.isSubmitting = false;
-    }
+    await this.handleAnySubmit(
+      "Sending reset email…",
+      "Reset email failed.",
+      () => this.submitForgotPassword()
+    );
   };
-  // #region code
+
   private readonly handleResetCodeSubmit = async () => {
-    this.isSubmitting = true;
-    this.submitMessage = "Verifying reset code…";
-
-    try {
-      if (await this.submitResetCode()) {
-        this.mode = "update-password";
-        this.submitMessage = "";
-      } else {
-        this.submitMessage = "Reset code failed.";
-      }
-    } catch (error) {
-      this.submitMessage = error instanceof Error ? error.message : "Reset code failed.";
-    } finally {
-      this.isSubmitting = false;
-    }
+    await this.handleAnySubmit(
+      "Verifying reset code…",
+      "Reset code failed.",
+      () => this.submitResetCode()
+    );
   };
-  // #region update
+
   private readonly handleUpdatePasswordSubmit = async (): Promise<void> => {
     const newPassword = this.draft.newPassword;
     const confirmNewPassword = this.draft.confirmNewPassword;
@@ -252,26 +268,17 @@ export class LoginForm extends JSXElement {
       return;
     }
 
-    this.isSubmitting = true;
-    this.submitMessage = "Updating password…";
-
-    try {
-      if (await this.submitUpdatePassword()) {
-        location.search = "?state=password-changed";
-        return new Promise(() => { });
-      } else {
-        this.submitMessage = "Password update failed.";
-      }
-    } catch (error) {
-      this.submitMessage = error instanceof Error ? error.message : "Password update failed.";
-      this.isSubmitting = false;
-    }
-
+    await this.handleAnySubmit(
+      "Updating password…",
+      "Password update failed.",
+      () => this.submitUpdatePassword()
+    );
   };
+
   // #region field
+
   private renderField(field: FieldDefinition): JSX.Node {
-    const value = (this.draft as unknown as Record<string, unknown>)[field.key] ?? "";
-    const saved = (this.saved as unknown as Record<string, unknown>)[field.key] ?? "";
+    const value = (this.draft as any)[field.key] ?? "";
     const inputId = `login-${field.key}`;
 
     return (
@@ -280,7 +287,6 @@ export class LoginForm extends JSXElement {
         {renderFieldEditor({
           field: field as unknown as FieldDefinition,
           value,
-          saved,
           disabled: this.isSubmitting,
           fieldState: this.fieldState,
           itemsByTab: this.itemsByTab,
@@ -297,7 +303,16 @@ export class LoginForm extends JSXElement {
   // #region common
   // Keep the shared card structure in one place so each form mode only supplies its
   // mode-specific title, copy, fields, extra content, and actions.
-  private renderCommon(title: string, copy: string, fields: JSX.Node, extra: JSX.Node, actions: JSX.Node): JSX.Node {
+  private renderCommon({ title, copy, submitDisabled, submitAction, submitLabel, isLogin }: {
+    title: string;
+    copy: string;
+    // fields: JSX.Node;
+    // extra: JSX.Node;
+    submitDisabled: boolean;
+    submitLabel: string;
+    submitAction: () => Promise<void>;
+    isLogin?: boolean;
+  }, content: JSX.Node): JSX.Node {
     return (
       <div class="admin-shell">
         <section class="modal-card" aria-label="Login form" style="max-width: 30rem; margin: 0 auto; width: 100%;">
@@ -310,17 +325,39 @@ export class LoginForm extends JSXElement {
           </header>
 
           <div class="login-card-body">
-            <div class="login-fields">{fields}</div>
-
-            {extra}
+            {content}
 
             {this.submitMessage ? (
               <div class="login-feedback" role="status" aria-live="polite">
-                <p>{this.submitMessage}</p>
+                {this.submitMessage.split("\n").map(e => <p>{e}</p>)}
               </div>
             ) : null}
 
-            <footer class="login-actions">{actions}</footer>
+            {isLogin ? (
+              <button
+                class="primary-button login-submit"
+                type="button"
+                disabled={submitDisabled}
+                onclick={submitAction}
+              >{submitLabel}</button>
+            ) : (
+              <footer class="login-actions">
+                <div class="login-action-row">
+                  {!isLogin && <button class="ghost-button"
+                    type="button"
+                    disabled={this.isSubmitting}
+                    onclick={this.handleBackClick}
+                  >Cancel</button>}
+                  <button
+                    class="primary-button login-submit"
+                    type="button"
+                    disabled={submitDisabled}
+                    onclick={submitAction}
+                  >{submitLabel}</button>
+                </div>
+              </footer>
+            )}
+
           </div>
         </section>
       </div>
@@ -334,10 +371,15 @@ export class LoginForm extends JSXElement {
       // #region login
       case "login": {
         const isLoginPageBusy = this.isSubmitting;
-        return this.renderCommon(
-          "Log in",
-          "Enter your account credentials to continue.",
-          <>{this.fields.map((field) => this.renderField(field))}</>,
+        return this.renderCommon({
+          title: "Log in",
+          copy: "Enter your account credentials to continue.",
+          submitAction: this.handleLoginSubmit,
+          submitDisabled: isLoginPageBusy,
+          submitLabel: this.isSubmitting ? "Logging in…" : "Log in",
+          isLogin: true,
+        }, <>
+          <div class="login-fields">{this.fields.map((field) => this.renderField(field))}</div>
           <div class="login-options" aria-label="Login options">
             <label class="login-checkbox" for="login-remember-me">
               <input
@@ -353,75 +395,81 @@ export class LoginForm extends JSXElement {
               <span>Remember me</span>
             </label>
 
-            <button class="login-link-button" type="button" disabled={isLoginPageBusy} onclick={() => this.handleForgotPasswordClick()}>Forgot password?</button>
-          </div>,
-          <button class="primary-button login-submit" type="button" disabled={isLoginPageBusy} onclick={() => void this.handleLoginSubmit()}>{this.isSubmitting ? "Logging in…" : "Log in"}</button>
-        );
+            <button
+              class="login-link-button"
+              type="button"
+              disabled={isLoginPageBusy}
+              onclick={() => this.handleForgotPasswordClick()}
+            >Forgot password?</button>
+          </div>
+        </>);
       }
       // #region forgot
       case "forgot-password": {
-        const isBusy = this.isSubmitting || this.isResolvingServerState;
-        const isForgotPasswordEmailEnabled = this.serverState?.emailEnabled === true;
-        const forgotPasswordFieldsContent = this.isResolvingServerState
-          ? <div class="modal-loading-shell">
+        const isForgotPasswordEmailEnabled = !this.serverState || this.serverState.emailEnabled;
+        const isSubmitDisabled = this.isSubmitting || this.isResolvingServerState
+          || !this.draft.emailOrUsername
+
+        return this.renderCommon({
+          title: "Forgot password",
+          copy: "Enter your email and we will send a reset link.",
+          submitAction: this.handleForgotPasswordSubmit,
+          submitDisabled: isSubmitDisabled,
+          submitLabel: isForgotPasswordEmailEnabled ? "Send Email" : "Enter Code"
+        }, this.isResolvingServerState ? (
+          <div class="modal-loading-shell">
             <div class="modal-loading-bar" aria-hidden="true"><span></span></div>
             <p class="modal-loading-copy">Please wait, loading server state...</p>
           </div>
-          : isForgotPasswordEmailEnabled
-            ? <>{this.forgotPasswordFields.map((field) => this.renderField(field))}</>
-            : <div class="field-callout"><p>Password reset email is disabled. Contact your administrator.</p></div>;
-
-        const forgotPasswordActionDisabled = isBusy || !isForgotPasswordEmailEnabled;
-        return this.renderCommon(
-          "Forgot password",
-          "Enter your email and we will send a reset link.",
-          forgotPasswordFieldsContent,
-          null,
-          <div class="login-action-row">
-            <button class="ghost-button" type="button" disabled={isBusy} onclick={() => this.setMode("login")}>Cancel</button>
-            <button class="primary-button login-submit" type="button" onclick={() => void this.handleForgotPasswordSubmit()}>
-              {isForgotPasswordEmailEnabled ? "Send Email" : "Enter Code"}
-            </button>
+        ) : (
+          <div class="login-fields">
+            {this.forgotPasswordFields.map((field) => this.renderField(field))}
           </div>
-        );
+        ));
       }
       // #region code
       case "reset-code": {
-        return this.renderCommon(
-          "Enter reset code",
-          "Enter the password reset code sent to your email.",
-          <>{this.resetCodeFields.map((field) => this.renderField(field))}</>,
-          null,
-          <div class="login-action-row">
-            <button class="ghost-button" type="button" disabled={this.isSubmitting} onclick={() => this.setMode("forgot-password")}>Back</button>
-            <button class="primary-button login-submit" type="button" disabled={this.isSubmitting} onclick={() => void this.handleResetCodeSubmit()}>Verify code</button>
+        console.log(this.draft);
+        const adminCode = this.serverState && !this.serverState.emailEnabled;
+        const resetCodeActionDisabled = this.isResolvingServerState || this.isSubmitting
+          || !this.draft.emailOrUsername
+          || !this.draft.resetCode;
+        return this.renderCommon({
+          title: "Enter reset code",
+          copy: "Enter your password reset code.",
+          submitAction: this.handleResetCodeSubmit,
+          submitDisabled: resetCodeActionDisabled,
+          submitLabel: "Verify code",
+        }, <>
+          <div class="login-fields">
+            {!this.serverState?.emailEnabled &&
+              this.forgotPasswordFields.map((field) => this.renderField(field))
+            }
+            {this.resetCodeFields.map((field) => this.renderField(field))}
           </div>
-        );
+          {adminCode && this.renderCallout("Email services are not setup. Ask an admin for a reset code.")}
+        </>);
       }
       // #region update
       case "update-password": {
-        const passwordsDoNotMatch = Boolean(
-          this.draft.newPassword
-          && this.draft.confirmNewPassword
-          && this.draft.newPassword !== this.draft.confirmNewPassword
-        );
+
         const updatePasswordActionDisabled = this.isSubmitting
           || !this.draft.newPassword
           || !this.draft.confirmNewPassword
-          || passwordsDoNotMatch;
-        return this.renderCommon(
-          "Update password",
-          "Choose a new password for your account.",
-          <>
+          || this.draft.newPassword !== this.draft.confirmNewPassword;
+
+        return this.renderCommon({
+          title: "Update password",
+          copy: "Choose a new password for your account.",
+          submitAction: this.handleUpdatePasswordSubmit,
+          submitDisabled: updatePasswordActionDisabled,
+          submitLabel: "Update password",
+        }, <>
+          <div class="login-fields">
             {this.renderCallout("Username: " + this.draft.username)}
             {this.updatePasswordFields.map((field) => this.renderField(field))}
-          </>,
-          null,
-          <div class="login-action-row">
-            <button class="ghost-button" type="button" disabled={this.isSubmitting} onclick={() => this.setMode("reset-code")}>Back</button>
-            <button class="primary-button login-submit" type="button" disabled={updatePasswordActionDisabled} onclick={() => void this.handleUpdatePasswordSubmit()}>Update password</button>
           </div>
-        );
+        </>);
       }
     }
 
@@ -432,11 +480,16 @@ export class LoginForm extends JSXElement {
   private submitLogin = async (): Promise<boolean> => {
     const serverState = await this.ensureServerState();
     const clientState = this.draft;
+    this.rememberMe;
+    await loginWithOpaque(clientState.username, clientState.password, true);
+    location.href = location.origin + pathPrefix + "/";
     return true;
   }
   private submitForgotPassword = async (): Promise<boolean> => {
     const serverState = await this.ensureServerState();
     const clientState = this.draft;
+    this.mode = "reset-code";
+    this.submitMessage = "";
     return true;
   }
   private submitResetCode = async (): Promise<boolean> => {
@@ -445,18 +498,30 @@ export class LoginForm extends JSXElement {
     const { user_id, username } = await serverAcceptResetCode({
       resetCode: clientState.resetCode,
       csrfToken: serverState.csrfToken,
+      emailOrUsername: clientState.emailOrUsername,
     });
     clientState.id = new IdString(user_id);
     clientState.username = username;
+    this.mode = "update-password";
+    this.submitMessage = "";
     return true;
   }
   private submitUpdatePassword = async (): Promise<boolean> => {
     const serverState = await this.ensureServerState();
     const clientState = this.draft;
+    await changeExistingPasswordWithCode({
+      user_id: clientState.id.toString(),
+      username: clientState.username,
+      resetCode: clientState.resetCode,
+      newPassword: clientState.newPassword,
+    });
+    location.search = "?state=password-changed";
+    return new Promise(() => { });
     return true;
   }
 
   private async loadServerStateInternal(): Promise<LoginServerState> {
+    await new Promise(r => { setTimeout(r, 2000); });
     return {
       csrfToken: "pretend-csrf-token",
       emailEnabled: false,
@@ -466,7 +531,7 @@ export class LoginForm extends JSXElement {
 }
 type LoginDraft = AdminRecord & {
   confirmNewPassword: string;
-  email: string;
+  emailOrUsername: string;
   newPassword: string;
   resetCode: string;
   username: string;
@@ -478,17 +543,3 @@ type LoginServerState = {
   emailEnabled: boolean;
 };
 
-async function serverAcceptResetCode(args: {
-  resetCode: string;
-  csrfToken: string;
-}): Promise<{
-  // required to create the new password
-  user_id: string;
-  // useful for user confirmation
-  username: string;
-}> {
-  return {
-    user_id: "",
-    username: "test",
-  }
-}
