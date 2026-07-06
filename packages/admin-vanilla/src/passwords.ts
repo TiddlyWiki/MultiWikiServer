@@ -126,6 +126,37 @@ export async function changeExistingPasswordAdmin({ user_id, newPassword }: { us
 
 }
 
+
+export async function changeExistingPasswordWithPassword({ username, password, newPassword }: {
+  username: string;
+  password: string;
+  newPassword: string;
+}) {
+
+  const { user_id, session_id, sessionKey, opaque } = await loginWithOpaque(username, password);
+
+  const { clientRegistrationState, registrationRequest } = opaque.client.startRegistration({ password: newPassword });
+
+  const signature = await generateSessionSignature(sessionKey, session_id);
+
+  const registrationResponse = await user_update_password({
+    user_id, registrationRequest, session_id, signature
+  });
+
+  if (!registrationResponse) throw 'Failed to update password'; // wierd, but shouldn't happen
+
+  const { registrationRecord } = opaque.client.finishRegistration({
+    clientRegistrationState, registrationResponse, password: newPassword,
+  });
+
+  await user_update_password({ user_id, registrationRecord, session_id, signature });
+
+  // this closes the login session we opened for the password change
+  await sessionRequest.logout({ session_id, signature, skipCookie: true });
+
+}
+
+
 export async function changeExistingPasswordWithCode({ user_id, username, resetCode, newPassword }: {
   user_id: string;
   username: string;

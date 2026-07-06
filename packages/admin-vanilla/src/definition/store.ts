@@ -198,7 +198,7 @@ function deriveBagRecords(items: DataStore, templates: TemplateAdminRecord[], wi
       readonlyUsageCount: String(referencedByWikis.length),
       writableUsageCount: String(writableByWikis.length),
       defaultUsageCount: String(defaultByWikis.length),
-      permissionSummary: summarizePermissionRoles(bag.permissions),
+      permissionSummary: summarizePermissionRoles(bag.bagPermissions),
       referencedByTemplates: referencedByTemplates.join("\n"),
       referencedByWikis: Array.from(allUsingWikis).join("\n"),
       routingRoles: routingRoles.join("\n"),

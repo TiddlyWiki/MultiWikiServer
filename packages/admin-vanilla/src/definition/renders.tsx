@@ -72,7 +72,7 @@ function getLookupOptions(fieldKey: string, itemsByTab: AdminRecordStore): strin
   }
   if (fieldKey === "permissions" || fieldKey === "recipePermissions") {
     return Array.from(new Set([
-      ...itemsByTab.bags.flatMap((item) => item.permissions.map((row) => row.role.toString())),
+      ...itemsByTab.bags.flatMap((item) => item.bagPermissions.map((row) => row.role.toString())),
       ...itemsByTab.wikis.flatMap((item) => item.recipePermissions.map((row) => row.role.toString())),
     ].filter(Boolean)));
   }
@@ -134,8 +134,11 @@ function renderSearchableInput({ id, currentValue, placeholder, options, onInput
 }
 
 function renderTextInputField(ctx: FieldEditorContext, type: "text" | "number" | "password") {
-  const { field, value, disabled, inputId, onDraftChange } = ctx;
+  const { field, value, disabled, inputId, onDraftChange, } = ctx;
   definitely<string>(value);
+  if (field.mode === "server" || field.mode === "") {
+    return renderCalloutField(ctx);
+  }
   return <input id={inputId} class="field-input" type={type} value={value} ref={(element) => {
     if (element.value !== value) element.value = value;
   }} disabled={disabled} oninput={(event) => onDraftChange(field.key, (event.currentTarget as HTMLInputElement).value)} />;
@@ -183,8 +186,8 @@ function renderTableField(ctx: ReadonlyFieldContext) {
 function renderLinesList(value: readonly string[], key: string, itemsByTab?: AdminRecordStore) {
   const missingCheck =
     itemsByTab ?
-      key === "effectiveReadonlyBags" ? new Set(Array.from(itemsByTab.availableBagNames, e => e.toString())) :
-        key === "effectivePluginSet" ? itemsByTab.availablePluginNames :
+      (key === "effectiveReadonlyBags" || key === "readonlyBags") ? new Set(Array.from(itemsByTab.availableBagNames, e => e.toString())) :
+        (key === "effectivePluginSet" || key === "plugins") ? itemsByTab.availablePluginNames :
           null : null;
   const lines = value.map(line => ({ line, missing: missingCheck && !missingCheck.has(line), }));
   return <ul class="value-list">{lines.map(({ line, missing }) => <li>
@@ -257,6 +260,9 @@ function renderSearchMultiselectFieldEditor(ctx: FieldEditorContext<any>) {
   if (typeof value === "string") {
     console.log(ctx);
     throw new Error("value is a string");
+  }
+  if (field.mode === "server" || field.mode === "") {
+    return renderLinesList(value, field.key, itemsByTab);
   }
   const editableLines = value;
   const pendingRowCount = fieldState.pendingRows[field.key] ?? 0;

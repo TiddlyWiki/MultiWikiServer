@@ -372,13 +372,13 @@ export class BagDataAdapter extends TabDataAdapter<"bags"> {
   async saveRow(prisma: PrismaTxnClient, data: DataSave["bags"][number]): Promise<DataStore["bags"][number]> {
     const importer = new BagImportWriter(prisma, false);
     await importer.checkExisting(data.id, data.name, this.user);
-    const permissions = normalizePermissions(data.permissions);
+    const permissions = normalizePermissions(data.bagPermissions);
     const roles = await getRolesMapper(prisma, permissions.map(e => e.role));
 
     const [bag] = await importer.upsert([{
       name: data.name,
       description: data.description,
-      permissions: data.permissions.map(e => ({
+      permissions: data.bagPermissions.map(e => ({
         role_id: roles(e.role),
         level: e.level as BagPermissionLevel
       }))
@@ -388,7 +388,7 @@ export class BagDataAdapter extends TabDataAdapter<"bags"> {
       id: new IdString(bag.id),
       name: data.name,
       description: data.description,
-      permissions: data.permissions,
+      bagPermissions: data.bagPermissions,
     }
   }
   async getList(prisma: PrismaTxnClient, roles: (key: IdString) => KeyString): Promise<DataStore["bags"]> {
@@ -411,7 +411,7 @@ export class BagDataAdapter extends TabDataAdapter<"bags"> {
       id: new IdString(bag.id),
       name: new KeyString(bag.name),
       description: bag.description,
-      permissions: bag.permissions.map((row) => ({
+      bagPermissions: bag.permissions.map((row) => ({
         role: roles(new IdString(row.role_id)),
         level: row.level,
       })),

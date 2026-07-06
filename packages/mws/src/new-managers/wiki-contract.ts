@@ -107,7 +107,7 @@ abstract class BagRow implements IBagRow {
   abstract id: IdString;
   abstract name: KeyString;
   abstract description: string;
-  abstract permissions: readonly PermissionRow<BagPermissionLevel>[];
+  abstract bagPermissions: readonly PermissionRow<BagPermissionLevel>[];
 }
 
 abstract class PluginRow implements IPluginRow {

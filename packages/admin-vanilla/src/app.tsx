@@ -661,9 +661,7 @@ class ToggleFieldElement extends JSXElement {
             class="header-switch-input"
             type="checkbox"
             checked={checked}
-            ref={(element) => {
-              if (element.checked !== checked) element.checked = checked;
-            }}
+            ref={(element) => { if (element.checked !== checked) element.checked = checked; }}
             onchange={(event) => onDraftChange(field.key, (event.currentTarget as HTMLInputElement).checked)}
           />
           <span class={checked ? "header-switch-track is-checked" : "header-switch-track"} aria-hidden="true">

@@ -418,7 +418,7 @@ const tabs = {
       { key: "name", label: "Name", type: "string", section: "authored", mode: "create edit" },
       { key: "description", label: "Description", type: "text", section: "authored", mode: "create edit" },
       {
-        key: "permissions",
+        key: "bagPermissions",
         label: "Permissions",
         type: "permission-table",
         section: "authored",
@@ -615,6 +615,19 @@ type MapFieldDefinitions<T, M extends Mode> =
 type FilterServerFields<T extends FieldDefinition, M extends Mode> =
   T["mode"] extends M ? never : T["key"];
 
+type TupleWhere<T, W> =
+  T extends [infer F, ...infer R]
+  ? (F extends W ? F : never) | TupleWhere<R, W>
+  : T extends [infer F extends W]
+  ? (F extends W ? F : never)
+  : never;
+
+/** this ignores key string, which could be an issue */
+export type Drafter<T extends { key: string; type: FieldType; }[]> = {
+  [K in T[number]["key"]]:
+  FieldTypeCreateValue<TupleWhere<T, { key: K }>["type"]>
+} & { id: IdString; }
+
 export interface AdminRecordStore {
   wikis: WikiAdminRecord[];
   templates: TemplateAdminRecord[];
@@ -706,7 +719,7 @@ export interface BagAdminRecord {
   id: IdString;
   name: KeyString;
   description: string;
-  permissions: readonly PermissionRow<BagPermissionLevel>[];
+  bagPermissions: readonly PermissionRow<BagPermissionLevel>[];
   usedByCount: string;
   readonlyUsageCount: string;
   writableUsageCount: string;
