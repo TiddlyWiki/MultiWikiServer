@@ -23,13 +23,24 @@ Multiple users, multiple wikis for TiddlyWiki.
 
 Most of these features are still in development.
 
+## Here's a sneak peak at the new UI that's coming
+
+### Dark Mode
+
+<img width="800" alt="light mode" src="https://github.com/user-attachments/assets/d2c8177a-e504-4bff-999d-4b260467ac2e" />
+
+### Light Mode
+
+<img width="800" alt="dark mode" src="https://github.com/user-attachments/assets/301cb61c-1f39-4d4f-8f4a-8ecd5306c084" />
+
 **Do not use it to protect feelings or intellectual property.**
 
 ## Warning: Security is still a dumpster fire.
 
 **While the database structure is reliable, the security mechanism is more like swiss cheese. Do not use it to protect feelings or intellectual property. There are plenty of ways to get around the security restrictions.**
 
-![this is fine](https://github.com/user-attachments/assets/49505d25-7a48-42f1-b4f7-73e8630c1ba1)
+<img width="800" alt="this is fine" src="https://github.com/user-attachments/assets/49505d25-7a48-42f1-b4f7-73e8630c1ba1" />
+
 
 ## Also, this is a database, please make backups
 
