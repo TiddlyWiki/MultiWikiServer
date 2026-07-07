@@ -27,7 +27,7 @@ Most of these features are still in development.
 
 ## Warning: Security is still a dumpster fire.
 
-**While the database structure is reliable, the security mechanism isn't. Do not use it to protect feelings or intellectual property. There are still ways to easily get around the security restrictions.**
+**While the database structure is reliable, the security mechanism is more like swiss cheese. Do not use it to protect feelings or intellectual property. There are plenty of ways to get around the security restrictions.**
 
 ![this is fine](https://github.com/user-attachments/assets/49505d25-7a48-42f1-b4f7-73e8630c1ba1)
 
@@ -54,54 +54,23 @@ The initial user created on first run has the username `admin` and password `123
 
 If you run into trouble, or need help figuring something out, feel free to [start a discussion](https://github.com/TiddlyWiki/MultiWikiServer/discussions). If you know what's wrong, you can also open an issue.
 
-## Running with Docker Compose
 
-For easier deployment and consistent environments, you can run MWS using Docker Compose. See **[DOCKER.md](DOCKER.md)** for complete documentation.
+## Development
 
-**Quick start with volume mode:**
-```bash
-# Download the required files
-curl -O https://raw.githubusercontent.com/TiddlyWiki/MultiWikiServer/main/docker-compose.volume.yml
-curl -O https://raw.githubusercontent.com/TiddlyWiki/MultiWikiServer/main/Dockerfile
+In 0.2, the development data folder is `/dev/wiki`.
 
-# Start MWS
-docker-compose -f docker-compose.volume.yml up -d
+If you want to work on the project, or just try out the latest changes,
 
-# Initialize the database (required on first run)
-docker-compose -f docker-compose.volume.yml exec mws npx mws init-store
+- `git clone https://github.com/TiddlyWiki/MultiWikiServer`
+- `cd MultiWikiServer`
+- `npm install` or `npm run install-android`
+- `npm run certs` - if you want https (unix only)
+- `npm start init-store` - Create the `admin` user and import default wikis.
+- `npm start` - this will run the build every time, but it's very fast.
 
-# Access at http://localhost:8080
-# Default credentials: admin / 1234
-```
+The development wiki will be active at http://localhost:8080/
 
-**Quick start with directory mode:**
-```bash
-# Create your data directory
-mkdir my-mws-data
-cd my-mws-data
-
-# Download the required files
-curl -O https://raw.githubusercontent.com/TiddlyWiki/MultiWikiServer/main/docker-compose.directory.yml
-curl -O https://raw.githubusercontent.com/TiddlyWiki/MultiWikiServer/main/Dockerfile
-
-# Create store directory
-mkdir -p store
-
-# Start MWS
-docker-compose -f docker-compose.directory.yml up -d
-
-# Initialize the database (required on first run)
-docker-compose -f docker-compose.directory.yml exec mws npx mws init-store
-
-# Access at http://localhost:8080
-# Default credentials: admin / 1234
-```
-
-Two deployment modes are available:
-- **docker-compose.volume.yml** - Uses Docker-managed volumes (simpler)
-- **docker-compose.directory.yml** - Uses local `./store` directory (easier backups and access)
-
-For detailed instructions, backup strategies, migration guides, and troubleshooting, see **[DOCKER.md](DOCKER.md)**.
+You can change the listeners as explained in the mws.dev.mjs file.
 
 ## Updates
 
@@ -122,24 +91,7 @@ It is recommended to backup your entire data folder, not just the `store` folder
 
 - You must *always* backup the *entire* `store` folder. Never delete any files in the `store` folder. All files in the `store` folder are data files!
 - You should definitely backup the `package.json` file, as it contains the MWS version you are currently using. The `package-lock.json` file is also useful if you don't want to back up the entire `node_modules` folder for some reason. 
-- The `cache` folder (next to the `store` folder) is generated every time MWS starts, so you can exclude that from backups if you want. 
-- The `node_modules` folder should be included in your backup, as it contains all the application code required to run your database, but it can also be reconstructed from the `package-lock.json` file or the `package.json` file. 
+- The `cache` folder (next to the `store` folder) is generated every time MWS starts, so it's nothing but bloat if you have the `package.json` file saved.
+- The `node_modules` folder may be included in your backup, as it contains all the application code required to run your database, but it can also be reconstructed from the `package-lock.json` file or the `package.json` file. 
 
-MWS uses NPM packages, so as long as you back up the *entire* store folder, and the package-lock.json file, you should have enough information for a NodeJS developer to reconstruct the site. 
-
-## Development
-
-In 0.1, the development data folder is `/dev/wiki`.
-
-If you want to work on the project,
-
-- `git clone https://github.com/TiddlyWiki/MultiWikiServer`
-- `cd MultiWikiServer`
-- `npm install` or `npm run install-android`
-- `npm run certs` - if you want https (unix only)
-- `npm start init-store` - Create the `admin` user and import default wikis.
-- `npm start` - this will run the build every time, but it's very fast.
-
-The development wiki will be active at http://localhost:8080/
-
-You can change the listeners as explained in the mws.dev.mjs file.
+MWS uses NPM packages, so as long as you back up the *entire* `store` folder, and the package-lock.json file, you should have enough information for a NodeJS developer to reconstruct the site. 
