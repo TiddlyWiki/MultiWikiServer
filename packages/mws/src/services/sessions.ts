@@ -5,6 +5,12 @@ import { ServerState } from "../ServerState";
 import { serverEvents } from "@tiddlywiki/events";
 
 
+export interface SessionManagerObject {
+  AdminRoleName: string;
+  UserRoleName: string;
+  parseIncomingRequest(cookies: BetterCookie, config: ServerState): Promise<AuthUser>;
+}
+
 export interface AuthUser {
   /** User ID. 0 if the user is not logged in. */
   user_id: PrismaField<"Users", "user_id">;
@@ -23,6 +29,10 @@ export interface AuthUser {
   isLoggedIn: boolean;
   /** Web URL for the user's avatar. */
   avatarUrl?: string;
+  /** Default admin role name. Users with this role bypass most permissions. */
+  AdminRoleName: string;
+  /** Default role for all users. */
+  UserRoleName: string;
 }
 
 export const SessionKeyMap: RouterKeyMap<SessionManager, true> = {
@@ -42,8 +52,8 @@ export const SessionKeyMap: RouterKeyMap<SessionManager, true> = {
 export function zodSession<P extends string, T extends zod.ZodTypeAny, R extends JsonValue | undefined>(
   path: P,
   zodRequest: (z: Z2<"JSON">) => T,
-  preflight: (state: ZodState<"POST", "json", {}, {}, never, T>) => Promise<void>,
-  inner: (state: ZodState<"POST", "json", {}, {}, never, T>, prisma: PrismaTxnClient) => Promise<R>
+  preflight: (state: ZodState<"POST", "json", {}, never, T>) => Promise<void>,
+  inner: (state: ZodState<"POST", "json", {}, never, T>, prisma: PrismaTxnClient) => Promise<R>
 ): ZodSessionRoute<P, T, R> {
   return {
     ...zodRoute({
@@ -51,7 +61,6 @@ export function zodSession<P extends string, T extends zod.ZodTypeAny, R extends
       path,
       bodyFormat: "json",
       zodPathParams: z => ({}),
-      zodQueryParams: z => ({}),
       zodQueryKeys: [],
       zodRequestBody: zodRequest,
       securityChecks: { requestedWithHeader: true },
@@ -70,7 +79,7 @@ export interface ZodSessionRoute<
   PATH extends string,
   T extends zod.ZodTypeAny,
   R extends JsonValue | undefined
-> extends ZodRoute<"POST", "json", {}, {}, [], T, R> {
+> extends ZodRoute<"POST", "json", {}, [], T, R> {
   path: PATH;
 }
 
@@ -93,7 +102,7 @@ class RateLimiter {
 
   constructor(private readonly minIntervalMs: number) { }
 
-  async wait<T extends zod.ZodTypeAny>(state: ZodState<"POST", "json", {}, {}, never, T>, key: string): Promise<void> {
+  async wait<T extends zod.ZodTypeAny>(state: ZodState<"POST", "json", {}, never, T>, key: string): Promise<void> {
 
     const now = Date.now();
     const nextRunAt = this.nextRunAt.get(key) ?? 0;
@@ -129,6 +138,9 @@ export class SessionManager {
     registerZodRoutes(root, route, keys)
   }
 
+  static AdminRoleName = "ADMIN";
+  static UserRoleName = "USER";
+
   static async parseIncomingRequest(cookies: BetterCookie, config: ServerState): Promise<AuthUser> {
 
     const sessionId = cookies.getAll("session") as PrismaField<"Sessions", "session_id">[];
@@ -147,6 +159,8 @@ export class SessionManager {
       })),
       sessionId: session.session_id,
       isLoggedIn: true,
+      AdminRoleName: SessionManager.AdminRoleName,
+      UserRoleName: SessionManager.UserRoleName,
     };
     else return {
       user_id: "" as PrismaField<"Users", "user_id">,
@@ -155,6 +169,8 @@ export class SessionManager {
       roles: [],
       sessionId: undefined,
       isLoggedIn: false,
+      AdminRoleName: SessionManager.AdminRoleName,
+      UserRoleName: SessionManager.UserRoleName,
     };
   }
 
@@ -322,6 +338,62 @@ export class SessionManager {
     }
   });
 
+
+  user_update_password = zodSession(
+    "/login/user_update_password",
+    z => z.object({
+      user_id: z.prismaField("Users", "user_id", "string"),
+      registrationRequest: z.string().optional(),
+      registrationRecord: z.string().optional(),
+      session_id: z.string().optional(),
+      signature: z.string().optional(),
+    }),
+    async (state) => { state.okUser(); },
+    async (state, prisma) => {
+
+      const { user_id, registrationRecord, registrationRequest } = state.data;
+      if (!state.user.isAdmin) {
+        if (!state.data) throw "Session id and signature are required";
+        const session = await prisma.sessions.findUnique({
+          where: { session_id: state.data.session_id },
+        });
+
+        if (!session?.session_key)
+          throw "Session not found";
+        const { session_key } = session;
+        const { session_id, signature } = state.data;
+        if (!session_id || !signature)
+          throw "Session id and signature are required";
+        assertSignature({ session_id, session_key, signature });
+
+        if (session.user_id !== user_id)
+          throw "You must be an admin to update another user's password";
+
+        if (state.user.user_id !== user_id)
+          throw "You must be logged in as this user to update the password, "
+          + "but normally this isn't supposed to happen (this is a bug, please report it)";
+
+      }
+
+      const userExists = await prisma.users.count({ where: { user_id } });
+      if (!userExists) throw "User does not exist";
+
+      if (registrationRequest) {
+        return state.PasswordService.createRegistrationResponse({
+          userID: user_id,
+          registrationRequest
+        });
+      } else if (registrationRecord) {
+        await prisma.users.update({
+          where: { user_id },
+          data: { password: registrationRecord }
+        });
+      }
+
+      return null;
+
+    }
+  )
 
 }
 

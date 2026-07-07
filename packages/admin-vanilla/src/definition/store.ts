@@ -19,7 +19,7 @@ import {
   PermissionRow,
   PluginAdminRecord,
   WritablePrefixRow,
-  KeyString,
+
   IdString,
   fieldTypeCreateFactories,
 } from "./tabs";
@@ -29,8 +29,8 @@ import { mapGetInit } from "./utils";
 export const jsonReviver = (key: any, val: any) => {
   if (typeof val === "string" && val.startsWith(IdString.prefix))
     return new IdString(val.slice(IdString.prefix.length));
-  if (typeof val === "string" && val.startsWith(KeyString.prefix))
-    return new KeyString(val.slice(KeyString.prefix.length));
+  // if (typeof val === "string" && val.startsWith(KeyString.prefix))
+  //   return val.slice(KeyString.prefix.length);
   return val;
 };
 
@@ -126,7 +126,7 @@ export function createDraft(tab: TabDefinition, source?: AdminRecord): AdminReco
     const draft2: TemplateAdminRecord = draft as any;
     draft2.requiredPluginsEnabled = true;
     draft2.customHtmlEnabled = false;
-    draft2.injectionArray = "$tw.preloadTiddlers";
+    draft2.injectionFunction = "$tw.preloadTiddlers";
   }
 
   // console.log(buildTabZodObject(tab.id).safeParse(draft), KeyString.name, IdString.name);
@@ -150,9 +150,9 @@ function deriveBagRecords(items: DataStore, templates: TemplateAdminRecord[], wi
   const wikiWritableUsage = new Map<string, Set<string>>();
   const wikiDefaultUsage = new Map<string, Set<string>>();
 
-  const addUsage = (map: Map<string, Set<string>>, bagName: KeyString, recordName: KeyString) => {
+  const addUsage = (map: Map<string, Set<string>>, bagName: string, recordName: string) => {
     if (!bagName || !recordName) return;
-    mapGetInit(map, bagName.toString(), () => new Set).add(recordName.toString());
+    mapGetInit(map, bagName, () => new Set).add(recordName);
   };
 
   for (const template of templates) {
@@ -166,21 +166,21 @@ function deriveBagRecords(items: DataStore, templates: TemplateAdminRecord[], wi
     const effectiveReadonlyBags = uniqueLines([
       ...wiki.readonlyBags ?? [],
       ...templateRecord?.readonlyBags ?? [],
-    ].map(e => e.toString()));
-    effectiveReadonlyBags.forEach((bagName) => addUsage(wikiReadonlyUsage, new KeyString(bagName), wikiName));
+    ].map(e => e));
+    effectiveReadonlyBags.forEach((bagName) => addUsage(wikiReadonlyUsage, bagName, wikiName));
 
     const prefixRows = wiki.writablePrefixBags;
     prefixRows.forEach((row) => addUsage(wikiWritableUsage, row.bagName, wikiName));
-    const defaultBag = prefixRows.find((row) => row.prefix === "")?.bagName ?? new KeyString("");
+    const defaultBag = prefixRows.find((row) => row.prefix === "")?.bagName ?? "";
     addUsage(wikiDefaultUsage, defaultBag, wikiName);
   }
 
   return items.bags.map((bag) => {
     const name = bag.name ?? "";
-    const referencedByTemplates = Array.from(templateReadonlyUsage.get(name.toString()) ?? []);
-    const referencedByWikis = Array.from(wikiReadonlyUsage.get(name.toString()) ?? new Set<string>());
-    const writableByWikis = Array.from(wikiWritableUsage.get(name.toString()) ?? new Set<string>());
-    const defaultByWikis = Array.from(wikiDefaultUsage.get(name.toString()) ?? new Set<string>());
+    const referencedByTemplates = Array.from(templateReadonlyUsage.get(name) ?? []);
+    const referencedByWikis = Array.from(wikiReadonlyUsage.get(name) ?? new Set<string>());
+    const writableByWikis = Array.from(wikiWritableUsage.get(name) ?? new Set<string>());
+    const defaultByWikis = Array.from(wikiDefaultUsage.get(name) ?? new Set<string>());
     const routingRoles = uniqueLines([
       referencedByWikis.length ? "readonly layer" : "",
       writableByWikis.length ? "writable prefix target" : "",
@@ -214,12 +214,12 @@ function derivePluginRecords(items: DataStore, templates: TemplateAdminRecord[],
     wiki.effectivePluginSet.forEach((pluginValue) => {
       const pluginName = pluginValue.split("@")[0]?.trim() ?? pluginValue.trim();
       if (!pluginName || !wikiName) return;
-      mapGetInit(pluginUsage, pluginName, () => new Set()).add(wikiName.toString());
+      mapGetInit(pluginUsage, pluginName, () => new Set()).add(wikiName);
     });
   }
 
   return items.plugins.map((plugin) => {
-    const usedByWikis = Array.from(pluginUsage.get(plugin.name.toString() ?? "") ?? []).map(e => new KeyString(e));
+    const usedByWikis = Array.from(pluginUsage.get(plugin.name ?? "") ?? []).map(e => e);
     return {
       ...plugin as unknown as PluginAdminRecord,
       usedByWikis,
@@ -234,16 +234,16 @@ function buildEffectiveBagStack({
   wikiReadonlyBags,
 }: {
   writablePrefixBags: readonly WritablePrefixRow[];
-  templateReadonlyBags: readonly KeyString[];
-  wikiReadonlyBags: readonly KeyString[];
+  templateReadonlyBags: readonly string[];
+  wikiReadonlyBags: readonly string[];
 }): string[] {
   const defaultTargets = prefixRows.filter((row) => row.prefix === "").map((row) => row.bagName);
   const prefixedTargets = prefixRows.filter((row) => row.prefix !== "").map((row) => row.bagName);
   return uniqueLines([
-    ...defaultTargets.map(e => e.toString()),
-    ...prefixedTargets.map(e => e.toString()),
-    ...wikiReadonlyBags.map(e => e.toString()),
-    ...templateReadonlyBags.map(e => e.toString()),
+    ...defaultTargets.map(e => e),
+    ...prefixedTargets.map(e => e),
+    ...wikiReadonlyBags.map(e => e),
+    ...templateReadonlyBags.map(e => e),
   ]) as string[];
 }
 
@@ -281,7 +281,7 @@ function syncWikiRecord(draft: DataStore["wikis"][number], data: DataStore) {
   const wikiReadonlyBags = draft.readonlyBags;
   const wikiPlugins = draft.plugins;
 
-  const mergedReadonlyBags = uniqueLines([...wikiReadonlyBags, ...templateReadonlyBags].map(e => e.toString()));
+  const mergedReadonlyBags = uniqueLines([...wikiReadonlyBags, ...templateReadonlyBags].map(e => e));
   const mergedPlugins = buildEffectivePluginSet({
     previousEffectivePlugins: (draft as WikiAdminRecord).effectivePluginSet,
     templatePlugins,
@@ -290,7 +290,7 @@ function syncWikiRecord(draft: DataStore["wikis"][number], data: DataStore) {
   });
   const writablePrefixBags = draft.writablePrefixBags
 
-  const defaultWritableBag = writablePrefixBags.find((row) => row.prefix === "")?.bagName ?? new KeyString("");
+  const defaultWritableBag = writablePrefixBags.find((row) => row.prefix === "")?.bagName ?? "";
   const prefixRuleCount = String(writablePrefixBags.length);
   const readableBagOrder = buildEffectiveBagStack({
     writablePrefixBags,
@@ -311,7 +311,7 @@ function syncWikiRecord(draft: DataStore["wikis"][number], data: DataStore) {
 
   return {
     ...draft,
-    templateName: new KeyString(templateRecord?.name.toString() ?? draft.templateName?.toString() ?? ""),
+    templateName: templateRecord?.name ?? draft.templateName ?? "",
     defaultWritableBag,
     readonlyBagCount: String(mergedReadonlyBags.length),
     prefixRuleCount,
@@ -325,10 +325,10 @@ function syncWikiRecord(draft: DataStore["wikis"][number], data: DataStore) {
 }
 
 function deriveItems(items: DataStore): AdminRecordStore {
-  items.availableBagNames = new Set(items.bags.map((bag) => bag.name.toString()).filter(Boolean));
-  items.availablePluginNames = new Set(items.plugins.map((plugin) => plugin.name.toString()).filter(Boolean));
+  items.availableBagNames = new Set(items.bags.map((bag) => bag.name).filter(Boolean));
+  items.availablePluginNames = new Set(items.plugins.map((plugin) => plugin.name).filter(Boolean));
   const wikis = items.wikis.map((wiki) => syncWikiRecord(wiki, items));
-  const dependentWikiMap = new Map<KeyString, KeyString[]>();
+  const dependentWikiMap = new Map<string, string[]>();
   for (const wiki of wikis) {
     mapGetInit(dependentWikiMap, wiki.templateName, () => []).push(wiki.slug);
   }
@@ -342,7 +342,7 @@ function deriveItems(items: DataStore): AdminRecordStore {
       readonlyBagsSummary: readonlyBags.join(", "),
       dependentWikis: dependentWikis.join("\n"),
       dependentWikiCount: String(dependentWikis.length),
-      defaultWritableBag: prefixRows.find((row) => row.prefix === "")?.bagName ?? new KeyString(""),
+      defaultWritableBag: prefixRows.find((row) => row.prefix === "")?.bagName ?? "",
       validationReport: "placeholder",
       validationStatus: "placeholder",
       lastUpdatedAt: new Date().toISOString(),

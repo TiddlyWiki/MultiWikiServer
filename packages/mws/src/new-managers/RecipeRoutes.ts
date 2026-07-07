@@ -1,5 +1,5 @@
 import { zodRoute, SendError } from "@tiddlywiki/server";
-import { RecipeResolver } from "./RecipeResolver";
+import { RecipeResolver, serveIndex } from "./RecipeResolver";
 
 // ---------------------------------------------------------------------------
 // Recipe-scoped endpoints (RSD, batch, list, status) — addressed by title.
@@ -67,6 +67,21 @@ export const TiddlerList = zodRoute({
       const r = new RecipeResolver(recipe, prisma, state.user.isAdmin);
       return await r.listTiddlers();
     });
+  },
+});
+// #region RecipeStore
+export const RecipeStore = zodRoute({
+  method: ["GET", "HEAD"],
+  path: "/recipe/:recipe_slug/store.js",
+  bodyFormat: "ignore",
+  securityChecks: { requestedWithHeader: false },
+  zodPathParams: z => ({
+    recipe_slug: z.prismaField("Recipe", "slug", "string"),
+  }),
+  zodQueryKeys: ["cache"],
+  inner: async (state) => {
+    const { recipe_slug } = state.pathParams;
+    throw await serveIndex(state, recipe_slug, "store");
   },
 });
 // #region RecipeUpdates

@@ -1,6 +1,6 @@
 import { DraftChangeHandler, OperationTriggerHandler, PendingRowsChangeHandler, PermissionRowsChangeHandler, PerTabFieldState, ResolverTitleChangeHandler } from "../app";
 import { MaterialSymbol } from "../material-symbol";
-import { AdminRecordStore, FieldDefinition, FieldType, IdString, KeyString, PermissionRow, WikiAdminRecord, WritablePrefixRow } from "./tabs";
+import { AdminRecordStore, FieldDefinition, FieldType, IdString, PermissionRow, WikiAdminRecord, WritablePrefixRow } from "./tabs";
 import { definitely, is } from "./utils";
 import warningIcon from "@material-symbols/svg-400/outlined/warning.svg";
 import { findTemplateRecordForWikiRecord, jsonReviver } from "./store";
@@ -55,25 +55,25 @@ function buildEffectivePrefixObject(writablePrefixBags: (readonly WritablePrefix
     }
   }
   return Object.entries(result)
-    .map(([prefix, bagName]) => ({ prefix, bagName: new KeyString(bagName) }))
+    .map(([prefix, bagName]) => ({ prefix, bagName }))
     .sort((a, b) => b.prefix.length - a.prefix.length);
 }
 
 
 function getLookupOptions(fieldKey: string, itemsByTab: AdminRecordStore): string[] {
   if (fieldKey === "readonlyBags" || fieldKey === "writablePrefixBags") {
-    return Array.from(new Set(itemsByTab.bags.map((item) => item.name.toString()).filter(Boolean)));
+    return Array.from(new Set(itemsByTab.bags.map((item) => item.name).filter(Boolean)));
   }
   if (fieldKey === "plugins") {
-    return Array.from(new Set(itemsByTab.plugins.map((item) => item.name.toString()).filter(Boolean)));
+    return Array.from(new Set(itemsByTab.plugins.map((item) => item.name).filter(Boolean)));
   }
   if (fieldKey === "userRoles") {
-    return Array.from(new Set(itemsByTab.roles.map((item) => item.name.toString()).filter(Boolean)));
+    return Array.from(new Set(itemsByTab.roles.map((item) => item.name).filter(Boolean)));
   }
   if (fieldKey === "permissions" || fieldKey === "recipePermissions") {
     return Array.from(new Set([
-      ...itemsByTab.bags.flatMap((item) => item.bagPermissions.map((row) => row.role.toString())),
-      ...itemsByTab.wikis.flatMap((item) => item.recipePermissions.map((row) => row.role.toString())),
+      ...itemsByTab.bags.flatMap((item) => item.bagPermissions.map((row) => row.role)),
+      ...itemsByTab.wikis.flatMap((item) => item.recipePermissions.map((row) => row.role)),
     ].filter(Boolean)));
   }
   return [];
@@ -82,7 +82,7 @@ function getLookupOptions(fieldKey: string, itemsByTab: AdminRecordStore): strin
 export function formatFieldValue(value: any): string {
   if (typeof value === "string"
     || value instanceof IdString
-    || value instanceof KeyString)
+  )
     return value.trim() || "—";
   if (Array.isArray(value)) {
     if (!value.length) return "—";
@@ -186,7 +186,7 @@ function renderTableField(ctx: ReadonlyFieldContext) {
 function renderLinesList(value: readonly string[], key: string, itemsByTab?: AdminRecordStore) {
   const missingCheck =
     itemsByTab ?
-      (key === "effectiveReadonlyBags" || key === "readonlyBags") ? new Set(Array.from(itemsByTab.availableBagNames, e => e.toString())) :
+      (key === "effectiveReadonlyBags" || key === "readonlyBags") ? new Set(Array.from(itemsByTab.availableBagNames)) :
         (key === "effectivePluginSet" || key === "plugins") ? itemsByTab.availablePluginNames :
           null : null;
   const lines = value.map(line => ({ line, missing: missingCheck && !missingCheck.has(line), }));
@@ -320,7 +320,7 @@ function renderSearchMultiselectFieldEditor(ctx: FieldEditorContext<any>) {
         <div class="field-callout">
           <p>Readonly bags from template</p>
           <ul class="value-list">
-            {templateReadonlyBagLines.length ? templateReadonlyBagLines.map((bag) => <li>{bag.toString()}</li>) : <li>No template readonly bags</li>}
+            {templateReadonlyBagLines.length ? templateReadonlyBagLines.map((bag) => <li>{bag}</li>) : <li>No template readonly bags</li>}
           </ul>
         </div>
       ) : null}
@@ -337,16 +337,33 @@ function renderSearchMultiselectFieldEditor(ctx: FieldEditorContext<any>) {
   );
 }
 
-function renderPermissionTableFieldEditor(ctx: FieldEditorContext<any>) {
+function renderPermissionTableFieldViewer(ctx: ReadonlyFieldContext<readonly PermissionRow[]>) {
+  const permissionRows = ctx.value;
+  if (!permissionRows.length) {
+    return <div class="field-callout"><p>No permissions assigned.</p></div>;
+  }
+  return <table class="value-table">
+    {permissionRows.map((row) => (
+      <tr>
+        <td>{row.role || "—"}</td>
+        <td><span class="pill-value pill-value-small">{formatPermissionLevel(row.level)}</span></td>
+      </tr>
+    ))}
+  </table>;
+}
+
+function renderPermissionTableFieldEditor(ctx: FieldEditorContext<readonly PermissionRow[]>) {
   const { field, disabled, fieldState, itemsByTab, inputId, onDraftChange, onTransientPermissionRowsChange } = ctx;
-  definitely<readonly PermissionRow[]>(ctx.value);
+  if (field.mode === "server" || field.mode === "") {
+    return renderPermissionTableFieldViewer(ctx);
+  }
   const permissionRows = ctx.value;
   const lookupOptions = getLookupOptions(field.key, itemsByTab);
   const availableLevels = getPermissionLevelsForField(field.key);
   const transientPermissionRows = fieldState.transientPermissionRows[field.key] ?? [];
   const displayedPermissionRows = permissionRows.length || transientPermissionRows.length
     ? [...permissionRows, ...transientPermissionRows]
-    : [{ role: new KeyString(""), level: availableLevels[0] as PermissionLevel }];
+    : [{ role: "", level: availableLevels[0] as PermissionLevel }];
 
   const persistPermissionRows = (rows: PermissionRow[]) => {
     const persistedRows = rows.filter((row) => row.role.trim());
@@ -361,13 +378,13 @@ function renderPermissionTableFieldEditor(ctx: FieldEditorContext<any>) {
         <div key={`${field.key}-permission-${index}`} class="row-editor-row row-editor-row-wide row-editor-row-permission">
           {renderSearchableInput({
             id: `${inputId}-${index}-role`,
-            currentValue: row.role.toString(),
+            currentValue: row.role,
             placeholder: "Role",
             options: lookupOptions,
             disabled: ctx.disabled,
             onInput: (nextValue) => {
               const nextRows = [...displayedPermissionRows];
-              nextRows[index] = { ...row, role: new KeyString(nextValue) };
+              nextRows[index] = { ...row, role: nextValue };
               persistPermissionRows(nextRows);
             },
           })}
@@ -388,7 +405,7 @@ function renderPermissionTableFieldEditor(ctx: FieldEditorContext<any>) {
       ))}
       <button type="button" class="ghost-button" disabled={disabled} onclick={() =>
         onTransientPermissionRowsChange(field.key, [...transientPermissionRows, {
-          role: new KeyString(""), level: availableLevels[0] as PermissionLevel
+          role: "", level: availableLevels[0] as PermissionLevel
         }])}>Add permission</button>
     </div>
   );
@@ -405,7 +422,7 @@ function renderPrefixMappingRows(displayedMappingRows: readonly WritablePrefixRo
     {displayedMappingRows.map((row) => (
       <tr>
         <td>{row.prefix ? <code>{'"' + row.prefix + '"'}</code> : defaultPrefixPill}</td>
-        <td>{row.bagName.toString()}</td>
+        <td>{row.bagName}</td>
       </tr>
     ))}
   </table>;
@@ -416,7 +433,7 @@ function renderPrefixTableFieldSidebar(ctx: ReadonlyFieldContext<any>): JSX.Node
   return <dl class="prefix-bag-sidebar">
     {ctx.value.map((entry) => <>
       <dt class="prefix-bag-sidebar-term">{entry.prefix ? <span class="prefix-bag-sidebar-prefix">"{entry.prefix}"</span> : defaultPrefixPill}</dt>
-      <dd class="prefix-bag-sidebar-value">{entry.bagName.toString()}</dd>
+      <dd class="prefix-bag-sidebar-value">{entry.bagName}</dd>
     </>)}
   </dl>;
 }
@@ -429,8 +446,8 @@ function renderPrefixTableFieldEditor(ctx: FieldEditorContext<any>) {
   const pendingRowCount = fieldState.pendingRows[field.key] ?? 0;
   const lookupOptions = getLookupOptions(field.key, itemsByTab);
   const displayedMappingRows = mappingRows.length
-    ? [...mappingRows, ...Array.from({ length: pendingRowCount }, () => ({ prefix: "", bagName: new KeyString("") }))]
-    : [{ prefix: "", bagName: new KeyString("") }, ...Array.from({ length: pendingRowCount }, () => ({ prefix: "", bagName: new KeyString("") }))];
+    ? [...mappingRows, ...Array.from({ length: pendingRowCount }, () => ({ prefix: "", bagName: "" }))]
+    : [{ prefix: "", bagName: "" }, ...Array.from({ length: pendingRowCount }, () => ({ prefix: "", bagName: "" }))];
   const templateRecord = is<WikiAdminRecord>(fieldState.draft, fieldState.tabId === "wikis")
     ? findTemplateRecordForWikiRecord(fieldState.draft, itemsByTab) : undefined;
   const inheritedRoutingRows = fieldState.tabId === "wikis" && templateRecord ? templateRecord.writablePrefixBags : [];
@@ -468,7 +485,7 @@ function renderPrefixTableFieldEditor(ctx: FieldEditorContext<any>) {
           </div>
           {renderSearchableInput({
             id: `${inputId}-${index}-target`,
-            currentValue: row.bagName.toString(),
+            currentValue: row.bagName,
             placeholder: "Target bag",
             options: lookupOptions,
             disabled: ctx.disabled,
@@ -525,7 +542,7 @@ function renderAutocompleteFieldEditor(ctx: FieldEditorContext<any>) {
         }}
       />
       <datalist id={datalistId}>
-        {Array.from(optionMap.keys(), (option) => <option value={option.toString()} />)}
+        {Array.from(optionMap.keys(), (option) => <option value={option} />)}
       </datalist>
     </>
   );
@@ -539,7 +556,7 @@ function computeResolverPreview(draft: WikiAdminRecord, title: string) {
     : undefined;
   return {
     title: normalizedTitle,
-    writeTo: writeTarget?.bagName.toString() ?? "No writable target",
+    writeTo: writeTarget?.bagName ?? "No writable target",
     matchedPrefix: writeTarget ? (writeTarget.prefix || "default") : "none",
   };
 }
@@ -641,7 +658,7 @@ export const fieldTypeRenderSidebars = {
   "enter-password": () => null,
   "confirm-password": () => null,
   "search-multiselect": renderSearchMultiselectFieldSidebar,
-  "permission-table": () => null,
+  "permission-table": renderPermissionTableFieldViewer,
   "prefix-table": renderPrefixTableFieldSidebar,
   "select": () => null,
   "search": renderAutocompleteFieldSidebar,

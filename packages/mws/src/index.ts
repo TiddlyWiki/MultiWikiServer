@@ -8,8 +8,8 @@ import { serverEvents } from "@tiddlywiki/events";
 // these all use serverEvents
 import "@tiddlywiki/commander";
 import "@tiddlywiki/server";
-import "./registerRequest";
-import "./registerStartup";
+import "./startup";
+// import "./registerStartup";
 import "./new-commands";
 import "./new-managers";
 import "./zodAssert";
@@ -25,11 +25,19 @@ import * as opaque from "@serenity-kit/opaque";
 import { dist_resolve, startup } from "@tiddlywiki/server";
 import runCLI from "@tiddlywiki/commander";
 import { runBuildOnce } from "./services/setupDevServer";
-import { clientBuildDef } from "./registerRequest";
+import { clientBuildDef } from "./startup";
 
-// exports
-export { ZodRoute } from "@tiddlywiki/server";
-// export * from "./managers";
+export * from "@tiddlywiki/server";
+export * from "@tiddlywiki/events";
+export { SessionManager, SessionManagerObject, AuthUser } from "./services/sessions";
+export { PasswordService } from "./services/PasswordService";
+export { WikiPluginCache, PluginDefinition, TiddlerHasher, defaultPreloadFunction } from "./services/cache";
+export * from "./services/setupDevServer";
+export * from "./services/tiddlywiki";
+export { mountTW5Route, TW5Route } from "./services/tw-routes";
+export * from "./new-commands";
+export * from "./new-managers";
+
 
 export default async function runMWS(oldOptions?: any) {
   // detect version 0.0 and exit

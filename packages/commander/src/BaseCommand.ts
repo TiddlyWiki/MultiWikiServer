@@ -1,6 +1,7 @@
 import * as commander from "commander";
 
 export type CommandClass = { 
+  info: CommandInfo,
   new(...args: ConstructorParameters<typeof BaseCommand<any, any>>): BaseCommand<any, any> 
 };
 export type CommandFile = {

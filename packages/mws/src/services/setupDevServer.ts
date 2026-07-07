@@ -253,7 +253,7 @@ async function startDevServer({ rootdir, publicdir, clientMounts, title }: Clien
 
     const headers2 = new SuperHeaders(proxyRes.headers);
     // console.log(headers2);
-    state.applyResponseHeaders({
+    state.applyHeaders({
       contentLength: headers2.contentLength,
       contentType: headers2.contentType,
     });

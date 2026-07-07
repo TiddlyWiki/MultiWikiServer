@@ -7,6 +7,7 @@ import { startupCache } from "./services/cache";
 import { Types } from "@tiddlywiki/mws-prisma";
 import { dist_resolve } from "@tiddlywiki/server";
 import { readFileSync } from "fs";
+import { SessionManager, SessionManagerObject } from "./services/sessions";
 
 /** This is an alias for ServerState in case we want to separate the two purposes. */
 export type SiteConfig = ServerState;
@@ -15,6 +16,33 @@ export type SiteConfig = ServerState;
 const DEFAULT_CONTENT_TYPE = "application/octet-stream";
 
 export class ServerState {
+
+
+  wikiPath;
+  storePath;
+  cachePath;
+
+  versions;
+
+  setupRequired = false;
+
+  enableExternalPlugins = true;
+  enableExternalStore = true;
+  enableGzip = true;
+
+  attachmentsEnabled = false;
+  attachmentSizeLimit = 0; // 100 * 1024; // 100 KB
+  enableDevServer = false;
+  enableDocsRoute = false;
+
+  fieldModules;
+  contentTypeInfo: Record<string, ContentTypeInfo>;
+
+  getContentType(type?: string): ContentTypeInfo {
+    return type && this.contentTypeInfo[type] || this.contentTypeInfo[DEFAULT_CONTENT_TYPE]!;
+  }
+
+  SessionManager: SessionManagerObject;
 
   constructor(
     { wikiPath, cachePath, storePath }: {
@@ -35,6 +63,8 @@ export class ServerState {
 
     this.fieldModules = $tw.Tiddler.fieldModules;
     this.contentTypeInfo = $tw.config.contentTypeInfo;
+
+    this.SessionManager = SessionManager;
 
     const pkg = JSON.parse(readFileSync(dist_resolve("../package.json"), "utf8"));
 
@@ -137,28 +167,6 @@ export class ServerState {
     })
   }
 
-  wikiPath;
-  storePath;
-  cachePath;
-
-  versions;
-
-  setupRequired = false;
-
-  enableExternalPlugins = true;
-  enableGzip = true;
-
-  attachmentsEnabled = false;
-  attachmentSizeLimit = 0; // 100 * 1024; // 100 KB
-  enableDevServer = false;
-  enableDocsRoute = false;
-
-  fieldModules;
-  contentTypeInfo: Record<string, ContentTypeInfo>;
-
-  getContentType(type?: string): ContentTypeInfo {
-    return type && this.contentTypeInfo[type] || this.contentTypeInfo[DEFAULT_CONTENT_TYPE]!;
-  }
 
 
 }

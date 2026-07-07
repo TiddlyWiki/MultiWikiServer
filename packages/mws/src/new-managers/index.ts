@@ -9,13 +9,11 @@
 // single, batch, and list operations always present the same view and can
 // never disagree about where a title routes.
 
-import { checkPath, defineZodRoute, jsonify, RemoveNever, zod, zodRoute, ZodRoute } from "@tiddlywiki/server";
+import { checkPath, checkQueryKeys, defineZodRoute, zod, ZodRoute } from "@tiddlywiki/server";
 import { serverEvents } from "@tiddlywiki/events";
-import { IndexSender, RecipeResolver, } from "./RecipeResolver";
+import { RecipeResolver, serveIndex, } from "./RecipeResolver";
 import { AdminLoad, AdminSave } from "./TabDataAdapter";
-import { RecipeStatus, RecipeUpdates, TiddlerBatch, TiddlerList } from "./RecipeRoutes";
-import { IdString, KeyString } from "@mws/admin-vanilla/src/definition/tabs";
-import { assertSignature } from "../services/sessions";
+import { RecipeStatus, RecipeStore, RecipeUpdates, TiddlerBatch, TiddlerList } from "./RecipeRoutes";
 
 export * from "./RecipeResolver";
 export * from "./TabDataAdapter";
@@ -27,43 +25,38 @@ export * from "./wiki-contract";
 // ---------------------------------------------------------------------------
 // Route registration
 // ---------------------------------------------------------------------------
-export type jsonify2Tuple<T> = T extends [infer A, ...infer B] ? [jsonify2<A>, ...jsonify2Tuple<B>] : T extends [infer A] ? [jsonify<A>] : [];
+// type jsonify2Tuple<T> = T extends [infer A, ...infer B] ? [jsonify2<A>, ...jsonify2Tuple<B>] : T extends [infer A] ? [jsonify<A>] : [];
 
-export type jsonify2<T> =
-  T extends IdString ? string :
-  T extends KeyString ? string :
-  T extends [...any[]] ? number extends T["length"] ? jsonify2<T[number]>[] : [...jsonify2Tuple<T>] :
-  T extends Array<infer U> ? jsonify2<U>[] :
-  T extends ReadonlyArray<infer U> ? jsonify2<U>[] :
-  T extends object ? { [K in keyof T as T[K] extends never ? never : K]: jsonify2<T[K]> } :
-  jsonify<T>;
+type Optional<T> = {
+  [P in keyof T as T[P] extends undefined ? P : never]?: T[P];
+} & {
+  [P in keyof T as T[P] extends undefined ? never : P]: T[P];
+};
 
-type ExtractTypes<PATH, Q2 extends string[], REQ, RES> = (args: {
-  path: { [K in keyof PATH]: zod.input<PATH[K]>; };
+// type jsonify2<T> =
+//   T extends IdString ? string :
+//   T extends string ? string :
+//   T extends [...any[]] ? number extends T["length"] ? jsonify2<T[number]>[] : [...jsonify2Tuple<T>] :
+//   T extends Array<infer U> ? jsonify2<U>[] :
+//   T extends ReadonlyArray<infer U> ? jsonify2<U>[] :
+//   T extends object ? { [K in keyof T as T[K] extends never ? never : K]: jsonify2<T[K]> } :
+//   jsonify<T>;
+
+type ExtractTypes2<PATH, Q2 extends string[], REQ, RES> = (args: Optional<{
+  path: keyof PATH extends never ? undefined : { [K in keyof PATH]: zod.input<PATH[K]>; };
   query: string extends Q2[number] ? undefined : Record<Q2[number], string[]>;
-  data: zod.input<REQ>;
-}) => Promise<RES>;
+  data: undefined extends REQ ? undefined : zod.input<REQ>;
+}>) => Promise<RES>;
 
-export type RouterRouteMap<T> = {
-  [K in keyof T as T[K] extends ZodRoute<any, any, any, any, any, any, any> ? K : never]:
-  T[K] extends ZodRoute<any, any, infer PATH, any, infer Q2, infer REQ, infer RES>
-  ? ExtractTypes<PATH, Q2, REQ, RES>
-  : `${K & string} does not extend`;
+type RouterRouteMap2<T> = {
+  [K in keyof T as ClientRoute<T[K]> extends Function ? K : never]: ClientRoute<T[K]>;
 }
 
-export type ClientRoute<T> =
-  T extends ZodRoute<any, any, infer PATH, any, infer Q2, infer REQ, infer RES>
-  ? ExtractTypes<PATH, Q2, REQ, RES>
+type ClientRoute<T> =
+  T extends ZodRoute<any, infer B, infer PATH, infer Q2, infer REQ, infer RES>
+  ? B extends "ignore" ? ExtractTypes2<PATH, Q2, undefined, RES> : ExtractTypes2<PATH, Q2, REQ, RES>
   : never;
 
-// type t1 = RouterRouteMap<typeof ApiRoutes>;
-// const test: t1 = {} as any;
-// test.AdminLoad({})
-// test.AdminSave({})
-// test.TiddlerBatch({})
-// test.TiddlerList({})
-// test.RecipeStatus({})
-// test.RecipeUpdates({})
 
 serverEvents.on("mws.routes", (root) => {
 
@@ -71,10 +64,7 @@ serverEvents.on("mws.routes", (root) => {
     method: [],
     denyFinal: true,
     path: new RegExp(`^(?=/recipe/|/wiki/|/admin/|/api/)`),
-  }, async (state) => {
-    state.user.isAdmin = true;
-    state.user.isLoggedIn = true;
-  });
+  }, async (state) => { });
 
   (Object.entries(ApiRoutes)).forEach(([key, val]) => {
     defineZodRoute(parent, key, val as any);
@@ -85,6 +75,7 @@ serverEvents.on("mws.routes", (root) => {
     path: new RegExp(`^/wiki/(?<recipe_slug>[^/]+)$`),
     bodyFormat: "ignore",
   }, async (state) => {
+
     if (state.method === "OPTIONS")
       return state.sendEmpty(405);
 
@@ -93,24 +84,7 @@ serverEvents.on("mws.routes", (root) => {
     }), new Error());
 
     const { recipe_slug } = state.pathParams;
-    const recipe = await RecipeResolver.assertRecipe({
-      state,
-      recipe_slug,
-      needsWrite: false
-    }).then(e => {
-      state.asserted = true;
-      return e;
-    });
-
-    // we get close the transaction before we start sending the data so the transaction isn't held up by client bandwidth
-    const { bagTiddlers, maxSeq } = await state.$transaction(async (prisma) => {
-      const { bagTiddlers, maxSeq }
-        = await new RecipeResolver(recipe, prisma, state.user.isAdmin)
-          .getIndexData(state.method === "GET");
-      return { recipe, bagTiddlers, maxSeq };
-    });
-
-    return await new IndexSender(recipe, bagTiddlers, maxSeq).serveIndexFile(state);
+    return await serveIndex(state, recipe_slug, "index");
 
   }, async (state, e) => {
     if (state.headersSent) {
@@ -129,75 +103,23 @@ serverEvents.on("mws.routes", (root) => {
 });
 
 
-export const user_update_password = zodRoute({
-  method: ["PUT"],
-  path: "/admin/user_update_password",
-  bodyFormat: "json",
-  securityChecks: { requestedWithHeader: true },
-  zodPathParams: z => ({}),
-  zodRequestBody: z => z.object({
-    user_id: z.prismaField("Users", "user_id", "string"),
-    registrationRequest: z.string().optional(),
-    registrationRecord: z.string().optional(),
-    session_id: z.string().optional(),
-    signature: z.string().optional(),
-  }),
-  
-  inner: async (state) => {
-    const { user_id, registrationRecord, registrationRequest } = state.data;
-
-    state.okUser();
-    return await state.$transaction(async prisma => {
-      if (!state.user.isAdmin) {
-        if (!state.data) throw "Session id and signature are required";
-        const session = await prisma.sessions.findUnique({
-          where: { session_id: state.data.session_id },
-        });
-
-        if (!session?.session_key)
-          throw "Session not found";
-        const { session_key } = session;
-        const { session_id, signature } = state.data;
-        if (!session_id || !signature)
-          throw "Session id and signature are required";
-        assertSignature({ session_id, session_key, signature });
-
-        if (session.user_id !== user_id)
-          throw "You must be an admin to update another user's password";
-
-        if (state.user.user_id !== user_id)
-          throw "You must be logged in as this user to update the password, "
-          + "but normally this isn't supposed to happen (this is a bug, please report it)";
-
-      }
-
-      const userExists = await prisma.users.count({ where: { user_id } });
-      if (!userExists) throw "User does not exist";
-
-      if (registrationRequest) {
-        return state.PasswordService.createRegistrationResponse({
-          userID: user_id,
-          registrationRequest
-        });
-      } else if (registrationRecord) {
-        await prisma.users.update({
-          where: { user_id },
-          data: { password: registrationRecord }
-        });
-      }
-
-      return null;
-    });
-  }
-});
 
 
 const ApiRoutes = {
   RecipeStatus,
   RecipeUpdates,
+  RecipeStore,
   TiddlerBatch,
   TiddlerList,
   AdminLoad,
   AdminSave,
-  user_update_password,
 };
+interface ClientRoutes {
+  AdminLoad: ClientRoute<typeof AdminLoad>;
+  AdminSave: ClientRoute<typeof AdminSave>;
+  TiddlerBatch: ClientRoute<typeof TiddlerBatch>;
+  TiddlerList: ClientRoute<typeof TiddlerList>;
+  RecipeStatus: ClientRoute<typeof RecipeStatus>;
+  RecipeUpdates: ClientRoute<typeof RecipeUpdates>;
+}
+type ClientRoutes2 = RouterRouteMap2<typeof ApiRoutes>;

@@ -22,7 +22,7 @@ import {
   getSectionHeading,
   TemplateTypes,
   IdString,
-  KeyString,
+
   KeyFields
 } from "./definition/tabs";
 
@@ -346,7 +346,7 @@ class PerTabStoreImpl implements PerTabStore {
     if (!modalState) return;
 
     if (fieldKey === KeyFields[modalState.tabId] && typeof value === "string") {
-      value = new KeyString(value);
+      value = value;
     }
 
     const nextDraft = { ...modalState.draft } as typeof modalState.draft;
@@ -902,7 +902,7 @@ export class App extends JSXElement {
                   type="button"
                   role="menuitem"
                   onclick={() => {
-                    // TODO: implement profile action.
+                    location.pathname = pathPrefix + "/profile";
                   }}
                 >
                   Profile
@@ -1018,6 +1018,7 @@ export class App extends JSXElement {
   }
 }
 
+// #region table stuff
 
 function renderListCellValue(columnKey: string, value: string | undefined) {
   const formattedValue = formatFieldValue(value);
@@ -1045,7 +1046,7 @@ function getListColumnLinkMappers(tabId: TabId): Partial<Record<string, ListColu
       return {
         slug: (item) => {
           definitely<WikiAdminRecord>(item);
-          return item.slug ? `${pathPrefix}/wiki/${encodeURIComponent(item.slug.toString())}` : null;
+          return item.slug ? `${pathPrefix}/wiki/${encodeURIComponent(item.slug)}` : null;
         },
       };
     case "templates":

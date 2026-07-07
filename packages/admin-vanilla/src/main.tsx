@@ -5,6 +5,7 @@ import { App } from "./app";
 import { LoginForm } from "./app-login";
 import { AuthUser } from "@tiddlywiki/mws/src/services/sessions";
 import { SendError } from "@tiddlywiki/server";
+import { ProfileForm } from "./app-profile";
 
 // disables the "flash of white" styles
 document.documentElement.classList.add("loaded");
@@ -41,9 +42,19 @@ if (isInStandaloneMode()) {
 
 
 function setup() {
-  !embeddedServerResponse.userState.isLoggedIn
-    ? document.body.appendChild(new LoginForm())
-    : document.body.appendChild(new App())
+  if (location.pathname === pathPrefix + "/login") {
+    document.body.appendChild(new LoginForm());
+  }
+  else if (!embeddedServerResponse.userState.isLoggedIn) {
+    location.pathname = pathPrefix + "/login";
+  }
+  else if (location.pathname === pathPrefix + "/profile") {
+    document.body.appendChild(new ProfileForm());
+  }
+  else {
+    document.body.appendChild(new App());
+  }
+
 }
 
 if (document.readyState === "loading") {

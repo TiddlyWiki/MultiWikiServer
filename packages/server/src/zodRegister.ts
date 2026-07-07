@@ -2,7 +2,7 @@ import Debug from "debug";
 import { ZodRoute } from "./zodRoute";
 import { Z2 } from "./Z2";
 import { ServerRequest, ServerRoute } from "./router";
-import { zod } from "@tiddlywiki/server";
+import { is, zod } from "@tiddlywiki/server";
 import * as core from "zod/v4/core";
 import { URLSearchParamsTyped } from "./URLSearchParamsTyped";
 const debugCORS = Debug("mws:cors");
@@ -38,12 +38,11 @@ function buildPathRegex(path: string, key: string, keyReplacer: string) {
 export function defineZodRoute(
   parent: ServerRoute,
   key: string,
-  route: ZodRoute<any, any, any, any, string[], any, any>
+  route: ZodRoute<any, any, any, string[], any, any>
 ) {
   const {
     method, path, bodyFormat, registerError, keyReplacer,
     zodPathParams,
-    zodQueryParams,
     zodQueryKeys,
     zodRequestBody = ["string", "json", "www-form-urlencoded"].includes(bodyFormat)
       ? z => z.undefined() : (z => z.any() as any),
@@ -66,11 +65,7 @@ export function defineZodRoute(
 
       checkPath(state, zodPathParams, registerError);
 
-      if (zodQueryParams)
-        checkQuery(state, zodQueryParams, registerError);
-
-      if (zodQueryKeys)
-        checkQueryKeys(state, zodQueryKeys, registerError);
+      checkQueryKeys(state, zodQueryKeys, registerError);
 
       checkData(state, zodRequestBody, registerError);
 
@@ -103,6 +98,10 @@ export function defineZodRoute(
   }
 }
 
+// TODO: compression oracle? only if the response body contains sensitive data,
+//       which would only happen for the wiki and admin index html. Since state.sendError
+//       throws a SendError, which may be captured by the catch handlers, this may be relevant. 
+
 export function checkData<
   T extends core.$ZodType
 >(
@@ -121,32 +120,15 @@ export function checkData<
   state.data = inputCheck.data;
 }
 
-export function checkQuery<
-  T extends { [x: string]: core.$ZodType<unknown, string[] | undefined>; }
->(
-  state: ServerRequest,
-  zodQueryParams: (z: Z2<"STRING">) => T,
-  registerError: Error
-): asserts state is ServerRequest & { queryParams: zod.infer<zod.ZodObject<T>> } {
-  const queryCheck = Z2.strictObject(zodQueryParams(Z2)).safeParse(state.queryParams);
-  if (!queryCheck.success) {
-    console.log(`${queryCheck.error}\nfor\n${registerError.stack?.split("\n").slice(1).join("\n")}`);
-    throw state.sendError(400, "INVALID_REQUEST_QUERY", {
-      prettyErrors: Z2.prettifyError(queryCheck.error).toString(),
-      flattenedErrors: Z2.flattenError(queryCheck.error),
-    });
-  }
-  state.queryParams = queryCheck.data as any;
-}
-
 export function checkQueryKeys<
-  T extends string[]
+  const T extends string[] | never[]
 >(
   state: ServerRequest,
-  zodQueryKeys: T,
+  zodQueryKeys: T | undefined,
   registerError: Error
 ): asserts state is ServerRequest & { query: URLSearchParamsTyped<Record<T[number], string>> } {
-  const badKeys = [...state.query.keys()].filter(k => !zodQueryKeys.includes(k));
+  const zodQueryKeysSet = new Set(zodQueryKeys ?? []);
+  const badKeys = [...state.query.keys()].filter(k => !zodQueryKeysSet.has(k));
   if (badKeys.length) {
     const error = `Unexpected query keys: ${badKeys.join(", ")}`;
     console.log(`${error}\nfor\n${registerError.stack?.split("\n").slice(1).join("\n")}`);

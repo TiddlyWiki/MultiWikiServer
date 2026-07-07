@@ -10,7 +10,7 @@ import {
 } from "./wiki-contract";
 import { Prisma } from "@tiddlywiki/mws-prisma";
 import { mapGetInit, thrower } from "./wiki-utils";
-import { IdString, KeyString, TabId } from "@mws/admin-vanilla/src/definition/tabs";
+import { IdString, TabId } from "@mws/admin-vanilla/src/definition/tabs";
 
 
 export type ImportedRoleRows = Awaited<ReturnType<PrismaTxnClient["roles"]["findMany"]>>;
@@ -86,7 +86,7 @@ export abstract class PerClassImportWriter<Modal extends PrismaModalKeys> {
       throw new Error("Permissions must be asserted first.")
   }
 
-  async checkExisting(id: IdString, name: KeyString, user: ServerRequest["user"]) {
+  async checkExisting(id: IdString, name: string, user: ServerRequest["user"]) {
     if (user.isAdmin) { this.asserted = true; }
     if(this.initStore && typeof user.isLoggedIn === "boolean")
       throw new Error("This shouldn't happen.");
@@ -134,22 +134,22 @@ export abstract class PerClassImportWriter<Modal extends PrismaModalKeys> {
       });
       if (!existing)
         throw new Error("existing wiki not found");
-      if (existing[this.name] !== name.toString())
-        await this.rename([[new KeyString(existing[this.name]), name]]);
+      if (existing[this.name] !== name)
+        await this.rename([[existing[this.name], name]]);
     }
 
   }
 
-  async rename(renames: [KeyString, KeyString][]) {
+  async rename(renames: [string, string][]) {
     this.assertPermissions();
     await Promise.all(renames.map(([oldName, newName]) =>
       (this.tx[this.modal] as any).update({
-        where: { [this.name]: oldName.toString() },
-        data: { [this.name]: newName.toString() }
+        where: { [this.name]: oldName },
+        data: { [this.name]: newName }
       })));
   }
   /** Maps names to ids */
-  async getNameMapper(names?: readonly KeyString[]) {
+  async getNameMapper(names?: readonly string[]) {
     return this.mapRowsToNameKey(await this.getMapperFunc({ names }))
   }
   /** Maps ids to names */
@@ -157,20 +157,20 @@ export abstract class PerClassImportWriter<Modal extends PrismaModalKeys> {
     return this.mapRowsToIdKey(await this.getMapperFunc({ ids }))
   }
 
-  getMapperFunc({ ids, names }: { ids?: readonly IdString[], names?: readonly KeyString[] }) {
+  getMapperFunc({ ids, names }: { ids?: readonly IdString[], names?: readonly string[] }) {
     return (this.tx[this.modal] as any).findMany({
       ...(ids ? { where: { [this.id]: { in: Array.from(new Set(ids.map(e => e.toString()))) } } } : {}),
-      ...(names ? { where: { [this.name]: { in: Array.from(new Set(names.map(e => e.toString()))) } } } : {}),
+      ...(names ? { where: { [this.name]: { in: Array.from(new Set(names.map(e => e))) } } } : {}),
       select: { [this.id]: true, [this.name]: true },
     });
   }
 
   mapRowsToIdKey(rows: any[]) {
-    return recordKeyMapper<IdString, KeyString>(new Map(rows.map((row: any) => [row[this.id], new KeyString(row[this.name])])), this.tabid)
+    return recordKeyMapper<IdString, string>(new Map(rows.map((row: any) => [row[this.id], row[this.name]])), this.tabid)
   }
 
   mapRowsToNameKey(rows: any[]) {
-    return recordKeyMapper<KeyString, IdString>(new Map(rows.map((row: any) => [row[this.name], new IdString(row[this.id])])), this.tabid);
+    return recordKeyMapper<string, IdString>(new Map(rows.map((row: any) => [row[this.name], new IdString(row[this.id])])), this.tabid);
   }
 
   abstract upsert(rows: unknown[], role_ids: readonly IdString[]): Promise<unknown[]>;
@@ -186,18 +186,18 @@ export class RoleImportWriter extends PerClassImportWriter<"roles"> {
     this.assertPermissions();
     this.validateProtectedRoles(roles);
     return Promise.all(roles.map((role) => this.tx.roles.upsert({
-      where: { role_name: KeyString.cast(role.name) },
+      where: { role_name: role.name },
       update: { description: role.description },
-      create: { role_name: KeyString.cast(role.name), description: role.description },
+      create: { role_name: role.name, description: role.description },
     })));
   }
 
 
   private validateProtectedRoles(roles: UpsertRoleInput[]) {
     if (!this.initStore) {
-      if (roles.some((entry) => KeyString.cast(entry.name) === "ADMIN"))
+      if (roles.some((entry) => entry.name === "ADMIN"))
         throw new SendError("CANNOT_WRITE_STATIC_ROWS", 400, { table: "roles", name: "ADMIN" })
-      if (roles.some((entry) => KeyString.cast(entry.name) === "USER"))
+      if (roles.some((entry) => entry.name === "USER"))
         throw new SendError("CANNOT_WRITE_STATIC_ROWS", 400, { table: "roles", name: "USER" })
 
     }
@@ -216,14 +216,14 @@ export class UserImportWriter extends PerClassImportWriter<"users"> {
     return Promise.all(users.map((user) => {
       const roleLinks = user.roleIds.map((roleId) => ({ role_id: IdString.cast(roleId) }));
       return this.tx.users.upsert({
-        where: { username: KeyString.cast(user.username) },
+        where: { username: user.username },
         update: {
           email: user.email,
           roles: { set: roleLinks },
           resetCode: user.resetCode,
         },
         create: {
-          username: KeyString.cast(user.username),
+          username: user.username,
           email: user.email,
           password: "",
           roles: { connect: roleLinks },
@@ -241,11 +241,11 @@ export class BagImportWriter extends PerClassImportWriter<"bag"> {
     super(tx, "bags", "bag", "name", "id", "C_admin", initStore)
   }
 
-  async rename(renames: [KeyString, KeyString][]) {
+  async rename(renames: [string, string][]) {
     this.assertPermissions();
     const renamesMap = new Map(renames);
     const bags = await this.tx.bag.findMany({
-      where: { name: { in: Array.from(renamesMap.keys(), e => KeyString.cast(e)) } },
+      where: { name: { in: Array.from(renamesMap.keys(), e => e) } },
       include: { recipe_bags: { select: { recipe: { select: { id: true, template_id: true } } } }, }
     });
 
@@ -304,7 +304,7 @@ export class BagImportWriter extends PerClassImportWriter<"bag"> {
   async upsert(bags: UpsertBagInput[]) {
     this.assertPermissions();
     const bagRows = await Promise.all(bags.map((bag) => this.tx.bag.upsert({
-      where: { name: KeyString.cast(bag.name) },
+      where: { name: bag.name },
       update: {
         description: bag.description,
         permissions: {
@@ -313,7 +313,7 @@ export class BagImportWriter extends PerClassImportWriter<"bag"> {
         }
       },
       create: {
-        name: KeyString.cast(bag.name),
+        name: bag.name,
         description: bag.description,
         permissions: {
           create: bag.permissions.map(e => ({ level: e.level, role_id: IdString.cast(e.role_id) })),
@@ -349,10 +349,10 @@ export class TemplateImportWriter extends PerClassImportWriter<"template"> {
 
     const templateRows = await Promise.all(templates.map((template) => {
 
-      if (!this.initStore && KeyString.cast(template.name) === defaultName)
+      if (!this.initStore && template.name === defaultName)
         throw new SendError("CANNOT_WRITE_STATIC_ROWS", 400, { table: "templates", name: defaultName })
 
-      const name = KeyString.cast(template.name);
+      const name = template.name;
       const type = template.definition.type;
       const definition = template.definition;
 
@@ -397,9 +397,10 @@ export class RecipeImportWriter extends PerClassImportWriter<"recipe"> {
   async upsert(recipes: UpsertRecipeInput[]) {
     this.assertPermissions();
     const upserter = async (recipe: UpsertRecipeInput, compiledAt: Date) => {
-      recipe.compiledBags.sort((a, b) => a.priority - b.priority)
+      recipe.compiledBags.sort((a, b) => a.priority - b.priority);
+      console.log(recipe.compiledBags);
       return await this.tx.recipe.upsert({
-        where: { slug: KeyString.cast(recipe.slug) },
+        where: { slug: recipe.slug },
         update: {
           definition: recipe.definition,
           template_id: IdString.cast(recipe.templateId),
@@ -408,7 +409,7 @@ export class RecipeImportWriter extends PerClassImportWriter<"recipe"> {
           recipe_bags: {
             deleteMany: {},
             create: recipe.compiledBags.map(e => ({
-              bag: { connect: { name: KeyString.cast(e.bagName) } },
+              bag: { connect: { name: e.bagName } },
               is_writable: e.isWritable,
               prefix: e.prefix,
               priority: e.priority,
@@ -420,14 +421,14 @@ export class RecipeImportWriter extends PerClassImportWriter<"recipe"> {
           }
         },
         create: {
-          slug: KeyString.cast(recipe.slug),
+          slug: recipe.slug,
           definition: recipe.definition,
           template_id: IdString.cast(recipe.templateId),
           plugins: recipe.plugins,
           compiledAt,
           recipe_bags: {
             create: recipe.compiledBags.map(e => ({
-              bag: { connect: { name: KeyString.cast(e.bagName) } },
+              bag: { connect: { name: e.bagName } },
               is_writable: e.isWritable,
               prefix: e.prefix,
               priority: e.priority,
@@ -549,7 +550,7 @@ export function toMappingRows(obj: Record<string, string>) {
   return Object.entries(obj).map(([prefix, bagName]) => ({ prefix, bagName }));
 }
 
-export function toMappingObject(rows: readonly { prefix: string; bagName: KeyString }[]) {
+export function toMappingObject(rows: readonly { prefix: string; bagName: string }[]) {
   return Object.fromEntries(rows.map(({ prefix, bagName }) => [prefix, bagName]));
 }
 

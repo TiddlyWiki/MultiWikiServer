@@ -1,13 +1,18 @@
 import { BaseCommand, CommandInfo } from "@tiddlywiki/commander";
-import { CacheState } from "../services/cache";
+import { WikiPluginCache } from "../services/cache";
 import { TiddlerFields, TW } from "tiddlywiki";
 import * as fs from "fs";
 import * as path from "path";
 import { truthy } from "@tiddlywiki/server";
 import { WikiStore, BagDataAdapter, RecipeDataAdapter, toMappingRows } from "../new-managers";
-import { IdString, KeyString } from "@mws/admin-vanilla/src/definition/tabs";
+import { IdString } from "@mws/admin-vanilla/src/definition/tabs";
+import { serverEvents } from "@tiddlywiki/events";
 
-export const info: CommandInfo = {
+serverEvents.on("cli.register", (commands) => {
+	commands[info.name] = { info, Command: LoadWikiFolderCommand };
+});
+
+const info: CommandInfo = {
 	name: "load-wiki-folder",
 	description: "Load a TiddlyWiki folder into a bag",
 	arguments: [
@@ -25,7 +30,7 @@ export const info: CommandInfo = {
 	],
 };
 // tiddlywiki --load ./mywiki.html --savewikifolder ./mywikifolder
-export class Command extends BaseCommand<[string], {
+export class LoadWikiFolderCommand extends BaseCommand<[string], {
 	"bag-name"?: string[];
 	"bag-description"?: string[];
 	"recipe-name"?: string[];
@@ -35,7 +40,7 @@ export class Command extends BaseCommand<[string], {
 	"overwrite"?: boolean;
 	"skip-existing"?: boolean;
 }> {
-
+	static info = info;
 
 	async execute() {
 
@@ -63,7 +68,7 @@ export class Command extends BaseCommand<[string], {
 		const recipeName = this.options["recipe-name"][0];
 		const recipeDescription = this.options["recipe-description"][0];
 
-		const ownerRoles = (this.options["owner-roles"] ?? []).map((role) => new KeyString(role));
+		const ownerRoles = (this.options["owner-roles"] ?? []).map((role) => role);
 
 		if (!templateName) {
 			throw new Error(`Template ${templateName} does not exist.`);
@@ -114,22 +119,22 @@ export class Command extends BaseCommand<[string], {
 				case "simpleV1": {
 					const bag = await new BagDataAdapter({ isAdmin: true } as any).saveRow(prisma, {
 						id: new IdString(""), // a blank id will use the name if it exists
-						name: new KeyString(bagName),
+							name: bagName,
 						description: bagDescription,
-						permissions: ownerRoles.map(role => ({ level: "C_admin", role })),
+						bagPermissions: ownerRoles.map(role => ({ level: "C_admin", role })),
 					});
 
 					const recipe = await new RecipeDataAdapter({ isAdmin: true } as any).saveRow(prisma, {
 						id: new IdString(""), // a blank id will use the slug if it exists
-						slug: new KeyString(recipeName),
-						templateName: new KeyString(template.name),
+							slug: recipeName,
+							templateName: template.name,
 						displayName: recipeName,
 						description: recipeDescription,
 						plugins: pluginTitles,
 						readonlyBags: [],
 						writablePrefixBags: toMappingRows({ "": bagName }).map((row) => ({
 							prefix: row.prefix,
-							bagName: new KeyString(row.bagName),
+								bagName: row.bagName,
 						})),
 						recipePermissions: ownerRoles.map(role => ({ level: "B_write", role })),
 					});
@@ -182,7 +187,7 @@ function loadWikiFolder({ $tw, cache, ...options }: {
 	recipeName: string,
 	recipeDescription: string,
 	$tw: TW,
-	cache: CacheState,
+	cache: WikiPluginCache,
 }) {
 	const pluginNamesTW5: string[] = [];
 	const tiddlersFromPath = loadWikiTiddlers($tw, options.wikiPath, [], pluginNamesTW5);

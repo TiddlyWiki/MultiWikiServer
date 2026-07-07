@@ -1,6 +1,11 @@
 import { BaseCommand, CommandInfo } from "@tiddlywiki/commander";
+import { serverEvents } from "@tiddlywiki/events";
 
-export const info: CommandInfo = {
+serverEvents.on("cli.register", (commands) => {
+  commands[info.name] = { info, Command: TestsCompleteCommand };
+});
+
+const info: CommandInfo = {
   name: "done",
   description: "Tests completed successfully.",
   arguments: [],
@@ -8,7 +13,8 @@ export const info: CommandInfo = {
 };
 
 
-export class Command extends BaseCommand {
+export class TestsCompleteCommand extends BaseCommand {
+  static info = info;
 
   async execute() {
     console.log("Tests completed successfully.");

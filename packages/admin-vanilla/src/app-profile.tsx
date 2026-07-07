@@ -23,7 +23,7 @@ const profileFields = [
   {
     key: "roles",
     label: "Roles",
-    type: "permission-table",
+    type: "search-multiselect",
     mode: "server"
   }
 ] as const satisfies FieldDefinition[];
@@ -51,9 +51,7 @@ const updatePasswordFields = [
 ] as const satisfies FieldDefinition[];
 
 
-
-type ProfileDraft = Drafter<typeof profileFields>;
-type UpdatePasswordDraft = Drafter<typeof updatePasswordFields>;
+type ProfileDraft = Drafter<typeof profileFields> & Drafter<typeof updatePasswordFields>;
 
 type LoginServerState = {
   csrfToken: string;
@@ -63,34 +61,39 @@ type LoginServerState = {
 const renderCallout = (content: JSX.Node) => <div class="field-callout"><p>{content}</p></div>;
 
 @addstyles(css)
-@customElement("mws-login-form")
-export class LoginForm extends JSXElement {
+@customElement("mws-profile-form")
+export class ProfileForm extends JSXElement {
   // AGENTS: When the user edits this class directly, treat those changes as intentional and
   // important signals about desired behavior unless they explicitly ask to remove them.
   useLightDOM: boolean = true;
   constructor() { super(); }
 
-  control: FomController<UpdatePasswordDraft> = new FomController<UpdatePasswordDraft>(this);
+  control: FomController<ProfileDraft> = new FomController<ProfileDraft>(this);
 
-  handleAnySubmit: FomController<UpdatePasswordDraft>["handleAnySubmit"] = (...args) => this.control.handleAnySubmit(...args)
+  handleAnySubmit: FomController<ProfileDraft>["handleAnySubmit"] = (...args) => this.control.handleAnySubmit(...args)
 
+  onCancel = async () => {
+    location.pathname = pathPrefix + "/";
+  }
+
+  @state() accessor props!: {}
 
   // #region state
-  @state() accessor draft: UpdatePasswordDraft = this.createDraft();
+  @state() accessor draft: ProfileDraft = this.createDraft();
 
-  @state() private accessor mode: "profile" | "updatePassword" = "updatePassword";
+  @state() private accessor mode: "profile" | "updatePassword" = "profile";
   @state() private accessor isSubmitting: boolean = false;
-  @state() private accessor isResolvingServerState: boolean = false;
-  @state() private accessor rememberMe: boolean = false;
-  @state() private accessor serverState: LoginServerState | null = null;
   @state() private accessor submitMessage: string = new URLSearchParams(globalThis.location?.search ?? "").get("state") === "password-changed"
     ? "Password updated. You can now log in."
     : "";
 
 
-  private createDraft(): UpdatePasswordDraft {
+  private createDraft(): ProfileDraft {
     return {
       id: new IdString(""),
+      email: "",
+      username: "",
+      roles: [],
       password: "",
       newPassword: "",
       confirmNewPassword: "",
@@ -99,7 +102,24 @@ export class LoginForm extends JSXElement {
 
   protected render() {
     switch (this.mode) {
-      // #region login
+      case "profile": {
+
+        return this.control.renderCommon({
+          title: "User Profile",
+          copy: "View your profile.",
+          submitAction: this.handleProfileSubmit,
+          submitDisabled: false,
+          submitLabel: "Update Password",
+          handleBackClick: this.onCancel,
+        }, <>
+          <div class="login-fields">
+            {profileFields.map((field) => this.control.renderField(field))}
+          </div>
+        </>);
+
+      } break;
+
+
       case "updatePassword": {
 
         const updatePasswordActionDisabled = this.isSubmitting
@@ -113,8 +133,7 @@ export class LoginForm extends JSXElement {
           submitAction: this.handleUpdatePasswordSubmit,
           submitDisabled: updatePasswordActionDisabled,
           submitLabel: "Update password",
-          isStart: true,
-          handleBackClick: async () => { },
+          handleBackClick: async () => { this.mode = "profile"; },
         }, <>
           <div class="login-fields">
             {updatePasswordFields.map((field) => this.control.renderField(field))}
@@ -124,6 +143,17 @@ export class LoginForm extends JSXElement {
 
     }
 
+  }
+
+  private readonly handleProfileSubmit = async () => {
+    await this.handleAnySubmit(
+      "Update password",
+      "",
+      async () => {
+        this.mode = "updatePassword";
+        return true;
+      }
+    );
   }
 
   private readonly handleUpdatePasswordSubmit = async (): Promise<void> => {

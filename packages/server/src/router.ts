@@ -83,7 +83,7 @@ const catcher = (errorKey: string, err: any) => {
   if (err === STREAM_ENDED) return;
   if (!err.skiplog)
     console.log(errorKey, err);
-  if(err instanceof PrismaClientKnownRequestError){
+  if (err instanceof PrismaClientKnownRequestError) {
     //@ts-ignore
     console.log(err.meta?.driverAdapterError?.cause);
   }
@@ -341,18 +341,25 @@ export class Router {
 
 
     for (const match of routePath) {
-      await Promise.resolve().then(async () => {
-        await match.route.handler(state as any);
+      const res = await Promise.resolve().then(async () => {
+        const res = await match.route.handler(state as any);
         await state[ROUTER_PROMISE];
+        return res;
       }).catch(e => {
-        if (e === STREAM_ENDED) throw e;
+        if (e === STREAM_ENDED) return e;
         if (match.route.catchHandler) {
           return match.route.catchHandler(state as any, e);
         } else {
           throw e;
         }
       });
-      if (state.headersSent) return;
+      if (state.headersSent) {
+        if (!state.ended && res !== STREAM_ENDED) {
+          match.route.registerError.message = "The handler registered here sent headers but didn't end the stream before resolving and didn't return STREAM_ENDED.";
+          console.log(match.route.registerError);
+        }
+        return;
+      }
     }
   }
 

@@ -11,18 +11,17 @@ export function zodRoute<
   M extends string,
   B extends "GET" | "HEAD" extends M ? "ignore" : BodyFormat,
   P extends Record<string, z.ZodType<any, string | undefined>>,
-  Q extends Record<string, z.ZodType<any, string[] | undefined>>,
   const Q2 extends string[],
   T extends z.ZodTypeAny,
   R
->(route: Omit<ZodRoute<M, B, P, Q, Q2, T, R>, "registerError">): ZodRoute<M, B, P, Q, Q2, T, R> {
+>(route: Omit<ZodRoute<M, B, P, Q2, T, R>, "registerError">): ZodRoute<M, B, P, Q2, T, R> {
   (route as any).registerError = new Error();
   (route as any)[zodRoute.symbol] = true;
-  return route as ZodRoute<M, B, P, Q, Q2, T, R>;
+  return route as ZodRoute<M, B, P, Q2, T, R>;
 }
 {
   zodRoute.symbol = Symbol("zodRoute");
-  const t2 = (instance: any): instance is ZodRoute<any, any, any, any, any, any, any> =>
+  const t2 = (instance: any): instance is ZodRoute<any, any, any, any, any, any> =>
     typeof instance === "object" && instance && instance[zodRoute.symbol] === true;
 
   if (false as any as true) {
@@ -49,7 +48,6 @@ export interface ZodRoute<
   M extends string,
   B extends BodyFormat,
   P extends Record<string, z.ZodType<any, string | undefined>>,
-  Q extends Record<string, z.ZodType<any, string[] | undefined>>,
   Q2 extends string[],
   T extends z.ZodTypeAny,
   R
@@ -64,15 +62,7 @@ export interface ZodRoute<
    * pathParams are parsed with `decodeURIComponent` one time before being passed to the zod check.
   */
   zodPathParams: (z: Z2<"STRING">) => P;
-  /**
-   * The input will be `Record<string, string[]>`.
-   * If a value is not set, an empty string is used.
-   *
-   * Expects a Record of zod checks.
-   *
-   * The default behavior is to remove all query params.
-   */
-  zodQueryParams?: (z: Z2<"STRING">) => Q;
+  /** An array of query keys to expect. The output will always be an optional record of string arrays.  */
   zodQueryKeys?: Q2;
   // this was a good idea, but separate routes can have the same path but different methods, 
   // so we have to handle it differently.
@@ -147,7 +137,7 @@ export interface ZodRoute<
   keyReplacer?: string
   bodyFormat: B;
   registerError: Error;
-  inner: (state: { [K in M]: ZodState<K, B, P, Q, Q2[number], T> }[M]) => Promise<R>;
+  inner: (state: { [K in M]: ZodState<K, B, P, Q2[number], T> }[M]) => Promise<R>;
 }
 
 // type output<T> = string extends keyof T ? any : z.output<T>;
@@ -157,24 +147,22 @@ export interface ZodState<
   M extends string,
   B extends BodyFormat,
   P extends Record<never, z.ZodType<any, string | undefined>>,
-  Q extends Record<never, z.ZodType<any, string>>,
   Q2 extends string,
   T extends z.ZodType
 > extends ServerRequest<B, M, z.output<T>> {
   pathParams: z.output<z.ZodObject<P, core.$strict>>;
-  queryParams: z.output<z.ZodObject<Q, core.$strict>>;
   query: URLSearchParamsTyped<Record<Q2, string>>;
 }
 
 
 export type RouterRouteMap<T> = {
-  [K in keyof T as T[K] extends ZodRoute<any, any, any, any, any, any, any> ? K : never]:
-  T[K] extends ZodRoute<any, any, any, any, any, infer REQ, infer RES>
+  [K in keyof T as T[K] extends ZodRoute<any, any, any, any, any, any> ? K : never]:
+  T[K] extends ZodRoute<any, any, any, any, infer REQ, infer RES>
   ? ((data: RemoveNever<z.input<REQ>>) => Promise<jsonify<RES>>)
   : `${K & string} does not extend`;
 }
 
 
 export type RouterKeyMap<T, V> = {
-  [K in keyof T as T[K] extends ZodRoute<any, any, any, any, any, any, any> ? K : never]: V;
+  [K in keyof T as T[K] extends ZodRoute<any, any, any, any, any, any> ? K : never]: V;
 }

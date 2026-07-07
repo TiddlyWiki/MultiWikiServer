@@ -336,12 +336,12 @@ const tabs = {
         description: "Store the raw HTML that will be served for this template. All HTTP endpoints still work, but any boot, library, or raw markup tiddlers must be included here manually.",
       },
       {
-        key: "injectionArray",
-        label: "Injection array",
+        key: "injectionFunction",
+        label: "Injection function",
         type: "string",
         section: "authored",
         mode: "create edit",
-        description: "Name of the JavaScript array to push tiddlers onto, for example $tw.preloadTiddlers.",
+        description: "Name of the JavaScript function to call with tiddlers, for example $tw.preloadTiddlers.",
       },
       {
         key: "injectionLocation",
@@ -462,7 +462,7 @@ const tabs = {
     fieldGroups: {
       authored: [
         { title: "Bag basics", keys: ["name", "description"], width: fullWidth, layout: stackLayout },
-        { keys: ["permissions"], width: fullWidth },
+        { keys: ["bagPermissions"], width: fullWidth },
       ],
       runtime: [
         { keys: ["referencedByTemplates"], width: halfWidth },
@@ -531,6 +531,7 @@ const tabs = {
     },
     sidebarDisplay: ["name", "description"],
   },
+  // #region users
   users: {
     id: "users",
     label: "Users",
@@ -664,21 +665,21 @@ export interface DataSave {
 export interface WikiAdminRecord {
   // server fields
   id: IdString;
-  slug: KeyString;
+  slug: string;
   displayName: string;
   description: string;
-  templateName: KeyString | null;
+  templateName: string | null;
   writablePrefixBags: readonly WritablePrefixRow[];
-  readonlyBags: readonly KeyString[];
+  readonlyBags: readonly string[];
   plugins: readonly string[];
   recipePermissions: readonly PermissionRow<RecipePermissionLevel>[];
   // client field
-  defaultWritableBag: KeyString;
+  defaultWritableBag: string;
   readonlyBagCount: string;
   prefixRuleCount: string;
   pluginCount: string;
   effectiveWritableBags: readonly WritablePrefixRow[];
-  effectiveReadonlyBags: readonly KeyString[];
+  effectiveReadonlyBags: readonly string[];
   effectivePluginSet: readonly string[];
   compileValidation: string;
   lastCompiledAt: string;
@@ -694,19 +695,19 @@ export interface TemplateAdminRecord {
   // server fields
   id: IdString;
   type: TemplateTypes;
-  name: KeyString;
+  name: string;
   description: string;
   writablePrefixBags: readonly WritablePrefixRow[];
-  readonlyBags: readonly KeyString[];
+  readonlyBags: readonly string[];
   plugins: readonly string[];
   templatePermissions: readonly PermissionRow<TemplatePermissionLevel>[];
   requiredPluginsEnabled: boolean;
   customHtmlEnabled: boolean;
   htmlContent: string;
-  injectionArray: string;
+  injectionFunction: string;
   injectionLocation: string;
   // client fields
-  defaultWritableBag: KeyString;
+  defaultWritableBag: string;
   readonlyBagsSummary: string;
   dependentWikis: string;
   dependentWikiCount: string;
@@ -717,7 +718,7 @@ export interface TemplateAdminRecord {
 // #region Bag
 export interface BagAdminRecord {
   id: IdString;
-  name: KeyString;
+  name: string;
   description: string;
   bagPermissions: readonly PermissionRow<BagPermissionLevel>[];
   usedByCount: string;
@@ -735,22 +736,22 @@ export interface BagAdminRecord {
 // #region Plugin
 export interface PluginAdminRecord {
   id: IdString;
-  name: KeyString;
+  name: string;
   description: string;
   pluginPath: string;
   usageCount: string;
-  usedByWikis: KeyString[];
+  usedByWikis: string[];
 }
 // #region Role
 export interface RoleAdminRecord {
   id: IdString;
-  name: KeyString;
+  name: string;
   description: string;
 }
 // #region User
 export interface UserAdminRecord {
   id: IdString;
-  username: KeyString;
+  username: string;
   email: string;
   resetCode: string;
   userRoles: readonly string[];
@@ -758,11 +759,11 @@ export interface UserAdminRecord {
 
 export interface WritablePrefixRow {
   prefix: string;
-  bagName: KeyString;
+  bagName: string;
 }
 
 export interface PermissionRow<Level extends string = string> {
-  role: KeyString;
+  role: string;
   level: Level;
 }
 
@@ -779,13 +780,14 @@ export class IdString extends String {
   constructor(value: string) { super(value); }
   toJSON() { return IdString.prefix + this.valueOf(); }
 }
-export class KeyString extends String {
-  static cast(val: KeyString): string { return val.toString(); }
-  static prefix = "KeyString____";
-  name = "KeyString" as const;
-  constructor(value: string) { super(value); }
-  toJSON() { return KeyString.prefix + this.valueOf(); }
-}
+// export class string extends String {
+//   static cast(val: string): string { return val; }
+//   static prefix = "KeyString____";
+//   name = "KeyString" as const;
+//   constructor(value: string) { super(value); }
+//   toJSON() { return string.prefix + this.valueOf(); }
+//   toString() { return super.toString(); }
+// }
 
 
 export type TabZodObjectFilter = "DataStore" | "DataSave";
@@ -806,9 +808,9 @@ export function buildTabZodObject<T extends TabId>(tabId: T, filter?: TabZodObje
     .filter((field) => shouldIncludeFieldInTabZodObject(field.mode, filter))
     .map((field) => [
       field.key,
-      KeyFields[tabId] === field.key
-        ? z.instanceof(KeyString)
-        : fieldTypeZodShapes[field.type]
+      // KeyFields[tabId] === field.key
+      //   ? z.instanceof(KeyString)
+      fieldTypeZodShapes[field.type]
     ] as const);
 
   return z.object({

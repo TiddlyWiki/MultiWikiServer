@@ -1,15 +1,21 @@
 import { BaseCommand, CommandInfo } from "@tiddlywiki/commander";
+import { serverEvents } from "@tiddlywiki/events";
 
-export const info: CommandInfo = {
+serverEvents.on("cli.register", (commands) => {
+  // commands[info.name] = { info, Command: EmptyCommand };
+});
+
+const info: CommandInfo = {
   name: "",
   description: "",
   arguments: [],
 };
 
 
-export class Command extends BaseCommand {
+export class EmptyCommand extends BaseCommand {
+  static info = info;
 
   async execute() {
-    
+
   }
 }

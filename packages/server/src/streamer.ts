@@ -12,7 +12,7 @@ import { BodyFormat, HonoEnv, ParsedHonoRequest, ParsedRequest, RouteMatch, ROUT
 import { zod } from './Z2';
 import { MultipartPart, parseNodeMultipartStream } from '@mjackson/multipart-parser';
 import { SendError, SendErrorReason, SendErrorReasonData } from './SendError';
-import SuperHeaders, { SetCookie, SuperHeadersPropertyInit } from '@remix-run/headers';
+import SuperHeaders, { SetCookie, SuperHeadersInit, SuperHeadersPropertyInit } from '@remix-run/headers';
 import { URLSearchParamsTyped } from './URLSearchParamsTyped';
 import { serveStatic, ServeStaticOptions } from '@hono/node-server/serve-static';
 import { Context } from 'hono';
@@ -20,6 +20,7 @@ import { getConnInfo } from 'hono/cloudflare-workers';
 import { contentType } from 'mime-types';
 import { extname } from 'node:path';
 import { BetterCookie } from './better-headers';
+import { open, stat } from 'node:fs/promises';
 
 declare module 'node:net' {
   interface Socket {
@@ -89,7 +90,7 @@ class IterableHeaders implements Iterable<[string, string]> {
   }
 }
 
-export type StreamerHeadersInput = SuperHeadersPropertyInit & { [P in `x-${string}`]?: string };
+export type StreamerHeadersInput = SuperHeadersPropertyInit & { [P in `x-${string}`]?: string } & Record<string, unknown>;
 
 export class StreamerRequest {
 
@@ -126,16 +127,7 @@ export class StreamerRequest {
    */
   public pathParams: unknown;
 
-  /** 
-   * The query params. Because these aren't checked anywhere, 
-   * the value includes undefined since it will be that if 
-   * the key is not specified at all. 
-   * 
-   * This will always satisfy the zod schema: `z.record(z.string(), z.array(z.string()))`
-   */
-  public queryParams: unknown;
-
-  public query: URLSearchParamsTyped<any>;
+  public query: URLSearchParamsTyped<Record<string, string>>;
 
   // protected _req: GenericRequest;
 
@@ -161,13 +153,6 @@ export class StreamerRequest {
     const pathParamsZodCheck = zod.record(zod.string(), zod.string().transform(zodDecodeURIComponent).optional()).safeParse(this.pathParams);
     if (!pathParamsZodCheck.success) console.log("BUG: Path params zod error", pathParamsZodCheck.error, this.pathParams);
     else this.pathParams = pathParamsZodCheck.data;
-
-    this.queryParams = Object.fromEntries([...this.urlInfo.searchParams.keys()]
-      .map(key => [key, this.urlInfo.searchParams.getAll(key)] as const));
-
-    const queryParamsZodCheck = zod.record(zod.string(), zod.array(zod.string())).safeParse(this.queryParams);
-    if (!queryParamsZodCheck.success) console.log("BUG: Query params zod error", queryParamsZodCheck.error, this.queryParams);
-    else this.queryParams = queryParamsZodCheck.data;
 
     this.query = new URLSearchParams(this.urlInfo.searchParams);
 
@@ -255,56 +240,12 @@ export class Streamer extends StreamerRequest {
         this.headersSent = true;
         onResponse(res);
       }
-      /** 
-       * Set status code and response headers using a super headers init object.
-       * 
-       * The headers are saved in this.res.headers and each call to this function 
-       * will set the specified headers on that SuperHeaders instance. 
-       * 
-       * - `set-cookie` headers are always appended to the array.
-       * - known headers will be assigned the value directly and processed by SuperHeaders.
-       * - unknown headers must start with x- and will only be lowercased. The value will be coerced to a string.
-       * 
-       * Setting status code is a convenience. No action is performed and you 
-       * can just pass in the current this.res.statusCode.
-       */
-      setHeaders = (status: number, headers: StreamerHeadersInput) => {
-        this.statusCode = status;
-        // pick up the headers from hono middleware
-        const resHeaders = this.headers;
-        function isHeaderProperty(key: string): key is string & keyof SuperHeadersPropertyInit {
-          const descriptor = Object.getOwnPropertyDescriptor(SuperHeaders.prototype, key)
-          return descriptor !== undefined && 'get' in descriptor && 'set' in descriptor
-        }
-        function isCustomHeader(key: string): key is string & `x-${string}` {
-          return key.toLowerCase().startsWith("x-" as const);
-        }
-        function asArray<T>(a: T): Array<T extends readonly any[] ? T[number] : T> {
-          return Array.isArray(a) ? a : [a] as any;
-        }
-        for (let name of Object.getOwnPropertyNames(headers)) {
-          if (name === "setCookie") {
-            const value = asArray(headers.setCookie).filter(truthy)
-              .map(e => typeof e === "string" ? SetCookie.from(e) : e)
-            resHeaders.setCookie.push(...value);
-          } else if (isHeaderProperty(name)) {
-            (resHeaders as any)[name] = headers[name];
-            const newvalue = resHeaders.get(name);
-            if (newvalue) context.res.headers.set(name, newvalue)
-          } else if (isCustomHeader(name)) {
-            if (headers[name])
-              resHeaders.set(name, `${headers[name]}`);
-            else if (headers[name] === "")
-              resHeaders.delete(name);
-          } else {
-            throw new Error("Unrecognized header name. Must be either recognized or start with x-");
-          }
-        }
 
-      }
       sendWriter = () => {
         this.finalResponse = new Response(
-          this.statusCode === 204 ? undefined : Readable.toWeb(this.stream) as any,
+          (this.statusCode === 204 || this.statusCode === 304)
+            ? undefined
+            : Readable.toWeb(this.stream) as any,
           { status: this.statusCode, headers: this.headers, }
         );
       }
@@ -317,19 +258,12 @@ export class Streamer extends StreamerRequest {
         options: ServeStaticOptions<HonoEnv> & { onNotFound: {} }
       ) => {
         // set the user headers
-        this.setHeaders(status, headers);
+        this.statusCode = status;
+        this.headers.apply(headers);
         type Data = string | ArrayBuffer | ReadableStream | Uint8Array<ArrayBuffer>;
         context.body = (body: Data) => {
-          const headers = context.res.headers;
-          this.setHeaders(status, {
-            contentType: contentType(extname(request.urlInfo.pathname)) || undefined,
-            contentLength: headers.get("content-length"),
-            contentEncoding: headers.get("content-encoding"),
-            contentRange: headers.get("content-range"),
-            acceptRanges: headers.get("accept-rainges"),
-          });
-          const vary = headers.get("vary");
-          if (vary) this.headers.append("vary", vary);
+          this.headers.apply(context.res.headers);
+          this.headers.contentType = contentType(extname(request.urlInfo.pathname)) || undefined;
           // set status from sendFile because the developer could be calling this for any status code
           return new Response(body, {
             status: this.statusCode,
@@ -382,11 +316,7 @@ export class Streamer extends StreamerRequest {
 
   get writer(): Writable { return this.res.stream; }
 
-
-
-
-
-  sendEmpty(status: number, headers: StreamerHeadersInput = {}): typeof STREAM_ENDED {
+  sendEmpty(status: number, headers?: StreamerHeadersInput): typeof STREAM_ENDED {
     if (process.env.DEBUG?.split(",").includes("send")) {
       console.error("sendEmpty", status, headers);
     }
@@ -570,27 +500,48 @@ export class Streamer extends StreamerRequest {
 
   }
 
+
+  private writeConflictError?: Error;
+  /** If called with setActive: true, set `this.writeConflictError = undefined` when the write is cleared. */
+  private writeConflictCheck(setActive: boolean) {
+    if (this.writeConflictError) {
+      console.log(this.writeConflictError);
+      const secondError = new Error(
+        "There is already an active stream piping to the writer through pipeFrom."
+      );
+      secondError.name = "PipeFromError (conflict)";
+      console.log(secondError);
+      throw secondError;
+    }
+    if (setActive) {
+      this.writeConflictError = new Error(
+        "There is already an active stream piping to the writer through pipeFrom."
+      );
+      this.writeConflictError.name = "PipeFromError (active)";
+    }
+  }
   /** 
    * this will pipe from the specified stream, but will not end the 
    * response when the input stream ends. Input stream errors will be 
    * caught and reject the promise. The promise will resolve once the
    * input stream ends.
    */
-
   async pipeFrom(stream: Readable) {
+    this.writeConflictCheck(true);
     stream.pipe(this.writer, { end: false });
-    return new Promise<void>((r, c) => {
-      const register: [string, () => void][] = [];
-      const subscribe = (key: string, finish: () => void) => {
-        const finish2 = () => {
-          register.map(([key, cb]) => this.writer.off(key, cb));
-          finish();
-        }
-        register.push([key, finish2]);
-        this.writer.on(key, finish2);
-      }
-      subscribe("unpipe", r);
-      subscribe("error", c);
+    return new Promise<void>((resolve, reject) => {
+      const unpipe = () => {
+        this.writer.off("error", error);
+        this.writeConflictError = undefined;
+        resolve();
+      };
+      const error = (e: Error) => {
+        this.writer.off("unpipe", unpipe);
+        this.writeConflictError = undefined;
+        reject(e)
+      };
+      this.writer.once("unpipe", unpipe);
+      this.writer.once("error", error);
     });
   }
 
@@ -745,8 +696,13 @@ export class Streamer extends StreamerRequest {
   //   this.res.headers.set(name, value);
   // }
 
-  writeHead(status: number, headers: StreamerHeadersInput = {}): void {
-    this.res.setHeaders(status, headers);
+  applyHeaders(headers: (SuperHeadersPropertyInit & Record<`x-${string}`, string>)) {
+    this.res.headers.apply(headers as any);
+  }
+
+  writeHead(status: number, headers?: StreamerHeadersInput): void {
+    this.res.statusCode = status;
+    if (headers) this.res.headers.apply(headers);
     this.res.sendWriter();
   }
   /**
@@ -773,57 +729,62 @@ export class Streamer extends StreamerRequest {
     // if (this._req.httpVersionMajor > 1)
     //   this._res.writeEarlyHints(hints);
   }
-  /*
-  No handler sent headers before the promise resolved.
-  https://branch.desktop:4201/main.js.map SendError: {"status":500,"reason":"REQUEST_DROPPED","details":null}
-      at o.handleRoute (file:///home/cubes/client5/MultiWikiServer/packages/server/src/router.ts:200:13)
-      at processTicksAndRejections (node:internal/process/task_queues:105:5)
-      at o.handleStreamer (file:///home/cubes/client5/MultiWikiServer/packages/server/src/router.ts:133:14)
-      at o.handleRequest (file:///home/cubes/client5/MultiWikiServer/packages/server/src/router.ts:73:5) {
-    reason: 'REQUEST_DROPPED',
-    status: 500,
-    details: null
-  }
-  Somehow something tried to write after the stream was ended.
-  It's involved in the dev server setup that I use in some projects 
-  but I still have to figure out if this is a bug in mws server or in my project
-  because it should not have crashed the server.
-  Error: write after end
-      at _write (node:internal/streams/writable:489:11)
-      at Gzip.Writable.write (node:internal/streams/writable:510:10)
-      at IncomingMessage.ondata (node:internal/streams/readable:1009:22)
-      at IncomingMessage.emit (node:events:524:28)
-      at IncomingMessage.Readable.read (node:internal/streams/readable:782:10)
-      at flow (node:internal/streams/readable:1283:53)
-      at resume_ (node:internal/streams/readable:1262:3)
-      at processTicksAndRejections (node:internal/process/task_queues:90:21)
-  */
 
-  private pause: boolean = false;
-  /** Writes to the stream, and if pause is indicated, returns a promise that resolves once the drain event emits. */
+  /** 
+   * Writes to the stream, and if pause is indicated, 
+   * returns a promise that resolves once the drain event emits. 
+   * 
+   * This will own the write stream until the promise resolves,
+   * so use writeFast if you don't want to wait.
+   */
   async write(chunk: Buffer | string, encoding?: NodeJS.BufferEncoding): Promise<void> {
-    const continueWriting = this.writeFast(chunk, encoding);
-    if (!continueWriting) return new Promise<void>(resolve => this.writer.once("drain", () => { resolve(); }));
+    this.writeConflictCheck(false);
+    if (!this.writeFast(chunk, encoding)) {
+      this.writeConflictCheck(true);
+      return awaitDrain(this.writer).finally(() => {
+        this.writeConflictError = undefined;
+      });
+    }
   }
-  /** This differs from write in that it does not return a Promise or attach a drain listener to the stream */
+  /** This differs from write in that it does not return a Promise or attach a drain listener to the stream. It returns the boolean directly, true means continue. */
   writeFast(chunk: Buffer | string, encoding?: NodeJS.BufferEncoding): boolean {
+    this.writeConflictCheck(false);
     return this.writer.write(typeof chunk === "string" ? Buffer.from(chunk, encoding) : chunk);
   }
   end(): typeof STREAM_ENDED {
-    // console.log(this.writer.end.toString());
+    this.writeConflictCheck(false);
     this.writer.end();
     return STREAM_ENDED;
   }
 
-  get canceled(){
+  get canceled() {
     return this.res.aborted;
   }
   get headersSent() {
     return !!this.res.headersSent;
+  }
+  get ended() {
+    return this.writer.writableEnded;
   }
 
 
 }
 
 
+
+async function awaitDrain(writer: Writable): Promise<void> {
+  await new Promise<void>((resolve, reject) => {
+    const onDrain = () => {
+      writer.off("error", onError);
+      resolve();
+    };
+    const onError = (error: Error) => {
+      writer.off("drain", onDrain);
+      reject(error);
+    };
+
+    writer.once("drain", onDrain);
+    writer.once("error", onError);
+  });
+}
 

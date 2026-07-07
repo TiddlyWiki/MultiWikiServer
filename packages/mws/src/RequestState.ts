@@ -58,14 +58,6 @@ export class StateObject<
       this.compressor.enabled = router.config.enableGzip;
   }
 
-  setHeader<K extends string & keyof StreamerHeadersInput>(name: K, value: StreamerHeadersInput[K]) {
-    this.res.setHeaders(this.res.statusCode, { [name]: value } as any);
-  }
-
-  applyResponseHeaders(opt: SuperHeadersInit) {
-    this.res.headers.apply(opt);
-  }
-
   okUser() {
     if (!this.user.isLoggedIn) throw "User not authenticated";
   }

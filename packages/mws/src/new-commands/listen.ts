@@ -4,10 +4,10 @@ import { BaseCommand, CommandInfo } from "@tiddlywiki/commander";
 import { serverEvents } from "@tiddlywiki/events";
 
 serverEvents.on("cli.register", (commands) => {
-  commands.listen = { info, Command };
+  commands.listen = { info, Command: ListenCommand };
 });
 
-export const info: CommandInfo = {
+const info: CommandInfo = {
   name: "listen",
   description: "Listen for web requests. ",
   arguments: [],
@@ -90,16 +90,18 @@ export type ListenerRaw = {
 
 declare module "@tiddlywiki/events" {
   interface ServerEventsMap {
-    "listen.router.init": [command: Command, router: Router];
+    "listen.router.init": [command: ListenCommand, router: Router];
   }
 }
 
-export class Command extends BaseCommand<[], {
+export class ListenCommand extends BaseCommand<[], {
   listener: ListenerRaw[];
   allow_hosts: string[];
   subdomains: boolean;
   require_https: boolean;
 }> {
+  static info = info;
+
   async execute() {
     const listenOptions = this.options.listener || [];
 

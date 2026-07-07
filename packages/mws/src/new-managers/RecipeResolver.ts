@@ -8,14 +8,14 @@
 // never disagree about where a title routes.
 
 import { SendError, ServerRequest } from "@tiddlywiki/server";
-import { createHash } from "node:crypto";
+import { createHash, pseudoRandomBytes, randomBytes } from "node:crypto";
 import { createReadStream } from "node:fs";
 import { readFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { mapGetInit } from "./wiki-utils";
 import { IdString } from "@mws/admin-vanilla/src/definition/tabs";
 import { serverEvents } from "@tiddlywiki/events";
-
+import { defaultPreloadFunction, TiddlerHasher, WikiPluginCache } from "../services/cache";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -55,8 +55,8 @@ type ReadInfo = ART<RecipeResolver["getReadInfo"]>;
 const READ_LEVELS = ["A_read", "B_write", "C_admin"] as const;
 const WRITE_LEVELS = ["B_write", "C_admin"] as const;
 
-function inArray<T>(a: readonly T[], b: any): b is T {
-  return a.includes(b);
+function inArray<T, S extends T>(b: T, a: readonly S[]) {
+  return a.includes(b as any);
 }
 
 interface EverythingV1TemplateType {
@@ -97,7 +97,7 @@ export class RecipeResolver {
    * yields a 403, not a filtered view.
    */
   static async assertRecipe({ state, recipe_slug, needsWrite }: {
-    state: ServerRequest<"json" | "ignore", any, any>;
+    state: ServerRequest
     recipe_slug: PrismaField<"Recipe", "slug">;
     needsWrite: boolean;
   }) {
@@ -110,6 +110,10 @@ export class RecipeResolver {
         id: true,
         slug: true,
         plugins: true,
+        template_id: true,
+        // template: {
+        //   select: { name: true, definition: true, type: true },
+        // },
         permissions: {
           where: { role_id: { in: role_ids } },
           select: { role_id: true, level: true },
@@ -151,39 +155,35 @@ export class RecipeResolver {
     if (!recipe)
       throw new SendError("RECIPE_NOT_FOUND", 404, { recipeName: recipe_slug })
 
-    const hasRecipeAccess = recipe.permissions.some(permission => permission.level && permission.level === "A_read");
-
-    if (!hasRecipeAccess)
+    if (!isAdmin && !recipe.permissions.length)
       throw new SendError("RECIPE_NO_READ_PERMISSION", 403, { recipeName: recipe_slug })
 
-    const hasBagDeniedAccess = recipe.recipe_bags.find(recipeBag =>
-      !recipeBag.bag.permissions.some(permission => READ_LEVELS.includes(permission.level))
-    );
+    const hasBagDeniedAccess = recipe.recipe_bags.find(recipeBag => !recipeBag.bag.permissions.length);
 
-    if (hasBagDeniedAccess)
+    if (!isAdmin && hasBagDeniedAccess)
       throw new SendError("BAG_NO_READ_PERMISSION", 403, { bagName: hasBagDeniedAccess.bag_id })
 
-    if (needsWrite) {
+    if (!isAdmin && needsWrite) {
 
       const hasWriteAccess = recipe.recipe_bags
         .filter(recipeBag => recipeBag.is_writable)
         .some(recipeBag =>
-          recipeBag.bag.permissions.some(permission => inArray(WRITE_LEVELS, permission.level))
+          recipeBag.bag.permissions.some(permission => inArray(permission.level, WRITE_LEVELS))
         );
 
       if (!hasWriteAccess)
         throw new SendError("BAG_NO_WRITE_PERMISSION", 403, { bagName: "" });
 
     }
-
     return recipe;
+
   }
 
   // #region constructor
 
   constructor(
     private recipe: RecipeInfo,
-    private prisma: PrismaTxnClient,
+    private prisma: PrismaTxnClient | null,
     private isAdmin: boolean,
   ) {
 
@@ -221,7 +221,7 @@ export class RecipeResolver {
     /** recipe.getWriteTarget(title); */
     target: WriteTarget;
   }): Promise<TiddlerInfo> {
-    const present = await this.prisma.tiddler.findMany({
+    const present = await this.prisma!.tiddler.findMany({
       where: { title, bag_id: { in: this.recipe.recipe_bags.map(b => b.bag_id) } },
       select: { bag_id: true },
     });
@@ -255,7 +255,7 @@ export class RecipeResolver {
   }
   // #region listTiddlers
   async listTiddlers() {
-    const rows = await this.prisma.tiddler.findMany({
+    const rows = await this.prisma!.tiddler.findMany({
       where: { bag_id: { in: this.recipe.recipe_bags.map(b => b.bag_id) } },
       select: { bag_id: true, title: true },
     });
@@ -278,7 +278,7 @@ export class RecipeResolver {
   // #region readTiddlers
   async readTiddlers({ titles }: { titles: PrismaField<"Tiddler", "title">[]; }) {
 
-    const rows = await this.prisma.tiddler.findMany({
+    const rows = await this.prisma!.tiddler.findMany({
       select: {
         title: true,
         revision: true,
@@ -303,7 +303,7 @@ export class RecipeResolver {
       mapGetInit(bagReads, ri.readFromBag.bag_id, () => new Map()).set(title, ri);
     }
     const bags = await Promise.all(Array.from(bagReads.entries(), ([bag_id, titleMap]) => {
-      return this.prisma.bag.findUnique({
+      return this.prisma!.bag.findUnique({
         where: { id: bag_id },
         include: { tiddlers: { where: { title: { in: Array.from(titleMap.keys()) } } } }
       });
@@ -361,11 +361,22 @@ export class RecipeResolver {
   }
   // #region getIndexData
   async getIndexData(includeTiddlers: boolean) {
-    const maxSeq = await this.prisma.tiddlerEvent.aggregate({ _max: { seq: true } });
+    const maxSeq = await this.prisma!.tiddlerEvent.aggregate({ _max: { seq: true } });
 
     const bagIds = this.recipe.recipe_bags.map(e => e.bag_id);
 
-    const bagTiddlers = includeTiddlers ? await this.prisma.bag.findMany({
+    const templateRow = await this.prisma!.template.findUnique({ where: { id: this.recipe.template_id } });
+    if (!templateRow) throw new Error("template not found");
+
+    const { customHtmlEnabled, injectionFunction, injectionLocation } = templateRow.definition;
+    const template = {
+      ...templateRow.definition,
+      name: templateRow.name,
+      injectionFunction: customHtmlEnabled ? injectionFunction : defaultPreloadFunction,
+      injectionLocation: customHtmlEnabled ? injectionLocation : "</head>",
+    };
+
+    const bagTiddlers = includeTiddlers ? await this.prisma!.bag.findMany({
       where: { id: { in: bagIds } },
       select: {
         id: true,
@@ -376,67 +387,242 @@ export class RecipeResolver {
       },
     }) : [];
 
-    return { bagTiddlers, maxSeq: maxSeq._max.seq }
+    return { bagTiddlers, lastEventId: String(maxSeq._max.seq ?? 0), template }
 
   }
 
 }
+type IndexData = ART<RecipeResolver["getIndexData"]>;
+// #region serveIndex
+export async function serveIndex(
+  state: ServerRequest,
+  recipe_slug: string, type: "index" | "store"
+) {
+  // we get close the transaction before we start sending the data 
+  // so the transaction isn't held up by client bandwidth
+  const getData = async () => {
+    const recipe = await RecipeResolver.assertRecipe({
+      state,
+      recipe_slug,
+      needsWrite: false
+    }).then(e => {
+      state.asserted = true;
+      return e;
+    });
+    const skipBagTiddlers = state.method === "HEAD";
+    const index = await state.$transaction(async (prisma) => {
+      return await new RecipeResolver(recipe, prisma, state.user.isAdmin)
+        .getIndexData(!skipBagTiddlers);
+    });
+    return { recipe, index };
+  };
 
-// #region - IndexSender
-export class IndexSender {
+  switch (type) {
+    case "index": {
+      const { recipe, index } = await getData();
+      return await new IndexSender(
+        recipe,
+        index,
+        state,
+        state.config.enableExternalPlugins,
+        state.config.enableExternalStore,
+      ).serveIndexFile();
+    }
+    case "store": {
+      const store = await (async () => {
+        const key = state.headers.cookie.get("mws_index_cache")!;
+        const cached = IndexSender.storeCache.get(key) ?? await getData();
+        IndexSender.storeCache.delete(key);
+        // console.log(existed ? "cached" : "fresh");
+        const { recipe, index } = cached;
+        return new StoreWriter(state, recipe, index, true);
+      })();
 
+      await store.init();
+
+      const newEtag = store.getEtag("");
+      const match = state.headers.ifNoneMatch.has(newEtag);
+
+      state.writeHead(match ? 304 : 200, {
+        contentType: "text/html",
+        etag: newEtag,
+        cacheControl: "max-age=0, private, no-cache",
+      });
+
+      if (state.method === "HEAD" || match)
+        return state.end();
+
+      await store.writeStorePlugins();
+      await store.writeStoreTiddlers();
+
+      return state.end();
+    }
+  }
+
+}
+// #region StoreBase
+class StoreBase {
   constructor(
-    private recipe: RecipeInfo,
-    private bagTiddlers: ART<RecipeResolver["getIndexData"]>["bagTiddlers"],
-    private lastEventId: number | null,
+    public recipe: RecipeInfo,
+    private pluginCache: WikiPluginCache,
+    public lastEventId: string,
+    public template: IndexData["template"],
   ) { }
 
-  async serveIndexFile(
-    state: ServerRequest<any, any>,
-  ) {
+  get injectionFunction() { return this.template.injectionFunction; }
+  public plugins: string[] = emptyArray;
+  assertPlugins() {
+    if (this.plugins === emptyArray)
+      throw new Error("await this.init() first");
+  }
+  async init() {
 
+    if (!this.injectionFunction) throw new Error("INJECTION_FUNCTION_FALSEY: injection function is falsey");
 
-    const { enableExternalPlugins } = state.config;
-    const { cachePath, pluginFiles, pluginHashes, requiredPlugins } = state.pluginCache;
+    const { customHtmlEnabled, requiredPluginsEnabled } = this.template;
 
     const plugins = [...new Set([
-      "$:/core",
-      ...requiredPlugins,
+      ...(!customHtmlEnabled ? ["$:/core"] : []),
+      ...(requiredPluginsEnabled ? this.pluginCache.requiredPlugins : []),
       ...this.recipe.plugins as string[],
     ]).values()];
 
+    if (!this.pluginCache.cacheArrayStrings.includes(this.injectionFunction)) {
+      await TiddlerHasher.assertTitleHashes(this.pluginCache, this.injectionFunction, plugins);
+    }
+
     plugins.forEach(e => {
-      if (!state.pluginCache.pluginFiles.has(e))
+      if (!this.pluginCache.pluginFiles.has(e))
         console.log(`Recipe ${this.recipe.id} uses unknown plugin ${e}`);
     });
 
-    if (enableExternalPlugins) {
-      state.writeEarlyHints({
-        link: plugins.map(e => {
-          const plugin = pluginFiles.get(e);
-          return `<${state.pathPrefix}/$cache/${plugin}/plugin.js>; rel=preload; as=script`;
+    this.plugins = plugins;
+
+  }
+
+  getEtag(template: string) {
+    this.assertPlugins();
+    const hash = createHash("md5");
+    hash.update(template);
+    hash.update(this.recipe.recipe_bags.map(e => e.bag.name).join(","));
+    hash.update(this.plugins.map(e => this.pluginCache.pluginHashes(this.injectionFunction).get(e) ?? "").join(","));
+    hash.update(String(this.lastEventId ?? 0));
+    const contentDigest = hash.digest("hex");
+    return `"${contentDigest}"`;
+  }
+}
+
+const emptyArray = Object.seal([])
+// #region - IndexSender
+export class IndexSender extends StoreBase {
+  static storeCache = new Map<string, { recipe: RecipeInfo, index: IndexData }>();
+
+  makeStoreWriter;
+  makeStoreData
+
+  constructor(
+    recipe: RecipeInfo,
+    index: IndexData,
+    private state: ServerRequest<any, any>,
+    private enableExternalPlugins: boolean,
+    private enableExternalStore: boolean,
+  ) {
+    super(recipe, state.pluginCache, index.lastEventId, index.template);
+
+    this.makeStoreWriter = () => {
+      const writer = new StoreWriter(
+        state,
+        recipe,
+        index,
+        this.injectStore,
+      );
+      writer.plugins = this.plugins;
+      return writer;
+    }
+    this.makeStoreData = () => ({ recipe, index });
+  }
+
+  private get injectStore() { return this.customHtmlEnabled; }
+  private get injectionLocation() { return this.template.injectionLocation; }
+  private get customHtmlEnabled() { return this.template.customHtmlEnabled; }
+  private get pluginFiles() { return this.state.pluginCache.pluginFiles; }
+
+  private renderPluginTags(type: "script" | "preload", plugins: string[]) {
+    const { pluginFiles, pluginHashes } = this.state.pluginCache;
+    const preloadFunction = this.injectionFunction;
+
+
+    return plugins.map(e => {
+      const plugin = pluginFiles.get(e)!;
+      const h = pluginHashes(preloadFunction).get(e)!;
+
+      switch (type) {
+        case "preload":
+          return `<link rel="preload" href="${this.state.pathPrefix}/$cache/${plugin}/plugin.js?cb=${encodeURIComponent(preloadFunction)}" as="script" integrity="${h}" crossorigin="anonymous" />`;
+        case "script":
+          return `<script src="${this.state.pathPrefix}/$cache/${plugin}/plugin.js?cb=${encodeURIComponent(preloadFunction)}" integrity="${h}" crossorigin="anonymous"></script>`;
+        default:
+          { const exhaustive: never = type; }
+          throw new Error(`Unknown plugin tag type: ${type}`);
+      }
+    }).join("\n") + "\n";
+  }
+
+  private renderStoreTags(type: "script" | "preload") {
+    const pathPrefix = this.state.pathPrefix;
+    const recipe = this.recipe.slug;
+    switch (type) {
+      case "preload":
+        return `<link rel="preload" href="${pathPrefix}/recipe/${encodeURIComponent(recipe)}/store.js" as="script" crossorigin="anonymous" />`;
+      case "script":
+        return `<script src="${pathPrefix}/recipe/${encodeURIComponent(recipe)}/store.js" crossorigin="anonymous"></script>`;
+      default:
+        { const exhaustive: never = type; }
+        throw new Error(`Unknown plugin tag type: ${type}`);
+    }
+
+  }
+
+  async serveIndexFile() {
+    if (this.plugins === emptyArray)
+      await this.init();
+
+    if (this.enableExternalPlugins) {
+      this.state.writeEarlyHints({
+        link: this.plugins.map(e => {
+          const plugin = this.pluginFiles.get(e);
+          return `<${this.state.pathPrefix}/$cache/${plugin}/plugin.js>; rel=preload; as=script`;
         }),
       });
     }
 
-    const template = await readFile(resolve(state.config.cachePath, "tiddlywiki5.html"), "utf8");
-    const lastEvent = this.lastEventId;
+    const template = this.customHtmlEnabled ? this.template.htmlContent :
+      await readFile(resolve(this.state.config.cachePath, "tiddlywiki5.html"), "utf8");
 
-    const hash = createHash("md5");
-    hash.update(template);
-    hash.update(this.recipe.recipe_bags.map(e => e.bag.name).join(","));
-    hash.update(plugins.map(e => pluginHashes.get(e) ?? "").join(","));
-    hash.update(String(lastEvent ?? 0));
-    const contentDigest = hash.digest("hex");
+    const newEtag = this.getEtag(template);
+    const match = this.state.headers.ifNoneMatch.has(newEtag);
 
-    const newEtag = `"${contentDigest}"`;
-    state.writeHead(200, {
+    const writerCacheKey = randomBytes(24).toString("base64url");
+
+
+
+    this.state.writeHead(match ? 304 : 200, {
       contentType: "text/html",
       etag: newEtag,
       cacheControl: "max-age=0, private, no-cache",
+      setCookie: {
+        name: "mws_index_cache",
+        value: writerCacheKey,
+        httpOnly: true,
+        sameSite: "Strict",
+        maxAge: 10,
+        path: this.state.pathPrefix + "/",
+      }
     });
 
-    if (state.method === "HEAD") return state.end();
+    if (this.state.method === "HEAD" || match)
+      return this.state.end();
+
 
     // it is recommended to add <link rel="preload" to the header since these cannot be deferred
     // <link rel="preload" href="main.js" as="script" />
@@ -451,69 +637,162 @@ export class IndexSender {
     // $tw.preloadTiddler = function(fields) {
     //   $tw.preloadTiddlers.push(fields);
     // };
-    const headPos = template.indexOf("</head>");
-    if (headPos === -1) throw new Error("Cannot find </head> in template");
-    await state.write(template.substring(0, headPos));
 
-    if (enableExternalPlugins) {
-      await state.write("\n" + plugins.map(e => {
-        const plugin = pluginFiles.get(e)!;
-        const h = pluginHashes.get(e)!;
-        return `<link rel="preload" href="${state.pathPrefix}/$cache/${plugin}/plugin.js" as="script" integrity="${h}" crossorigin="anonymous" />`;
-      }).join("\n") + "\n");
+    const headPos = template.indexOf(this.injectionLocation);
+    if (headPos === -1)
+      throw new Error(`Cannot find ${this.injectionLocation} in ${this.customHtmlEnabled ? "custom html" : "template"}`);
+
+    await this.state.write(template.substring(0, headPos) + "\n");
+
+    if (this.enableExternalPlugins)
+      await this.state.write(this.renderPluginTags("preload", this.plugins));
+
+    if (this.enableExternalStore)
+      await this.state.write(this.renderStoreTags("preload"));
+
+    if (this.enableExternalPlugins || this.enableExternalStore || this.injectStore) {
+      if (!this.customHtmlEnabled)
+        // this is hardcoded to the tiddlywiki default.
+        // custom html needs to take care of this itself
+        // boot prefix does this but it's in the body tag
+        await this.state.write(`
+<script>
+window.$tw = window.$tw || Object.create(null);
+$tw.preloadTiddlers = $tw.preloadTiddlers || [];
+$tw.preloadTiddler = function(fields) {
+  $tw.preloadTiddlers.push(fields);
+};
+</script>
+`);
     }
 
-    // Splice into the tiddler store
-    const marker = `<script class="tiddlywiki-tiddler-store" type="application/json">[`;
-    const markerPos = template.indexOf(marker);
-    if (markerPos === -1) throw new Error("Cannot find tiddler store in template");
-    await state.write(template.substring(headPos, markerPos));
-    await state.write(marker);
+    if (this.enableExternalPlugins)
+      await this.state.write(this.renderPluginTags("script", this.plugins));
 
-    if (!enableExternalPlugins) {
-      const fileStreams = plugins.map(e => createReadStream(join(cachePath, pluginFiles.get(e)!, "plugin.json")));
-      for (const stream of fileStreams) {
-        state.writeFast("\n");
-        await state.pipeFrom(stream);
-        state.writeFast(",");
+
+    if (this.enableExternalStore) {
+      await this.state.write(this.renderStoreTags("script"));
+      await this.state.write(template.substring(headPos));
+      IndexSender.storeCache.set(writerCacheKey, this.makeStoreData());
+      setTimeout(() => { IndexSender.storeCache.delete(writerCacheKey); }, 20000);
+    } else {
+
+      const loader = this.injectStore ? {
+        state: this.state,
+        before: async function () {
+          this.state.writeFast("<script>\n");
+        },
+        after: async function () {
+          this.state.writeFast("</script>\n");
+          await this.state.write(template.substring(headPos));
+        },
+        writer: this.makeStoreWriter()
+      } : {
+        state: this.state,
+        marker: "",
+        markerPos: -1,
+        before: async function () {
+          // Splice into the tiddler store
+          this.marker = `<script class="tiddlywiki-tiddler-store" type="application/json">[`;
+          this.markerPos = template.indexOf(this.marker);
+          if (this.markerPos === -1) throw new Error("Cannot find tiddler store in template");
+          await this.state.write(template.substring(headPos, this.markerPos));
+          await this.state.write(this.marker);
+        },
+        after: async function () {
+          await this.state.write(template.substring(this.markerPos + this.marker.length));
+        },
+        writer: this.makeStoreWriter()
+      }
+
+      await loader.before();
+      await loader.writer.writeStorePlugins();
+      await loader.writer.writeStoreTiddlers();
+      await loader.after();
+    }
+
+    return this.state.end();
+  }
+
+}
+
+class StoreWriter extends StoreBase {
+
+
+  constructor(
+    private state: Pick<ServerRequest, "user" | "pluginCache" | "write" | "writeFast" | "pipeFrom" | "pathPrefix" | "config">,
+    recipe: RecipeInfo,
+    index: IndexData,
+    injectStore: boolean,
+  ) {
+    super(recipe, state.pluginCache, index.lastEventId, index.template);
+    this.bagTiddlers = index.bagTiddlers;
+    if (injectStore) {
+      this.prefix = this.injectionFunction + "(";
+      this.suffix = ");\n";
+    } else {
+      this.prefix = "\n";
+      this.suffix = ",";
+    }
+  }
+
+  private prefix: string;
+  private suffix: string;
+  private bagTiddlers;
+
+  private get cachePath() { return this.state.pluginCache.cachePath; }
+  private get pluginFiles() { return this.state.pluginCache.pluginFiles; }
+
+
+  async writeStorePlugins() {
+    const fileStreams = this.plugins.map(e => createReadStream(join(this.cachePath, this.pluginFiles.get(e)!, "plugin.json")));
+    for (const stream of fileStreams) {
+      this.state.writeFast(this.prefix);
+      await this.state.pipeFrom(stream);
+      this.state.writeFast(this.suffix);
+    }
+  }
+
+  // #region write
+  async writeStoreTiddlers() {
+
+    const writeTiddler = async (fields: Record<string, string>) => {
+      await this.state.write(this.prefix + JSON.stringify(fields).replace(/</g, "\\u003c") + this.suffix);
+    };
+
+    const r = new RecipeResolver(this.recipe, null, this.state.user.isAdmin);
+    // Build an index: title → set of bag_ids containing it.
+    const titleBags = new Map<PrismaField<"Tiddler", "title">, Set<PrismaField<"Bag", "id">>>();
+    const bagsMap = new Map<string, Map<string, IndexData["bagTiddlers"][number]["tiddlers"][number]>>();
+    for (const row of this.bagTiddlers) {
+      for (const row2 of row.tiddlers) {
+        mapGetInit(titleBags, row2.title, () => new Set()).add(row.id);
+        mapGetInit(bagsMap, row.id, () => new Map()).set(row2.title, row2);
       }
     }
-
-    await this.writeStoreTiddlers(state, String(lastEvent ?? 0));
-
-    await state.write(template.substring(markerPos + marker.length));
-
-    return state.end();
-  }
-  // #region write
-  async writeStoreTiddlers(
-    state: ServerRequest<any, any>,
-    lastRevisionId: string,
-  ) {
-    async function writeTiddler(fields: Record<string, string>) {
-      await state.write(JSON.stringify(fields).replace(/</g, "\\u003c") + ",\n");
-    }
-
-    const bagOrder = new Map(this.recipe.recipe_bags.map(e => [e.bag_id, e.priority]));
-
-    this.bagTiddlers.sort((a, b) => bagOrder.get(b.id)! - bagOrder.get(a.id)!);
-
-    // Top bag wins — last write in the Map wins, so iterate lowest-priority first.
-    const recipeTiddlers = Array.from(
-      new Map(this.bagTiddlers.flatMap(bag =>
-        bag.tiddlers.map(t => [t.title, { bag, tiddler: t }])
-      )).values()
-    );
 
     const bagInfo: Record<string, string> = {};
     const revisionInfo: Record<string, string> = {};
 
-    for (const { bag, tiddler } of recipeTiddlers) {
-      const fields = { ...(tiddler.fields as Record<string, string>), title: tiddler.title };
-      bagInfo[tiddler.title] = bag.name;
-      revisionInfo[tiddler.title] = tiddler.revision.toString();
-      await writeTiddler(fields);
+    for (const [title, titleBag] of titleBags.entries()) {
+      // calculate title write target
+      const target = r.getWriteTarget({ title });
+      // find the correct bag to read from
+      const info = r.getReadInfo({ presentSet: titleBag, target });
+      // this line happens when a less specific writable bag containing the title 
+      // is overshadowed by a more specific writable bag which does not contain the title
+      if (!info.readFromBag) continue;
+      // get the tiddler from the correct bag (should always exist)
+      const tiddler = bagsMap.get(info.readFromBag.bag_id)!.get(title)!;
+      // save the bag name for this title
+      bagInfo[title] = info.readFromBag.bag.name;
+      // save the revision for this title
+      revisionInfo[title] = tiddler.revision.toString();
+      // write the tiddler
+      await writeTiddler(tiddler.fields);
     }
+
+    const lastRevisionId = String(this.lastEventId ?? 0);
 
     await writeTiddler({
       title: "$:/state/multiwikiclient/tiddlers/bag",
@@ -535,15 +814,13 @@ export class IndexSender {
     });
     await writeTiddler({
       title: "$:/config/multiwikiclient/host",
-      text: "$protocol$//$host$" + state.pathPrefix + "/",
+      text: "$protocol$//$host$" + this.state.pathPrefix + "/",
     });
-    if (state.config.enableDevServer) {
+    if (this.state.config.enableDevServer) {
       await writeTiddler({ title: "$:/state/multiwikiclient/dev-mode", text: "yes" });
     }
   }
-
 }
-
 
 
 declare module "@tiddlywiki/events" {
@@ -561,7 +838,7 @@ declare module "@tiddlywiki/events" {
 // #region - WikiStore
 
 export class WikiStore {
-  constructor(private tx: PrismaTxnClient) { }
+  constructor(private tx: PrismaTxnClient | null) { }
   async saveTiddler(options: {
     /** Only used for the mws.tiddler.events log. */
     recipe_id?: IdString;
@@ -577,13 +854,13 @@ export class WikiStore {
       throw new Error("Tiddler must have a title");
     }
 
-    const event = await this.tx.tiddlerEvent.create({
+    const event = await this.tx!.tiddlerEvent.create({
       data: { bag_id, title, type: "save" }
     });
 
     const revision = BigInt(event.seq);
 
-    const tiddler = await this.tx.tiddler.upsert({
+    const tiddler = await this.tx!.tiddler.upsert({
       where: { bag_id_title: { bag_id, title } },
       update: { fields, revision },
       create: { bag_id, title, fields, revision },
@@ -611,11 +888,11 @@ export class WikiStore {
     const recipe_id = options.recipe_id ? IdString.cast(options.recipe_id) : undefined;
     const bag_id = IdString.cast(options.bag_id);
     const title = options.title as string;
-    const deleted = await this.tx.tiddler.deleteMany({
+    const deleted = await this.tx!.tiddler.deleteMany({
       where: { bag_id, title }
     });
     if (!deleted.count) return null;
-    const event = await this.tx.tiddlerEvent.create({
+    const event = await this.tx!.tiddlerEvent.create({
       data: { bag_id, title, type: "delete" }
     });
     serverEvents.emitLog("mws.tiddler.events", {

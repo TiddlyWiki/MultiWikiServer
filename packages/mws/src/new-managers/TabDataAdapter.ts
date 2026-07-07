@@ -2,7 +2,7 @@ import {
   DataSave,
   DataStore,
   IdString,
-  KeyString,
+
   WritablePrefixRow,
   PermissionRow,
   TabId,
@@ -92,20 +92,20 @@ export {
 
 // #region abstracts
 
-function normalizeLineList<T extends string | KeyString | IdString>(values: readonly T[]): T[] {
+function normalizeLineList<T extends string | string | IdString>(values: readonly T[]): T[] {
   return values.map((entry) => entry.trim() as T).filter(Boolean);
 }
 
 function normalizePrefixRows(rows: readonly WritablePrefixRow[]): WritablePrefixRow[] {
   return rows
-    .map((row) => ({ prefix: row.prefix, bagName: new KeyString(row.bagName.trim()) }))
+    .map((row) => ({ prefix: row.prefix, bagName: row.bagName.trim() }))
     .filter((row) => row.bagName)
     .sort((a, b) => b.prefix.length - a.prefix.length);
 }
 
 function normalizePermissions<Level extends string>(rows: readonly PermissionRow<Level>[]): PermissionRow<Level>[] {
   return rows
-    .map((row) => ({ role: new KeyString(row.role.trim()), level: row.level }))
+    .map((row) => ({ role: row.role.trim(), level: row.level }))
     .filter((row) => row.role);
 }
 
@@ -114,15 +114,17 @@ abstract class TabDataAdapter<TAB extends TabId> {
   constructor(protected user: ServerRequest["user"]) { }
   abstract saveRow(prisma: PrismaTxnClient, data: DataSave[TAB][number]): Promise<DataStore[TAB][number]>;
   // roles aren't connected to data tables so they can be swapped out for SSO
-  abstract getList(prisma: PrismaTxnClient, roles: (key: IdString) => KeyString): Promise<DataStore[TAB]>;
+  abstract getList(prisma: PrismaTxnClient, roles: (key: IdString) => string): Promise<DataStore[TAB]>;
 }
 // #region Recipe
 export class RecipeDataAdapter extends TabDataAdapter<"wikis"> {
 
   async saveRow(prisma: PrismaTxnClient, data: DataSave["wikis"][number]): Promise<DataStore["wikis"][number]> {
+    if (data.slug.startsWith("$")) throw new Error("recipe slug may not start with a dollar sign.");
+
     const importer = new RecipeImportWriter(prisma, false);
     if (!data.templateName) throw new Error("wiki template reference is required");
-    const template = await prisma.template.findUnique({ where: { name: KeyString.cast(data.templateName) } });
+    const template = await prisma.template.findUnique({ where: { name: data.templateName } });
     if (!template) throw new Error("wiki template not found");
 
     const authoredDefinition: PrismaJson.Recipe_definition = {
@@ -160,7 +162,7 @@ export class RecipeDataAdapter extends TabDataAdapter<"wikis"> {
       id: new IdString(id),
       slug: data.slug,
       definition: authoredDefinition,
-      templateName: new KeyString(template.name),
+      templateName: template.name,
       lastCompiledAt,
       allbags: bags,
       plugins,
@@ -171,13 +173,13 @@ export class RecipeDataAdapter extends TabDataAdapter<"wikis"> {
 
   private buildResponse({ definition, plugins, allbags, id, slug, templateName, lastCompiledAt, recipePermissions }: {
     id: IdString;
-    slug: KeyString;
+    slug: string;
     lastCompiledAt: Date;
     definition: RecipeDefinition;
     allbags: CompiledRecipeBagInput[];
     plugins: string[];
     recipePermissions: PermissionRow<RecipePermissionLevel>[];
-    templateName: KeyString;
+    templateName: string;
   }) {
     const effectivePluginSet = plugins;
     const effectiveReadonlyBags = allbags
@@ -201,9 +203,10 @@ export class RecipeDataAdapter extends TabDataAdapter<"wikis"> {
     };
   }
 
-  async getList(prisma: PrismaTxnClient, roles: (key: IdString) => KeyString) {
+  async getList(prisma: PrismaTxnClient, roles: (key: IdString) => string) {
 
     const recipes = await prisma.recipe.findMany({
+      where: this.user.isAdmin ? undefined : { permissions: { some: { role_id: { in: this.user.roles.map(e => e.role_id) } } } },
       select: {
         id: true,
         slug: true,
@@ -244,7 +247,7 @@ export class RecipeDataAdapter extends TabDataAdapter<"wikis"> {
         })),
         definition: recipe.definition,
         id: new IdString(recipe.id),
-        slug: new KeyString(recipe.slug),
+        slug: recipe.slug,
         lastCompiledAt: recipe.compiledAt,
         plugins: recipe.plugins,
         recipePermissions: recipe.permissions.map(e => ({
@@ -277,7 +280,7 @@ export class TemplateDataAdapter extends TabDataAdapter<"templates"> {
         requiredPluginsEnabled: data.requiredPluginsEnabled,
         customHtmlEnabled: data.customHtmlEnabled,
         htmlContent: data.htmlContent,
-        injectionArray: data.injectionArray,
+        injectionFunction: data.injectionFunction,
         injectionLocation: data.injectionLocation,
       },
       permissions: data.templatePermissions.map(e => ({ level: e.level, role_id: roleIds(e.role), })),
@@ -300,7 +303,7 @@ export class TemplateDataAdapter extends TabDataAdapter<"templates"> {
       );
 
       await importerRecipe.upsert([{
-        slug: new KeyString(recipe.slug),
+        slug: recipe.slug,
         templateId: new IdString(template_id),
         compiledBags: compiled.bags,
         plugins: compiled.plugins,
@@ -325,8 +328,9 @@ export class TemplateDataAdapter extends TabDataAdapter<"templates"> {
     };
   }
 
-  async getList(prisma: PrismaTxnClient, roles: (key: IdString) => KeyString) {
+  async getList(prisma: PrismaTxnClient, roles: (key: IdString) => string) {
     const templates = await prisma.template.findMany({
+      where: this.user.isAdmin ? undefined : { permissions: { some: { role_id: { in: this.user.roles.map(e => e.role_id) } } } },
       select: {
         id: true,
         name: true,
@@ -353,7 +357,7 @@ export class TemplateDataAdapter extends TabDataAdapter<"templates"> {
       return {
         ...template.definition,
         id: new IdString(template.id),
-        name: new KeyString(template.name),
+        name: template.name,
         type: "simpleV1",
         lastUpdatedAt: template.updated.toISOString(),
         templatePermissions: template.permissions.map(e => ({
@@ -391,9 +395,10 @@ export class BagDataAdapter extends TabDataAdapter<"bags"> {
       bagPermissions: data.bagPermissions,
     }
   }
-  async getList(prisma: PrismaTxnClient, roles: (key: IdString) => KeyString): Promise<DataStore["bags"]> {
+  async getList(prisma: PrismaTxnClient, roles: (key: IdString) => string): Promise<DataStore["bags"]> {
 
     const bags = await prisma.bag.findMany({
+      where: this.user.isAdmin ? undefined : { permissions: { some: { role_id: { in: this.user.roles.map(e => e.role_id) } } } },
       select: {
         id: true,
         name: true,
@@ -409,7 +414,7 @@ export class BagDataAdapter extends TabDataAdapter<"bags"> {
 
     return bags.map((bag) => ({
       id: new IdString(bag.id),
-      name: new KeyString(bag.name),
+      name: bag.name,
       description: bag.description,
       bagPermissions: bag.permissions.map((row) => ({
         role: roles(new IdString(row.role_id)),
@@ -419,7 +424,7 @@ export class BagDataAdapter extends TabDataAdapter<"bags"> {
   }
 }
 
-async function getRolesMapper(prisma: PrismaTxnClient, roles: readonly KeyString[]) {
+async function getRolesMapper(prisma: PrismaTxnClient, roles: readonly string[]) {
   return await new RoleImportWriter(prisma, false).getNameMapper(roles);
 }
 
@@ -438,7 +443,7 @@ export class RoleDataAdapter extends TabDataAdapter<"roles"> {
 
     return {
       id: new IdString(role.role_id),
-      name: new KeyString(role.role_name),
+      name: role.role_name,
       description: role.description ?? "",
     }
   }
@@ -453,7 +458,7 @@ export class RoleDataAdapter extends TabDataAdapter<"roles"> {
     });
     return roles.map((role) => ({
       id: new IdString(role.role_id),
-      name: new KeyString(role.role_name),
+      name: role.role_name,
       description: role.description ?? "",
     }));
 
@@ -467,7 +472,7 @@ export class UserDataAdapter extends TabDataAdapter<"users"> {
     const importer = new UserImportWriter(prisma, false);
     await importer.checkExisting(data.id, data.username, this.user);
 
-    const normalizedUserRoles = normalizeLineList(data.userRoles).map((role) => new KeyString(role));
+    const normalizedUserRoles = normalizeLineList(data.userRoles).map((role) => role);
     const rolesMapper = await getRolesMapper(prisma, normalizedUserRoles);
     const roleLinks = normalizedUserRoles.map(e => rolesMapper(e));
 
@@ -480,20 +485,20 @@ export class UserDataAdapter extends TabDataAdapter<"users"> {
 
     return {
       id: new IdString(user.user_id),
-      username: new KeyString(user.username),
+      username: user.username,
       email: user.email,
       resetCode: user.resetCode ?? "",
-      userRoles: normalizedUserRoles.map(KeyString.cast)
+      userRoles: normalizedUserRoles
     }
   }
   // roles aren't connected to data tables so they can be swapped out for SSO
-  async getList(prisma: PrismaTxnClient, roles: (key: IdString) => KeyString): Promise<DataStore["users"]> {
+  async getList(prisma: PrismaTxnClient, roles: (key: IdString) => string): Promise<DataStore["users"]> {
+    if (!this.user.isAdmin) return [];
     const users = await prisma.users.findMany({
       select: {
         user_id: true,
         username: true,
         email: true,
-        password: true,
         resetCode: true,
         roles: {
           select: {
@@ -506,7 +511,7 @@ export class UserDataAdapter extends TabDataAdapter<"users"> {
     })
     return users.map((user) => ({
       id: new IdString(user.user_id),
-      username: new KeyString(user.username),
+      username: user.username,
       email: user.email,
       userRoles: user.roles.map((role) => role.role_name),
       resetCode: user.resetCode || "",
@@ -536,8 +541,8 @@ export const AdminSave = zodRoute({
     state.data = JSON.parse(JSON.stringify(state.data), (key: any, val: any) => {
       if (typeof val === "string" && val.startsWith(IdString.prefix))
         return new IdString(val.slice(IdString.prefix.length));
-      if (typeof val === "string" && val.startsWith(KeyString.prefix))
-        return new KeyString(val.slice(KeyString.prefix.length));
+      if (typeof val === "string" && val.startsWith("KeyString____"))
+        return val.slice("KeyString____".length);
       return val;
     });
 
@@ -579,7 +584,8 @@ export const AdminLoad = zodRoute({
   securityChecks: { requestedWithHeader: true },
   zodPathParams: z => ({}),
   inner: async (state) => {
-    state.asserted = state.user.isAdmin;
+    // access is checked in each list
+    state.asserted = state.user.isLoggedIn;
     return await state.$transaction(async prisma => {
       const roles = await new RoleImportWriter(prisma, false).getIdMapper();
       return {
@@ -588,7 +594,7 @@ export const AdminLoad = zodRoute({
         bags: await new BagDataAdapter(state.user).getList(prisma, roles),
         plugins: state.pluginCache.pluginsList.map(e => ({
           id: new IdString(e.title),
-          name: new KeyString(e.title),
+          name: e.title,
           description: `${e.name}: ${e.description}`,
           pluginPath: e.path,
         } satisfies IPluginRow)),
