@@ -33,9 +33,9 @@ Most of these features are still in development.
 
 <img width="800" alt="dark mode" src="https://github.com/user-attachments/assets/301cb61c-1f39-4d4f-8f4a-8ecd5306c084" />
 
-**Do not use it to protect feelings or intellectual property.**
-
 ## Warning: Security is still a dumpster fire.
+
+**Do not use it to protect feelings or intellectual property.**
 
 **While the database structure is reliable, the security mechanism is more like swiss cheese. Do not use it to protect feelings or intellectual property. There are plenty of ways to get around the security restrictions.**
 
