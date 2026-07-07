@@ -35,9 +35,11 @@ Most of these features are still in development.
 
 ## Warning: Security between users is still a dumpster fire.
 
+**While the database structure is reliable, the security mechanism is more like swiss cheese.**
+
 **Do not use it to protect feelings or intellectual property.**
 
-**While the database structure is reliable, the security mechanism is more like swiss cheese. Do not use it to protect feelings or intellectual property. There are plenty of ways for anyone with write access to get around the security restrictions.**
+**There are plenty of ways for anyone with write access to get around the security restrictions.**
 
 <img width="800" alt="this is fine" src="https://github.com/user-attachments/assets/49505d25-7a48-42f1-b4f7-73e8630c1ba1" />
 
