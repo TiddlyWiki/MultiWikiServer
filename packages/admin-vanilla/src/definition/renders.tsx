@@ -67,14 +67,8 @@ function getLookupOptions(fieldKey: string, itemsByTab: AdminRecordStore): strin
   if (fieldKey === "plugins") {
     return Array.from(new Set(itemsByTab.plugins.map((item) => item.name).filter(Boolean)));
   }
-  if (fieldKey === "userRoles") {
+  if (fieldKey === "userRoles" || fieldKey === "bagPermissions" || fieldKey === "templatePermissions" || fieldKey === "recipePermissions") {
     return Array.from(new Set(itemsByTab.roles.map((item) => item.name).filter(Boolean)));
-  }
-  if (fieldKey === "permissions" || fieldKey === "recipePermissions") {
-    return Array.from(new Set([
-      ...itemsByTab.bags.flatMap((item) => item.bagPermissions.map((row) => row.role)),
-      ...itemsByTab.wikis.flatMap((item) => item.recipePermissions.map((row) => row.role)),
-    ].filter(Boolean)));
   }
   return [];
 }
