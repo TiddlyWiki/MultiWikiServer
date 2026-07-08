@@ -2,6 +2,8 @@
 CREATE TABLE "bag" (
     "id" TEXT NOT NULL PRIMARY KEY,
     "name" TEXT NOT NULL,
+    "created" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updated" DATETIME NOT NULL,
     "description" TEXT NOT NULL
 );
 
@@ -19,6 +21,8 @@ CREATE TABLE "bag_permission" (
 CREATE TABLE "tiddler" (
     "bag_id" TEXT NOT NULL,
     "title" TEXT NOT NULL,
+    "created" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updated" DATETIME NOT NULL,
     "revision" BIGINT NOT NULL DEFAULT 0,
     "fields" JSONB NOT NULL,
 
@@ -38,17 +42,33 @@ CREATE TABLE "tiddler_event" (
 -- CreateTable
 CREATE TABLE "template" (
     "id" TEXT NOT NULL PRIMARY KEY,
+    "name" TEXT NOT NULL,
+    "created" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updated" DATETIME NOT NULL,
     "type" TEXT NOT NULL,
     "definition" JSONB NOT NULL
+);
+
+-- CreateTable
+CREATE TABLE "template_permission" (
+    "template_id" TEXT NOT NULL,
+    "role_id" TEXT NOT NULL,
+    "level" TEXT NOT NULL,
+
+    PRIMARY KEY ("template_id", "role_id"),
+    CONSTRAINT "template_permission_template_id_fkey" FOREIGN KEY ("template_id") REFERENCES "template" ("id") ON DELETE CASCADE ON UPDATE CASCADE
 );
 
 -- CreateTable
 CREATE TABLE "recipe" (
     "id" TEXT NOT NULL PRIMARY KEY,
     "slug" TEXT NOT NULL,
+    "created" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updated" DATETIME NOT NULL,
     "template_id" TEXT NOT NULL,
     "definition" JSONB NOT NULL,
     "plugins" JSONB NOT NULL,
+    "compiledAt" DATETIME NOT NULL,
     CONSTRAINT "recipe_template_id_fkey" FOREIGN KEY ("template_id") REFERENCES "template" ("id") ON DELETE RESTRICT ON UPDATE CASCADE
 );
 
@@ -68,9 +88,9 @@ CREATE TABLE "recipe_bag" (
     "bag_id" TEXT NOT NULL,
     "priority" INTEGER NOT NULL,
     "is_writable" BOOLEAN NOT NULL,
-    "info" JSONB NOT NULL,
+    "prefix" TEXT NOT NULL,
 
-    PRIMARY KEY ("recipe_id", "bag_id"),
+    PRIMARY KEY ("recipe_id", "bag_id", "prefix"),
     CONSTRAINT "recipe_bag_recipe_id_fkey" FOREIGN KEY ("recipe_id") REFERENCES "recipe" ("id") ON DELETE CASCADE ON UPDATE CASCADE,
     CONSTRAINT "recipe_bag_bag_id_fkey" FOREIGN KEY ("bag_id") REFERENCES "bag" ("id") ON DELETE RESTRICT ON UPDATE CASCADE
 );
@@ -78,7 +98,8 @@ CREATE TABLE "recipe_bag" (
 -- CreateTable
 CREATE TABLE "settings" (
     "key" TEXT NOT NULL PRIMARY KEY,
-    "value" TEXT NOT NULL
+    "value" TEXT NOT NULL,
+    "updated" DATETIME NOT NULL
 );
 
 -- CreateTable
@@ -94,6 +115,7 @@ CREATE TABLE "users" (
     "username" TEXT NOT NULL,
     "email" TEXT NOT NULL,
     "password" TEXT NOT NULL,
+    "resetCode" TEXT,
     "created_at" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "last_login" DATETIME
 );
@@ -126,6 +148,9 @@ CREATE INDEX "tiddler_title_idx" ON "tiddler"("title");
 CREATE INDEX "tiddler_event_bag_id_seq_idx" ON "tiddler_event"("bag_id", "seq");
 
 -- CreateIndex
+CREATE UNIQUE INDEX "template_name_key" ON "template"("name");
+
+-- CreateIndex
 CREATE UNIQUE INDEX "recipe_slug_key" ON "recipe"("slug");
 
 -- CreateIndex
@@ -136,6 +161,9 @@ CREATE UNIQUE INDEX "users_username_key" ON "users"("username");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "users_email_key" ON "users"("email");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "users_resetCode_key" ON "users"("resetCode") WHERE "resetCode" IS NOT NULL;
 
 -- CreateIndex
 CREATE UNIQUE INDEX "_RolesToUsers_AB_unique" ON "_RolesToUsers"("A", "B");

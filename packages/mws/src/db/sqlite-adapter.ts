@@ -8,7 +8,7 @@ import { dirname } from "path";
 
 const INIT_0_0 = "20250406213424_init";
 const INIT_0_1 = "20250606001949_init";
-const INIT_0_2 = "20260626042033_init";
+const INIT_0_2 = "20260708160259_init";
 
 export class SqliteAdapter {
   constructor(private databasePath: string, private isDevMode: boolean) {
