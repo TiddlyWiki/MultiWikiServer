@@ -110,7 +110,8 @@ export class ProfileForm extends JSXElement {
           submitAction: this.handleProfileSubmit,
           submitDisabled: false,
           submitLabel: "Update Password",
-          handleBackClick: this.onCancel,
+          backAction: this.onCancel,
+          backLabel: "Close",
         }, <>
           <div class="login-fields">
             {profileFields.map((field) => this.control.renderField(field))}
@@ -133,7 +134,7 @@ export class ProfileForm extends JSXElement {
           submitAction: this.handleUpdatePasswordSubmit,
           submitDisabled: updatePasswordActionDisabled,
           submitLabel: "Update password",
-          handleBackClick: async () => { this.mode = "profile"; },
+          backAction: async () => { this.mode = "profile"; },
         }, <>
           <div class="login-fields">
             {updatePasswordFields.map((field) => this.control.renderField(field))}

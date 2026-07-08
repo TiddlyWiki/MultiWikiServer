@@ -232,7 +232,7 @@ export class LoginForm extends JSXElement {
           submitDisabled: isLoginPageBusy,
           submitLabel: this.isSubmitting ? "Logging in…" : "Log in",
           isStart: true,
-          handleBackClick: this.handleBackClick,
+          backAction: this.handleBackClick,
         }, <>
           <div class="login-fields">{this.fields.map((field) => this.control.renderField(field))}</div>
           <div class="login-options" aria-label="Login options">
@@ -275,7 +275,7 @@ export class LoginForm extends JSXElement {
           submitAction: this.handleForgotPasswordSubmit,
           submitDisabled: isSubmitDisabled,
           submitLabel: isForgotPasswordEmailEnabled ? "Send Email" : "Enter Code",
-          handleBackClick: this.handleBackClick,
+          backAction: this.handleBackClick,
         }, this.isResolvingServerState ? (
           <div class="modal-loading-shell">
             <div class="modal-loading-bar" aria-hidden="true"><span></span></div>
@@ -301,7 +301,7 @@ export class LoginForm extends JSXElement {
           submitAction: this.handleResetCodeSubmit,
           submitDisabled: resetCodeActionDisabled,
           submitLabel: "Verify code",
-          handleBackClick: this.handleBackClick,
+          backAction: this.handleBackClick,
         }, <>
           <div class="login-fields">
             {!this.serverState?.emailEnabled &&
@@ -326,7 +326,7 @@ export class LoginForm extends JSXElement {
           submitAction: this.handleUpdatePasswordSubmit,
           submitDisabled: updatePasswordActionDisabled,
           submitLabel: "Update password",
-          handleBackClick: this.handleBackClick,
+          backAction: this.handleBackClick,
         }, <>
           <div class="login-fields">
             {renderCallout("Username: " + this.draft.username)}

@@ -8,7 +8,8 @@ const sessionRequest: SessionManagerMap = {
   login2: sessionManager("login2", "/login/2"),
   logout: sessionManager("logout", "/logout"),
   forgotPassword: sessionManager("forgotPassword", "/login/forgot-password"),
-  resetPassword: sessionManager("resetPassword", "/login/reset-password")
+  resetPassword: sessionManager("resetPassword", "/login/reset-password"),
+  user_update_password: sessionManager("user_update_password", "/login/user_update_password"),
 }
 
 function sessionManager<K extends keyof SessionManagerMap>(key: K, path: SessionManagerMap[K]["path"]) {
@@ -28,32 +29,6 @@ function sessionManager<K extends keyof SessionManagerMap>(key: K, path: Session
   t.key = key;
   return t;
 }
-
-const user_update_password_body = (z: Z2<"JSON">) => z.object({
-  user_id: z.prismaField("Users", "user_id", "string"),
-  registrationRequest: z.string().optional(),
-  registrationRecord: z.string().optional(),
-  session_id: z.string().optional(),
-  signature: z.string().optional(),
-});
-
-async function user_update_password(data: zod.infer<ART<typeof user_update_password_body>>): Promise<string | null | undefined> {
-  const result = await fetch("/admin/user_update_password", {
-    headers: {
-      "X-Requested-With": "TiddlyWiki",
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(data)
-  });
-
-  if (result.ok) {
-    return (result.status === 200) ? await result.json() : undefined;
-  } else {
-    throw new Error(await result.text());
-  }
-
-}
-
 
 function arrayBufferToBase64_viaBlob(buffer: ArrayBuffer) {
   return new Promise<string>((resolve, reject) => {
@@ -89,7 +64,7 @@ export async function createNewPassword({ user_id, password }: { user_id: string
     password
   });
 
-  const registrationResponse = await user_update_password({
+  const registrationResponse = await sessionRequest.user_update_password({
     user_id, registrationRequest
   });
 
@@ -99,7 +74,7 @@ export async function createNewPassword({ user_id, password }: { user_id: string
     clientRegistrationState, registrationResponse, password
   });
 
-  await user_update_password({
+  await sessionRequest.user_update_password({
     user_id, registrationRecord
   });
 
@@ -112,7 +87,7 @@ export async function changeExistingPasswordAdmin({ user_id, newPassword }: { us
 
   const { clientRegistrationState, registrationRequest } = opaque.client.startRegistration({ password: newPassword });
 
-  const registrationResponse = await user_update_password({
+  const registrationResponse = await sessionRequest.user_update_password({
     user_id, registrationRequest
   });
 
@@ -122,7 +97,7 @@ export async function changeExistingPasswordAdmin({ user_id, newPassword }: { us
     clientRegistrationState, registrationResponse, password: newPassword,
   });
 
-  await user_update_password({ user_id, registrationRecord });
+  await sessionRequest.user_update_password({ user_id, registrationRecord });
 
 }
 
@@ -139,7 +114,7 @@ export async function changeExistingPasswordWithPassword({ username, password, n
 
   const signature = await generateSessionSignature(sessionKey, session_id);
 
-  const registrationResponse = await user_update_password({
+  const registrationResponse = await sessionRequest.user_update_password({
     user_id, registrationRequest, session_id, signature
   });
 
@@ -149,7 +124,7 @@ export async function changeExistingPasswordWithPassword({ username, password, n
     clientRegistrationState, registrationResponse, password: newPassword,
   });
 
-  await user_update_password({ user_id, registrationRecord, session_id, signature });
+  await sessionRequest.user_update_password({ user_id, registrationRecord, session_id, signature });
 
   // this closes the login session we opened for the password change
   await sessionRequest.logout({ session_id, signature, skipCookie: true });

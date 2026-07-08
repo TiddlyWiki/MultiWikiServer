@@ -1,5 +1,7 @@
 # MWS Server Architecture Explained
 
+https://deepwiki.com/TiddlyWiki/MultiWikiServer
+
 ## Overview
 
 The system treats a public wiki as a named, database-backed resource addressed by a slug. Internally that wiki is backed by a recipe, but for most developer-facing purposes it is simplest to think in terms of a wiki assembled from three things: a template, a set of bags, and a plugin set.

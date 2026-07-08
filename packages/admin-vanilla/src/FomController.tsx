@@ -122,13 +122,23 @@ export class FomController<T extends AdminRecord> {
   // #region common
   // Keep the shared card structure in one place so each form mode only supplies its
   // mode-specific title, copy, fields, extra content, and actions.
-  renderCommon({ title, copy, submitDisabled, submitAction, submitLabel, isStart: isStart, handleBackClick }: {
+  renderCommon({
+    title,
+    copy,
+    submitDisabled,
+    submitAction,
+    submitLabel,
+    isStart: isStart,
+    backAction: handleBackClick,
+    backLabel = "Cancel",
+  }: {
     title: string;
     copy: string;
     submitDisabled: boolean;
     submitLabel: string;
     submitAction: () => Promise<void>;
-    handleBackClick: () => Promise<void>;
+    backAction: () => Promise<void>;
+    backLabel?: string;
     isStart?: boolean;
   }, content: JSX.Node): JSX.Node {
     return (
@@ -165,7 +175,7 @@ export class FomController<T extends AdminRecord> {
                     type="button"
                     disabled={this.isSubmitting}
                     onclick={handleBackClick}
-                  >Cancel</button>}
+                  >{backLabel}</button>}
                   <button
                     class="primary-button login-submit"
                     type="button"
