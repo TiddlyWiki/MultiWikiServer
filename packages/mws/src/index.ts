@@ -1,15 +1,15 @@
-// import "./globals";
 // const originalconsole = console.log.bind(console);
-// console.log = (...args) => { originalconsole(new Error("console stack").stack); return originalconsole(...args) };
+// console.log = (...args) => {
+//   originalconsole(new Error("console stack").stack);
+//   return originalconsole(...args)
+// };
 import { install } from "source-map-support";
 install();
 import { serverEvents } from "@tiddlywiki/events";
 
-// these all use serverEvents
 import "@tiddlywiki/commander";
 import "@tiddlywiki/server";
 import "./startup";
-// import "./registerStartup";
 import "./new-commands";
 import "./new-managers";
 import "./zodAssert";
@@ -29,12 +29,26 @@ import { clientBuildDef } from "./startup";
 
 export * from "@tiddlywiki/server";
 export * from "@tiddlywiki/events";
-export { SessionManager, SessionManagerObject, AuthUser } from "./services/sessions";
-export { PasswordService } from "./services/PasswordService";
-export { WikiPluginCache, PluginDefinition, TiddlerHasher, defaultPreloadFunction } from "./services/cache";
+export {
+  SessionManager,
+  SessionManagerObject,
+  AuthUser
+} from "./services/sessions";
+export {
+  PasswordService
+} from "./services/PasswordService";
+export {
+  WikiPluginCache,
+  PluginDefinition,
+  TiddlerHasher,
+  defaultPreloadFunction,
+} from "./services/cache";
 export * from "./services/setupDevServer";
 export * from "./services/tiddlywiki";
-export { mountTW5Route, TW5Route } from "./services/tw-routes";
+export {
+  mountTW5Route,
+  TW5Route
+} from "./services/tw-routes";
 export * from "./new-commands";
 export * from "./new-managers";
 
@@ -64,8 +78,10 @@ export default async function runMWS(oldOptions?: any) {
   if (process.env.CLIENT_BUILD) {
     await runBuildOnce(clientBuildDef);
   } else {
+    serverEvents.eventLogging = !!process.env.VERBOSE;
     await startup();
     await runCLI();
+    serverEvents.eventLogging = false;
   }
 
 }

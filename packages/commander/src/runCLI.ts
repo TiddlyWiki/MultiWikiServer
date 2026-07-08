@@ -52,10 +52,11 @@ export async function runCLI() {
   // parse the CLI options
   const { params, options } = parseCLI(commander, cmd, process.argv.slice(3));
   const inst = new cmdDef.Command(params, options);
+  serverEvents.logBefore("Command: " + cmd);
   await serverEvents.emitAsync("cli.execute.before", cmd, params, options, inst);
   await inst.execute();
   await serverEvents.emitAsync("cli.execute.after", cmd, params, options, inst);
-
+  serverEvents.logAfter("Command: " + cmd);
 }
 
 

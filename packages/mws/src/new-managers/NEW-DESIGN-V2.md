@@ -218,6 +218,7 @@ Permissions are role-based.
 ### Levels
 
 - Bag levels: `A_read`, `B_write`, `C_admin`
+- Template levels: `A_read`, `B_write`
 - Recipe levels: `A_read`, `B_write`
 
 The prefixed enum ordering is intentional. Descending lexical order yields the highest held privilege.

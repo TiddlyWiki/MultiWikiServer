@@ -207,8 +207,6 @@ async function startDevServer({ rootdir, publicdir, clientMounts, title }: Clien
     host: DEV_HOST,
   });
 
-  console.log(publicdir);
-
   async function rebuild() {
     if (existsSync(publicdir)) rmSync(publicdir, { recursive: true });
     // errors cause this to reject
