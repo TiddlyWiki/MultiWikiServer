@@ -323,6 +323,7 @@ class PerTabStoreImpl implements PerTabStore {
     });
 
     const item = await this.storage.read(tabId, recordId).catch((error) => {
+      console.log(error);
       this.patchState({
         storageError: error instanceof Error ? error.message : "Failed to load record details.",
       });
@@ -426,6 +427,7 @@ class PerTabStoreImpl implements PerTabStore {
       snapshot.tabId,
       snapshot.draft,
     ).catch((error) => {
+      console.log(error);
       this.patchState({
         storageError: error instanceof Error ? error.message : "Failed to save record.",
       });

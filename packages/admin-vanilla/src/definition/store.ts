@@ -283,7 +283,7 @@ function syncWikiRecord(draft: DataStore["wikis"][number], data: DataStore) {
 
   const mergedReadonlyBags = uniqueLines([...wikiReadonlyBags, ...templateReadonlyBags].map(e => e));
   const mergedPlugins = buildEffectivePluginSet({
-    previousEffectivePlugins: (draft as WikiAdminRecord).effectivePluginSet,
+    previousEffectivePlugins: draft.effectivePluginSet,
     templatePlugins,
     wikiPlugins,
     corePluginsEnabled: !!templateRecord?.requiredPluginsEnabled,

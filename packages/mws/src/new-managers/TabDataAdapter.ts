@@ -14,6 +14,7 @@ import {
   SendError,
   ServerRequest,
   Z2,
+  zod,
   zodRoute
 } from "@tiddlywiki/server";
 import {
@@ -77,11 +78,6 @@ export type {
   UpsertUserInput,
 } from "./wiki-contract";
 export {
-  importBags,
-  importRecipes,
-  importRoles,
-  importTemplates,
-  importUsers,
   type ImportedBagRows,
   type ImportedRecipeRows,
   type ImportedRoleRows,
@@ -541,14 +537,14 @@ export const AdminSave = zodRoute({
     state.data = JSON.parse(JSON.stringify(state.data), (key: any, val: any) => {
       if (typeof val === "string" && val.startsWith(IdString.prefix))
         return new IdString(val.slice(IdString.prefix.length));
-      if (typeof val === "string" && val.startsWith("KeyString____"))
-        return val.slice("KeyString____".length);
+      // if (typeof val === "string" && val.startsWith("KeyString____"))
+      //   return val.slice("KeyString____".length);
       return val;
     });
 
     checkData(state, () => buildTabZodObject(state.pathParams.tab, "DataSave"), new Error());
 
-    return await state.$transaction(async prisma => {
+    const res = await state.$transaction(async prisma => {
       const { pathParams: { op, tab }, data } = state;
       if (op !== "save") throw new Error(`Unsupported admin operation: ${op}`);
       switch (tab) {
@@ -574,6 +570,10 @@ export const AdminSave = zodRoute({
         }
       }
     });
+
+    const { success, data: res2, error } = buildTabZodObject(state.pathParams.tab, "DataStore").safeParse(res);
+    if (!success) console.log("Response validation: ", error);
+    return res2;
   }
 });
 
@@ -586,7 +586,7 @@ export const AdminLoad = zodRoute({
   inner: async (state) => {
     // access is checked in each list
     state.asserted = state.user.isLoggedIn;
-    return await state.$transaction(async prisma => {
+    const res = await state.$transaction(async prisma => {
       const roles = await new RoleImportWriter(prisma, false).getIdMapper();
       return {
         wikis: await new RecipeDataAdapter(state.user).getList(prisma, roles),
@@ -602,5 +602,15 @@ export const AdminLoad = zodRoute({
         users: await new UserDataAdapter(state.user).getList(prisma, roles),
       };
     });
+    const { success, data, error } = zod.object({
+      wikis: buildTabZodObject("wikis", "DataStore").array(),
+      templates: buildTabZodObject("templates", "DataStore").array(),
+      bags: buildTabZodObject("bags", "DataStore").array(),
+      plugins: buildTabZodObject("plugins", "DataStore").array(),
+      roles: buildTabZodObject("roles", "DataStore").array(),
+      users: buildTabZodObject("users", "DataStore").array(),
+    }).safeParse(res);
+    if (!success) throw error;
+    return data;
   }
 });

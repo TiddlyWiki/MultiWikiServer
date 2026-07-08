@@ -54,7 +54,7 @@ Depending on server and template configuration, plugin assets and store data may
 
 The admin surface manages wikis, templates, bags, users, and roles. In this model, a wiki is the editable public resource, a template is the reusable shared definition, and a bag is the underlying storage unit.
 
-Saving a wiki or template changes the configuration that future runtime requests use. Template changes affect every wiki that depends on that template. Bag changes affect where titles are stored and resolved.
+Saving a wiki or template changes the configuration that future runtime requests use. Template changes affect every wiki that depends on that template.
 
 Plugin entries are exposed through the admin load path so they can be selected and inspected, but this path does not treat plugins as editable database rows in the same way as wikis, templates, bags, users, and roles.
 
@@ -122,6 +122,5 @@ These are the hooks that run on startup. The listen command starts the server an
 
 ## Todo
 
-- server input validation: all the pieces are there, I just need to wire it up.
-- make commands easier to extend, probably just by making it easier to specify a list of commands via javascript. 
-- clean up my spaghetti code into nice straight rows of pasta.
+- improve the small screen form factor for the admin UI
+- make sure all the descriptions and labels make sense

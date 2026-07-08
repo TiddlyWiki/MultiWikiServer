@@ -55,18 +55,15 @@ export type FieldType =
   | "metadata-table";
 
 
+export class IdString extends String {
+  static cast(val: IdString): string { return val.toString(); }
+  static prefix = "IdString____";
+  name = "IdString" as const;
+  constructor(value: string) { super(value); }
+  toJSON() { return IdString.prefix + this.valueOf(); }
+}
 
-const stringLikeFieldShape = z.union([z.string(), z.instanceof(String)]);
-const stringListFieldShape = z.array(stringLikeFieldShape);
-const writablePrefixRowFieldShape = z.object({
-  prefix: z.string(),
-  bagName: stringLikeFieldShape,
-});
-const permissionRowFieldShape = z.object({
-  role: stringLikeFieldShape,
-  level: z.string(),
-});
-
+const stringLikeFieldShape = z.union([z.string(), z.instanceof(IdString)]);
 
 export const fieldTypeZodShapes = {
   "template-type": z.enum(["simpleV1"]),
@@ -74,22 +71,28 @@ export const fieldTypeZodShapes = {
   "text": z.string(),
   "enter-password": z.string(),
   "confirm-password": z.string(),
-  "search": z.union([stringLikeFieldShape, z.null()]),
+  "search": z.string(),
   "structured-preview": z.string(),
-  "table": stringListFieldShape,
-  "permission-table": z.array(permissionRowFieldShape),
+  "table": z.string().array(),
+  "permission-table": z.array(z.object({
+    role: z.string(),
+    level: z.string(),
+  })),
   "validation-report": z.string(),
   "resolver-preview": z.string(),
-  "search-multiselect": stringListFieldShape,
-  "prefix-table": z.array(writablePrefixRowFieldShape),
-  "parameter-list": stringListFieldShape,
-  "relationship-table": stringListFieldShape,
-  "summary-list": stringListFieldShape,
+  "search-multiselect": z.string().array(),
+  "prefix-table": z.array(z.object({
+    prefix: z.string(),
+    bagName: z.string(),
+  })),
+  "parameter-list": z.string().array(),
+  "relationship-table": z.string().array(),
+  "summary-list": z.string().array(),
   "number": z.string(),
-  "activity-feed": stringListFieldShape,
+  "activity-feed": z.string().array(),
   "version": z.string(),
   "select": z.boolean(),
-  "metadata-table": stringListFieldShape,
+  "metadata-table": z.string().array(),
 } satisfies Record<FieldType, any>;
 
 export type FieldTypeCreateValue<T extends FieldType = FieldType> = z.infer<(typeof fieldTypeZodShapes)[T]>;
@@ -100,7 +103,7 @@ export const fieldTypeCreateFactories = {
   "text": () => "",
   "enter-password": () => "",
   "confirm-password": () => "",
-  "search": () => null,
+  "search": () => "",
   "structured-preview": () => "",
   "table": () => [],
   "permission-table": () => [],
@@ -773,13 +776,6 @@ export interface KeyValueRow {
 }
 
 
-export class IdString extends String {
-  static cast(val: IdString): string { return val.toString(); }
-  static prefix = "IdString____";
-  name = "IdString" as const;
-  constructor(value: string) { super(value); }
-  toJSON() { return IdString.prefix + this.valueOf(); }
-}
 // export class string extends String {
 //   static cast(val: string): string { return val; }
 //   static prefix = "KeyString____";
@@ -806,12 +802,7 @@ export function buildTabZodObject<T extends TabId>(tabId: T, filter?: TabZodObje
   const tab = tabs[tabId];
   const fieldEntries = tab.fields
     .filter((field) => shouldIncludeFieldInTabZodObject(field.mode, filter))
-    .map((field) => [
-      field.key,
-      // KeyFields[tabId] === field.key
-      //   ? z.instanceof(KeyString)
-      fieldTypeZodShapes[field.type]
-    ] as const);
+    .map((field) => [field.key, fieldTypeZodShapes[field.type]] as const);
 
   return z.object({
     id: stringLikeFieldShape,

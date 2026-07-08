@@ -398,7 +398,6 @@ export class RecipeImportWriter extends PerClassImportWriter<"recipe"> {
     this.assertPermissions();
     const upserter = async (recipe: UpsertRecipeInput, compiledAt: Date) => {
       recipe.compiledBags.sort((a, b) => a.priority - b.priority);
-      console.log(recipe.compiledBags);
       return await this.tx.recipe.upsert({
         where: { slug: recipe.slug },
         update: {
@@ -510,41 +509,6 @@ export class RecipeImportWriter extends PerClassImportWriter<"recipe"> {
 
 }
 // #region OTHER
-
-export function importRoles(prisma: PrismaEngineClient, roles: UpsertRoleInput[], initStore = false) {
-  return prisma.$transaction(async (tx) => {
-    const importer = new RoleImportWriter(tx, initStore);
-    return importer.upsert(roles);
-  });
-}
-
-export function importUsers(prisma: PrismaEngineClient, users: UpsertUserInput[], initStore = false) {
-  return prisma.$transaction(async (tx) => {
-    const importer = new UserImportWriter(tx, initStore);
-    return importer.upsert(users);
-  });
-}
-
-export function importBags(prisma: PrismaEngineClient, bags: UpsertBagInput[], initStore = false) {
-  return prisma.$transaction(async (tx) => {
-    const importer = new BagImportWriter(tx, initStore);
-    return importer.upsert(bags);
-  });
-}
-
-export function importTemplates(prisma: PrismaEngineClient, templates: UpsertTemplateInput[], initStore = false) {
-  return prisma.$transaction(async (tx) => {
-    const importer = new TemplateImportWriter(tx, initStore);
-    return importer.upsert(templates);
-  });
-}
-
-export function importRecipes(prisma: PrismaEngineClient, recipes: UpsertRecipeInput[], initStore = false) {
-  return prisma.$transaction(async (tx) => {
-    const importer = new RecipeImportWriter(tx, initStore);
-    return importer.upsert(recipes);
-  });
-}
 
 export function toMappingRows(obj: Record<string, string>) {
   return Object.entries(obj).map(([prefix, bagName]) => ({ prefix, bagName }));
