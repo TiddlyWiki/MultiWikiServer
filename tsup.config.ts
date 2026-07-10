@@ -27,7 +27,6 @@ export default defineConfig({
     "@prisma/adapter-better-sqlite3",
     "@serenity-kit/opaque",
   ],
-
   dts: false,
   keepNames: true,
   sourcemap: true,

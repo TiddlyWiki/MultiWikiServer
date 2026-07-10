@@ -314,7 +314,11 @@ export class Streamer extends StreamerRequest {
 
   protected res;
 
-  get writer(): Writable { return this.res.stream; }
+  get writer(): Writable {
+    if (!this.res.headersSent)
+      console.warn("writer accessed before headers sent");
+    return this.res.stream;
+  }
 
   sendEmpty(status: number, headers?: StreamerHeadersInput): typeof STREAM_ENDED {
     if (process.env.DEBUG?.split(",").includes("send")) {
@@ -528,20 +532,8 @@ export class Streamer extends StreamerRequest {
    */
   async pipeFrom(stream: Readable) {
     this.writeConflictCheck(true);
-    stream.pipe(this.writer, { end: false });
-    return new Promise<void>((resolve, reject) => {
-      const unpipe = () => {
-        this.writer.off("error", error);
-        this.writeConflictError = undefined;
-        resolve();
-      };
-      const error = (e: Error) => {
-        this.writer.off("unpipe", unpipe);
-        this.writeConflictError = undefined;
-        reject(e)
-      };
-      this.writer.once("unpipe", unpipe);
-      this.writer.once("error", error);
+    await awaitPipe(stream, this.writer).finally(() => {
+      this.writeConflictError = undefined;
     });
   }
 
@@ -769,10 +761,24 @@ export class Streamer extends StreamerRequest {
 
 
 }
+/** Pipes a stream to another stream, and returns a promise once the pipe finishes. Does not close the output stream. */
+export async function awaitPipe(from: Readable, to: Writable) {
+  from.pipe(to, { end: false });
+  return new Promise<void>((resolve, reject) => {
+    const unpipe = () => {
+      to.off("error", error);
+      resolve();
+    };
+    const error = (e: Error) => {
+      to.off("unpipe", unpipe);
+      reject(e)
+    };
+    to.once("unpipe", unpipe);
+    to.once("error", error);
+  });
+}
 
-
-
-async function awaitDrain(writer: Writable): Promise<void> {
+export async function awaitDrain(writer: Writable): Promise<void> {
   await new Promise<void>((resolve, reject) => {
     const onDrain = () => {
       writer.off("error", onError);

@@ -2,5 +2,6 @@
 /**/
 /*
 !/.gitignore
+!/.npmignore
 !/.default.html
 !/stats

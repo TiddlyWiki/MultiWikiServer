@@ -6,19 +6,6 @@ export const events = new EventEmitter();
 
 /**
  * 
- * @param {Record<string, string>} env 
- * @returns 
- */
-export const run_bin = (env) => {
-  return start("node", [
-    "--trace-uncaught",
-    "--trace-warnings",
-    `dist/mws.js`
-  ], env);
-}
-
-/**
- * 
  * @param {string} cmd
  * @param {Record<string, string>} env 
  * @param {string} [cwd]

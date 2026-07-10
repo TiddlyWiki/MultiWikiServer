@@ -52,6 +52,7 @@ export {
 export * from "./new-commands";
 export * from "./new-managers";
 
+export * from "@tiddlywiki/mws-prisma";
 
 export default async function runMWS(oldOptions?: any) {
   // detect version 0.0 and exit

@@ -50,23 +50,19 @@
     "env": "env",
     "test": "node scripts/scripts.mjs test",
     "prisma:gen": "cd tools && npm run prisma:gen",
-    "prisma:mig": "cd tools && npm run prisma:mig",
-    "postinstall": "(cd tools && npm i)"
+    "prisma:mig": "cd tools && npm run prisma:mig"
   },
   "dependencies": {
-    "@material-symbols/svg-400": "^0.45.3",
-    "@prisma/client": "^7.2.0",
+    "@prisma/adapter-better-sqlite3": "7.8.0",
+    "@prisma/client": "7.8.0",
     "@serenity-kit/opaque": "^0.8.4",
-    "@types/pg": "^8.20.0",
     "source-map-support": "^0.5.21",
     "tiddlywiki": "^5.3.2"
   },
   "devDependencies": {
-    "@prisma/adapter-better-sqlite3": "7.2.0",
-    "@types/dropzone": "^5.7.9",
     "@types/node": "^24.6.0",
-    "@types/source-map-support": "^0.5.10",
-    "dropzone": "^6.0.0-beta.2"
+    "@types/pg": "^8.20.0",
+    "@types/source-map-support": "^0.5.10"
   },
   "peerDependencies": {
     "tiddlywiki": "^5.3.2"

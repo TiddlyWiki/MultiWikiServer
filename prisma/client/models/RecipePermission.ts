@@ -146,7 +146,7 @@ export type RecipePermissionGroupByOutputType = {
   _max: RecipePermissionMaxAggregateOutputType | null
 }
 
-type GetRecipePermissionGroupByPayload<T extends RecipePermissionGroupByArgs> = Prisma.PrismaPromise<
+export type GetRecipePermissionGroupByPayload<T extends RecipePermissionGroupByArgs> = Prisma.PrismaPromise<
   Array<
     Prisma.PickEnumerable<RecipePermissionGroupByOutputType, T['by']> &
       {
@@ -1063,6 +1063,11 @@ export type RecipePermissionFindManyArgs<ExtArgs extends runtime.Types.Extension
    * Skip the first `n` RecipePermissions.
    */
   skip?: number
+  /**
+   * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+   * 
+   * Filter by unique combinations of RecipePermissions.
+   */
   distinct?: Prisma.RecipePermissionScalarFieldEnum | Prisma.RecipePermissionScalarFieldEnum[]
 }
 

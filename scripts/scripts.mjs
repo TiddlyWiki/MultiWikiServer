@@ -9,23 +9,28 @@
 /// <reference types="node" />
 
 import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from "fs";
-import { start, events, run, removeRecursive, run_bin, moveFile } from "./helpers.mjs";
+import { start, events, run, removeRecursive, moveFile } from "./helpers.mjs";
 import { join, resolve } from "path";
-
-(async function (arg) {
+const BIN = "node --trace-warnings --trace-uncaught mws.dev.mjs";
+const TSUP = "tools/node_modules/.bin/tsup";
+/** @param {string} arg */
+async function runner(arg) {
   switch (arg) {
     case "docs":
     case "start":
-      await run("tools/node_modules/.bin/tsup", {});
-      await start("node --trace-warnings --trace-uncaught mws.dev.mjs", process.argv.slice(3), {
+      if (!existsSync("tools/node_modules"))
+        await run("cd tools && npm i", {});
+      await run(TSUP, {});
+      await start(BIN, process.argv.slice(3), {
         DEVSERVER: true ? "watch" : "build",
         ENABLE_EXTERNAL_PLUGINS: "1",
         ENABLE_DOCS_ROUTE: arg === "docs" ? "1" : "",
       });
       break;
     case "build":
-      await run("tools/node_modules/.bin/tsup", {});
-      await run_bin({ CLIENT_BUILD: "1" });
+      await run(TSUP, {});
+      await run(BIN, { CLIENT_BUILD: "1" });
+      await run(TSUP, { BUILD_ENV: "runtime" });
       break;
     case "prisma:generate": {
       await run("prisma validate", {});
@@ -44,7 +49,7 @@ import { join, resolve } from "path";
       // "test": "(git clean -dfx tests && cd tests && npm install .. --no-save && npm test)",
       // "fulltest": "mv node_modules node_modules_old; npm run test:pack; mv node_modules_old node_modules",
 
-
+      await runner("build");
       await Promise.resolve().then(async () => {
         // Cross-platform move operation
         moveFile("node_modules", "node_modules_off");
@@ -73,6 +78,7 @@ import { join, resolve } from "path";
         await start(`npm install ./tiddlywiki-mws-${packageVersion}.tgz tiddlywiki`, [], {}, { cwd: "tests" });
       }).then(async () => {
         await start("npx mws init-store", [], {}, { cwd: "tests" });
+        await start("npx mws listen --listener host=:: port=8080", [], {}, { cwd: "tests" });
       }).finally(async () => {
         // Cross-platform move operation
         moveFile("node_modules_off", "node_modules");
@@ -90,7 +96,9 @@ import { join, resolve } from "path";
     default:
       console.log("nothing ran");
   }
-})(process.argv[2]).catch((e) => {
+}
+
+runner(process.argv[2]).catch((e) => {
   if (e) console.log("caught error", e);
   process.exitCode = 1;
 });

@@ -146,7 +146,7 @@ export type TemplatePermissionGroupByOutputType = {
   _max: TemplatePermissionMaxAggregateOutputType | null
 }
 
-type GetTemplatePermissionGroupByPayload<T extends TemplatePermissionGroupByArgs> = Prisma.PrismaPromise<
+export type GetTemplatePermissionGroupByPayload<T extends TemplatePermissionGroupByArgs> = Prisma.PrismaPromise<
   Array<
     Prisma.PickEnumerable<TemplatePermissionGroupByOutputType, T['by']> &
       {
@@ -1063,6 +1063,11 @@ export type TemplatePermissionFindManyArgs<ExtArgs extends runtime.Types.Extensi
    * Skip the first `n` TemplatePermissions.
    */
   skip?: number
+  /**
+   * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+   * 
+   * Filter by unique combinations of TemplatePermissions.
+   */
   distinct?: Prisma.TemplatePermissionScalarFieldEnum | Prisma.TemplatePermissionScalarFieldEnum[]
 }
 

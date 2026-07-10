@@ -3,8 +3,9 @@ datasource db {
 }
 
 generator client {
-  provider = "prisma-client"
-  output   = "client"
+  provider        = "prisma-client"
+  output          = "client"
+  previewFeatures = ["partialIndexes"]
 }
 
 generator json {
@@ -168,8 +169,11 @@ model Users {
   username   String     @unique
   email      String     @unique
   password   String
-  // sparse index: CREATE UNIQUE INDEX "users_resetCode_key" ON "users"("resetCode") WHERE "resetCode" IS NOT NULL;
-  resetCode  String?    @unique
+
+  // MySQL: multiple NULLs are allowed in unique columns and there is no way to make a partial index.
+  // SQL Server: the `where` clause is required to get the "multiple NULLs allowed" behavior.
+  // Everything else: multiple nulls are allowed in unique columns and partial indexes also work
+  resetCode  String?    @unique(where: { resetCode: { not: null } })
   created_at DateTime   @default(now())
   last_login DateTime?
   sessions   Sessions[]

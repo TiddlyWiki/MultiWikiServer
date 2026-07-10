@@ -61,7 +61,7 @@ serverEvents.on("cli.execute.before", async (name, params, options, instance) =>
     "They are not temporary files, they are part of the database.",
   ].join("\n"));
 
-  const adapter = new SqliteAdapter(databasePath, !!process.env.ENABLE_DEV_SERVER);
+  const adapter = new SqliteAdapter(databasePath, !!process.env.DEVSERVER);
   await serverEvents.emitAsync("mws.adapter.init.before", adapter);
   await adapter.init();
   await serverEvents.emitAsync("mws.adapter.init.after", adapter);

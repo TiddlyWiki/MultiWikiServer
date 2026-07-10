@@ -194,7 +194,7 @@ export type RecipeBagGroupByOutputType = {
   _max: RecipeBagMaxAggregateOutputType | null
 }
 
-type GetRecipeBagGroupByPayload<T extends RecipeBagGroupByArgs> = Prisma.PrismaPromise<
+export type GetRecipeBagGroupByPayload<T extends RecipeBagGroupByArgs> = Prisma.PrismaPromise<
   Array<
     Prisma.PickEnumerable<RecipeBagGroupByOutputType, T['by']> &
       {
@@ -1297,6 +1297,11 @@ export type RecipeBagFindManyArgs<ExtArgs extends runtime.Types.Extensions.Inter
    * Skip the first `n` RecipeBags.
    */
   skip?: number
+  /**
+   * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+   * 
+   * Filter by unique combinations of RecipeBags.
+   */
   distinct?: Prisma.RecipeBagScalarFieldEnum | Prisma.RecipeBagScalarFieldEnum[]
 }
 

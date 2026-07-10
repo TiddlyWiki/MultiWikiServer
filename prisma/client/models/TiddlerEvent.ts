@@ -187,7 +187,7 @@ export type TiddlerEventGroupByOutputType = {
   _max: TiddlerEventMaxAggregateOutputType | null
 }
 
-type GetTiddlerEventGroupByPayload<T extends TiddlerEventGroupByArgs> = Prisma.PrismaPromise<
+export type GetTiddlerEventGroupByPayload<T extends TiddlerEventGroupByArgs> = Prisma.PrismaPromise<
   Array<
     Prisma.PickEnumerable<TiddlerEventGroupByOutputType, T['by']> &
       {
@@ -1139,6 +1139,11 @@ export type TiddlerEventFindManyArgs<ExtArgs extends runtime.Types.Extensions.In
    * Skip the first `n` TiddlerEvents.
    */
   skip?: number
+  /**
+   * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+   * 
+   * Filter by unique combinations of TiddlerEvents.
+   */
   distinct?: Prisma.TiddlerEventScalarFieldEnum | Prisma.TiddlerEventScalarFieldEnum[]
 }
 

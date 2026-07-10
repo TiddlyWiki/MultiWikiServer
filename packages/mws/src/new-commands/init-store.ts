@@ -79,11 +79,11 @@ export class InitStoreCommand extends BaseCommand {
 
 		const runner = async (path: string, bagName: string, bagDesc: string, recName: string, recDesc: string) => {
 			const command = new LoadWikiFolderCommand([path!], {
-				"bag-name": [bagName],
+				"bag-relative-root": [dist_resolve("..")],
 				"bag-description": [bagDesc],
 				"recipe-name": [recName],
 				"recipe-description": [recDesc],
-				overwrite: false,
+				"overwrite": false,
 				"owner-roles": ["ADMIN"]
 			});
 			command.$tw = this.$tw;

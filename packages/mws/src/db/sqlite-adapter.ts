@@ -17,19 +17,13 @@ export class SqliteAdapter {
 
   adapter!: SqlMigrationAwareDriverAdapterFactory;
   async init() {
+    console.log("CWD: " + process.cwd());
+    console.log("DB: " + this.databasePath);
+
     const libsql = await this.adapter.connect();
 
     // this is used to test the upgrade path
-    if (process.env.RUN_FIRST_MWS_DB_SETUP_FOR_TESTING_0_0) {
-      throw new Error("this is disabled");
-      await libsql.executeScript(await readFile(dist_resolve(
-        "../prisma-20250406/migrations/" + INIT_0_0 + "/migration.sql"
-      ), "utf8"));
-    } else if (process.env.RUN_FIRST_MWS_DB_SETUP_FOR_TESTING_0_1) {
-      await libsql.executeScript(await readFile(dist_resolve(
-        "../prisma/migrations/" + INIT_0_1 + "/migration.sql"
-      ), "utf8"));
-    } else if (process.env.RUN_FIRST_MWS_DB_SETUP_FOR_TESTING_0_2) {
+    if (process.env.RUN_FIRST_MWS_DB_SETUP_FOR_TESTING_0_2) {
       await libsql.executeScript(await readFile(dist_resolve(
         "../prisma/migrations/" + INIT_0_2 + "/migration.sql"
       ), "utf8"));
@@ -62,8 +56,12 @@ export class SqliteAdapter {
         argTypes: [],
       }).then(e => e.rows.map(e => e[0] as string))
     );
+    const oldVersion =
+      applied_migrations.has(INIT_0_0) ? "0.0" :
+        applied_migrations.has(INIT_0_1) ? "0.1" :
+          undefined;
 
-    if (applied_migrations.has(INIT_0_0)) {
+    if (oldVersion) {
       console.log([
         "=======================================================================================",
         "The database you are trying to open is from a previous version of MWS.",
@@ -72,20 +70,19 @@ export class SqliteAdapter {
         "wikis you want to keep by opening them and downloading them as single-file",
         "wikis by clicking on the cloud status icon and then 'save snapshot for offline use'.",
         "",
+        "CWD: " + process.cwd(),
+        "DB: " + this.databasePath,
+        "",
         "To return to a usable version of this wiki, you may run ",
         "",
-        "npm install @tiddlywiki/mws@0.0",
+        "npm install @tiddlywiki/mws@" + oldVersion,
+        "",
+        "To prevent data loss the program will now exit.",
         "=======================================================================================",
       ].join("\n"))
-      await this.checkMigrationsTable(libsql, hasExisting && !hasMigrationsTable, applied_migrations, "prisma-20250406", INIT_0_0);
-      console.log("Your database is updated to the final version for 0.0.x");
-      console.log("This database is for a previous version of MWS. We will now exit to prevent data loss.");
-      console.log("=======================================================================================");
       process.exit(1);
-    // } else if (!applied_migrations.size || applied_migrations.has(INIT_0_1)) {
-    //   await this.checkMigrationsTable(libsql, hasExisting && !hasMigrationsTable, applied_migrations, "prisma", INIT_0_1);
     } else if (!applied_migrations.size || applied_migrations.has(INIT_0_2)) {
-      await this.checkMigrationsTable(libsql, hasExisting && !hasMigrationsTable, applied_migrations, "prisma", INIT_0_2);
+      await this.checkMigrationsTable(libsql, applied_migrations, "prisma/migrations");
     } else if (this.isDevMode) {
       console.log([
         "===============================================================",
@@ -137,13 +134,13 @@ export class SqliteAdapter {
   // prisma/migrations/20250508171144_init/migration.sql
   async checkMigrationsTable(
     libsql: SqlDriverAdapter,
-    migrateExisting: boolean,
     applied_migrations: Set<string>,
-    prismaFolder: string,
-    initMigration: string
+    prismaMigrationsFolder: string
   ) {
 
-    const migrations = await readdir(dist_resolve("../" + prismaFolder + "/migrations"));
+    const migrations = await readdir(dist_resolve("../" + prismaMigrationsFolder));
+    // the folder names are the iso digit string
+    // NOTE: Of all the insanities, numbers are sorted as strings!
     migrations.sort();
 
     const new_migrations = migrations.filter(m => !applied_migrations.has(m) && m !== "migration_lock.toml");
@@ -156,17 +153,13 @@ export class SqliteAdapter {
     console.log("New migrations found", new_migrations);
 
     for (const migration of new_migrations) {
-      const migration_path = dist_resolve(`../${prismaFolder}/migrations/${migration}/migration.sql`);
+      const migration_path = dist_resolve(`../${prismaMigrationsFolder}/${migration}/migration.sql`);
       if (!existsSync(migration_path)) continue;
 
       const fileContent = await readFile(migration_path, 'utf-8');
-      // this is the hard-coded name of the first migration.
-      if (migrateExisting && migration === initMigration) {
-        console.log("Existing migration", migration, "is already applied");
-      } else {
-        console.log("Applying migration", migration);
-        await libsql.executeScript(fileContent);
-      }
+
+      console.log("Applying migration", migration);
+      await libsql.executeScript(fileContent);
 
       await libsql.executeRaw(InsertStatement("_prisma_migrations", [
         {

@@ -29,7 +29,7 @@ import {
 import { adminStorage, createDraft, getEmptyItems, jsonReviver } from "./definition/store";
 import { definitely, is } from "./definition/utils";
 import { logout } from "./passwords";
-import { fieldTypeRenderSidebars, formatFieldValue, renderFieldEditor, renderFieldSidebar } from "./definition/renders";
+import { fieldTypeRenderSidebars, formatFieldValue, renderFieldEditor, renderFieldSidebar, textWithSlashes } from "./definition/renders";
 
 
 export type AdminRecord = { id: IdString; };
@@ -1033,7 +1033,7 @@ function renderListCellValue(columnKey: string, value: string | undefined) {
     );
   }
 
-  return formattedValue;
+  return textWithSlashes(formattedValue);
 }
 
 function getListColumnLink(tabId: TabId, columnKey: string, item: AdminRecord): string | null {

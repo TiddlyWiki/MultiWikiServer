@@ -160,7 +160,7 @@ export type BagGroupByOutputType = {
   _max: BagMaxAggregateOutputType | null
 }
 
-type GetBagGroupByPayload<T extends BagGroupByArgs> = Prisma.PrismaPromise<
+export type GetBagGroupByPayload<T extends BagGroupByArgs> = Prisma.PrismaPromise<
   Array<
     Prisma.PickEnumerable<BagGroupByOutputType, T['by']> &
       {
@@ -1392,6 +1392,11 @@ export type BagFindManyArgs<ExtArgs extends runtime.Types.Extensions.InternalArg
    * Skip the first `n` Bags.
    */
   skip?: number
+  /**
+   * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+   * 
+   * Filter by unique combinations of Bags.
+   */
   distinct?: Prisma.BagScalarFieldEnum | Prisma.BagScalarFieldEnum[]
 }
 

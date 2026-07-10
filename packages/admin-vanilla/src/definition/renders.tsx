@@ -185,11 +185,15 @@ function renderLinesList(value: readonly string[], key: string, itemsByTab?: Adm
           null : null;
   const lines = value.map(line => ({ line, missing: missingCheck && !missingCheck.has(line), }));
   return <ul class="value-list">{lines.map(({ line, missing }) => <li>
-    {line.split("/").map((e, i, a) => <>{e}{(i !== a.length - 1) ? "/" : ""}<wbr /></>)}
+    {textWithSlashes(line)}
     {missing ? <span class="missing-marker" aria-label="Missing dependency" title="Missing dependency"><MaterialSymbol icon={warningIcon} /></span> : null}
   </li>)}</ul>;
 
 }
+export function textWithSlashes(line: string): JSX.Node[] {
+  return line.split("/").map((e, i, a) => <>{e}{(i !== a.length - 1) ? "/" : ""}<wbr /></>);
+}
+
 function renderCalloutField(ctx: ReadonlyFieldContext) {
   definitely<string>(ctx.value);
   return <div class="field-callout"><p>{formatFieldValue(ctx.value)}</p></div>;

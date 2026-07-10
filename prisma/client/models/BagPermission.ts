@@ -146,7 +146,7 @@ export type BagPermissionGroupByOutputType = {
   _max: BagPermissionMaxAggregateOutputType | null
 }
 
-type GetBagPermissionGroupByPayload<T extends BagPermissionGroupByArgs> = Prisma.PrismaPromise<
+export type GetBagPermissionGroupByPayload<T extends BagPermissionGroupByArgs> = Prisma.PrismaPromise<
   Array<
     Prisma.PickEnumerable<BagPermissionGroupByOutputType, T['by']> &
       {
@@ -1063,6 +1063,11 @@ export type BagPermissionFindManyArgs<ExtArgs extends runtime.Types.Extensions.I
    * Skip the first `n` BagPermissions.
    */
   skip?: number
+  /**
+   * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+   * 
+   * Filter by unique combinations of BagPermissions.
+   */
   distinct?: Prisma.BagPermissionScalarFieldEnum | Prisma.BagPermissionScalarFieldEnum[]
 }
 
