@@ -17,7 +17,7 @@ import { RecipeStatus, RecipeStore, RecipeUpdates, TiddlerBatch, TiddlerList } f
 
 export * from "./RecipeResolver";
 export * from "./TabDataAdapter";
-export * from "./TabImportWriter";
+export * from "./TabUpserts";
 export * from "./wiki-utils";
 export * from "./wiki-contract";
 
@@ -84,6 +84,7 @@ serverEvents.on("mws.routes", (root) => {
     }), new Error());
 
     const { recipe_slug } = state.pathParams;
+    state.assertWikiReferer(recipe_slug);
     return await serveIndex(state, recipe_slug, "index");
 
   }, async (state, e) => {

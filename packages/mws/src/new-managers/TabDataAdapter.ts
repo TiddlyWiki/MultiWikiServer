@@ -23,7 +23,7 @@ import {
   RoleImportWriter,
   TemplateImportWriter,
   UserImportWriter
-} from "./TabImportWriter";
+} from "./TabUpserts";
 import {
   BagPermissionLevel,
   RecipePermissionLevel
@@ -83,7 +83,7 @@ export {
   type ImportedRoleRows,
   type ImportedTemplateRow,
   type ImportedUserRows,
-} from "./TabImportWriter";
+} from "./TabUpserts";
 
 
 // #region abstracts
@@ -532,7 +532,7 @@ export const AdminSave = zodRoute({
   }),
   zodRequestBody: z => z.any(),
   inner: async (state) => {
-
+    state.assertAdminReferer();
     state.asserted = state.user.isAdmin;
     state.data = JSON.parse(JSON.stringify(state.data), (key: any, val: any) => {
       if (typeof val === "string" && val.startsWith(IdString.prefix))
@@ -585,6 +585,7 @@ export const AdminLoad = zodRoute({
   zodPathParams: z => ({}),
   inner: async (state) => {
     // access is checked in each list
+    state.assertAdminReferer();
     state.asserted = state.user.isLoggedIn;
     const res = await state.$transaction(async prisma => {
       const roles = await new RoleImportWriter(prisma, false).getIdMapper();

@@ -88,10 +88,10 @@ export class StateObject<
   }
 
 
-  getRefererRecipe() {
+  assertWikiReferer(recipe_slug: string) {
     const state = this;
-    if (!state.headers.get("referer")) return;
-    const referer = new URL(state.headers.get("referer")!);
+    if (!state.headers.referer) return;
+    const referer = new URL(state.headers.referer);
     // console.log("Referer", state.headers.referer, referer);
     if (!referer.pathname.startsWith(state.pathPrefix))
       throw state.sendEmpty(404, { "x-reason": "invalid path prefix" });
@@ -99,7 +99,21 @@ export class StateObject<
       return; // keep going
     // we now get the recipe name from the referer
     const recipe_name = referer.pathname.substring(state.pathPrefix.length + "/wiki/".length);
-    return decodeURIComponent(recipe_name) as PrismaField<"Recipe", "id">;
+    const referer_slug = decodeURIComponent(recipe_name) as PrismaField<"Recipe", "id">;
+    if (referer_slug !== recipe_slug)
+      throw new SendError("CROSS_WIKI_ACCESS_DENIED", 403, null);
+  }
+
+  assertAdminReferer() {
+    const state = this;
+    // referer is a voluntary header
+    if (!state.headers.referer) return;
+    const referer = new URL(state.headers.referer);
+    // deny referers from outside our pathprefix
+    if (!referer.pathname.startsWith(state.pathPrefix))
+      throw new SendError("ADMIN_ACCESS_DENIED", 403, null);
+    if (referer.pathname.startsWith(state.pathPrefix + "/wiki/"))
+      throw new SendError("ADMIN_ACCESS_DENIED", 403, null);
   }
 
 

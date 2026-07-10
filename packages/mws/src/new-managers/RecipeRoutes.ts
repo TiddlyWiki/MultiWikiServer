@@ -16,6 +16,7 @@ export const RecipeStatus = zodRoute({
   }),
   inner: async (state) => {
     const { recipe_slug } = state.pathParams;
+    state.assertWikiReferer(recipe_slug);
     const recipe = await RecipeResolver.assertRecipe({
       state,
       recipe_slug,
@@ -55,6 +56,7 @@ export const TiddlerList = zodRoute({
   }),
   inner: async (state) => {
     const { recipe_slug } = state.pathParams;
+    state.assertWikiReferer(recipe_slug);
     const recipe = await RecipeResolver.assertRecipe({
       state,
       recipe_slug,
@@ -81,6 +83,7 @@ export const RecipeStore = zodRoute({
   zodQueryKeys: ["cache"],
   inner: async (state) => {
     const { recipe_slug } = state.pathParams;
+    state.assertWikiReferer(recipe_slug);
     throw await serveIndex(state, recipe_slug, "store");
   },
 });
@@ -97,6 +100,8 @@ export const RecipeUpdates = zodRoute({
   zodQueryKeys: ["since"],
   inner: async (state) => {
     const { recipe_slug } = state.pathParams;
+    state.assertWikiReferer(recipe_slug);
+
     const recipe = await RecipeResolver.assertRecipe({
       state,
       recipe_slug,
@@ -160,6 +165,9 @@ export const TiddlerBatch = zodRoute({
   }),
   inner: async (state) => {
     const { recipe_slug, op } = state.pathParams;
+    state.assertWikiReferer(recipe_slug)
+
+
 
     const recipe = await RecipeResolver.assertRecipe({
       state,
