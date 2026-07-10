@@ -1,5 +1,5 @@
 import { BaseCommand, CommandInfo } from "@tiddlywiki/commander";
-import { WikiPluginCache } from "../services/cache";
+import { WikiPluginCache } from "../new-managers/plugin-cache";
 import { TiddlerFields, TW } from "tiddlywiki";
 import * as fs from "fs";
 import * as path from "path";

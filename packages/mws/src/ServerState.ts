@@ -3,11 +3,11 @@ import { ITXClientDenyList } from "@tiddlywiki/mws-prisma";
 import { TW } from "tiddlywiki";
 import pkg from "../package.json";
 import { createPasswordService } from "./services/PasswordService";
-import { startupCache } from "./services/cache";
+import { startupCache } from "./new-managers/plugin-cache";
 import { Types } from "@tiddlywiki/mws-prisma";
 import { dist_resolve } from "@tiddlywiki/server";
 import { readFileSync } from "fs";
-import { SessionManager, SessionManagerObject } from "./services/sessions";
+import { SessionManager, SessionManagerObject } from "./new-managers/sessions";
 
 /** This is an alias for ServerState in case we want to separate the two purposes. */
 export type SiteConfig = ServerState;

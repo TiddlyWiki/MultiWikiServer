@@ -16,8 +16,8 @@ import "./zodAssert";
 import "./RequestState";
 import "./ServerState";
 import "./services/tw-routes";
-import "./services/cache";
-import "./services/sessions";
+import "./new-managers/plugin-cache";
+import "./new-managers/sessions";
 import "./SendError";
 
 // startup
@@ -33,7 +33,7 @@ export {
   SessionManager,
   SessionManagerObject,
   AuthUser
-} from "./services/sessions";
+} from "./new-managers/sessions";
 export {
   PasswordService
 } from "./services/PasswordService";
@@ -42,7 +42,7 @@ export {
   PluginDefinition,
   TiddlerHasher,
   defaultPreloadFunction,
-} from "./services/cache";
+} from "./new-managers/plugin-cache";
 export * from "./services/setupDevServer";
 export * from "./services/tiddlywiki";
 export {

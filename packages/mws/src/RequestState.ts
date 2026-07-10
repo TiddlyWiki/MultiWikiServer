@@ -4,7 +4,7 @@ import { ServerState } from "./ServerState";
 import { BodyFormat, ParsedRequest, RouteMatch, Router, ServerRequest, Streamer, StreamerHeadersInput, SuperHeadersInit, SuperHeadersPropertyInit, truthy } from "@tiddlywiki/server";
 import { SendError, SendErrorReasonData } from "@tiddlywiki/server";
 import { ServerToReactAdmin } from './services/setupDevServer';
-import { AuthUser } from './services/sessions';
+import { AuthUser } from './new-managers/sessions';
 
 
 declare module "@tiddlywiki/server" {
@@ -60,13 +60,13 @@ export class StateObject<
 
   okUser() {
     if (!this.user.isLoggedIn)
-      throw new SendError("ACCESS_DENIED", 403, { reason:  "User not authenticated" })
+      throw new SendError("ACCESS_DENIED", 403, { reason: "User not authenticated" })
   }
   okAdmin() {
-    if (!this.user.isLoggedIn) 
-      throw new SendError("ACCESS_DENIED", 403, { reason:  "User not authenticated" })
-    if (!this.user.isAdmin) 
-      throw new SendError("ACCESS_DENIED", 403, { reason:  "User is not an admin" })
+    if (!this.user.isLoggedIn)
+      throw new SendError("ACCESS_DENIED", 403, { reason: "User not authenticated" })
+    if (!this.user.isAdmin)
+      throw new SendError("ACCESS_DENIED", 403, { reason: "User is not an admin" })
   }
 
   async $transaction<T>(fn: (prisma: PrismaTxnClient) => Promise<T>): Promise<T> {
@@ -81,32 +81,47 @@ export class StateObject<
     return this.engine.$transaction(arg(this.engine), options);
   }
 
+  /** 
+   * This is intended to prevent malicious code attempting to access restricted
+   * bags using the credentials of more privelaged users and then saving the data
+   * to less restricted bags. Eventually this is intended to have a more complete 
+   * system where a page requests permission to access another page on behalf of the user.
+   */
   assertWikiReferer(recipe_slug: string) {
     const state = this;
     if (!state.headers.referer) return;
     const referer = new URL(state.headers.referer);
-    // console.log("Referer", state.headers.referer, referer);
+    // for now pages outside the path prefix are denied, but this should probably change
     if (!referer.pathname.startsWith(state.pathPrefix))
-      throw new SendError("ACCESS_DENIED", 403, { reason:  "Referer check failed" })
+      throw new SendError("ACCESS_DENIED", 403, { reason: "Referer check failed" })
+    // if a recipe endpoint somehow serves a page, it's definitely wiki content, so deny it
+    if (referer.pathname.startsWith(state.pathPrefix + "/recipe/"))
+      throw new SendError("ACCESS_DENIED", 403, { reason: "Referer check failed" })
+    // pages outside the wiki path are allowed to access wiki endpoints if they want
     if (!referer.pathname.startsWith(state.pathPrefix + "/wiki/"))
-      return; // keep going
+      return;
     // we now get the recipe name from the referer
     const recipe_name = referer.pathname.substring(state.pathPrefix.length + "/wiki/".length);
     const referer_slug = decodeURIComponent(recipe_name) as PrismaField<"Recipe", "id">;
     if (referer_slug !== recipe_slug)
-      throw new SendError("ACCESS_DENIED", 403, { reason:  "Referer check failed" })
+      throw new SendError("ACCESS_DENIED", 403, { reason: "Referer check failed" })
   }
 
-  assertAdminReferer() {
+  /** 
+   * If this throws in the wrong situation it may be a bug.
+   * Normally this is intended to keep wiki code from trying to acces admin or login paths,
+   * since malicious code would be accessing it from every computer that opens the wiki.
+   * It is not intended to restrict legitimate scenarios, especially not scenarios coded into
+   * the admin-vanilla client. If it throws under stock conditions, it's a bug.
+   */
+  assertRefererPrefix(prefix: string[]) {
     const state = this;
     // referer is a voluntary header
     if (!state.headers.referer) return;
     const referer = new URL(state.headers.referer);
     // deny referers from outside our pathprefix
-    if (!referer.pathname.startsWith(state.pathPrefix))
-      throw new SendError("ACCESS_DENIED", 403, { reason:  "Referer check failed" })
-    if (referer.pathname.startsWith(state.pathPrefix + "/wiki/"))
-      throw new SendError("ACCESS_DENIED", 403, { reason:  "Referer check failed" })
+    if (!prefix.some(e => referer.pathname.startsWith(state.pathPrefix + e)))
+      throw new SendError("ACCESS_DENIED", 403, { reason: "Referer check failed" })
   }
 
 

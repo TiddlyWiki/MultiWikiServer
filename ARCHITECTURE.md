@@ -126,3 +126,4 @@ These are the hooks that run on startup. The listen command starts the server an
 
 - improve the small screen form factor for the admin UI
 - make sure all the descriptions and labels make sense
+- something seems to be bugged in upserts

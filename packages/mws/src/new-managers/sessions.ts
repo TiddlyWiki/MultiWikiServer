@@ -177,7 +177,7 @@ export class SessionManager {
   login1 = zodSession("/login/1", z => z.object({
     username: z.prismaField("Users", "username", "string"),
     startLoginRequest: z.string(),
-  }), async () => { }, async (state, prisma) => {
+  }), async (state) => { state.assertRefererPrefix(["/login"]); }, async (state, prisma) => {
     const { username, startLoginRequest } = state.data;
 
     const user = await prisma.users.findUnique({
@@ -209,7 +209,7 @@ export class SessionManager {
     finishLoginRequest: z.string(),
     loginSession: z.string(),
     skipCookie: z.boolean().optional().default(false),
-  }), async () => { }, async (state, prisma) => {
+  }), async (state) => { state.assertRefererPrefix(["/login"]); }, async (state, prisma) => {
     const { finishLoginRequest, skipCookie, loginSession } = state.data;
 
     if (!loginSession) throw "Login session not found.";
@@ -284,6 +284,7 @@ export class SessionManager {
     emailOrUsername: z.string(),
     resetCode: z.string().optional(),
   }), async state => {
+    state.assertRefererPrefix(["/login"]);
     if (state.data.resetCode)
       await passwordLookupRateLimiter.wait(state, "");
   }, async (state, prisma) => {
@@ -307,7 +308,7 @@ export class SessionManager {
     user_id: z.string(),
     registrationRequest: z.string().optional(),
     registrationRecord: z.string().optional(),
-  }), async () => { }, async (state, prisma) => {
+  }), async (state) => { state.assertRefererPrefix(["/login"]); }, async (state, prisma) => {
     const user = await prisma.users.findUnique({ where: { user_id: state.data.user_id, }, });
     if (!user)
       throw new SendError("RECORD_KEY_NOT_FOUND", 400, { table: "users", name: "user_id" });
@@ -348,7 +349,10 @@ export class SessionManager {
       session_id: z.string().optional(),
       signature: z.string().optional(),
     }),
-    async (state) => { state.okUser(); },
+    async (state) => {
+      state.okUser();
+      state.assertRefererPrefix(["/profile"]);
+    },
     async (state, prisma) => {
 
       const { user_id, registrationRecord, registrationRequest } = state.data;

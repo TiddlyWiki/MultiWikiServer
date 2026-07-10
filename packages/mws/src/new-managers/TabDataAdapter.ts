@@ -33,6 +33,10 @@ import {
   UpsertTemplateInput
 } from "./wiki-contract";
 import { createHash } from "crypto";
+import { debuglog } from "util";
+import { Debug } from "@prisma/client/runtime/client";
+
+
 
 type IRecipeRow = DataStore["wikis"][number];
 type ITemplateRow = DataStore["templates"][number];
@@ -532,7 +536,7 @@ export const AdminSave = zodRoute({
   }),
   zodRequestBody: z => z.any(),
   inner: async (state) => {
-    state.assertAdminReferer();
+    state.assertRefererPrefix(["/admin/"]);
     state.asserted = state.user.isLoggedIn;
     state.data = JSON.parse(JSON.stringify(state.data), (key: any, val: any) => {
       if (typeof val === "string" && val.startsWith(IdString.prefix))
@@ -584,7 +588,7 @@ export const AdminLoad = zodRoute({
   securityChecks: { requestedWithHeader: true },
   zodPathParams: z => ({}),
   inner: async (state) => {
-    state.assertAdminReferer();
+    state.assertRefererPrefix(["/admin/"]);
     state.asserted = state.user.isLoggedIn;
     const res = await state.$transaction(async prisma => {
       const roles = await new RoleImportWriter(prisma, false).getIdMapper();

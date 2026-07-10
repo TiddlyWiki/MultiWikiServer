@@ -6,7 +6,7 @@ import { TW } from "tiddlywiki";
 import { createGzip, gzipSync } from "zlib";
 import { awaitPipe, BodyFormat, checkPath, checkQueryKeys, dist_resolve, SendFileOptions, ServerRequest } from "@tiddlywiki/server";
 import { serverEvents } from "@tiddlywiki/events";
-import { mapGetInit } from "../new-managers";
+import { mapGetInit } from ".";
 import { open, stat } from "fs/promises";
 import { PassThrough, Readable } from "stream";
 import { pipeline } from "stream/promises";

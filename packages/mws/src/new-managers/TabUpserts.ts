@@ -11,6 +11,7 @@ import {
 import { Prisma } from "@tiddlywiki/mws-prisma";
 import { mapGetInit, thrower } from "./wiki-utils";
 import { IdString, TabId } from "@mws/admin-vanilla/src/definition/tabs";
+import { Debug } from "@prisma/client/runtime/client";
 
 
 export type ImportedRoleRows = Awaited<ReturnType<PrismaTxnClient["roles"]["findMany"]>>;
@@ -78,8 +79,9 @@ export abstract class PerClassImportWriter<Modal extends PrismaModalKeys> {
     protected initStore: boolean,
   ) {
     if (initStore) this.asserted = true;
+    this.debug = Debug("mws:admin:" + tabid)
   }
-
+  debug: ART<typeof Debug>;
   private asserted = false;
   assertPermissions() {
     if (!this.asserted)
@@ -87,9 +89,11 @@ export abstract class PerClassImportWriter<Modal extends PrismaModalKeys> {
   }
 
   async checkExisting(id: IdString, name: string, user: ServerRequest["user"]) {
-    if (user.isAdmin) { this.asserted = true; }
+    if (user.isAdmin) { this.debug("isAdmin: true"); this.asserted = true; }
     if (this.initStore && typeof user.isLoggedIn === "boolean")
       throw new Error("This shouldn't happen.");
+
+    this.debug("id.toString()", !!id.toString());
 
     if (!user.isAdmin && this.adminLevel) {
 
@@ -127,21 +131,26 @@ export abstract class PerClassImportWriter<Modal extends PrismaModalKeys> {
         where: { [this.id]: id.toString() },
         select: { [this.id]: true, [this.name]: true }
       });
+      this.debug("existing", existing[this.id], existing[this.name], name)
       if (!existing)
         throw new Error("existing wiki not found");
-      if (existing[this.name] !== name)
+      if (existing[this.name] !== name) {
         await this.rename([[existing[this.name], name]]);
+      }
     }
 
   }
 
   async rename(renames: [string, string][]) {
     this.assertPermissions();
-    await Promise.all(renames.map(([oldName, newName]) =>
-      (this.tx[this.modal] as any).update({
+    this.debug("renames", renames);
+    await Promise.all(renames.map(async ([oldName, newName]) => {
+      this.debug("rename", this.modal, this.name, oldName, newName);
+      await (this.tx[this.modal] as any).update({
         where: { [this.name]: oldName },
         data: { [this.name]: newName }
-      })));
+      });
+    }));
   }
   /** Maps names to ids */
   async getNameMapper(names?: readonly string[]) {
@@ -233,14 +242,15 @@ export class UserImportWriter extends PerClassImportWriter<"users"> {
 
 export class BagImportWriter extends PerClassImportWriter<"bag"> {
   constructor(tx: PrismaTxnClient, initStore: boolean) {
-    super(tx, "bags", "bag", "name", "id", "C_admin", initStore)
+    super(tx, "bags", "bag", "name", "id", "C_admin", initStore);
   }
 
   async rename(renames: [string, string][]) {
     this.assertPermissions();
     const renamesMap = new Map(renames);
+    this.debug("renames", ...renamesMap.entries());
     const bags = await this.tx.bag.findMany({
-      where: { name: { in: Array.from(renamesMap.keys(), e => e) } },
+      where: { name: { in: Array.from(renamesMap.keys()) } },
       include: { recipe_bags: { select: { recipe: { select: { id: true, template_id: true } } } }, }
     });
 
@@ -252,6 +262,8 @@ export class BagImportWriter extends PerClassImportWriter<"bag"> {
         mapGetInit(recipesInvolved, bag.name, () => new Set()).add(rb.recipe.id);
         mapGetInit(templatesInvolved, bag.name, () => new Set()).add(rb.recipe.template_id);
       });
+      this.debug(bag.name, "recipes involved", recipesInvolved.size);
+      this.debug(bag.name, "templates involved", templatesInvolved.size);
     });
 
     const recipesToEdit = Array.from(new Set(Array.from(recipesInvolved.values(), e => [...e]).flat()));
@@ -293,6 +305,8 @@ export class BagImportWriter extends PerClassImportWriter<"bag"> {
         data: { definition: template.definition },
       });
     }
+
+    super.rename(renames);
 
   }
 
