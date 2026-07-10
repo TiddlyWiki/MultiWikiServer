@@ -165,6 +165,8 @@ export class RecipeResolver {
 
     if (!isAdmin && needsWrite) {
 
+      state.okUser();
+
       const hasWriteAccess = recipe.recipe_bags
         .filter(recipeBag => recipeBag.is_writable)
         .some(recipeBag =>

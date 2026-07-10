@@ -75,10 +75,8 @@ declare module "@tiddlywiki/server" {
     "OPERATION_NOT_PERMITTED":
     SendErrorItem<403, { reason: string }>
 
-    "CROSS_WIKI_ACCESS_DENIED":
-    SendErrorItem<403, null>
-    "ADMIN_ACCESS_DENIED":
-    SendErrorItem<403, null>
+    "ACCESS_DENIED":
+    SendErrorItem<403, { reason: string }>
   }
 }
 SendError.oninstance.push(e => {

@@ -59,11 +59,14 @@ export class StateObject<
   }
 
   okUser() {
-    if (!this.user.isLoggedIn) throw "User not authenticated";
+    if (!this.user.isLoggedIn)
+      throw new SendError("ACCESS_DENIED", 403, { reason:  "User not authenticated" })
   }
   okAdmin() {
-    if (!this.user.isLoggedIn) throw "User not authenticated";
-    if (!this.user.isAdmin) throw "User is not an admin";
+    if (!this.user.isLoggedIn) 
+      throw new SendError("ACCESS_DENIED", 403, { reason:  "User not authenticated" })
+    if (!this.user.isAdmin) 
+      throw new SendError("ACCESS_DENIED", 403, { reason:  "User is not an admin" })
   }
 
   async $transaction<T>(fn: (prisma: PrismaTxnClient) => Promise<T>): Promise<T> {
@@ -78,30 +81,20 @@ export class StateObject<
     return this.engine.$transaction(arg(this.engine), options);
   }
 
-  makeTiddlerEtag(options: { bag_name: string; revision_id: string | number; }) {
-    // why do we need revision_id AND bag_name? revision_id is unique across all tiddlers
-    if (options.bag_name && options.revision_id) {
-      return `"tiddler:${options.bag_name}/${options.revision_id}"`;
-    } else {
-      throw "Missing bag_name or revision_id";
-    }
-  }
-
-
   assertWikiReferer(recipe_slug: string) {
     const state = this;
     if (!state.headers.referer) return;
     const referer = new URL(state.headers.referer);
     // console.log("Referer", state.headers.referer, referer);
     if (!referer.pathname.startsWith(state.pathPrefix))
-      throw state.sendEmpty(404, { "x-reason": "invalid path prefix" });
+      throw new SendError("ACCESS_DENIED", 403, { reason:  "Referer check failed" })
     if (!referer.pathname.startsWith(state.pathPrefix + "/wiki/"))
       return; // keep going
     // we now get the recipe name from the referer
     const recipe_name = referer.pathname.substring(state.pathPrefix.length + "/wiki/".length);
     const referer_slug = decodeURIComponent(recipe_name) as PrismaField<"Recipe", "id">;
     if (referer_slug !== recipe_slug)
-      throw new SendError("CROSS_WIKI_ACCESS_DENIED", 403, null);
+      throw new SendError("ACCESS_DENIED", 403, { reason:  "Referer check failed" })
   }
 
   assertAdminReferer() {
@@ -111,9 +104,9 @@ export class StateObject<
     const referer = new URL(state.headers.referer);
     // deny referers from outside our pathprefix
     if (!referer.pathname.startsWith(state.pathPrefix))
-      throw new SendError("ADMIN_ACCESS_DENIED", 403, null);
+      throw new SendError("ACCESS_DENIED", 403, { reason:  "Referer check failed" })
     if (referer.pathname.startsWith(state.pathPrefix + "/wiki/"))
-      throw new SendError("ADMIN_ACCESS_DENIED", 403, null);
+      throw new SendError("ACCESS_DENIED", 403, { reason:  "Referer check failed" })
   }
 
 

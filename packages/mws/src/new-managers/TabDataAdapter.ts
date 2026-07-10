@@ -533,7 +533,7 @@ export const AdminSave = zodRoute({
   zodRequestBody: z => z.any(),
   inner: async (state) => {
     state.assertAdminReferer();
-    state.asserted = state.user.isAdmin;
+    state.asserted = state.user.isLoggedIn;
     state.data = JSON.parse(JSON.stringify(state.data), (key: any, val: any) => {
       if (typeof val === "string" && val.startsWith(IdString.prefix))
         return new IdString(val.slice(IdString.prefix.length));
@@ -584,7 +584,6 @@ export const AdminLoad = zodRoute({
   securityChecks: { requestedWithHeader: true },
   zodPathParams: z => ({}),
   inner: async (state) => {
-    // access is checked in each list
     state.assertAdminReferer();
     state.asserted = state.user.isLoggedIn;
     const res = await state.$transaction(async prisma => {

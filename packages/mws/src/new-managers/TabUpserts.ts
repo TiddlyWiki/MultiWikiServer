@@ -88,14 +88,14 @@ export abstract class PerClassImportWriter<Modal extends PrismaModalKeys> {
 
   async checkExisting(id: IdString, name: string, user: ServerRequest["user"]) {
     if (user.isAdmin) { this.asserted = true; }
-    if(this.initStore && typeof user.isLoggedIn === "boolean")
+    if (this.initStore && typeof user.isLoggedIn === "boolean")
       throw new Error("This shouldn't happen.");
+
     if (!user.isAdmin && this.adminLevel) {
-      if (!id.toString()) {
-        throw new SendError("OPERATION_NOT_PERMITTED", 403, {
-          reason: "You don't have permission to create " + this.tabid + "."
-        });
-      }
+
+      if (!id.toString())
+        throw new SendError("ACCESS_DENIED", 403, { reason: "You don't have permission to create " + this.tabid + "." });
+
       const hasPermission: number = await (this.tx[this.modal] as any).count({
         where: {
           id: id.toString(),
@@ -106,26 +106,21 @@ export abstract class PerClassImportWriter<Modal extends PrismaModalKeys> {
             }
           }
         }
-      })
-      if (!hasPermission) {
-        throw new SendError("OPERATION_NOT_PERMITTED", 403, {
-          reason: "You don't have permission to modify " + this.tabid + "."
-        });
-      }
-      this.asserted = true;
+      });
+
+      if (!hasPermission)
+        throw new SendError("ACCESS_DENIED", 403, { reason: "You don't have permission to modify " + this.tabid + "." });
+      else
+        this.asserted = true;
     }
     if (!user.isAdmin && this.tabid === "users") {
       if (user.user_id !== id.toString())
-        throw new SendError("OPERATION_NOT_PERMITTED", 403, {
-          reason: "You must be an admin to edit other users"
-        });
-      this.asserted = true;
+        throw new SendError("ACCESS_DENIED", 403, { reason: "You must be an admin to edit other users" });
+      else
+        this.asserted = true;
     }
     if (!user.isAdmin && this.tabid === "roles") {
-      throw new SendError("OPERATION_NOT_PERMITTED", 403, {
-        reason: "You must be an admin to edit other users"
-      });
-      // this.asserted = true;
+      throw new SendError("ACCESS_DENIED", 403, { reason: "You must be an admin to edit roles" });
     }
     if (id.toString()) {
       const existing = await (this.tx[this.modal] as any).findUnique({
