@@ -75,8 +75,8 @@ node $MWSTWCOM_BUILD_TIDDLYWIKI \
 	./editions/mws-docs \
 	--verbose \
 	--version \
-		--output $MWSTWCOM_BUILD_OUTPUT \
 	--load $MWSTWCOM_BUILD_OUTPUT/build.tid \
+	--output $MWSTWCOM_BUILD_OUTPUT \
 	--build favicon static index \
 	|| exit 1
 
