@@ -3,7 +3,7 @@
 import "./main.css";
 import { App } from "./app";
 import { LoginForm } from "./app-login";
-import { AuthUser } from "@tiddlywiki/mws/src/services/sessions";
+import { AuthUser } from "@tiddlywiki/mws/src/new-managers/sessions";
 import { SendError } from "@tiddlywiki/server";
 import { ProfileForm } from "./app-profile";
 

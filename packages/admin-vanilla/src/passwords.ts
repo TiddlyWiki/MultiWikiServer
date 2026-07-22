@@ -1,5 +1,5 @@
 
-import { SessionManagerMap, AuthUser } from "@tiddlywiki/mws/src/services/sessions";
+import { SessionManagerMap, AuthUser } from "@tiddlywiki/mws/src/new-managers/sessions";
 import { Z2, zod, zod as z } from "@tiddlywiki/server/src/Z2";
 const LOGIN_FAILED = 'Login failed. Please check your credentials.';
 
