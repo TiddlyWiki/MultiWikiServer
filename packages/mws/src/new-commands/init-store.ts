@@ -51,6 +51,8 @@ export class InitStoreCommand extends BaseCommand {
 					plugins: [],
 					requiredPluginsEnabled: true,
 					customHtmlEnabled: false,
+					externalPlugins: false,
+					externalStore: false,
 					htmlContent: "",
 					injectionFunction: "",
 					injectionLocation: "",

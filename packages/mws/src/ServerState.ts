@@ -26,8 +26,8 @@ export class ServerState {
 
   setupRequired = false;
 
-  enableExternalPlugins = true;
-  enableExternalStore = true;
+  // enableExternalPlugins = true;
+  // enableExternalStore = true;
   enableGzip = true;
 
   attachmentsEnabled = false;
@@ -124,14 +124,14 @@ export class ServerState {
     this.enableDocsRoute = !!process.env.ENABLE_DOCS_ROUTE;
 
     if (this.enableDevServer) {
-      this.enableExternalPlugins = true;
+      // this.enableExternalPlugins = true;
       this.enableGzip = true;
     }
   }
 
   async initSettings(existing: Record<string, string>) {
 
-    this.enableExternalPlugins = existing.enableExternalPlugins === "true";
+    // this.enableExternalPlugins = existing.enableExternalPlugins === "true";
     this.enableGzip = existing.enableGzip === "true";
   }
 

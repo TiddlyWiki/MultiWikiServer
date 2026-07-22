@@ -29,7 +29,7 @@ import {
 import { adminStorage, createDraft, getEmptyItems, jsonReviver } from "./definition/store";
 import { definitely, is } from "./definition/utils";
 import { logout } from "./passwords";
-import { fieldTypeRenderSidebars, formatFieldValue, renderFieldEditor, renderFieldSidebar, textWithSlashes } from "./definition/renders";
+import { fieldTypeRenderSidebars, formatFieldValue, renderFieldEditor, renderFieldSidebar, renderSwitchField, textWithSlashes } from "./definition/renders";
 
 
 export type AdminRecord = { id: IdString; };
@@ -579,32 +579,30 @@ class FieldBlockElement<T> extends JSXElement {
     const modalMode = fieldState.mode;
     const editable = isEditable(field, modalMode);
     const disabled = Boolean(this.props.disabled) || !editable;
-    const useToggleEditor = editable && field.key === "requiredPluginsEnabled";
-
+    // const useToggleEditor = editable && field.key === "requiredPluginsEnabled";
+    const isToggle = field.type === "switch";
+    const children = <>
+      {renderFieldEditor({
+        inputId: `field-${field.key}`,
+        field,
+        value,
+        disabled,
+        fieldState,
+        itemsByTab: store.itemsByTab,
+        onDraftChange: store.updateDraft,
+        onPendingRowsChange: store.updatePendingRows,
+        onTransientPermissionRowsChange: store.updateTransientPermissionRows,
+        onResolverTitleChange: store.updateResolverTitle,
+        onTriggerOperation: store.triggerOperation,
+      })}
+    </>;
     return (
       <div class="field-block">
-        {useToggleEditor ? (
-          definitely<boolean>(value),
-          <ToggleFieldElement field={field} value={value} onDraftChange={store.updateDraft} />
-        ) : (
-          <div class="field-editor">
-            {!useCardTitle ? <label class="field-label" for={`field-${field.key}`}>{field.label}</label> : null}
-            {field.description ? <p class="field-helper">{field.description}</p> : null}
-            {renderFieldEditor({
-              inputId: `field-${field.key}`,
-              field,
-              value,
-              disabled,
-              fieldState,
-              itemsByTab: store.itemsByTab,
-              onDraftChange: store.updateDraft,
-              onPendingRowsChange: store.updatePendingRows,
-              onTransientPermissionRowsChange: store.updateTransientPermissionRows,
-              onResolverTitleChange: store.updateResolverTitle,
-              onTriggerOperation: store.triggerOperation,
-            })}
-          </div>
-        )}
+        <div class="field-editor">
+          {!useCardTitle ? <label class="field-label" for={`field-${field.key}`}>{field.label}</label> : null}
+          {field.description ? <p class="field-helper">{field.description}</p> : null}
+          {isToggle ? <div class="toggle-field-row">{children}</div> : children}
+        </div>
       </div>
     );
   }
@@ -637,42 +635,6 @@ function sidebarSection({ title, content }: SidebarSectionProps) {
       <div class="sidebar-section-body">{content}</div>
     </div>
   );
-}
-
-@customElement("mws-toggle-field")
-class ToggleFieldElement extends JSXElement {
-  useLightDOM: boolean = true;
-
-  @state() accessor props!: ToggleFieldProps;
-
-  protected render() {
-    const { field, value, onDraftChange, headerOnly } = this.props;
-    const checked = value === true;
-
-    return (
-      <div class="toggle-field-row">
-        {!headerOnly ? (
-          <div class="toggle-field-copy">
-            <strong>{field.label}</strong>
-            {field.description ? <p>{field.description}</p> : null}
-          </div>
-        ) : null}
-        <label class="header-switch" for={`header-${field.key}`}>
-          <input
-            id={`header-${field.key}`}
-            class="header-switch-input"
-            type="checkbox"
-            checked={checked}
-            ref={(element) => { if (element.checked !== checked) element.checked = checked; }}
-            onchange={(event) => onDraftChange(field.key, (event.currentTarget as HTMLInputElement).checked)}
-          />
-          <span class={checked ? "header-switch-track is-checked" : "header-switch-track"} aria-hidden="true">
-            <span class="header-switch-thumb"></span>
-          </span>
-        </label>
-      </div>
-    );
-  }
 }
 
 // #region tab detail
@@ -778,12 +740,11 @@ class RecordModalElement extends JSXElement {
                               <header class="field-card-header">
                                 <div class="field-card-header-row">
                                   <h4>{group.title ?? (groupFields.length === 1 ? groupFields[0].label : groupFields.map((field) => field.label).join(" and "))}</h4>
-                                  {headerField ? <ToggleFieldElement
-                                    field={headerField}
-                                    value={getAdminRecordValue(headerField, fieldState.draft) ?? ""}
-                                    onDraftChange={onDraftChange}
-                                    headerOnly={true}
-                                  /> : null}
+                                  {headerField ? renderSwitchField({
+                                    field: headerField,
+                                    value: getAdminRecordValue(headerField, fieldState.draft) ?? "",
+                                    onDraftChange,
+                                  }, true) : null}
                                 </div>
                                 {headerDescription ? <p>{headerDescription}</p> : null}
                               </header>

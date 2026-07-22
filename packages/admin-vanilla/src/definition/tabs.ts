@@ -34,6 +34,7 @@ export type FieldType =
   | "enter-password"
   | "confirm-password"
   | "search"
+  | "switch"
   // | "json-editor"
   | "structured-preview"
   | "table"
@@ -92,6 +93,7 @@ export const fieldTypeZodShapes = {
   "activity-feed": z.string().array(),
   "version": z.string(),
   "select": z.boolean(),
+  "switch": z.boolean(),
   "metadata-table": z.string().array(),
 } satisfies Record<FieldType, any>;
 
@@ -104,6 +106,7 @@ export const fieldTypeCreateFactories = {
   "enter-password": () => "",
   "confirm-password": () => "",
   "search": () => "",
+  "switch": () => false,
   "structured-preview": () => "",
   "table": () => [],
   "permission-table": () => [],
@@ -309,10 +312,26 @@ const tabs = {
       {
         key: "requiredPluginsEnabled",
         label: "Required plugins",
-        type: "select",
+        type: "switch",
         section: "authored",
         mode: "create edit",
         description: "Core plugins enable wiki sync functionality. Disable them for vanilla wikis or custom sync implementations.",
+      },
+      {
+        key: "externalStore",
+        label: "External JS Store",
+        type: "switch",
+        section: "authored",
+        mode: "create edit",
+        description: "Loads the entire store, including plugins, via a script tag.",
+      },
+      {
+        key: "externalPlugins",
+        label: "Load Plugins via Script Tags",
+        type: "switch",
+        section: "authored",
+        mode: "create edit",
+        description: "Loads plugin JSON on the client via script tags, allowing the browser to cache plugins separate from the store.",
       },
       {
         key: "templatePermissions",
@@ -381,7 +400,8 @@ const tabs = {
     ],
     fieldGroups: {
       authored: [
-        { title: "Template basics", keys: ["name", "description"], width: fullWidth, layout: stackLayout },
+        { title: "Template basics", keys: ["name", "description"], width: halfWidth, layout: stackLayout },
+        { title: "Index Options", keys: ["externalStore", "externalPlugins"], width: halfWidth, layout: stackLayout },
         { title: "Writable routing", description: writableRoutingDescription, keys: ["writablePrefixBags"], width: fullWidth },
         { title: "Bags", keys: ["readonlyBags"], width: halfWidth },
         { title: "Plugins", keys: ["plugins", "requiredPluginsEnabled"], width: halfWidth, layout: stackLayout },
@@ -705,6 +725,8 @@ export interface TemplateAdminRecord {
   plugins: readonly string[];
   templatePermissions: readonly PermissionRow<TemplatePermissionLevel>[];
   requiredPluginsEnabled: boolean;
+  externalStore: boolean;
+  externalPlugins: boolean;
   customHtmlEnabled: boolean;
   htmlContent: string;
   injectionFunction: string;

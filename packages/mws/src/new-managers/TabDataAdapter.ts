@@ -19,6 +19,7 @@ import {
 } from "@tiddlywiki/server";
 import {
   BagImportWriter,
+  DEFAULT_TEMPLATE,
   RecipeImportWriter,
   RoleImportWriter,
   TemplateImportWriter,
@@ -269,52 +270,71 @@ export class TemplateDataAdapter extends TabDataAdapter<"templates"> {
     await importer.checkExisting(data.id, data.name, this.user);
     // roles aren't connected to data tables so they can be swapped out for SSO
     const roleIds = await getRolesMapper(prisma, data.templatePermissions.map((row) => row.role));
-    const template: UpsertTemplateInput = {
-      name: data.name,
-      definition: {
-        type: "simpleV1",
-        description: data.description,
-        readonlyBags: normalizeLineList(data.readonlyBags),
-        writablePrefixBags: normalizePrefixRows(data.writablePrefixBags),
-        plugins: normalizeLineList(data.plugins),
-        requiredPluginsEnabled: data.requiredPluginsEnabled,
-        customHtmlEnabled: data.customHtmlEnabled,
-        htmlContent: data.htmlContent,
-        injectionFunction: data.injectionFunction,
-        injectionLocation: data.injectionLocation,
-      },
-      permissions: data.templatePermissions.map(e => ({ level: e.level, role_id: roleIds(e.role), })),
-    };
-
-    const [{ id: template_id, updated }] = await importer.upsert([template]);
-
-    const recipes = await prisma.recipe.findMany({
-      where: { template_id },
-      include: { permissions: true }
-    });
-
-    const importerRecipe = new RecipeImportWriter(prisma, false);
-    const roleNames = await new RoleImportWriter(prisma, false).getIdMapper();
-
-    for (const recipe of recipes) {
-      const compiled = importerRecipe.compileRecipeSimpleV1(
-        recipe.definition,
-        template.definition,
-      );
-
-      await importerRecipe.upsert([{
-        slug: recipe.slug,
-        templateId: new IdString(template_id),
-        compiledBags: compiled.bags,
-        plugins: compiled.plugins,
-        definition: recipe.definition,
-        permissions: recipe.permissions.map(row => ({
-          level: row.level,
-          role_id: new IdString(row.role_id),
-        })),
-      }]);
+    let template: UpsertTemplateInput;
+    const isDefault = data.name === DEFAULT_TEMPLATE;
+    if (isDefault) {
+      const existing = await prisma.template.findUnique({ where: { name: DEFAULT_TEMPLATE } });
+      if (!existing) throw new Error("could not find the default template");
+      template = {
+        name: DEFAULT_TEMPLATE,
+        definition: {
+          ...existing.definition,
+          externalPlugins: data.externalPlugins,
+          externalStore: data.externalStore,
+        },
+        permissions: data.templatePermissions.map(e => ({ level: e.level, role_id: roleIds(e.role), })),
+      }
+    } else {
+      template = {
+        name: data.name,
+        definition: {
+          type: "simpleV1",
+          description: data.description,
+          readonlyBags: normalizeLineList(data.readonlyBags),
+          writablePrefixBags: normalizePrefixRows(data.writablePrefixBags),
+          plugins: normalizeLineList(data.plugins),
+          externalPlugins: data.externalPlugins,
+          externalStore: data.externalStore,
+          requiredPluginsEnabled: data.requiredPluginsEnabled,
+          customHtmlEnabled: data.customHtmlEnabled,
+          htmlContent: data.htmlContent,
+          injectionFunction: data.injectionFunction,
+          injectionLocation: data.injectionLocation,
+        },
+        permissions: data.templatePermissions.map(e => ({ level: e.level, role_id: roleIds(e.role), })),
+      };
     }
 
+    const [{ id: template_id, updated }] = await importer.upsert([template]);
+    if (!isDefault) {
+      const recipes = await prisma.recipe.findMany({
+        where: { template_id },
+        include: { permissions: true }
+      });
+
+      const importerRecipe = new RecipeImportWriter(prisma, false);
+
+      for (const recipe of recipes) {
+        const compiled = importerRecipe.compileRecipeSimpleV1(
+          recipe.definition,
+          template.definition,
+        );
+
+        await importerRecipe.upsert([{
+          slug: recipe.slug,
+          templateId: new IdString(template_id),
+          compiledBags: compiled.bags,
+          plugins: compiled.plugins,
+          definition: recipe.definition,
+          permissions: recipe.permissions.map(row => ({
+            level: row.level,
+            role_id: new IdString(row.role_id),
+          })),
+        }]);
+      }
+    }
+
+    const roleNames = await new RoleImportWriter(prisma, false).getIdMapper();
     return {
       ...template.definition,
       id: new IdString(template_id),

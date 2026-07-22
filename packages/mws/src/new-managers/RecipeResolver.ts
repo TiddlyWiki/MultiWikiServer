@@ -398,7 +398,8 @@ type IndexData = ART<RecipeResolver["getIndexData"]>;
 // #region serveIndex
 export async function serveIndex(
   state: ServerRequest,
-  recipe_slug: string, type: "index" | "store"
+  recipe_slug: string,
+  type: "index" | "store"
 ) {
   // we get close the transaction before we start sending the data 
   // so the transaction isn't held up by client bandwidth
@@ -422,12 +423,13 @@ export async function serveIndex(
   switch (type) {
     case "index": {
       const { recipe, index } = await getData();
+
       return await new IndexSender(
         recipe,
         index,
         state,
-        state.config.enableExternalPlugins,
-        state.config.enableExternalStore,
+        index.template.externalPlugins,
+        index.template.externalStore
       ).serveIndexFile();
     }
     case "store": {
@@ -435,7 +437,6 @@ export async function serveIndex(
         const key = state.headers.cookie.get("mws_index_cache")!;
         const cached = IndexSender.storeCache.get(key) ?? await getData();
         IndexSender.storeCache.delete(key);
-        // console.log(existed ? "cached" : "fresh");
         const { recipe, index } = cached;
         return new StoreWriter(state, recipe, index, true);
       })();
@@ -747,6 +748,7 @@ class StoreWriter extends StoreBase {
 
 
   async writeStorePlugins() {
+    if (this.template.externalPlugins) return;
     const fileStreams = this.plugins.map(e => createReadStream(join(this.cachePath, this.pluginFiles.get(e)!, "plugin.json")));
     for (const stream of fileStreams) {
       this.state.writeFast(this.prefix);

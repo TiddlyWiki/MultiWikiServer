@@ -13,6 +13,7 @@ import { mapGetInit, thrower } from "./wiki-utils";
 import { IdString, TabId } from "@mws/admin-vanilla/src/definition/tabs";
 import { Debug } from "@prisma/client/runtime/client";
 
+export const DEFAULT_TEMPLATE = "Blank Template";
 
 export type ImportedRoleRows = Awaited<ReturnType<PrismaTxnClient["roles"]["findMany"]>>;
 export type ImportedUserRows = Awaited<ReturnType<PrismaTxnClient["users"]["findMany"]>>;
@@ -134,7 +135,11 @@ export abstract class PerClassImportWriter<Modal extends PrismaModalKeys> {
       this.debug("existing", existing[this.id], existing[this.name], name)
       if (!existing)
         throw new Error("existing wiki not found");
+
       if (existing[this.name] !== name) {
+        if (this.tabid === "templates")
+          if (existing[this.name] === DEFAULT_TEMPLATE || name === DEFAULT_TEMPLATE)
+            throw new Error("Cannot rename the default template");
         await this.rename([[existing[this.name], name]]);
       }
     }
@@ -354,12 +359,8 @@ export class TemplateImportWriter extends PerClassImportWriter<"template"> {
    */
   async upsert(templates: UpsertTemplateInput[]) {
     this.assertPermissions();
-    const defaultName = "Blank Template";
 
     const templateRows = await Promise.all(templates.map((template) => {
-
-      if (!this.initStore && template.name === defaultName)
-        throw new SendError("CANNOT_WRITE_STATIC_ROWS", 400, { table: "templates", name: defaultName })
 
       const name = template.name;
       const type = template.definition.type;

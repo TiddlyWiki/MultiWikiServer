@@ -5,7 +5,7 @@ import * as path from "path";
 import { TW } from "tiddlywiki";
 import { createGzip } from "zlib";
 import { mapGetInit } from "../new-managers";
-import { open, stat } from "fs/promises";
+import { open, readdir, stat } from "fs/promises";
 import { WikiPluginCache } from ".";
 import { readableBuffers } from "../utils";
 import { BodyFormat, checkPath, checkQueryKeys, dist_resolve, ServerRequest } from "@tiddlywiki/server";
@@ -21,20 +21,23 @@ serverEvents.on("mws.routes", (root, config) => {
     path: /^\/\$cache\/(?<plugin>.*)\/plugin\.js$/,
     bodyFormat: "ignore",
   }, async (state: ServerRequest<BodyFormat, string, unknown>) => {
-
     checkPath(state, z => ({ plugin: z.string() }), new Error());
     checkQueryKeys(state, ["cb"], new Error());
     const arrayString = state.query.get("cb") ?? defaultPreloadFunction;
 
+    const pluginFolder = path.resolve(config.wikiPath, "cache", state.pathParams.plugin);
+    if (path.relative(path.resolve(config.wikiPath, "cache"), pluginFolder).startsWith(".."))
+      throw new Error("Parent path access detected");
+
     const plugin = state.pluginCache.filePlugins.get(state.pathParams.plugin);
     if (!plugin) throw state.sendEmpty(404, { "x-reason": "Plugin not found" });
-
 
     const hasher = state.pluginCache.pluginHashes(arrayString);
     await hasher.assertTitles(state.pluginCache, [plugin]);
 
     const etag = `"${hasher.get(plugin)}"`;
 
+    // maxage covers preload, staleWhileRevalidate allows a second refresh to clear up stale data
     state.applyHeaders({
       contentType: "application/javascript",
       cacheControl: { public: true, maxAge: 6, staleWhileRevalidate: 86400 },
@@ -49,11 +52,11 @@ serverEvents.on("mws.routes", (root, config) => {
     const fileIndex = state.pluginCache.cacheArrayStrings.indexOf(arrayString);
     // setting this will disable the server gzip streaming so we save CPU cycles
     const useGzip = accepts === "gzip";
+
+    const fileStream = fs.createReadStream(path.join(pluginFolder, "plugin.json"));
+
+    const { prefix, suffix } = hasher;
     if (fileIndex === -1 || !useGzip) {
-      const fileStream = fs.createReadStream(path.join(
-        config.wikiPath, "cache", state.pathParams.plugin, "plugin.json"
-      ));
-      const { prefix, suffix } = hasher;
       state.writeHead(200, useGzip ? { contentEncoding: "gzip" } : {});
       await pipeline(
         readableBuffers([prefix, fileStream, suffix]),
@@ -62,14 +65,14 @@ serverEvents.on("mws.routes", (root, config) => {
       );
       return STREAM_ENDED;
     } else {
-      return state.sendFile(200, {}, {
-        root: path.join(config.wikiPath, "cache"),
-        reqpath: state.pathParams.plugin + "/plugin." + fileIndex + ".js",
-        cacheControl: false,
-        precompressed: true,
-      });
+      const pluginFile = pluginFolder + "/plugin." + fileIndex + ".js.gz";
+      const s = await stat(pluginFile);
+      return state.sendStream(200, {
+        contentEncoding: "gzip",
+        contentLength: s.size,
+        vary: ["Accept-Encoding"],
+      }, fs.createReadStream(pluginFile));
     }
-
   })
 })
 

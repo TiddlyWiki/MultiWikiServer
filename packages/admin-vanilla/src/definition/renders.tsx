@@ -158,6 +158,43 @@ function renderSelectField(ctx: FieldEditorContext<boolean>) {
   );
 }
 
+
+export function renderSwitchField(ctx: Pick<
+  FieldEditorContext<boolean>,
+  "field" | "value" | "onDraftChange"
+>, headerSwitch = false) {
+  const { field, value, onDraftChange } = ctx;
+  const checked = value === true;
+  return (
+    <label class="header-switch" for={`header-${field.key}`}>
+      <input
+        id={`header-${field.key}`}
+        class="header-switch-input"
+        type="checkbox"
+        checked={checked}
+        ref={(element) => { if (element.checked !== checked) element.checked = checked; }}
+        onchange={(event) => onDraftChange(field.key, (event.currentTarget as HTMLInputElement).checked)}
+      />
+      <span class={checked ? "header-switch-track is-checked" : "header-switch-track"} aria-hidden="true">
+        <span class="header-switch-thumb"></span>
+      </span>
+    </label>
+  )
+  // return (
+  //   <div class="toggle-field-row">
+  //     {!headerSwitch ? (
+  //       <div class="toggle-field-copy">
+  //         <strong>{field.label}</strong>
+  //         {field.description ? <p>{field.description}</p> : null}
+  //       </div>
+  //     ) : null}
+
+  //   </div>
+  // );
+}
+
+
+
 function renderActivityFeedField(ctx: ReadonlyFieldContext<readonly string[]>) {
   const lines = ctx.value;
   return <ul class="timeline-list">{lines.map((line) => <li>{line}</li>)}</ul>;
@@ -635,6 +672,7 @@ export const fieldTypeRenderEditors = {
   "permission-table": renderPermissionTableFieldEditor,
   "prefix-table": renderPrefixTableFieldEditor,
   "select": renderSelectField,
+  "switch": renderSwitchField,
   "search": renderAutocompleteFieldEditor,
   "resolver-preview": renderResolverPreviewFieldEditor,
   "parameter-list": renderValueListFieldSidebar,
@@ -659,6 +697,7 @@ export const fieldTypeRenderSidebars = {
   "permission-table": renderPermissionTableFieldViewer,
   "prefix-table": renderPrefixTableFieldSidebar,
   "select": () => null,
+  "switch": () => null,
   "search": renderAutocompleteFieldSidebar,
   "resolver-preview": () => null,
   "parameter-list": renderValueListFieldSidebar,

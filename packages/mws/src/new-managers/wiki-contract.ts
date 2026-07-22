@@ -94,6 +94,8 @@ abstract class TemplateRow implements ITemplateRow {
   abstract writablePrefixBags: readonly WritablePrefixRow[];
   abstract lastUpdatedAt: string;
   abstract requiredPluginsEnabled: boolean;
+  abstract externalPlugins: boolean;
+  abstract externalStore: boolean;
   abstract templatePermissions: readonly PermissionRow<RecipePermissionLevel>[];
   abstract customHtmlEnabled: boolean;
   abstract htmlContent: string;
