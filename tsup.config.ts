@@ -5,6 +5,7 @@ import { spawn } from 'child_process';
 import { readFile, readFileSync, writeFileSync } from 'fs';
 // the tsup node_modules in the tools directory
 import { defineConfig } from './tools/node_modules/tsup/dist/index.js';
+import { tsBuildFlags } from "./tsBuildFlags.mjs";
 
 const prod = process.env.BUILD_ENV === 'runtime';
 
@@ -53,10 +54,13 @@ export default defineConfig({
       "build",
     ]
   },
-  define: prod ? {
-    "process.env.CLIENT_BUILD": "false",
-    "process.env.DEVSERVER": "false",
-  } : {},
+  define: {
+    ...prod ? {
+      "process.env.CLIENT_BUILD": "false",
+      "process.env.DEVSERVER": "false",
+    } : {},
+    ...tsBuildFlags,
+  },
   noExternal: ["@tiddlywiki/mws", "@tiddlywiki/mws-prisma"],
   async onSuccess() {
 

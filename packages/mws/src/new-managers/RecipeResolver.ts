@@ -399,7 +399,7 @@ type IndexData = ART<RecipeResolver["getIndexData"]>;
 export async function serveIndex(
   state: ServerRequest,
   recipe_slug: string,
-  type: "index" | "store"
+  type: "index" | "store.js" | "store.json"
 ) {
   // we get close the transaction before we start sending the data 
   // so the transaction isn't held up by client bandwidth
@@ -429,16 +429,25 @@ export async function serveIndex(
         index,
         state,
         index.template.externalPlugins,
-        index.template.externalStore
+        process.env.BUILD_FLAG_EXTERNAL_STORE && index.template.externalStore
       ).serveIndexFile();
     }
-    case "store": {
+    case "store.json":
+    case "store.js": {
+
+      const isJSON = type === "store.json";
+
       const store = await (async () => {
-        const key = state.headers.cookie.get("mws_index_cache")!;
-        const cached = IndexSender.storeCache.get(key) ?? await getData();
-        IndexSender.storeCache.delete(key);
-        const { recipe, index } = cached;
-        return new StoreWriter(state, recipe, index, true);
+        if (process.env.BUILD_FLAG_EXTERNAL_STORE) {
+          const key = state.headers.cookie.get("mws_index_cache")!;
+          const cached = IndexSender.storeCache.get(key) ?? await getData();
+          IndexSender.storeCache.delete(key);
+          const { recipe, index } = cached;
+          return new StoreWriter(state, recipe, index, type);
+        } else {
+          const { recipe, index } = await getData();
+          return new StoreWriter(state, recipe, index, type);
+        }
       })();
 
       await store.init();
@@ -447,18 +456,31 @@ export async function serveIndex(
       const match = state.headers.ifNoneMatch.has(newEtag);
 
       state.writeHead(match ? 304 : 200, {
-        contentType: "text/html",
         etag: newEtag,
         cacheControl: "max-age=0, private, no-cache",
       });
 
+      switch (type) {
+        case "store.js":
+          state.applyHeaders({ contentType: { mediaType: "application/javascript", charset: "utf-8" } });
+          break;
+        case "store.json":
+          state.applyHeaders({ contentType: { mediaType: "application/json", charset: "utf-8" } });
+          break;
+      }
+
+
       if (state.method === "HEAD" || match)
         return state.end();
+      if (isJSON)
+        state.writeFast("[\n");
 
-      await store.writeStorePlugins();
-      await store.writeStoreTiddlers();
+      await store.writeStore();
 
+      if (isJSON)
+        state.writeFast("]");
       return state.end();
+
     }
   }
 
@@ -537,7 +559,7 @@ export class IndexSender extends StoreBase {
         state,
         recipe,
         index,
-        this.injectStore,
+        this.injectStore ? "store.js" : "store.json"
       );
       writer.plugins = this.plugins;
       return writer;
@@ -676,8 +698,12 @@ $tw.preloadTiddler = function(fields) {
     if (this.enableExternalStore) {
       await this.state.write(this.renderStoreTags("script"));
       await this.state.write(template.substring(headPos));
-      IndexSender.storeCache.set(writerCacheKey, this.makeStoreData());
-      setTimeout(() => { IndexSender.storeCache.delete(writerCacheKey); }, 20000);
+      // this gets disabled by the build flag regardless of anything else
+      // mostly because I can't find a valid reason to have this feature
+      if (process.env.BUILD_FLAG_EXTERNAL_STORE) {
+        IndexSender.storeCache.set(writerCacheKey, this.makeStoreData());
+        setTimeout(() => { IndexSender.storeCache.delete(writerCacheKey); }, 20000);
+      }
     } else {
 
       const loader = this.injectStore ? {
@@ -709,8 +735,7 @@ $tw.preloadTiddler = function(fields) {
       }
 
       await loader.before();
-      await loader.writer.writeStorePlugins();
-      await loader.writer.writeStoreTiddlers();
+      await loader.writer.writeStore();
       await loader.after();
     }
 
@@ -721,21 +746,26 @@ $tw.preloadTiddler = function(fields) {
 
 class StoreWriter extends StoreBase {
 
-
+  dropLastSuffix: boolean;
   constructor(
     private state: Pick<ServerRequest, "user" | "pluginCache" | "write" | "writeFast" | "pipeFrom" | "pathPrefix" | "config">,
     recipe: RecipeInfo,
     index: IndexData,
-    injectStore: boolean,
+    format: "store.js" | "store.json"
   ) {
     super(recipe, state.pluginCache, index.lastEventId, index.template);
     this.bagTiddlers = index.bagTiddlers;
-    if (injectStore) {
-      this.prefix = this.injectionFunction + "(";
-      this.suffix = ");\n";
-    } else {
-      this.prefix = "\n";
-      this.suffix = ",";
+    switch (format) {
+      case "store.js":
+        this.prefix = this.injectionFunction + "(";
+        this.suffix = ");\n";
+        this.dropLastSuffix = false;
+        break;
+      case "store.json":
+        this.prefix = "";
+        this.suffix = ",\n";
+        this.dropLastSuffix = true;
+        break;
     }
   }
 
@@ -746,22 +776,20 @@ class StoreWriter extends StoreBase {
   private get cachePath() { return this.state.pluginCache.cachePath; }
   private get pluginFiles() { return this.state.pluginCache.pluginFiles; }
 
-
-  async writeStorePlugins() {
-    if (this.template.externalPlugins) return;
-    const fileStreams = this.plugins.map(e => createReadStream(join(this.cachePath, this.pluginFiles.get(e)!, "plugin.json")));
-    for (const stream of fileStreams) {
-      this.state.writeFast(this.prefix);
-      await this.state.pipeFrom(stream);
-      this.state.writeFast(this.suffix);
-    }
-  }
-
   // #region write
-  async writeStoreTiddlers() {
+  async writeStore() {
 
-    const writeTiddler = async (fields: Record<string, string>) => {
-      await this.state.write(this.prefix + JSON.stringify(fields).replace(/</g, "\\u003c") + this.suffix);
+    if (!this.template.externalPlugins) {
+      const fileStreams = this.plugins.map(e => createReadStream(join(this.cachePath, this.pluginFiles.get(e)!, "plugin.json")));
+      for (const stream of fileStreams) {
+        this.state.writeFast(this.prefix);
+        await this.state.pipeFrom(stream);
+        this.state.writeFast(this.suffix);
+      }
+    }
+
+    const writeTiddler = async (fields: Record<string, string>, last: boolean = false) => {
+      await this.state.write(this.prefix + JSON.stringify(fields).replace(/</g, "\\u003c") + (last && this.dropLastSuffix ? "" : this.suffix));
     };
 
     const r = new RecipeResolver(this.recipe, null, this.state.user.isAdmin);
@@ -816,13 +844,17 @@ class StoreWriter extends StoreBase {
       title: "$:/config/multiwikiclient/recipe",
       text: this.recipe.slug,
     });
+    if (this.state.config.enableDevServer) {
+      await writeTiddler({
+        title: "$:/state/multiwikiclient/dev-mode",
+        text: "yes"
+      });
+    }
     await writeTiddler({
       title: "$:/config/multiwikiclient/host",
       text: "$protocol$//$host$" + this.state.pathPrefix + "/",
-    });
-    if (this.state.config.enableDevServer) {
-      await writeTiddler({ title: "$:/state/multiwikiclient/dev-mode", text: "yes" });
-    }
+    }, true);
+
   }
 }
 

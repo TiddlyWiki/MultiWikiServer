@@ -3,7 +3,7 @@ import { basename, join, resolve } from 'node:path';
 import { copy } from 'esbuild-plugin-copy';
 import { existsSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
-
+import { tsBuildFlags } from "../../tsBuildFlags.mjs";
 /**
  * @template {import('esbuild').BuildOptions} T
  * @param {import('esbuild').SameShape<import('esbuild').BuildOptions, T>} options 
@@ -19,7 +19,7 @@ const prod = true;
  * @param {{ rootdir: string; publicdir: string; }} param0 
  * @returns 
  */
-export default async function({ rootdir, publicdir }) {
+export default async function ({ rootdir, publicdir }) {
 
   /** @type {{in: string; out: string;}[]} */
   const entryPoints = [
@@ -28,7 +28,7 @@ export default async function({ rootdir, publicdir }) {
   ];
 
   entryPoints.forEach(e => {
-    if(!existsSync(e.in))
+    if (!existsSync(e.in))
       throw new Error(`Entry file for ${e.out} does not exist at ${e.in}`);
   });
 
@@ -47,16 +47,19 @@ export default async function({ rootdir, publicdir }) {
     treeShaking: true,
     minify: prod && !process.env.NOMINIFY,
     external: ['node:crypto'],
-    define: prod ? {
-      "process.env.NODE_ENV": JSON.stringify("production"),
-      "import.meta.env.DEV": "false",
-      "import.meta.env.PROD": "true",
-      "import.meta.env.SSR": "false",
-    } : {
-      "process.env.NODE_ENV": JSON.stringify("development"),
-      "import.meta.env.DEV": "true",
-      "import.meta.env.PROD": "false",
-      "import.meta.env.SSR": "false",
+    define: {
+      ...prod ? {
+        "process.env.NODE_ENV": JSON.stringify("production"),
+        "import.meta.env.DEV": "false",
+        "import.meta.env.PROD": "true",
+        "import.meta.env.SSR": "false",
+      } : {
+        "process.env.NODE_ENV": JSON.stringify("development"),
+        "import.meta.env.DEV": "true",
+        "import.meta.env.PROD": "false",
+        "import.meta.env.SSR": "false",
+      },
+      ...tsBuildFlags,
     },
     conditions: prod ? [] : ["development"],
     plugins: [

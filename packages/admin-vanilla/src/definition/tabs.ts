@@ -311,7 +311,7 @@ const tabs = {
       { key: "plugins", label: "Plugins", type: "search-multiselect", section: "authored", mode: "create edit" },
       {
         key: "requiredPluginsEnabled",
-        label: "Required plugins",
+        label: "Include Required Plugins",
         type: "switch",
         section: "authored",
         mode: "create edit",
@@ -400,11 +400,10 @@ const tabs = {
     ],
     fieldGroups: {
       authored: [
-        { title: "Template basics", keys: ["name", "description"], width: halfWidth, layout: stackLayout },
-        { title: "Index Options", keys: ["externalStore", "externalPlugins"], width: halfWidth, layout: stackLayout },
+        { title: "Template basics", keys: ["name", "description"], width: fullWidth, layout: stackLayout },
         { title: "Writable routing", description: writableRoutingDescription, keys: ["writablePrefixBags"], width: fullWidth },
         { title: "Bags", keys: ["readonlyBags"], width: halfWidth },
-        { title: "Plugins", keys: ["plugins", "requiredPluginsEnabled"], width: halfWidth, layout: stackLayout },
+        { title: "Plugins", keys: ["plugins", "requiredPluginsEnabled", "externalPlugins"], width: halfWidth, layout: stackLayout },
         { title: "Permissions", description: "Permissions for who can edit or use this template. Access to the template is required to apply it to a recipe, but not required to use that recipe.", keys: ["templatePermissions"], width: fullWidth, layout: stackLayout },
         { title: "Custom HTML shell", keys: ["htmlContent", "injectionArray", "injectionLocation"], headerFieldKey: "customHtmlEnabled", disabledWhenHeaderOff: true, width: fullWidth, layout: stackLayout },
       ],

@@ -92,4 +92,16 @@ serverEvents.on("cli.commander", (program) => {
 })
 
 
-
+declare global {
+  namespace NodeJS {
+    // These build flags need to be declared in tsBuildFlags.mjs
+    interface ProcessEnv {
+      /** 
+       * This guards the store.js path that bypasses security with a nonce.
+       * It's too much headache for no real benefit at the moment.
+       * This also disbles the critical flag from the template.
+       */
+      BUILD_FLAG_EXTERNAL_STORE: boolean;
+    }
+  }
+}

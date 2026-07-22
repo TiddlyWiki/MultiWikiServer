@@ -72,7 +72,7 @@ export const TiddlerList = zodRoute({
   },
 });
 // #region RecipeStore
-export const RecipeStore = zodRoute({
+export const RecipeStoreJS = zodRoute({
   method: ["GET", "HEAD"],
   path: "/recipe/:recipe_slug/store.js",
   bodyFormat: "ignore",
@@ -84,7 +84,23 @@ export const RecipeStore = zodRoute({
   inner: async (state) => {
     const { recipe_slug } = state.pathParams;
     state.assertWikiReferer(recipe_slug);
-    throw await serveIndex(state, recipe_slug, "store");
+    throw await serveIndex(state, recipe_slug, "store.js");
+  },
+});
+// #region RecipeStore
+export const RecipeStoreJSON = zodRoute({
+  method: ["GET", "HEAD"],
+  path: "/recipe/:recipe_slug/store.json",
+  bodyFormat: "ignore",
+  securityChecks: { requestedWithHeader: false },
+  zodPathParams: z => ({
+    recipe_slug: z.prismaField("Recipe", "slug", "string"),
+  }),
+  zodQueryKeys: ["cache"],
+  inner: async (state) => {
+    const { recipe_slug } = state.pathParams;
+    state.assertWikiReferer(recipe_slug);
+    throw await serveIndex(state, recipe_slug, "store.json");
   },
 });
 // #region RecipeUpdates

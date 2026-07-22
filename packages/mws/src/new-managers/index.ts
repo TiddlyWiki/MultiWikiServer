@@ -11,9 +11,9 @@
 
 import { checkPath, checkQueryKeys, defineZodRoute, zod, ZodRoute } from "@tiddlywiki/server";
 import { serverEvents } from "@tiddlywiki/events";
-import { RecipeResolver, serveIndex, } from "./RecipeResolver";
+import { serveIndex, } from "./RecipeResolver";
 import { AdminLoad, AdminSave } from "./TabDataAdapter";
-import { RecipeStatus, RecipeStore, RecipeUpdates, TiddlerBatch, TiddlerList } from "./RecipeRoutes";
+import { RecipeStatus, RecipeStoreJS, RecipeStoreJSON, RecipeUpdates, TiddlerBatch, TiddlerList } from "./RecipeRoutes";
 
 export * from "./RecipeResolver";
 export * from "./TabDataAdapter";
@@ -67,6 +67,7 @@ serverEvents.on("mws.routes", (root) => {
   }, async (state) => { });
 
   (Object.entries(ApiRoutes)).forEach(([key, val]) => {
+    if (!val) return;
     defineZodRoute(parent, key, val as any);
   });
 
@@ -109,7 +110,8 @@ serverEvents.on("mws.routes", (root) => {
 const ApiRoutes = {
   RecipeStatus,
   RecipeUpdates,
-  RecipeStore,
+  RecipeStoreJS,
+  RecipeStoreJSON,
   TiddlerBatch,
   TiddlerList,
   AdminLoad,
