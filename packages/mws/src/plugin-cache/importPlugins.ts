@@ -1,81 +1,19 @@
 
+import * as crypto from "crypto";
 import * as fs from "fs";
 import * as path from "path";
-import * as crypto from "crypto";
 import { TW } from "tiddlywiki";
-import { createGzip, gzipSync } from "zlib";
-import { awaitPipe, BodyFormat, checkPath, checkQueryKeys, dist_resolve, SendFileOptions, ServerRequest } from "@tiddlywiki/server";
-import { serverEvents } from "@tiddlywiki/events";
-import { mapGetInit } from ".";
+import { createGzip } from "zlib";
+import { mapGetInit } from "../new-managers";
 import { open, stat } from "fs/promises";
+import { WikiPluginCache } from ".";
+import { readableBuffers } from "../utils";
+import { BodyFormat, checkPath, checkQueryKeys, dist_resolve, ServerRequest } from "@tiddlywiki/server";
+import { serverEvents } from "@tiddlywiki/events";
 import { PassThrough, Readable } from "stream";
 import { pipeline } from "stream/promises";
-/** Accepts a mix of Buffer and Readable, emitting their contents in order, returning a Readable */
-function readableBuffers(sources: (Readable | Buffer)[]) {
-  return Readable.from(async function* () {
-    for (const src of sources) {
-      if (Buffer.isBuffer(src)) yield src;
-      else yield* src;
-    }
-  }(), { objectMode: false })
-}
 
 export const defaultPreloadFunction = "$tw.preloadTiddler";
-export type WikiPluginCache = ART<typeof startupCache>;
-
-export async function startupCache($tw: TW, cachePath: string, cacheArrayStrings: readonly string[]) {
-
-  const pkg = JSON.parse(fs.readFileSync(dist_resolve("../package.json"), "utf8"));
-  Object.seal(cacheArrayStrings);
-  // we only need the client since we don't load plugins server-side
-  const { tiddlerFiles: pluginFiles, tiddlerHashes: pluginHashes, pluginsList } =
-    await importPlugins(
-      path.join($tw.boot.corePath, ".."),
-      cachePath,
-      "client",
-      $tw,
-      pkg.version,
-      cacheArrayStrings
-    );
-
-
-
-  const requiredPlugins = [
-    "$:/plugins/mws/client",
-    "$:/themes/tiddlywiki/snowwhite",
-    "$:/themes/tiddlywiki/vanilla",
-  ];
-
-  const result = $tw.wiki.renderTiddler("text/plain", "$:/core/templates/tiddlywiki5.html", {
-    variables: {
-      // the boot and library tiddlers get rendered into the page
-      // this list gets saved in the store array
-      // we have to render at least one tiddler
-      saveTiddlerFilter: "$:/SplashScreen"
-    }
-  });
-
-  const filepath = path.resolve(cachePath, "tiddlywiki5.html")
-
-  fs.writeFileSync(filepath, result);
-
-  return {
-    /** `(arrayString: string): TiddlerHasher;` */
-    pluginHashes,
-    /** Map of "title" to `relative("/wiki/cache", dirname("plugin.json"))`. Reverse of filePlugins. */
-    pluginFiles,
-    /** Map of `relative("/wiki/cache", dirname("plugin.json"))` to "title". Reverse of pluginFiles. */
-    filePlugins: new Map([...pluginFiles.entries()].map(e => e.reverse() as [string, string])),
-    /** List of plugins saved in the cache. */
-    pluginsList,
-    /** List of plugins generally required to make MWS work. */
-    requiredPlugins,
-    /** The actual path of "/wiki/cache" */
-    cachePath,
-    /** Template "preloadFunction" values which are gzipped at startup and saved to disk to save CPU cycles per request. */
-    cacheArrayStrings,
-  };
-}
 
 serverEvents.on("mws.routes", (root, config) => {
   root.defineRoute({
@@ -135,21 +73,21 @@ serverEvents.on("mws.routes", (root, config) => {
   })
 })
 
-async function importPlugins(
+
+export async function importPlugins(
   twFolder: string,
   cacheFolder: string,
   type: string,
   $tw: TW,
   mwsVersion: string,
-  arrayStrings: readonly string[],
-) {
+  arrayStrings: readonly string[]) {
 
 
   const readLevel = (d: string) => {
     return (fs.readdirSync(path.join(twFolder, d)))
       .filter(e => !$tw.boot.excludeRegExp.test(e))
       .map(e => path.join(d, e));
-  }
+  };
 
   const plugins = [
     ...[
@@ -188,9 +126,6 @@ async function importPlugins(
   // $tw.preloadTiddler = function(fields) {
   //   $tw.preloadTiddlers.push(fields);
   // };
-
-
-
   const pluginInfoKeys = new Set<string>();
   const pluginsList: PluginDefinition[] = [];
   /** Map of "title" to "dirname of plugin.json relative to cache folder" */
@@ -201,7 +136,7 @@ async function importPlugins(
   }
   tiddlerHashes.toJSON = () => {
     return Object.fromEntries(tiddlerHashesStore.entries());
-  }
+  };
 
   await Readable.from(plugins).map(async ([oldPath, relativePluginPath]) => {
     const plugin = $tw.loadPluginFolder(oldPath);
@@ -221,7 +156,7 @@ async function importPlugins(
         // before, this was handled by the database making sure all field values were strings
         plugin[e] = `${plugin[e]}`;
         if (process.env.ENABLE_DEV_SERVER)
-          console.log(`DEV: Tiddler ${plugin.title} field ${e} was not a string`)
+          console.log(`DEV: Tiddler ${plugin.title} field ${e} was not a string`);
       }
     });
 
@@ -280,6 +215,9 @@ async function importPlugins(
   return { tiddlerFiles, tiddlerHashes, pluginsList };
 
 }
+
+
+
 
 export class TiddlerHasher {
   static async assertTitleHashes(cache: WikiPluginCache, arrayString: string, titles: string[]) {
@@ -380,8 +318,10 @@ async function createFileChunkHasher<T extends { update: (buf: Buffer) => T }>(f
 }
 
 /** Read a file, reusing the same buffer for every block to save GC. */
-async function hashFile(filepath: string) {
+export async function hashFile(filepath: string) {
   const hasher = crypto.createHash("sha384");
   await createFileChunkHasher(filepath, hasher, 512 * 1024)
   return hasher.digest("base64");
 }
+
+

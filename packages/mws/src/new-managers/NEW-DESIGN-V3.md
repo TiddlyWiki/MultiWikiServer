@@ -20,6 +20,8 @@ Plugins extend the client runtime. The server prepares and serves the plugin ass
 
 Users, roles, and sessions determine who can see a wiki, who can edit it, and which bags they can read or write.
 
+TiddlyWiki versions are downloaded and extracted into the wiki folder. Plugins are extracted and cached from it at startup. 
+
 ## How A Wiki Is Assembled
 
 Each wiki is built from a template plus wiki-specific configuration. Together they determine which bags participate in the wiki, which of those bags are writable, which plugins are loaded, and what HTML shell the client receives.
@@ -59,6 +61,8 @@ The admin surface manages wikis, templates, bags, users, and roles. In this mode
 Saving a wiki or template changes the configuration that future runtime requests use. Template changes affect every wiki that depends on that template. Bag changes affect where titles are stored and resolved.
 
 Plugin entries are exposed through the admin load path so they can be selected and inspected, but this path does not treat plugins as editable database rows in the same way as wikis, templates, bags, users, and roles.
+
+Tiddlywiki versions are updated through the cli at the moment.
 
 User administration covers profile-like data and role membership. Password creation, login, reset, and password change belong to the session and password subsystem rather than to admin row saves.
 

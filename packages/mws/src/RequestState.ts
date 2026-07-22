@@ -114,13 +114,13 @@ export class StateObject<
    * It is not intended to restrict legitimate scenarios, especially not scenarios coded into
    * the admin-vanilla client. If it throws under stock conditions, it's a bug.
    */
-  assertRefererPrefix(prefix: string[]) {
+  assertReferer(url: string[]) {
     const state = this;
     // referer is a voluntary header
     if (!state.headers.referer) return;
     const referer = new URL(state.headers.referer);
     // deny referers from outside our pathprefix
-    if (!prefix.some(e => referer.pathname.startsWith(state.pathPrefix + e)))
+    if (!url.some(e => referer.pathname.startsWith(state.pathPrefix + e)))
       throw new SendError("ACCESS_DENIED", 403, { reason: "Referer check failed" })
   }
 

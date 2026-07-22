@@ -11,7 +11,7 @@ declare module "tiddlywiki" {
   }
 }
 
-export async function bootTiddlyWiki(wikiPath: string) {
+export async function bootTiddlyWiki(wikiPath: string, TiddlyWiki: typeof import("tiddlywiki").TiddlyWiki) {
 
   const $tw = TiddlyWiki();
 

@@ -3,7 +3,7 @@ import { ITXClientDenyList } from "@tiddlywiki/mws-prisma";
 import { TW } from "tiddlywiki";
 import pkg from "../package.json";
 import { createPasswordService } from "./services/PasswordService";
-import { startupCache } from "./new-managers/plugin-cache";
+import { startupCache } from "./plugin-cache";
 import { Types } from "@tiddlywiki/mws-prisma";
 import { dist_resolve } from "@tiddlywiki/server";
 import { readFileSync } from "fs";

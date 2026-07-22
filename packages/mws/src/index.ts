@@ -16,7 +16,7 @@ import "./zodAssert";
 import "./RequestState";
 import "./ServerState";
 import "./services/tw-routes";
-import "./new-managers/plugin-cache";
+import "./plugin-cache";
 import "./new-managers/sessions";
 import "./SendError";
 
@@ -42,7 +42,7 @@ export {
   PluginDefinition,
   TiddlerHasher,
   defaultPreloadFunction,
-} from "./new-managers/plugin-cache";
+} from "./plugin-cache";
 export * from "./services/setupDevServer";
 export * from "./services/tiddlywiki";
 export {

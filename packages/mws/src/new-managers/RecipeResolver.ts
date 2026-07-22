@@ -15,7 +15,7 @@ import { join, resolve } from "node:path";
 import { mapGetInit } from "./wiki-utils";
 import { IdString } from "@mws/admin-vanilla/src/definition/tabs";
 import { serverEvents } from "@tiddlywiki/events";
-import { defaultPreloadFunction, TiddlerHasher, WikiPluginCache } from "./plugin-cache";
+import { defaultPreloadFunction, TiddlerHasher, WikiPluginCache } from "../plugin-cache";
 
 // ---------------------------------------------------------------------------
 // Types

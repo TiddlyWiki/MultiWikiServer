@@ -11,6 +11,7 @@
     "debug": "^4.4.1",
     "esbuild": "0.25.2",
     "supports-color": "^10.0.0",
+    "tar": "^7.5.20",
     "try": "^1.0.0-beta.5",
     "uuid": "^11.1.0",
     "zod-to-ts": "^1.2.0"
@@ -19,6 +20,5 @@
     "tiddlywiki": "^5.1.22",
     "@remix-run/headers": "*",
     "hono": "*"
-    
   }
 }

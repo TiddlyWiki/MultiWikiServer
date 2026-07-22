@@ -1,5 +1,5 @@
 import { serverEvents } from "@tiddlywiki/events";
-import { Router, ServerRoute, dist_resolve } from "@tiddlywiki/server";
+import { Router, ServerRoute, dist_resolve, is } from "@tiddlywiki/server";
 import { StateObject } from "./RequestState";
 import { ServerState, TiddlerCache } from "./ServerState";
 import { SessionManager } from "./new-managers/sessions";
@@ -11,10 +11,11 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "fs";
 import * as path from "path";
 import { TW } from "tiddlywiki";
 import { SqliteAdapter } from "./db/sqlite-adapter";
-import { defaultPreloadFunction, startupCache } from "./new-managers/plugin-cache";
+import { bootDefaultTiddlyWiki, defaultPreloadFunction, startupCache } from "./plugin-cache";
 import { createPasswordService } from "./services/PasswordService";
 import { bootTiddlyWiki } from "./services/tiddlywiki";
 import * as opaque from "@serenity-kit/opaque";
+import { UpdateTiddlyWikiCommand } from "./new-commands";
 
 
 declare module "@tiddlywiki/events" {
@@ -23,8 +24,8 @@ declare module "@tiddlywiki/events" {
     "mws.config.init.after": [config: ServerState, $tw: TW];
     "mws.adapter.init.before": [adapter: SqliteAdapter];
     "mws.adapter.init.after": [adapter: SqliteAdapter];
-    "mws.cache.init.before": [cachePath: string, $tw: TW, cacheArrayStrings: string[]];
-    "mws.cache.init.after": [cache: TiddlerCache, $tw: TW];
+    "mws.cache.init.before": [{ cacheArrayStrings: string[] }];
+    "mws.cache.init.after": [{ cache: TiddlerCache }];
 
   }
 }
@@ -39,16 +40,18 @@ declare module "@tiddlywiki/commander" {
 serverEvents.on("cli.execute.before", async (name, params, options, instance) => {
   const wikiPath = path.resolve(process.cwd());
   if (!existsSync(wikiPath)) throw "The wiki path does not exist";
+  if (is<UpdateTiddlyWikiCommand>(instance, name === "update-tiddlywiki")) {
+    instance.wikiPath = wikiPath;
+    return;
+  }
+  const cachePath = path.resolve(wikiPath, "cache");
 
-  const $tw = await bootTiddlyWiki(wikiPath);
   const passwordService = await createPasswordService(readPasswordMasterKey(wikiPath));
 
-  const cachePath = path.resolve(wikiPath, "cache");
-  mkdirSync(cachePath, { recursive: true });
   const cacheArrayStrings = [defaultPreloadFunction];
-  await serverEvents.emitAsync("mws.cache.init.before", cachePath, $tw, cacheArrayStrings);
-  const cache = await startupCache($tw, cachePath, cacheArrayStrings);
-  await serverEvents.emitAsync("mws.cache.init.after", cache, $tw);
+  await serverEvents.emitAsync("mws.cache.init.before", { cacheArrayStrings });
+  const cache = await startupCache(wikiPath, cacheArrayStrings);
+  await serverEvents.emitAsync("mws.cache.init.after", { cache });
 
   const storePath = path.resolve(wikiPath, "store");
   mkdirSync(storePath, { recursive: true });
@@ -73,6 +76,7 @@ serverEvents.on("cli.execute.before", async (name, params, options, instance) =>
     adapter: adapter.adapter
   });
 
+  const $tw = await bootDefaultTiddlyWiki(wikiPath);
   const config = new ServerState({ wikiPath, cachePath, storePath }, $tw, engine, passwordService, cache);
   await serverEvents.emitAsync("mws.config.init.before", config, $tw);
   await config.init();

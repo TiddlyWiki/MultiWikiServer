@@ -9,6 +9,7 @@ const info: CommandInfo = {
   name: "test-args",
   description: "Prints the command args to console. Useful for testing your inputs.",
   arguments: [],
+  
 };
 
 

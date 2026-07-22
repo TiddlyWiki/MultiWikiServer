@@ -536,7 +536,7 @@ export const AdminSave = zodRoute({
   }),
   zodRequestBody: z => z.any(),
   inner: async (state) => {
-    state.assertRefererPrefix(["/admin/"]);
+    state.assertReferer(["/"]);
     state.asserted = state.user.isLoggedIn;
     state.data = JSON.parse(JSON.stringify(state.data), (key: any, val: any) => {
       if (typeof val === "string" && val.startsWith(IdString.prefix))
@@ -588,7 +588,7 @@ export const AdminLoad = zodRoute({
   securityChecks: { requestedWithHeader: true },
   zodPathParams: z => ({}),
   inner: async (state) => {
-    state.assertRefererPrefix(["/admin/"]);
+    state.assertReferer(["/"]);
     state.asserted = state.user.isLoggedIn;
     const res = await state.$transaction(async prisma => {
       const roles = await new RoleImportWriter(prisma, false).getIdMapper();
