@@ -1,6 +1,6 @@
 import { zodRoute, SendError } from "@tiddlywiki/server";
-import { RecipeResolver, serveIndex } from "./RecipeResolver";
-
+import { RecipeResolver } from "./RecipeResolver";
+import { serveIndex } from "./RecipeIndexSender";
 // ---------------------------------------------------------------------------
 // Recipe-scoped endpoints (RSD, batch, list, status) — addressed by title.
 // ---------------------------------------------------------------------------

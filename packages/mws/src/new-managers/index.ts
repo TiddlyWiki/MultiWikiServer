@@ -11,7 +11,7 @@
 
 import { checkPath, checkQueryKeys, defineZodRoute, zod, ZodRoute } from "@tiddlywiki/server";
 import { serverEvents } from "@tiddlywiki/events";
-import { serveIndex, } from "./RecipeResolver";
+import { serveIndex, } from "./RecipeIndexSender";
 import { AdminLoad, AdminSave } from "./TabDataAdapter";
 import { RecipeStatus, RecipeStoreJS, RecipeStoreJSON, RecipeUpdates, TiddlerBatch, TiddlerList } from "./RecipeRoutes";
 
