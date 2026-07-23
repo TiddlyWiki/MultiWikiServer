@@ -26,13 +26,8 @@ export class ServerState {
 
   setupRequired = false;
 
-  // enableExternalPlugins = true;
-  // enableExternalStore = true;
-  enableGzip = true;
-
   attachmentsEnabled = false;
   attachmentSizeLimit = 0; // 100 * 1024; // 100 KB
-  enableDevServer = false;
   enableDocsRoute = false;
 
   fieldModules;
@@ -120,19 +115,14 @@ export class ServerState {
     this.attachmentsEnabled = false;
     this.attachmentSizeLimit = 100 * 1024;
 
-    this.enableDevServer = process.env.ENABLE_DEV_SERVER === "mws";
     this.enableDocsRoute = !!process.env.ENABLE_DOCS_ROUTE;
 
-    if (this.enableDevServer) {
-      // this.enableExternalPlugins = true;
-      this.enableGzip = true;
-    }
   }
 
   async initSettings(existing: Record<string, string>) {
 
     // this.enableExternalPlugins = existing.enableExternalPlugins === "true";
-    this.enableGzip = existing.enableGzip === "true";
+    // this.enableGzip = existing.enableGzip === "true";
   }
 
 

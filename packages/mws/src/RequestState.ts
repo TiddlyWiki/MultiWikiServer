@@ -53,9 +53,6 @@ export class StateObject<
     this.asserted = false;
     this.sendAdmin = (sendError?: SendError<any>): Promise<typeof STREAM_ENDED> =>
       router.sendAdmin(this, sendError);
-
-    if (this.compressor)
-      this.compressor.enabled = router.config.enableGzip;
   }
 
   okUser() {

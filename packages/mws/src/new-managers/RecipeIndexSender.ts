@@ -460,7 +460,7 @@ class StoreWriter extends StoreBase {
       title: "$:/config/multiwikiclient/recipe",
       text: this.recipe.slug,
     });
-    if (this.state.config.enableDevServer) {
+    if (process.env.DEVSERVER) {
       await writeTiddler({
         title: "$:/state/multiwikiclient/dev-mode",
         text: "yes"

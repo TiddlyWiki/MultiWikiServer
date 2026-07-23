@@ -79,4 +79,10 @@ declare global {
    * This also disbles the critical flag from the template.
    */
   const BUILD_FLAG_EXTERNAL_STORE: boolean;
+
+  namespace NodeJS {
+    interface ProcessEnv {
+      DEVSERVER?: "watch" | "build";
+    }
+  }
 }

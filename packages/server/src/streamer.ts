@@ -102,7 +102,6 @@ export class StreamerRequest {
   /** The request headers. Never includes the four http2 headers, besides `:authority` as `host`. */
   readonly headers: SuperHeaders;
   readonly cookies: BetterCookie;
-  protected readonly compressor: Compressor | undefined;
   /** 
    * The path prefix is a essentially folder mount point. 
    * 

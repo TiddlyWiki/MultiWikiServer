@@ -51,7 +51,7 @@ export class InitStoreCommand extends BaseCommand {
 					plugins: [],
 					requiredPluginsEnabled: true,
 					customHtmlEnabled: false,
-					externalPlugins: false,
+					externalPlugins: true,
 					externalStore: false,
 					twVersion: "",
 					htmlContent: "",
