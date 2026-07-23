@@ -334,6 +334,15 @@ const tabs = {
         description: "Loads plugin JSON on the client via script tags, allowing the browser to cache plugins separate from the store.",
       },
       {
+        key: "twVersion",
+        label: "TiddlyWiki Version",
+        type: "select",
+        section: "authored",
+        mode: "create edit",
+        description: "TW5 version pinning.",
+
+      },
+      {
         key: "templatePermissions",
         label: "Template permissions",
         type: "permission-table",
@@ -726,6 +735,7 @@ export interface TemplateAdminRecord {
   requiredPluginsEnabled: boolean;
   externalStore: boolean;
   externalPlugins: boolean;
+  twVersion: string;
   customHtmlEnabled: boolean;
   htmlContent: string;
   injectionFunction: string;

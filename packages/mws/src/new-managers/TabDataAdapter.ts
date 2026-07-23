@@ -295,6 +295,7 @@ export class TemplateDataAdapter extends TabDataAdapter<"templates"> {
           plugins: normalizeLineList(data.plugins),
           externalPlugins: data.externalPlugins,
           externalStore: data.externalStore,
+          twVersion: data.twVersion,
           requiredPluginsEnabled: data.requiredPluginsEnabled,
           customHtmlEnabled: data.customHtmlEnabled,
           htmlContent: data.htmlContent,

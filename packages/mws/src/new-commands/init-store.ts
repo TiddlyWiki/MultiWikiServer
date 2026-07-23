@@ -53,6 +53,7 @@ export class InitStoreCommand extends BaseCommand {
 					customHtmlEnabled: false,
 					externalPlugins: false,
 					externalStore: false,
+					twVersion: "",
 					htmlContent: "",
 					injectionFunction: "",
 					injectionLocation: "",

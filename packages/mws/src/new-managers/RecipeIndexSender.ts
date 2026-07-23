@@ -45,7 +45,7 @@ export async function serveIndex(
         index,
         state,
         index.template.externalPlugins,
-        process.env.BUILD_FLAG_EXTERNAL_STORE && index.template.externalStore
+        BUILD_FLAG_EXTERNAL_STORE && index.template.externalStore
       ).serveIndexFile();
     }
     case "store.json":

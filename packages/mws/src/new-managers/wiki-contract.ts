@@ -96,6 +96,7 @@ abstract class TemplateRow implements ITemplateRow {
   abstract requiredPluginsEnabled: boolean;
   abstract externalPlugins: boolean;
   abstract externalStore: boolean;
+  abstract twVersion: string;
   abstract templatePermissions: readonly PermissionRow<RecipePermissionLevel>[];
   abstract customHtmlEnabled: boolean;
   abstract htmlContent: string;
