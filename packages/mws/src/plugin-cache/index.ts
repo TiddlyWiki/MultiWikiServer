@@ -44,9 +44,13 @@ async function getTW5Path(wikiPath: string) {
   });
 
   if (!folders.length) {
-    console.log(folders.map(e => `tw5-5.${e.minor}.${e.patch}${e.extra}`));
     throw new Error("No valid tiddlywiki folder found");
   }
+
+  await writeFile(
+    path.resolve(wikiPath, "tw5", "versions.txt"),
+    folders.map(e => `tw5-5.${e.minor}.${e.patch}${e.extra}`).join("\n")
+  );
   const e = folders.pop()!;
   return path.resolve(wikiPath, "tw5", `tw5-5.${e.minor}.${e.patch}${e.extra}`);
 }

@@ -28,7 +28,7 @@
     "plugins",
     "prisma",
     "public",
-    "scripts.mjs",
+    "scripts",
     "mws.run.mjs"
   ],
   "engines": {

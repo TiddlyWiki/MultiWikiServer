@@ -51,7 +51,7 @@ export async function serveIndex(
     case "store.json":
     case "store.js": {
 
-      const isJSON = type === "store.json";
+
 
       const store = await (async () => {
         if (process.env.BUILD_FLAG_EXTERNAL_STORE) {
@@ -85,13 +85,13 @@ export async function serveIndex(
           break;
       }
 
-
+      const isJSON = type === "store.json";
       if (state.method === "HEAD" || match)
         return state.end();
       if (isJSON)
         state.writeFast("[\n");
 
-      await store.writeStore();
+      await store.writeStore(false);
 
       if (isJSON)
         state.writeFast("]");
@@ -347,11 +347,12 @@ $tw.preloadTiddler = function(fields) {
         after: async function () {
           await this.state.write(template.substring(this.markerPos + this.marker.length));
         },
+
         writer: this.makeStoreWriter()
       }
 
       await loader.before();
-      await loader.writer.writeStore();
+      await loader.writer.writeStore(true);
       await loader.after();
     }
 
@@ -359,7 +360,7 @@ $tw.preloadTiddler = function(fields) {
   }
 
 }
-
+// #region StoreWriter
 class StoreWriter extends StoreBase {
 
   dropLastSuffix: boolean;
@@ -392,8 +393,7 @@ class StoreWriter extends StoreBase {
   private get cachePath() { return this.state.pluginCache.cachePath; }
   private get pluginFiles() { return this.state.pluginCache.pluginFiles; }
 
-  // #region write
-  async writeStore() {
+  async writeStore(keepLastSuffix: boolean) {
 
     if (!this.template.externalPlugins) {
       const fileStreams = this.plugins.map(e => createReadStream(join(this.cachePath, this.pluginFiles.get(e)!, "plugin.json")));
@@ -469,7 +469,7 @@ class StoreWriter extends StoreBase {
     await writeTiddler({
       title: "$:/config/multiwikiclient/host",
       text: "$protocol$//$host$" + this.state.pathPrefix + "/",
-    }, true);
+    }, !keepLastSuffix);
 
   }
 }

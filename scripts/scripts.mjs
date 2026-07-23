@@ -75,7 +75,8 @@ async function runner(arg) {
         // Read package.json to get version for cross-platform compatibility
         const packageJson = JSON.parse(readFileSync("package.json").toString());
         const packageVersion = packageJson.version;
-        await start(`npm install --save-exact ./tiddlywiki-mws-${packageVersion}.tgz tiddlywiki`, [], {}, { cwd: "tests" });
+
+        await start(`npm install --save-exact ./tiddlywiki-mws-${packageVersion}.tgz`, [], {}, { cwd: "tests" });
         await start("npx mws update-tiddlywiki", [], {}, { cwd: "tests" });
         await start("npx mws init-store", [], {}, { cwd: "tests" });
         await start("npx mws listen --listener host=:: port=8080", [], {}, { cwd: "tests" });
@@ -92,6 +93,9 @@ async function runner(arg) {
       ], {
         DATABASE_URL: "file:test.sqlite"
       });
+      break;
+    case "postinstall":
+      console.log(process.env);
       break;
     default:
       console.log("nothing ran");

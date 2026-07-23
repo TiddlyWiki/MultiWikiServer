@@ -43,5 +43,7 @@
     "packages/mws/src/old-managers",
     "packages/mws/src/drizzle",
     "packages/mws/src/services/attachments.ts",
+    "node_modules",
+    "**/node_modules/*"
   ]
 }

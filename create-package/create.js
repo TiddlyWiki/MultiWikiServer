@@ -41,7 +41,7 @@ const path = require("path");
   });
 
   console.log("└─ Running npm install...");
-  await start("npm", ["install", "--save-exact", "tiddlywiki@latest", "@tiddlywiki/mws@latest"], {
+  await start("npm", ["install", "--save-exact", "@tiddlywiki/mws@latest"], {
     ...process.platform === "android" ? { GYP_DEFINES: "android_ndk_path=''", } : {}
   }, { cwd: folder });
 

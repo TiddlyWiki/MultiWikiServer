@@ -1,0 +1,21 @@
+{
+  "compilerOptions": {
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "target": "ES2022",
+    "jsx": "react-jsx",
+    "allowImportingTsExtensions": true,
+    "checkJs": false,
+    "experimentalDecorators": false,
+    "strictNullChecks": true,
+    "strictFunctionTypes": true,
+    "strict": true
+  },
+  "exclude": [
+    "node_modules",
+    "**/node_modules/*"
+  ],
+  "files": [
+    "./create.js"
+  ]
+}
