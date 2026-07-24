@@ -62,10 +62,10 @@ function buildEffectivePrefixObject(writablePrefixBags: (readonly WritablePrefix
 
 function getLookupOptions(fieldKey: string, itemsByTab: AdminRecordStore): string[] {
   if (fieldKey === "readonlyBags" || fieldKey === "writablePrefixBags") {
-    return Array.from(new Set(itemsByTab.bags.map((item) => item.name).filter(Boolean)));
+    return Array.from(itemsByTab.availableBagNames);
   }
   if (fieldKey === "plugins") {
-    return Array.from(new Set(itemsByTab.plugins.map((item) => item.name).filter(Boolean)));
+    return Array.from(itemsByTab.availablePluginNames);
   }
   if (fieldKey === "userRoles" || fieldKey === "bagPermissions" || fieldKey === "templatePermissions" || fieldKey === "recipePermissions") {
     return Array.from(new Set(itemsByTab.roles.map((item) => item.name).filter(Boolean)));
@@ -228,7 +228,7 @@ function renderLinesList(value: readonly string[], key: string, itemsByTab?: Adm
 
 }
 export function textWithSlashes(line: string): JSX.Node[] {
-  return line.split("/").map((e, i, a) => <>{e}{(i !== a.length - 1) ? "/" : ""}<wbr /></>);
+  return line.split("/").map((e, i, a) => <>{e + ((i !== a.length - 1) ? "/" : "")}<wbr /></>);
 }
 
 function renderCalloutField(ctx: ReadonlyFieldContext) {
@@ -308,7 +308,7 @@ function renderSearchMultiselectFieldEditor(ctx: FieldEditorContext<any>) {
       ? "role id"
       : "bag";
   const templateRecord = is<WikiAdminRecord>(fieldState.draft, fieldState.tabId === "wikis")
-    ? findTemplateRecordForWikiRecord(fieldState.draft, itemsByTab as AdminRecordStore) : undefined;
+    ? findTemplateRecordForWikiRecord(fieldState.draft, itemsByTab) : undefined;
   const templateReadonlyBagLines = field.key === "readonlyBags" && templateRecord ? templateRecord.readonlyBags : [];
   const templatePluginLines = field.key === "plugins" && templateRecord ? templateRecord.plugins : [];
   const templateCorePluginsEnabled = Boolean(templateRecord?.requiredPluginsEnabled);

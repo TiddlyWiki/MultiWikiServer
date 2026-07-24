@@ -10,7 +10,7 @@ const halfWidth = "half" as const;
 const fullWidth = "full" as const;
 const stackLayout = "stack" as const;
 
-export type TabId = "wikis" | "templates" | "bags" | "plugins" | "roles" | "users";
+export type TabId = "wikis" | "templates" | "bags" | "roles" | "users";
 
 
 export interface FieldGroupDefinition {
@@ -92,12 +92,12 @@ export const fieldTypeZodShapes = {
   "number": z.string(),
   "activity-feed": z.string().array(),
   "version": z.string(),
-  "select": z.boolean(),
+  "select": z.string(),
   "switch": z.boolean(),
   "metadata-table": z.string().array(),
 } satisfies Record<FieldType, any>;
 
-export type FieldTypeCreateValue<T extends FieldType = FieldType> = z.infer<(typeof fieldTypeZodShapes)[T]>;
+export type FieldZodType<T extends FieldType = FieldType> = z.infer<(typeof fieldTypeZodShapes)[T]>;
 
 export const fieldTypeCreateFactories = {
   "template-type": () => "simpleV1",
@@ -120,9 +120,9 @@ export const fieldTypeCreateFactories = {
   "number": () => "",
   "activity-feed": () => [],
   "version": () => "",
-  "select": () => false,
+  "select": () => "",
   "metadata-table": () => [],
-} satisfies { [K in FieldType]: () => FieldTypeCreateValue<K> };
+} satisfies { [K in FieldType]: () => FieldZodType<K> };
 
 
 
@@ -353,7 +353,7 @@ const tabs = {
       {
         key: "customHtmlEnabled",
         label: "Custom HTML shell",
-        type: "select",
+        type: "switch",
         section: "authored",
         mode: "create edit",
         description: "Enable custom HTML shell settings when this template should serve authored HTML instead of the default page shell.",
@@ -510,37 +510,37 @@ const tabs = {
       "referencedByWikis",
     ]
   },
-  plugins: {
-    id: "plugins",
-    label: "Plugins",
-    createLabel: "Create plugin",
-    eyebrow: "Managed Assets",
-    description: "Separately versioned plugins compiled into each wiki’s resolved plugin set. Still work in progress.",
-    columns: [
-      { key: "name", label: "Name" },
-      { key: "description", label: "Description" },
-      { key: "pluginPath", label: "Plugin Path" },
-      { key: "usageCount", label: "Usage" },
-    ],
-    fields: [
-      { key: "name", label: "Name", type: "string", section: "authored", mode: "server" },
-      { key: "description", label: "Description", type: "text", section: "authored", mode: "server" },
-      { key: "pluginPath", label: "Path", type: "string", section: "authored", mode: "server" },
-      { key: "usageCount", label: "Wiki Count", type: "number", section: "runtime", mode: "" },
-      { key: "usedByWikis", label: "Active Wikis", type: "table", section: "runtime", mode: "" },
-    ],
-    fieldGroups: {
-      runtime: [
-        { title: "Used in", description: "List of wikis this plugin is used in. Only includes templates that are in use.", keys: ["usedByWikis"], width: fullWidth, layout: "grid" },
-      ],
-    },
-    sidebarDisplay: [
-      "name",
-      "description",
-      "usageCount",
-      "pluginPath",
-    ],
-  },
+  // plugins: {
+  //   id: "plugins",
+  //   label: "Plugins",
+  //   createLabel: "Create plugin",
+  //   eyebrow: "Managed Assets",
+  //   description: "Separately versioned plugins compiled into each wiki’s resolved plugin set. Still work in progress.",
+  //   columns: [
+  //     { key: "name", label: "Name" },
+  //     { key: "description", label: "Description" },
+  //     { key: "pluginPath", label: "Plugin Path" },
+  //     { key: "usageCount", label: "Usage" },
+  //   ],
+  //   fields: [
+  //     { key: "name", label: "Name", type: "string", section: "authored", mode: "server" },
+  //     { key: "description", label: "Description", type: "text", section: "authored", mode: "server" },
+  //     { key: "pluginPath", label: "Path", type: "string", section: "authored", mode: "server" },
+  //     { key: "usageCount", label: "Wiki Count", type: "number", section: "runtime", mode: "" },
+  //     { key: "usedByWikis", label: "Active Wikis", type: "table", section: "runtime", mode: "" },
+  //   ],
+  //   fieldGroups: {
+  //     runtime: [
+  //       { title: "Used in", description: "List of wikis this plugin is used in. Only includes templates that are in use.", keys: ["usedByWikis"], width: fullWidth, layout: "grid" },
+  //     ],
+  //   },
+  //   sidebarDisplay: [
+  //     "name",
+  //     "description",
+  //     "usageCount",
+  //     "pluginPath",
+  //   ],
+  // },
   roles: {
     id: "roles",
     label: "Roles",
@@ -600,7 +600,7 @@ const tabs = {
 
 export const KeyFields = {
   bags: "name",
-  plugins: "name",
+  // plugins: "name",
   roles: "name",
   templates: "name",
   users: "username",
@@ -632,13 +632,15 @@ export function getSectionHeading(section: FieldSection, mode: "create" | "edit"
   }
 
 }
+type TabKeys<T extends TabDefinition> = MapFieldDefinitions<T["fields"], any>[number] | "id"
+type FieldValueMap<T> = FieldValueMap2<{ [K in keyof T]: FieldZodType<Extract<T[K], { key: K; type: FieldType; }>["type"]> }>;
+type FieldValueMap2<T> = { [K in keyof T]: T[K] extends Array<infer F> ? ReadonlyArray<F> : T[K] } & { id: IdString }
 
-type StoredTabRecord<D extends TabDefinition, T> = Pick<T, TabFieldKeys<D, "" | "create edit temp" | "create temp" | "edit temp"> & keyof T>;
-type SavedTabRecord<D extends TabDefinition, T> = Pick<T, TabFieldKeys<D, "" | "create edit temp" | "create temp" | "edit temp" | "server"> & keyof T>;
 
-type TabFieldKeys<T extends TabDefinition, M extends Mode> = {
-  [K in keyof TabDef]: MapFieldDefinitions<T["fields"], M>[number] | "id"
-}[keyof TabDef];
+type StoredTabRecord<D extends TabDefinition, T> = Pick<T, TabFieldModeKeys<D, "" | "create edit temp" | "create temp" | "edit temp"> & keyof T>;
+type SavedTabRecord<D extends TabDefinition, T> = Pick<T, TabFieldModeKeys<D, "" | "create edit temp" | "create temp" | "edit temp" | "server"> & keyof T>;
+
+type TabFieldModeKeys<T extends TabDefinition, M extends Mode> = MapFieldDefinitions<T["fields"], M>[number] | "id"
 
 type MapFieldDefinitions<T, M extends Mode> =
   T extends [infer F extends FieldDefinition, ...infer R] ? [FilterServerFields<F, M>, ...MapFieldDefinitions<R, M>] :
@@ -657,40 +659,48 @@ type TupleWhere<T, W> =
 /** this ignores key string, which could be an issue */
 export type Drafter<T extends { key: string; type: FieldType; }[]> = {
   [K in T[number]["key"]]:
-  FieldTypeCreateValue<TupleWhere<T, { key: K }>["type"]>
+  FieldZodType<TupleWhere<T, { key: K }>["type"]>
 } & { id: IdString; }
 
-export interface AdminRecordStore {
-  wikis: WikiAdminRecord[];
-  templates: TemplateAdminRecord[];
-  bags: BagAdminRecord[];
-  plugins: PluginAdminRecord[];
-  roles: RoleAdminRecord[];
-  users: UserAdminRecord[];
+export interface ExtraServerStuff {
+  availablePlugins: { name: string; description: string; }[];
+}
+export interface ExtraClientStuff {
   availableBagNames: Set<string>;
   availablePluginNames: Set<string>;
 }
+// DataClient keeps the record interfaces in sync with the zod field types
+export interface AdminRecordStore extends DataClient, ExtraClientStuff, ExtraServerStuff {
+  wikis: WikiAdminRecord[];
+  templates: TemplateAdminRecord[];
+  bags: BagAdminRecord[];
+  // plugins: PluginAdminRecord[];
+  roles: RoleAdminRecord[];
+  users: UserAdminRecord[];
+}
 
-export interface DataStore {
+type DataClient = {
+  [K in keyof TabDef]: FieldValueMap<{
+    [I in number & keyof TabDef[K]["fields"]as TabDef[K]["fields"][I]["key"]]: TabDef[K]["fields"][I]
+  }>[]
+}
+
+export interface DataStore extends ExtraServerStuff {
   wikis: StoredTabRecord<TabDef["wikis"], WikiAdminRecord>[];
   templates: StoredTabRecord<TabDef["templates"], TemplateAdminRecord>[];
   bags: StoredTabRecord<TabDef["bags"], BagAdminRecord>[];
-  plugins: StoredTabRecord<TabDef["plugins"], PluginAdminRecord>[];
+  // plugins: StoredTabRecord<TabDef["plugins"], PluginAdminRecord>[];
   roles: StoredTabRecord<TabDef["roles"], RoleAdminRecord>[];
   users: StoredTabRecord<TabDef["users"], UserAdminRecord>[];
-  availableBagNames: Set<string>;
-  availablePluginNames: Set<string>;
 };
 
 export interface DataSave {
   wikis: SavedTabRecord<TabDef["wikis"], WikiAdminRecord>[];
   templates: SavedTabRecord<TabDef["templates"], TemplateAdminRecord>[];
   bags: SavedTabRecord<TabDef["bags"], BagAdminRecord>[];
-  plugins: SavedTabRecord<TabDef["plugins"], PluginAdminRecord>[];
+  // plugins: SavedTabRecord<TabDef["plugins"], PluginAdminRecord>[];
   roles: SavedTabRecord<TabDef["roles"], RoleAdminRecord>[];
   users: SavedTabRecord<TabDef["users"], UserAdminRecord>[];
-  availableBagNames: Set<string>;
-  availablePluginNames: Set<string>;
 };
 // #region Wiki
 export interface WikiAdminRecord {
@@ -699,7 +709,7 @@ export interface WikiAdminRecord {
   slug: string;
   displayName: string;
   description: string;
-  templateName: string | null;
+  templateName: string;
   writablePrefixBags: readonly WritablePrefixRow[];
   readonlyBags: readonly string[];
   plugins: readonly string[];
@@ -743,7 +753,7 @@ export interface TemplateAdminRecord {
   // client fields
   defaultWritableBag: string;
   readonlyBagsSummary: string;
-  dependentWikis: string;
+  dependentWikis: readonly string[];
   dependentWikiCount: string;
   lastUpdatedAt: string;
   validationStatus: string;
@@ -760,9 +770,9 @@ export interface BagAdminRecord {
   writableUsageCount: string;
   defaultUsageCount: string;
   permissionSummary: string;
-  referencedByTemplates: string;
-  referencedByWikis: string;
-  routingRoles: string;
+  referencedByTemplates: readonly string[];
+  referencedByWikis: readonly string[];
+  routingRoles: readonly string[];
   // tiddlerCount: string;
   // lastActivityAt: string;
   // recentActivity: string;

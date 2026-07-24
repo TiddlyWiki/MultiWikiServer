@@ -2,7 +2,7 @@ import { addstyles, customElement, JSXElement, state } from "@tiddlywiki/jsx-lit
 import {
   AdminRecord,
 } from "./app";
-import { FieldDefinition, IdString, FieldTypeCreateValue, FieldType, Drafter } from "./definition/tabs";
+import { FieldDefinition, IdString, FieldZodType, FieldType, Drafter } from "./definition/tabs";
 import css from "./app.inline.css";
 import { changeExistingPasswordWithCode, changeExistingPasswordWithPassword, loginWithOpaque, serverAcceptResetCode } from "./passwords";
 import { FomController } from "./FomController";

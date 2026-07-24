@@ -42,7 +42,7 @@ import { Debug } from "@prisma/client/runtime/client";
 type IRecipeRow = DataStore["wikis"][number];
 type ITemplateRow = DataStore["templates"][number];
 type IBagRow = DataStore["bags"][number];
-type IPluginRow = DataStore["plugins"][number];
+// type IPluginRow = DataStore["plugins"][number];
 type IUserRow = DataStore["users"][number];
 type IRoleRow = DataStore["roles"][number];
 
@@ -540,11 +540,6 @@ export class UserDataAdapter extends TabDataAdapter<"users"> {
   }
 }
 
-// #region savePlugin
-async function savePluginRow(_prisma: PrismaTxnClient, _data: DataSave["plugins"][number]): Promise<string> {
-  throw new Error("Plugin admin save is not implemented in the database-backed admin path.");
-}
-
 
 export const AdminSave = zodRoute({
   method: ["PUT"],
@@ -553,7 +548,7 @@ export const AdminSave = zodRoute({
   securityChecks: { requestedWithHeader: true },
   zodPathParams: z => ({
     op: z.enum(["save"]),
-    tab: z.enum(["wikis", "templates", "bags", "plugins", "users", "roles"] satisfies TabId[])
+    tab: z.enum(["wikis", "templates", "bags", "users", "roles"] satisfies TabId[])
   }),
   zodRequestBody: z => z.any(),
   inner: async (state) => {
@@ -573,22 +568,11 @@ export const AdminSave = zodRoute({
       const { pathParams: { op, tab }, data } = state;
       if (op !== "save") throw new Error(`Unsupported admin operation: ${op}`);
       switch (tab) {
-        case "wikis": {
-          return await new RecipeDataAdapter(state.user).saveRow(prisma, data as IRecipeRow);
-        }
-        case "templates": {
-          return await new TemplateDataAdapter(state.user).saveRow(prisma, data as ITemplateRow);
-        }
-        case "bags": {
-          return await new BagDataAdapter(state.user).saveRow(prisma, data as IBagRow);
-        }
-        case "roles": {
-          return await new RoleDataAdapter(state.user).saveRow(prisma, data as IRoleRow);
-        }
-        case "users": {
-          return await new UserDataAdapter(state.user).saveRow(prisma, data as IUserRow);
-        }
-        case "plugins": return await savePluginRow(prisma, data as IPluginRow);
+        case "wikis": return await new RecipeDataAdapter(state.user).saveRow(prisma, data as IRecipeRow);
+        case "templates": return await new TemplateDataAdapter(state.user).saveRow(prisma, data as ITemplateRow);
+        case "bags": return await new BagDataAdapter(state.user).saveRow(prisma, data as IBagRow);
+        case "roles": return await new RoleDataAdapter(state.user).saveRow(prisma, data as IRoleRow);
+        case "users": return await new UserDataAdapter(state.user).saveRow(prisma, data as IUserRow);
         default: {
           const _exhaustive: never = tab;
           throw new Error(`Unsupported admin tab: ${_exhaustive}`);
@@ -617,23 +601,24 @@ export const AdminLoad = zodRoute({
         wikis: await new RecipeDataAdapter(state.user).getList(prisma, roles),
         templates: await new TemplateDataAdapter(state.user).getList(prisma, roles),
         bags: await new BagDataAdapter(state.user).getList(prisma, roles),
-        plugins: state.pluginCache.pluginsList.map(e => ({
-          id: new IdString(e.title),
-          name: e.title,
-          description: `${e.name}: ${e.description}`,
-          pluginPath: e.path,
-        } satisfies IPluginRow)),
         roles: await new RoleDataAdapter(state.user).getList(prisma),
         users: await new UserDataAdapter(state.user).getList(prisma, roles),
-      };
+        availablePlugins: state.pluginCache.pluginsList.map(e => ({
+          name: e.title,
+          description: `${e.name}: ${e.description}`,
+        })),
+      } satisfies Omit<DataStore, "availableBagNames" | "availablePluginNames">;
     });
     const { success, data, error } = zod.object({
       wikis: buildTabZodObject("wikis", "DataStore").array(),
       templates: buildTabZodObject("templates", "DataStore").array(),
       bags: buildTabZodObject("bags", "DataStore").array(),
-      plugins: buildTabZodObject("plugins", "DataStore").array(),
       roles: buildTabZodObject("roles", "DataStore").array(),
       users: buildTabZodObject("users", "DataStore").array(),
+      availablePlugins: zod.array(zod.object({
+        name: zod.string(),
+        description: zod.string(),
+      })),
     }).safeParse(res);
     if (!success) throw error;
     return data;

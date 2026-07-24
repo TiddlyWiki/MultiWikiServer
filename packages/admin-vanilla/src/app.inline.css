@@ -30,7 +30,7 @@
 		--color-surface-page-bottom: #ece8dd;
 		--color-surface-panel: rgba(255, 252, 246, 0.88);
 		--color-surface-panel-strong: rgba(255, 252, 246, 0.92);
-		--color-surface-tab: rgba(255, 251, 243, 0.78);
+		--color-surface-tab: hsla(40, 100%, 98%, 0.78);
 		--color-surface-stat: rgba(255, 255, 255, 0.82);
 		--color-surface-modal: #fffdf7;
 		--color-surface-modal-header-top: #fcf7ed;
@@ -80,7 +80,7 @@
 		--color-text-subtle: #8f9ca9;
 		--color-text-faint: #81909e;
 		--color-text-fainter: #738292;
-		--color-text-on-accent: #1e1c15;
+		--color-text-on-accent: #e7bf63;
 		--color-text-heading: #f3e6c5;
 		--color-accent-eyebrow: #e7bf63;
 		--color-accent-label: #d6ba7a;
@@ -93,7 +93,7 @@
 		--color-accent-track: #d0a24a;
 		--color-accent-track-soft: #9e7731;
 		--color-accent-track-mid: #bc8d3f;
-		--color-accent-fill: hsl(38deg 58% 58%);
+		--color-accent-fill: hsl(210deg 40% 24%);
 		--color-danger: #f08b7d;
 		--color-white: #fff;
 		--color-white-solid: #ffffff;
@@ -102,7 +102,7 @@
 		--color-surface-page-bottom: #1b232c;
 		--color-surface-panel: rgba(22, 29, 36, 0.88);
 		--color-surface-panel-strong: rgba(22, 29, 36, 0.94);
-		--color-surface-tab: rgba(33, 42, 51, 0.86);
+		--color-surface-tab: hsl(210deg 20% 15%);
 		--color-surface-stat: rgba(36, 45, 54, 0.88);
 		--color-surface-modal: #182028;
 		--color-surface-modal-header-top: #202a34;
@@ -111,7 +111,7 @@
 		--color-surface-card: #202932;
 		--color-surface-field: #26313b;
 		--color-surface-summary-note: rgba(37, 47, 58, 0.96);
-		--color-surface-ghost-button: #33414d;
+		--color-surface-ghost-button: hsl(208, 20%, 25%);
 		--color-surface-row-action: #394754;
 		--color-surface-pill: #3f3424;
 		--color-surface-input: #121920;
@@ -144,6 +144,10 @@
 
 * {
 	box-sizing: border-box;
+}
+
+material-symbol svg {
+	fill: currentColor;
 }
 
 button,
@@ -384,7 +388,7 @@ h6 {
 
 .section-header {
 	display: grid;
-	grid-template-columns: minmax(0, 320px) minmax(0, 1fr);
+	grid-template-columns: minmax(0, 320px) minmax(0, 1fr) max-content;
 	gap: 20px;
 	align-items: end;
 	margin-top: 26px;
@@ -1629,6 +1633,7 @@ table.value-table td {
 
 	.modal-layout {
 		flex-direction: column;
+		align-items: stretch;
 	}
 
 	.modal-sidebar {
@@ -1652,8 +1657,6 @@ table.value-table td {
 		position: relative;
 	}
 
-	.row-editor-row,
-	.row-editor-row-wide,
 	.meta-list,
 	.resolver-grid,
 	.tool-panel-actions {

@@ -22,9 +22,11 @@ import {
 
   IdString,
   fieldTypeCreateFactories,
+  ExtraClientStuff,
+  ExtraServerStuff,
 } from "./tabs";
 
-import { mapGetInit } from "./utils";
+import { definitely, mapGetInit } from "./utils";
 
 export const jsonReviver = (key: any, val: any) => {
   if (typeof val === "string" && val.startsWith(IdString.prefix))
@@ -43,9 +45,7 @@ export class InMemoryAdminStorage implements AdminStorage {
 
   public async loadAll(): Promise<AdminRecordStore> {
     const data = await (await fetch(pathPrefix + "/admin/load", {
-      headers: {
-        "X-Requested-With": "TiddlyWiki"
-      }
+      headers: { "X-Requested-With": "TiddlyWiki" }
     })).text();
 
     this.data = JSON.parse(data, jsonReviver);
@@ -199,34 +199,34 @@ function deriveBagRecords(items: DataStore, templates: TemplateAdminRecord[], wi
       writableUsageCount: String(writableByWikis.length),
       defaultUsageCount: String(defaultByWikis.length),
       permissionSummary: summarizePermissionRoles(bag.bagPermissions),
-      referencedByTemplates: referencedByTemplates.join("\n"),
-      referencedByWikis: Array.from(allUsingWikis).join("\n"),
-      routingRoles: routingRoles.join("\n"),
+      referencedByTemplates,
+      referencedByWikis: Array.from(allUsingWikis),
+      routingRoles,
     };
   });
 }
 
-function derivePluginRecords(items: DataStore, templates: TemplateAdminRecord[], wikis: WikiAdminRecord[]): PluginAdminRecord[] {
-  const pluginUsage = new Map<string, Set<string>>();
+// function derivePluginRecords(items: DataStore, templates: TemplateAdminRecord[], wikis: WikiAdminRecord[]): PluginAdminRecord[] {
+//   const pluginUsage = new Map<string, Set<string>>();
 
-  for (const wiki of wikis) {
-    const wikiName = wiki.slug || wiki.displayName || "";
-    wiki.effectivePluginSet.forEach((pluginValue) => {
-      const pluginName = pluginValue.split("@")[0]?.trim() ?? pluginValue.trim();
-      if (!pluginName || !wikiName) return;
-      mapGetInit(pluginUsage, pluginName, () => new Set()).add(wikiName);
-    });
-  }
+//   for (const wiki of wikis) {
+//     const wikiName = wiki.slug || wiki.displayName || "";
+//     wiki.effectivePluginSet.forEach((pluginValue) => {
+//       const pluginName = pluginValue.split("@")[0]?.trim() ?? pluginValue.trim();
+//       if (!pluginName || !wikiName) return;
+//       mapGetInit(pluginUsage, pluginName, () => new Set()).add(wikiName);
+//     });
+//   }
 
-  return items.plugins.map((plugin) => {
-    const usedByWikis = Array.from(pluginUsage.get(plugin.name ?? "") ?? []).map(e => e);
-    return {
-      ...plugin as unknown as PluginAdminRecord,
-      usedByWikis,
-      usageCount: String(usedByWikis.length),
-    };
-  });
-}
+//   return items.availablePlugins.map((plugin) => {
+//     const usedByWikis = Array.from(pluginUsage.get(plugin.name ?? "") ?? []).map(e => e);
+//     return {
+//       ...plugin,
+//       usedByWikis,
+//       usageCount: String(usedByWikis.length),
+//     };
+//   });
+// }
 
 function buildEffectiveBagStack({
   writablePrefixBags: prefixRows,
@@ -274,7 +274,7 @@ function buildEffectivePluginSet({
 }
 
 
-function syncWikiRecord(draft: DataStore["wikis"][number], data: DataStore) {
+function syncWikiRecord(draft: DataStore["wikis"][number], data: DataStore & ExtraClientStuff ) {
   const templateRecord = findTemplateRecordForWikiRecord(draft, data);
   const templateReadonlyBags = templateRecord ? templateRecord.readonlyBags : [];
   const templatePlugins = templateRecord ? templateRecord.plugins : [];
@@ -324,9 +324,11 @@ function syncWikiRecord(draft: DataStore["wikis"][number], data: DataStore) {
   } satisfies WikiAdminRecord;
 }
 
-function deriveItems(items: DataStore): AdminRecordStore {
+
+function deriveItems(items: DataStore & ExtraServerStuff): AdminRecordStore {
+  definitely<ExtraClientStuff>(items);
   items.availableBagNames = new Set(items.bags.map((bag) => bag.name).filter(Boolean));
-  items.availablePluginNames = new Set(items.plugins.map((plugin) => plugin.name).filter(Boolean));
+  items.availablePluginNames = new Set(items.availablePlugins.map((plugin) => plugin.name).filter(Boolean));
   const wikis = items.wikis.map((wiki) => syncWikiRecord(wiki, items));
   const dependentWikiMap = new Map<string, string[]>();
   for (const wiki of wikis) {
@@ -340,7 +342,7 @@ function deriveItems(items: DataStore): AdminRecordStore {
     return {
       ...template,
       readonlyBagsSummary: readonlyBags.join(", "),
-      dependentWikis: dependentWikis.join("\n"),
+      dependentWikis,
       dependentWikiCount: String(dependentWikis.length),
       defaultWritableBag: prefixRows.find((row) => row.prefix === "")?.bagName ?? "",
       validationReport: "placeholder",
@@ -361,7 +363,7 @@ function deriveItems(items: DataStore): AdminRecordStore {
     wikis,
     users,
     bags: deriveBagRecords(items, templates, wikis),
-    plugins: derivePluginRecords(items, templates, wikis),
+    // plugins: derivePluginRecords(items, templates, wikis),
   } as unknown as AdminRecordStore;
 }
 
@@ -369,10 +371,10 @@ export function getEmptyItems(): AdminRecordStore {
   return {
     availableBagNames: new Set(),
     availablePluginNames: new Set(),
+    availablePlugins: [],
     wikis: [],
     templates: [],
     bags: [],
-    plugins: [],
     roles: [],
     users: [],
   };

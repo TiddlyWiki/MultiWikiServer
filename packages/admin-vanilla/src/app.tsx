@@ -47,6 +47,7 @@ type ModalState = {
     operationMessages: Record<string, string>;
     pendingRows: Record<string, number>;
     transientPermissionRows: Record<string, PermissionRow[]>;
+    storageError: string;
     loading?: boolean;
   };
 }[TabId];
@@ -62,6 +63,7 @@ export interface PerTabFieldState {
   readonly operationMessages: Record<string, string>;
   readonly pendingRows: Record<string, number>;
   readonly transientPermissionRows: Record<string, PermissionRow[]>;
+  readonly storageError: string;
   readonly loading?: boolean;
 }
 
@@ -91,14 +93,12 @@ interface AppStoreState {
   activeTab: TabId;
   itemsByTab: AdminRecordStore;
   isLoadingData: boolean;
-  storageError: string;
 }
 
 interface PerTabStoreState {
   modalState: ModalState | null;
   isOpeningItem: boolean;
   isSaving: boolean;
-  storageError: string;
 }
 
 interface PerTabStoreDependencies {
@@ -221,6 +221,10 @@ export function uniqueLines(values: readonly string[]): string[] {
   return Array.from(new Set(values.map((value) => value.trim()).filter(Boolean)));
 }
 
+function getErrorMessage(error: unknown, fallback: string): string {
+  return error instanceof Error ? error.message : fallback;
+}
+
 function formatStorageErrorForDisplay(storageError: string): string {
   if (!storageError) return storageError;
 
@@ -251,7 +255,6 @@ class PerTabStoreImpl implements PerTabStore {
     modalState: null,
     isOpeningItem: false,
     isSaving: false,
-    storageError: "",
   };
 
   constructor(
@@ -272,7 +275,7 @@ class PerTabStoreImpl implements PerTabStore {
   }
 
   public get displayedStorageError(): string {
-    return formatStorageErrorForDisplay(this.state.storageError);
+    return formatStorageErrorForDisplay(this.fieldState?.storageError ?? "");
   }
 
   public get isModalLoading(): boolean {
@@ -296,8 +299,14 @@ class PerTabStoreImpl implements PerTabStore {
   }
 
   public readonly clearStorageError = () => {
-    if (!this.state.storageError) return;
-    this.patchState({ storageError: "" });
+    const modalState = this.state.modalState;
+    if (!modalState?.storageError) return;
+    this.patchState({
+      modalState: {
+        ...modalState,
+        storageError: "",
+      },
+    });
   };
 
   public readonly closeModal = () => {
@@ -309,7 +318,7 @@ class PerTabStoreImpl implements PerTabStore {
     const draft = this.createDraftFor(tabId);
     this.deps.setActiveTab(tabId);
     this.patchState({
-      modalState: this.createModalState(tabId, "create", draft, draft, false),
+      modalState: this.createModalState(tabId, "create", draft, draft, false, ""),
     });
   };
 
@@ -317,28 +326,38 @@ class PerTabStoreImpl implements PerTabStore {
     const emptyDraft = this.createDraftFor(tabId);
     this.deps.setActiveTab(tabId);
     this.patchState({
-      storageError: "",
-      modalState: this.createModalState(tabId, "edit", emptyDraft, emptyDraft, true),
+      modalState: this.createModalState(tabId, "edit", emptyDraft, emptyDraft, true, ""),
       isOpeningItem: true,
     });
 
-    const item = await this.storage.read(tabId, recordId).catch((error) => {
-      console.log(error);
-      this.patchState({
-        storageError: error instanceof Error ? error.message : "Failed to load record details.",
-      });
-      return null;
-    });
+    let item: AdminRecordStore[typeof tabId][number] | null = null;
+    let storageError = "";
+    try {
+      item = await this.storage.read(tabId, recordId);
+    } catch (error) {
+      console.error(error);
+      storageError = getErrorMessage(error, "Failed to load record details.");
+    } finally {
+      this.patchState({ isOpeningItem: false });
+    }
 
-    this.patchState({ isOpeningItem: false });
     if (!item) {
-      this.closeModal();
+      this.patchState({
+        modalState: this.createModalState(
+          tabId,
+          "edit",
+          emptyDraft,
+          emptyDraft,
+          false,
+          storageError || "Record not found.",
+        ),
+      });
       return;
     }
 
     const draft = this.createDraftFor(tabId, item);
     this.patchState({
-      modalState: this.createModalState(tabId, "edit", draft, draft, false),
+      modalState: this.createModalState(tabId, "edit", draft, draft, false, ""),
     });
   };
 
@@ -419,23 +438,38 @@ class PerTabStoreImpl implements PerTabStore {
     if (!snapshot) return;
 
     this.patchState({
-      storageError: "",
+      modalState: {
+        ...snapshot,
+        storageError: "",
+      },
       isSaving: true,
     });
 
-    const savedTabItems = await this.storage.save(
-      snapshot.tabId,
-      snapshot.draft,
-    ).catch((error) => {
-      console.log(error);
-      this.patchState({
-        storageError: error instanceof Error ? error.message : "Failed to save record.",
-      });
-      return null;
-    });
+    let savedTabItems: AdminRecordStore[typeof snapshot.tabId] | null = null;
+    let storageError = "";
+    try {
+      savedTabItems = await this.storage.save(
+        snapshot.tabId,
+        snapshot.draft,
+      );
+    } catch (error) {
+      console.error(error);
+      storageError = getErrorMessage(error, "Failed to save record.");
+    } finally {
+      this.patchState({ isSaving: false });
+    }
 
-    this.patchState({ isSaving: false });
-    if (!savedTabItems) return;
+    if (!savedTabItems) {
+      const currentModalState = this.state.modalState;
+      if (!currentModalState) return;
+      this.patchState({
+        modalState: {
+          ...currentModalState,
+          storageError,
+        },
+      });
+      return;
+    }
 
     this.deps.replaceItemsByTab({
       ...this.itemsByTab,
@@ -454,6 +488,7 @@ class PerTabStoreImpl implements PerTabStore {
     draft: AdminRecordStore[T][number],
     saved: AdminRecordStore[T][number],
     loading: boolean,
+    storageError: string,
   ): ModalStateForTab<T> {
     return {
       tabId,
@@ -464,6 +499,7 @@ class PerTabStoreImpl implements PerTabStore {
       operationMessages: {},
       pendingRows: {},
       transientPermissionRows: {},
+      storageError,
       loading,
     } as ModalStateForTab<T>;
   }
@@ -479,7 +515,6 @@ class AppStore {
     activeTab: "wikis",
     itemsByTab: getEmptyItems(),
     isLoadingData: true,
-    storageError: "",
   };
 
   public readonly perTabStore: PerTabStore;
@@ -521,6 +556,11 @@ class AppStore {
     return this.loadPromise;
   }
 
+  public reload(): Promise<void> {
+    this.hasLoaded = false;
+    return this.ensureLoaded();
+  }
+
   public readonly setActiveTab = (tabId: TabId) => {
     if (tabId === this.state.activeTab) return;
     this.patchState({ activeTab: tabId });
@@ -537,7 +577,6 @@ class AppStore {
   private async loadAllInternal(): Promise<void> {
     this.patchState({
       isLoadingData: true,
-      storageError: "",
     });
 
     try {
@@ -549,9 +588,9 @@ class AppStore {
       });
     } catch (error) {
       this.patchState({
-        storageError: error instanceof Error ? error.message : "Failed to load admin records.",
         isLoadingData: false,
       });
+      throw error;
     }
   }
 
@@ -637,7 +676,7 @@ function sidebarSection({ title, content }: SidebarSectionProps) {
   );
 }
 
-// #region tab detail
+// #region tab modal
 
 @customElement("mws-record-modal")
 class RecordModalElement extends JSXElement {
@@ -659,6 +698,12 @@ class RecordModalElement extends JSXElement {
     const onSave = store.saveDraft;
     const onDraftChange = store.updateDraft;
     const onClearStorageError = store.clearStorageError;
+    const recordTitle = fieldState.mode === "create"
+      ? `New ${selectedTab.label.slice(0, -1)}`
+      : getPrimaryValue(selectedTab, fieldState.draft) || `${selectedTab.label.slice(0, -1)} details`;
+    const headerCopy = storageError
+      ? "Storage returned an error for this record. Fix the issue or close the dialog and try again."
+      : selectedTab.description;
 
     const authoredFields = !isModalLoading ? getSectionFields(selectedTab, "authored") : [];
     const runtimeFields = !isModalLoading ? getSectionFields(selectedTab, "runtime") : [];
@@ -675,10 +720,8 @@ class RecordModalElement extends JSXElement {
               <p class="eyebrow">{selectedTab.eyebrow}</p>
               <h3>{isModalLoading
                 ? `Loading ${selectedTab.label.slice(0, -1).toLowerCase()}...`
-                : fieldState.mode === "create"
-                  ? `New ${selectedTab.label.slice(0, -1)}`
-                  : getPrimaryValue(selectedTab, fieldState.draft)}</h3>
-              <p>{isModalLoading ? "Fetching record details from async storage before rendering the form." : selectedTab.description}</p>
+                : textWithSlashes(recordTitle)}</h3>
+              <p>{isModalLoading ? "Fetching record details from async storage before rendering the form." : headerCopy}</p>
             </div>
             <div class="close-button" onclick={onClose} aria-label="Close details">
               <MaterialSymbol icon={closeIcon} />
@@ -770,7 +813,7 @@ class RecordModalElement extends JSXElement {
                   );
                 })}
 
-                {fieldState.tabId !== "plugins"
+                {true
                   ? <footer class="modal-actions">
                     <button class="ghost-button" type="button" onclick={onClose} disabled={isSaving}>Cancel</button>
                     <button class="primary-button" type="button" onclick={onSave} disabled={isSaving || isOpeningItem}>{isSaving ? "Saving..." : fieldState.mode === "create" ? `Save ${selectedTab.label.slice(0, -1)}` : "Save changes"}</button>
@@ -805,7 +848,12 @@ export class App extends JSXElement {
   // don't use shadow dom. allows inheriting main.css styles.
   useLightDOM: boolean = true;
 
+  @state() accessor mainStorageError = "";
+
   private readonly store = new AppStore(this, adminStorage);
+  private readonly handlePageShow = () => {
+    void this.loadAdminRecords(true);
+  };
   private readonly handleAccountMenuClick = (event: MouseEvent) => {
     const accountMenu = this.querySelector(".hero-account-menu");
     if (!(accountMenu instanceof HTMLDetailsElement) || !accountMenu.open) return;
@@ -819,14 +867,43 @@ export class App extends JSXElement {
     super()
   }
 
+  private readonly clearMainStorageError = () => {
+    if (!this.mainStorageError) return;
+    this.mainStorageError = "";
+  };
+
+  private readonly loadAdminRecords = async (reload = false) => {
+    this.clearMainStorageError();
+
+    try {
+      if (reload) {
+        await this.store.reload();
+        return;
+      }
+
+      await this.store.ensureLoaded();
+    } catch (error) {
+      console.error(error);
+      this.mainStorageError = formatStorageErrorForDisplay(
+        getErrorMessage(error, "Failed to load admin records."),
+      );
+    }
+  };
+
+  private readonly openCreate = (tabId: TabId) => {
+    this.store.openCreate(tabId);
+  };
+
   connectedCallback(): void {
     super.connectedCallback();
     document.addEventListener("click", this.handleAccountMenuClick, true);
-    void this.store.ensureLoaded();
+    window.addEventListener("pageshow", this.handlePageShow);
+    void this.loadAdminRecords();
   }
 
   disconnectedCallback(): void {
     document.removeEventListener("click", this.handleAccountMenuClick, true);
+    window.removeEventListener("pageshow", this.handlePageShow);
     super.disconnectedCallback();
   }
 
@@ -837,6 +914,7 @@ export class App extends JSXElement {
     const currentTab = store.currentTab;
     const activeTabItems = store.activeTabItems;
     const isListInteractionDisabled = store.isListInteractionDisabled;
+    const mainStorageError = this.mainStorageError;
 
     return (
       <div class="admin-shell">
@@ -902,10 +980,16 @@ export class App extends JSXElement {
             <h2>{currentTab.label}</h2>
           </div>
           <p class="section-copy">{currentTab.description}</p>
+          <button
+            class="primary-button"
+            type="button"
+            onclick={() => this.openCreate(currentTab.id)}
+            disabled={isLoadingData || perTabStore.isOpeningItem || perTabStore.isSaving}
+          >{getCreateLabel(currentTab)}</button>
         </section>
 
         <section class="list-panel">
-          <div class="list-toolbar">
+          {/* <div class="list-toolbar">
             <div>
               <strong>{currentTab.label} list</strong>
               <p>{isLoadingData
@@ -916,11 +1000,18 @@ export class App extends JSXElement {
               <button
                 class="ghost-button"
                 type="button"
-                onclick={() => store.openCreate(currentTab.id)}
+                onclick={() => this.openCreate(currentTab.id)}
                 disabled={isLoadingData || perTabStore.isOpeningItem || perTabStore.isSaving}
               >{getCreateLabel(currentTab)}</button>
             </div>
-          </div>
+          </div> */}
+
+          {mainStorageError ? (
+            <div class="field-callout" role="alert" aria-live="polite">
+              <pre style="white-space: break-spaces;">{mainStorageError}</pre>
+              <button class="ghost-button" type="button" onclick={this.clearMainStorageError}>Dismiss</button>
+            </div>
+          ) : null}
 
           <div class="list-grid list-grid-header">
             {currentTab.columns.map((column) => (
@@ -1014,7 +1105,6 @@ function getListColumnLinkMappers(tabId: TabId): Partial<Record<string, ListColu
       };
     case "templates":
     case "bags":
-    case "plugins":
     case "roles":
     case "users":
       return {};
