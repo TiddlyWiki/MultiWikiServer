@@ -17,7 +17,6 @@
     "zod-to-ts": "^1.2.0"
   },
   "peerDependencies": {
-    "tiddlywiki": "^5.1.22",
     "@remix-run/headers": "*",
     "hono": "*"
   }

@@ -20,7 +20,7 @@ export default defineConfig({
   format: ['esm'],
   outDir: "dist",
   external: [
-    "tiddlywiki",
+    // "tiddlywiki",
     "esbuild",
     "env-cmd",
     "zod-to-ts",

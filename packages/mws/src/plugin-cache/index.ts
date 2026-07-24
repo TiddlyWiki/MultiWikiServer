@@ -26,7 +26,7 @@ interface TW5RegistryInfo {
   "dist-tags": { latest: string; };
 }
 
-async function getTW5Path(wikiPath: string) {
+export async function getTW5Path(wikiPath: string) {
   if (!fs.existsSync(path.resolve(wikiPath, "tw5"))) {
     throw new Error("You need to run update-tiddlywiki first");
   }

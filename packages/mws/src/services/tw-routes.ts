@@ -1,15 +1,18 @@
-import { TiddlyWiki } from "tiddlywiki";
 import { basename } from "path";
 import EventEmitter from "events";
 import { IncomingMessage, ServerResponse } from "http";
 import { Http2ServerRequest, Http2ServerResponse } from "http2";
 import { dist_resolve, RouteDef, ServerRequest, ServerRoute } from "@tiddlywiki/server";
 import { serverEvents } from "@tiddlywiki/events";
+import { bootDefaultTiddlyWiki } from "../plugin-cache";
+import { TW } from "tiddlywiki";
 
-serverEvents.on("mws.routes", (rootRoute, config) => {
+serverEvents.on("mws.routes", async (rootRoute, config) => {
 
   if (config.enableDocsRoute) {
+    const $tw = await bootDefaultTiddlyWiki(config.wikiPath);
     mountTW5Route({
+      $tw,
       rootRoute,
       mountPath: "/mws-docs",
       singleFile: false,
@@ -23,9 +26,11 @@ serverEvents.on("mws.routes", (rootRoute, config) => {
       }
     })
   }
+
 })
 
-export function mountTW5Route({ rootRoute, mountPath, singleFile, args, variables }: {
+export function mountTW5Route({ $tw, rootRoute, mountPath, singleFile, args, variables }: {
+  $tw: TW;
   rootRoute: ServerRoute;
   /** The mount point of TW5, equivelant to pathPrefix. */
   mountPath: string;
@@ -47,6 +52,7 @@ export function mountTW5Route({ rootRoute, mountPath, singleFile, args, variable
     bodyFormat: "stream",
     path: new RegExp("^" + mountPath + "(/|$)"),
   }, TW5Route({
+    $tw,
     mountPath,
     singleFile,
     argv: args,
@@ -63,17 +69,19 @@ export function mountTW5Route({ rootRoute, mountPath, singleFile, args, variable
  * @param options.rootRoute  
  */
 export function TW5Route({
+  $tw,
   mountPath,
   singleFile,
   argv,
   variables = {},
 }: {
+  $tw: TW;
   mountPath: string;
   singleFile: boolean;
   argv: string[];
   variables?: Record<string, string>;
 }) {
-  const $tw = TiddlyWiki();
+
   const last = basename(mountPath);
 
   $tw.preloadTiddler({

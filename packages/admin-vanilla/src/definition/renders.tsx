@@ -302,11 +302,10 @@ function renderSearchMultiselectFieldEditor(ctx: FieldEditorContext<any>) {
   const editableLines = value;
   const pendingRowCount = fieldState.pendingRows[field.key] ?? 0;
   const lookupOptions = getLookupOptions(field.key, itemsByTab);
-  const itemLabel = field.key === "plugins"
-    ? "plugin"
-    : field.key === "userRoles"
-      ? "role id"
-      : "bag";
+  const itemLabel =
+    field.key === "plugins" ? "plugin" :
+      field.key === "userRoles" ? "role id" :
+        "bag";
   const templateRecord = is<WikiAdminRecord>(fieldState.draft, fieldState.tabId === "wikis")
     ? findTemplateRecordForWikiRecord(fieldState.draft, itemsByTab) : undefined;
   const templateReadonlyBagLines = field.key === "readonlyBags" && templateRecord ? templateRecord.readonlyBags : [];
