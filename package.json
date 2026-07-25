@@ -2,7 +2,7 @@
   "name": "@tiddlywiki/mws",
   "description": "TiddlyWiki Multiple Wiki Server",
   "private": false,
-  "version": "0.2.0",
+  "version": "0.2.1",
   "bin": {
     "mws": "./mws.run.mjs"
   },
@@ -42,10 +42,8 @@
     "tsc": "TSCMWS=1 npx tsup",
     "tsc2": "tsc -p tsconfig.json --noEmit",
     "tsc-client": "cd packages/react-admin && npm run tsc",
-    "build": "tsup && npm run build:admin",
-    "build:admin": "node scripts/scripts.mjs client-build",
+    "build": "node scripts/scripts.mjs build",
     "build:client": "cd plugins/client && tsc",
-    "build:types": "PLUGINDTS=1 npx tsup",
     "prisma:gen": "cd tools && npm run prisma:gen",
     "prisma:mig": "cd tools && npm run prisma:mig",
     "dev-quick-reset": "node scripts/scripts.mjs dev-quick-reset",

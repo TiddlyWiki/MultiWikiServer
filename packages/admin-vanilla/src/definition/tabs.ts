@@ -142,6 +142,7 @@ export interface FieldDefinition {
 export interface ColumnDefinition {
   key: string;
   label: string;
+  width?: number;
 }
 
 export interface TabDefinition {
@@ -171,15 +172,16 @@ const tabs = {
     eyebrow: "Your thoughts",
     description: "Final wiki instances built from a template plus per-wiki customizations.",
     columns: [
-      { key: "slug", label: "Slug" },
-      { key: "displayName", label: "Display name" },
+      { key: "slug", label: "Slug", width: 2 },
+      { key: "displayName", label: "Display name", width: 2 },
       { key: "templateName", label: "Template" },
       { key: "defaultWritableBag", label: "Default bag" },
-      { key: "readonlyBagCount", label: "Readonly bags" },
       { key: "prefixRuleCount", label: "Prefix rules" },
+      { key: "readonlyBagCount", label: "Readonly bags" },
       { key: "pluginCount", label: "Plugins" },
-      { key: "lastCompiledAt", label: "Compiled" },
-      { key: "statusFlags", label: "Status" },
+      // { key: "edit", label: "" }
+      // { key: "lastCompiledAt", label: "Compiled" },
+      // { key: "statusFlags", label: "Status" },
       // { key: "compileValidation", label: "Validation" }
     ],
     fields: [
@@ -286,13 +288,13 @@ const tabs = {
     eyebrow: "Wiki Blueprints",
     description: "Reusable recipe definitions. Changes made to a template apply to every wiki using it.",
     columns: [
-      { key: "name", label: "Name" },
-      { key: "description", label: "Description" },
+      { key: "name", label: "Name", width: 2 },
+      { key: "description", label: "Description", width: 3 },
       { key: "readonlyBagsSummary", label: "Readonly bags" },
       // { key: "writablePrefixSummary", label: "Writable prefixes" },
       { key: "dependentWikiCount", label: "Dependent wikis" },
-      { key: "lastUpdatedAt", label: "Updated" },
-      { key: "validationStatus", label: "Validation" },
+      { key: "lastUpdatedAt", label: "Updated", width: 2 },
+      // { key: "validationStatus", label: "Validation" },
     ],
     fields: [
       { key: "type", label: "Type", type: "template-type", section: "authored", mode: "create" },
@@ -435,8 +437,8 @@ const tabs = {
     eyebrow: "Tiddler Storage",
     description: "Concrete tiddler storage with role-based access control.",
     columns: [
-      { key: "name", label: "Name" },
-      { key: "description", label: "Description" },
+      { key: "name", label: "Name", width: 2 },
+      { key: "description", label: "Description", width: 2 },
       { key: "usedByCount", label: "Used by" },
       { key: "readonlyUsageCount", label: "Readonly" },
       { key: "writableUsageCount", label: "Writable" },
@@ -548,8 +550,8 @@ const tabs = {
     eyebrow: "Access profiles",
     description: "Named access profiles that can be assigned to user accounts.",
     columns: [
-      { key: "name", label: "Role name" },
-      { key: "description", label: "Role description" },
+      { key: "name", label: "Role name", width: 2 },
+      { key: "description", label: "Role description", width: 7 },
     ],
     fields: [
       { key: "name", label: "Role name", type: "string", section: "authored", mode: "create edit" },
@@ -570,8 +572,8 @@ const tabs = {
     eyebrow: "Account logins",
     description: "User accounts with assigned roles.",
     columns: [
-      { key: "username", label: "Username" },
-      { key: "email", label: "Email" },
+      { key: "username", label: "Username", width: 2 },
+      { key: "email", label: "Email", width: 7 },
     ],
     fields: [
       { key: "username", label: "Username", type: "string", section: "authored", mode: "create edit" },

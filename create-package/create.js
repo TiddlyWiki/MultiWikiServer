@@ -54,8 +54,8 @@ const path = require("path");
     json.dependencies["@tiddlywiki/mws"] = "~" + json.dependencies["@tiddlywiki/mws"];
   fs.writeFileSync(path.resolve(folder, "package.json"), JSON.stringify(json));
 
-  await start("npm", ["exec", "mws", "update-tiddlywiki"]);
-  await start("npm", ["exec", "mws", "init-store"]);
+  await start("npm", ["exec", "mws", "update-tiddlywiki"], {}, { cwd: folder });
+  await start("npm", ["exec", "mws", "init-store"], {}, { cwd: folder });
 
 })().catch(console.log);
 

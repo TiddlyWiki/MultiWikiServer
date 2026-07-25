@@ -468,6 +468,9 @@ h6 {
 	color: inherit;
 	text-decoration: underline;
 	text-underline-offset: 0.18em;
+	display:block;
+	
+	text-overflow: ellipsis;
 }
 
 .list-body {
@@ -1557,6 +1560,9 @@ table.value-table td {
 	border-radius: 16px;
 	background: var(--color-surface-field);
 	border: 1px solid var(--color-border-soft);
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) max-content;
+
 }
 
 .field-callout p {

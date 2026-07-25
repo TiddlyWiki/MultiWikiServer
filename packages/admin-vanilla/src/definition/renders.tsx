@@ -466,8 +466,8 @@ function renderPrefixTableFieldSidebar(ctx: ReadonlyFieldContext<any>): JSX.Node
   definitely<WritablePrefixRow[]>(ctx.value);
   return <dl class="prefix-bag-sidebar">
     {ctx.value.map((entry) => <>
-      <dt class="prefix-bag-sidebar-term">{entry.prefix ? <span class="prefix-bag-sidebar-prefix">"{entry.prefix}"</span> : defaultPrefixPill}</dt>
-      <dd class="prefix-bag-sidebar-value">{entry.bagName}</dd>
+      <dt class="prefix-bag-sidebar-term">{entry.prefix ? <span class="prefix-bag-sidebar-prefix">"{textWithSlashes(entry.prefix)}"</span> : defaultPrefixPill}</dt>
+      <dd class="prefix-bag-sidebar-value">{textWithSlashes(entry.bagName)}</dd>
     </>)}
   </dl>;
 }

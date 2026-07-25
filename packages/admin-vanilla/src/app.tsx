@@ -1015,8 +1015,13 @@ export class App extends JSXElement {
 
           <div class="list-grid list-grid-header">
             {currentTab.columns.map((column) => (
-              <div class="list-cell list-head">{column.label}</div>
+              <div class="list-cell list-head" style={
+                column.width && column.width > 1
+                  ? { gridColumn: "span " + column.width }
+                  : {}
+              }>{column.label}</div>
             ))}
+
           </div>
 
           <div class="list-body">
@@ -1031,7 +1036,8 @@ export class App extends JSXElement {
                 tabindex={isListInteractionDisabled ? -1 : 0}
                 aria-disabled={isListInteractionDisabled ? "true" : undefined}
                 onclick={() => {
-                  if (!isListInteractionDisabled) void store.openItem(currentTab.id, item.id);
+                  if (!isListInteractionDisabled)
+                    void store.openItem(currentTab.id, item.id);
                 }}
                 onkeydown={(event) => {
                   if (isListInteractionDisabled) return;
@@ -1040,19 +1046,43 @@ export class App extends JSXElement {
                   void store.openItem(currentTab.id, item.id);
                 }}
               >
-                {currentTab.columns.map((column) => (
-                  <div class="list-cell">
-                    {(() => {
-                      const value = getAdminRecordValue(column, item);
-                      const isFirstColumn = column.key === currentTab.columns[0]?.key;
-                      const linkUrl = isFirstColumn ? getListColumnLink(currentTab.id, column.key, item) : null;
+                {currentTab.columns.map((column) => {
+                  const value = getAdminRecordValue(column, item);
+                  const isFirstColumn = column.key === currentTab.columns[0]?.key;
+                  const linkUrl = isFirstColumn ? getListColumnLink(currentTab.id, column.key, item) : null;
+                  if (typeof linkUrl === "string") {
+                    return <a
+                      class="list-cell list-cell-link"
+                      href={linkUrl}
+                      onclick={(event) => event.stopPropagation()}
+                      onkeydown={(event) => event.stopPropagation()}
+                      style={column.width && column.width > 1
+                        ? { gridColumn: "span " + column.width }
+                        : {}
+                      }
+                    >{renderListCellValue(column.key, value)}</a>;
+                  }
+                  return (
+                    <div class="list-cell" style={
+                      column.width && column.width > 1
+                        ? { gridColumn: "span " + column.width }
+                        : {}
+                    }>
+                      {renderListCellValue(column.key, value)}
+                      {/* {(() => {
 
-                      return typeof linkUrl === "string"
-                        ? <a class="list-cell-link" href={linkUrl} onclick={(event) => event.stopPropagation()} onkeydown={(event) => event.stopPropagation()}>{renderListCellValue(column.key, value)}</a>
-                        : renderListCellValue(column.key, value);
-                    })()}
-                  </div>
-                ))}
+
+                        return typeof linkUrl === "string"
+                          ? <a
+                            class="list-cell-link"
+                            href={linkUrl} onclick={(event) => event.stopPropagation()}
+                            onkeydown={(event) => event.stopPropagation()}
+                          >{renderListCellValue(column.key, value)}</a>
+                          : renderListCellValue(column.key, value);
+                      })()} */}
+                    </div>
+                  )
+                })}
               </div>
             )) : (
               <div class="field-callout">
