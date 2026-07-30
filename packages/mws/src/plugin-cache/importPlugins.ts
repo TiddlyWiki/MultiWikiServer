@@ -102,7 +102,8 @@ export async function importPlugins(
     'core'
   ].map(e => {
     const oldPath = path.join(twFolder, e);
-    const relativePluginPath = path.join("tiddlywiki", $tw.version, path.relative(twFolder, oldPath));
+    const pluginCode = path.relative(twFolder, oldPath);
+    const relativePluginPath = path.join("tiddlywiki", $tw.version, pluginCode);
     return [oldPath, relativePluginPath] as const;
   });
 
@@ -134,6 +135,7 @@ export async function importPlugins(
   /** Map of "title" to "dirname of plugin.json relative to cache folder" */
   const tiddlerFiles = new Map<string, string>();
   const tiddlerHashesStore = new Map<string, TiddlerHasher>();
+
   function tiddlerHashes(arrayString: string) {
     return mapGetInit(tiddlerHashesStore, arrayString, () => new TiddlerHasher(arrayString));
   }
@@ -146,6 +148,7 @@ export async function importPlugins(
     Object.keys(plugin).forEach(e => pluginInfoKeys.add(e));
     const newPath = path.join(cacheFolder, relativePluginPath);
     fs.mkdirSync(newPath, { recursive: true });
+
     if (!(plugin && plugin.title && plugin.text)) {
       console.log("Info: No plugin found at", oldPath);
       return;
@@ -195,10 +198,10 @@ export async function importPlugins(
         return hash;
       }));
 
-      tiddlerFiles.set(plugin.title, relativePluginPath);
+      tiddlerFiles.set(plugin.title, relativePluginPath.replaceAll("\\", "/"));
 
       pluginsList.push({
-        path: relativePluginPath,
+        path: relativePluginPath.replaceAll("\\", "/"),
         hashes,
         name: plugin.name,
         description: plugin.description,

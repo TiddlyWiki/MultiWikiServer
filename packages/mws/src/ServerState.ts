@@ -120,7 +120,6 @@ export class ServerState {
   }
 
   async initSettings(existing: Record<string, string>) {
-
     // this.enableExternalPlugins = existing.enableExternalPlugins === "true";
     // this.enableGzip = existing.enableGzip === "true";
   }
