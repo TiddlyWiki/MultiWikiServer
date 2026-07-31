@@ -85,7 +85,7 @@ export class ServerState {
   }[] = [
       // { key: "siteTitle", description: "Title for the site", valueType: "string" },
       // { key: "siteDescription", description: "Description for the site", valueType: "string" },
-      { key: "enableExternalPlugins", description: "Serve TiddlyWiki plugins via script tags", valueType: "boolean" },
+      // { key: "enableExternalPlugins", description: "Serve TiddlyWiki plugins via script tags", valueType: "boolean" },
       { key: "enableGzip", description: "Enable gzip compression for responses", valueType: "boolean" },
       // { key: "enableResponseCompression", description: "Compress server responses", valueType: "boolean" },
       // { key: "enableBrowserCache", description: "Enable browser caching of static assets", valueType: "boolean" },

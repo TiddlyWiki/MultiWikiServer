@@ -115,6 +115,7 @@ declare module "@tiddlywiki/events" {
     "request.init": [router: Router, options: ParsedHonoRequest]
     "request.state": [router: Router, state: ServerRequest]
     "request.fallback": [router: Router, state: ServerRequest]
+    "request.error-sync": [error: any]
     "exit": []
     "sync-exit-forced": []
   }

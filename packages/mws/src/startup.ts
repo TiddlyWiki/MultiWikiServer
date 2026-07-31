@@ -16,6 +16,7 @@ import { createPasswordService } from "./services/PasswordService";
 import { bootTiddlyWiki } from "./services/tiddlywiki";
 import * as opaque from "@serenity-kit/opaque";
 import { UpdateTiddlyWikiCommand } from "./new-commands";
+import { PrismaClientKnownRequestError } from "@tiddlywiki/mws-prisma/client/internal/prismaNamespace";
 
 
 declare module "@tiddlywiki/events" {
@@ -168,6 +169,13 @@ serverEvents.on("listen.router.init", async (listen, router) => {
     "server": dist_resolve("metafile-esm.json"),
   });
   await serverEvents.emitAsync("mws.routes.fallback", router.rootRoute, router.config);
+
+  router.catcherInner = (err) => {
+    if (err instanceof PrismaClientKnownRequestError) {
+      //@ts-ignore
+      console.log(err.meta?.driverAdapterError?.cause);
+    }
+  }
 });
 
 serverEvents.on("mws.routes.fallback", (root, config) => {

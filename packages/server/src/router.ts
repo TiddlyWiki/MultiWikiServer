@@ -79,24 +79,26 @@ export type ParsedHonoRequest = ART<typeof parseHonoRequest>;
 
 const pathReg = /^\/([^/]+)(\/[^?]*)/;
 
-const catcher = (errorKey: string, err: any) => {
+
+const catcher = (errorKey: string, err: any, inner: (e: any) => any) => {
   if (err === STREAM_ENDED) return;
-  if (!err.skiplog)
-    console.log(errorKey, err);
   // this can be thrown when a request cancels
   if (err instanceof Error && err.name === "AbortError") return;
-  if (err instanceof PrismaClientKnownRequestError) {
-    //@ts-ignore
-    console.log(err.meta?.driverAdapterError?.cause);
-  }
+
+  inner(err);
+
+  if (!err) console.log("A falsey error was thrown");
+  // skiplog can be set to ignore this error
+  if (typeof err !== "object" || !err.skiplog) console.log(errorKey, err);
+
   if (!(err instanceof SendError)) {
     err = new SendError("INTERNAL_SERVER_ERROR", 500, {
       message: "Internal Server Error. Details have been logged."
     });
   }
+
   return err as SendErrorTypes;
 }
-
 
 export function parseNodeRequest<R extends GenericResponse | undefined>(req: GenericRequest, res: R, pathPrefix: string, assumeHTTPS: boolean): ParsedRequest & { req: typeof req, res: typeof res } {
 
@@ -222,11 +224,13 @@ export class Router {
     this.hono.use(this.routeHandlerMiddleware);
   }
 
+  catcherInner: (this: undefined, e: any) => void = (e: any) => { };
+
   routeHandlerMiddleware = createMiddleware<HonoEnv>((c, next) => {
     let resolve: (res: Response) => void;
     const prom = new Promise<Response>((r) => { resolve = r; });
     this.handleHonoRequest(c, resolve!, next).catch(err => {
-      const err2 = catcher(`${c.req.method} ${c.req.url}`, err);
+      const err2 = catcher(`${c.req.method} ${c.req.url}`, err, this.catcherInner);
       if (!err2)
         return;
       if (err2.reason === "REDIRECT")
