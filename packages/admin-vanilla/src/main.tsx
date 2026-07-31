@@ -20,6 +20,7 @@ declare global {
   const pathPrefix: string;
   const embeddedServerResponse: {
     userState: AuthUser;
+    tw5Version: string;
     sendError?: ReturnType<SendError<any>["toJSON"]>;
   }
 }

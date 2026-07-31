@@ -5,7 +5,7 @@ import { LoadWikiFolderCommand } from "./load-wiki-folder";
 import { RoleImportWriter, TemplateImportWriter, UserImportWriter } from "../new-managers";
 import { IdString } from "@mws/admin-vanilla/src/definition/tabs";
 import { serverEvents } from "@tiddlywiki/events";
-import { getTW5Path } from "../plugin-cache";
+import { getTW5Paths } from "../plugin-cache";
 
 serverEvents.on("cli.register", (commands) => {
 	commands[info.name] = { info, Command: InitStoreCommand };
@@ -79,7 +79,7 @@ export class InitStoreCommand extends BaseCommand {
 		console.log("Default user created with username 'admin' and password '1234'. Please change this password after logging in.");
 
 		// should give us the path to boot.js
-		const tweditions = resolve(await getTW5Path(this.config.wikiPath), "editions");
+		const tweditions = resolve((await getTW5Paths(this.config.wikiPath)).pop()!.name, "editions");
 
 		const runner = async (path: string, bagName: string, bagDesc: string, recName: string, recDesc: string) => {
 			const command = new LoadWikiFolderCommand([path!], {
@@ -100,21 +100,21 @@ export class InitStoreCommand extends BaseCommand {
 			"mws-docs", "MWS Documentation from https://mws.tiddlywiki.com",
 			"mws-docs", "MWS Documentation from https://mws.tiddlywiki.com",
 		);
-		await runner(
-			resolve(tweditions, "tw5.com"),
-			"docs", "TiddlyWiki Documentation from https://tiddlywiki.com",
-			"docs", "TiddlyWiki Documentation from https://tiddlywiki.com",
-		);
-		await runner(
-			resolve(tweditions, "dev"),
-			"dev", "TiddlyWiki Developer Documentation from https://tiddlywiki.com/dev",
-			"dev-docs", "TiddlyWiki Developer Documentation from https://tiddlywiki.com/dev",
-		);
-		await runner(
-			resolve(tweditions, "tour"),
-			"tour", "TiddlyWiki Interactive Tour from https://tiddlywiki.com",
-			"tour", "TiddlyWiki Interactive Tour from https://tiddlywiki.com",
-		);
+		// await runner(
+		// 	resolve(tweditions, "tw5.com"),
+		// 	"docs", "TiddlyWiki Documentation from https://tiddlywiki.com",
+		// 	"docs", "TiddlyWiki Documentation from https://tiddlywiki.com",
+		// );
+		// await runner(
+		// 	resolve(tweditions, "dev"),
+		// 	"dev", "TiddlyWiki Developer Documentation from https://tiddlywiki.com/dev",
+		// 	"dev-docs", "TiddlyWiki Developer Documentation from https://tiddlywiki.com/dev",
+		// );
+		// await runner(
+		// 	resolve(tweditions, "tour"),
+		// 	"tour", "TiddlyWiki Interactive Tour from https://tiddlywiki.com",
+		// 	"tour", "TiddlyWiki Interactive Tour from https://tiddlywiki.com",
+		// );
 
 		this.config.setupRequired = false;
 	}

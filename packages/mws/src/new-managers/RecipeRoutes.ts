@@ -1,6 +1,6 @@
 import { zodRoute, SendError } from "@tiddlywiki/server";
 import { RecipeResolver } from "./RecipeResolver";
-import { serveIndex } from "./RecipeIndexSender";
+import { serveWikiIndex } from "./RecipeIndexSender";
 // ---------------------------------------------------------------------------
 // Recipe-scoped endpoints (RSD, batch, list, status) — addressed by title.
 // ---------------------------------------------------------------------------
@@ -20,13 +20,12 @@ export const RecipeStatus = zodRoute({
     const recipe = await RecipeResolver.assertRecipe({
       state,
       recipe_slug,
-      needsWrite: false
     }).then(e => {
       state.asserted = true;
       return e;
     });
     return await state.$transaction(async (prisma) => {
-      const r = new RecipeResolver(recipe, prisma, state.user.isAdmin);
+      const r = new RecipeResolver(recipe, prisma, state.user);
       const { isAdmin, user_id, username, isLoggedIn } = state.user;
       return {
         isAdmin,
@@ -60,13 +59,12 @@ export const TiddlerList = zodRoute({
     const recipe = await RecipeResolver.assertRecipe({
       state,
       recipe_slug,
-      needsWrite: false
     }).then(e => {
       state.asserted = true;
       return e;
     });
     return await state.$transaction(async (prisma) => {
-      const r = new RecipeResolver(recipe, prisma, state.user.isAdmin);
+      const r = new RecipeResolver(recipe, prisma, state.user);
       return await r.listTiddlers();
     });
   },
@@ -84,7 +82,7 @@ export const RecipeStoreJS = zodRoute({
   inner: async (state) => {
     const { recipe_slug } = state.pathParams;
     state.assertWikiReferer(recipe_slug);
-    throw await serveIndex(state, recipe_slug, "store.js");
+    throw await serveWikiIndex(state, recipe_slug, "store.js");
   },
 });
 // #region RecipeStore
@@ -100,7 +98,7 @@ export const RecipeStoreJSON = zodRoute({
   inner: async (state) => {
     const { recipe_slug } = state.pathParams;
     state.assertWikiReferer(recipe_slug);
-    throw await serveIndex(state, recipe_slug, "store.json");
+    throw await serveWikiIndex(state, recipe_slug, "store.json");
   },
 });
 // #region RecipeUpdates
@@ -121,14 +119,13 @@ export const RecipeUpdates = zodRoute({
     const recipe = await RecipeResolver.assertRecipe({
       state,
       recipe_slug,
-      needsWrite: false
     }).then(e => {
       state.asserted = true;
       return e;
     });
 
     return await state.$transaction(async (prisma) => {
-      const r = new RecipeResolver(recipe, prisma, state.user.isAdmin);
+      const r = new RecipeResolver(recipe, prisma, state.user);
       const bagIDMap = new Map(recipe.recipe_bags.map(b => [b.bag_id, b]));
       const since = Number(state.query.get("since")) || 0;
       const events = await prisma.tiddlerEvent.findMany({
@@ -188,7 +185,6 @@ export const TiddlerBatch = zodRoute({
     const recipe = await RecipeResolver.assertRecipe({
       state,
       recipe_slug,
-      needsWrite: op !== "list" && op !== "read"
     }).then(e => {
       state.asserted = true;
       return e;
@@ -196,7 +192,7 @@ export const TiddlerBatch = zodRoute({
 
     return await state.$transaction(async (prisma) => {
 
-      const r = new RecipeResolver(recipe, prisma, state.user.isAdmin);
+      const r = new RecipeResolver(recipe, prisma, state.user);
 
       if (op === "list") {
         return await r.listTiddlers();

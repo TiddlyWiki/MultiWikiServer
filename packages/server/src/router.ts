@@ -83,6 +83,8 @@ const catcher = (errorKey: string, err: any) => {
   if (err === STREAM_ENDED) return;
   if (!err.skiplog)
     console.log(errorKey, err);
+  // this can be thrown when a request cancels
+  if (err instanceof Error && err.name === "AbortError") return;
   if (err instanceof PrismaClientKnownRequestError) {
     //@ts-ignore
     console.log(err.meta?.driverAdapterError?.cause);
@@ -345,10 +347,14 @@ export class Router {
         const res = await match.route.handler(state as any);
         await state[ROUTER_PROMISE];
         return res;
-      }).catch(e => {
+      }).catch(async e => {
         if (e === STREAM_ENDED) return e;
         if (match.route.catchHandler) {
-          return match.route.catchHandler(state as any, e);
+          // just in case this threw from the last request
+          state[ROUTER_PROMISE] = undefined as any;
+          const res = match.route.catchHandler(state as any, e);
+          await state[ROUTER_PROMISE];
+          return res;
         } else {
           throw e;
         }

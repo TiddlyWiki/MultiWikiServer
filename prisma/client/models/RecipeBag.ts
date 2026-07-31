@@ -233,7 +233,7 @@ export type RecipeBagOrderByWithRelationInput = {
 }
 
 export type RecipeBagWhereUniqueInput = Prisma.AtLeast<{
-  recipe_id_bag_id_prefix?: Prisma.RecipeBagRecipe_idBag_idPrefixCompoundUniqueInput
+  recipe_id_bag_id_is_writable_prefix?: Prisma.RecipeBagRecipe_idBag_idIs_writablePrefixCompoundUniqueInput
   AND?: Prisma.RecipeBagWhereInput | Prisma.RecipeBagWhereInput[]
   OR?: Prisma.RecipeBagWhereInput[]
   NOT?: Prisma.RecipeBagWhereInput | Prisma.RecipeBagWhereInput[]
@@ -244,7 +244,7 @@ export type RecipeBagWhereUniqueInput = Prisma.AtLeast<{
   prefix?: Prisma.StringFilter<"RecipeBag"> | string
   recipe?: Prisma.XOR<Prisma.RecipeScalarRelationFilter, Prisma.RecipeWhereInput>
   bag?: Prisma.XOR<Prisma.BagScalarRelationFilter, Prisma.BagWhereInput>
-}, "recipe_id_bag_id_prefix">
+}, "recipe_id_bag_id_is_writable_prefix">
 
 export type RecipeBagOrderByWithAggregationInput = {
   recipe_id?: Prisma.SortOrder
@@ -334,9 +334,10 @@ export type RecipeBagOrderByRelationAggregateInput = {
   _count?: Prisma.SortOrder
 }
 
-export type RecipeBagRecipe_idBag_idPrefixCompoundUniqueInput = {
+export type RecipeBagRecipe_idBag_idIs_writablePrefixCompoundUniqueInput = {
   recipe_id: string
   bag_id: string
+  is_writable: boolean
   prefix: string
 }
 

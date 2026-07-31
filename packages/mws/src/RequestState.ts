@@ -49,6 +49,7 @@ export class StateObject<
     this.engine = router.config.engine;
     this.PasswordService = router.config.PasswordService;
     this.pluginCache = router.config.pluginCache;
+    
 
     this.asserted = false;
     this.sendAdmin = (sendError?: SendError<any>): Promise<typeof STREAM_ENDED> =>

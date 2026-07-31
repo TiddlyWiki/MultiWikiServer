@@ -21,7 +21,7 @@
 		--color-accent-track: #c5872b;
 		--color-accent-track-soft: #d4a53d;
 		--color-accent-track-mid: #e4bf6b;
-		--color-accent-fill: hsl(39.23deg 75.79% 74.61%);
+		--color-accent-fill: hsl(42 87% 85%);
 		--color-danger: #9f3a2a;
 		--color-white: #fff;
 		--color-white-solid: #ffffff;
@@ -90,9 +90,9 @@
 		--color-accent-pill-text: #f4ead2;
 		--color-accent-row-action-text: #f1e4c7;
 		--color-accent-select-arrow: #c9b27a;
-		--color-accent-track: #d0a24a;
-		--color-accent-track-soft: #9e7731;
-		--color-accent-track-mid: #bc8d3f;
+		--color-accent-track: hsl(39, 59%, 55%);
+		--color-accent-track-soft: hsl(39, 53%, 41%);
+		--color-accent-track-mid: hsl(37, 50%, 49%);
 		--color-accent-fill: hsl(210deg 40% 24%);
 		--color-danger: #f08b7d;
 		--color-white: #fff;
@@ -171,7 +171,8 @@ textarea {
 .modal-card,
 .field-card,
 .field-index,
-.tab-button {
+.tab-button,
+.primary-button {
 	border: 1px solid var(--color-border-soft);
 	box-shadow: 0 18px 40px var(--color-shadow-card);
 }
@@ -256,6 +257,12 @@ h6 {
 	justify-self: end;
 	align-self: start;
 	position: relative;
+	display: flex;
+	gap: 12px;
+}
+
+.hero-account-shell a {
+	text-decoration: none;
 }
 
 .hero-account-menu {
@@ -468,9 +475,16 @@ h6 {
 	color: inherit;
 	text-decoration: underline;
 	text-underline-offset: 0.18em;
-	display:block;
-	
+	display: block;
+
 	text-overflow: ellipsis;
+}
+
+.list-cell-link:hover,
+.list-cell-link:focus-visible {
+	color: var(--color-text-on-accent);
+	background-color: var(--color-accent-fill);
+	text-decoration-thickness: 0.14em;
 }
 
 .list-body {
@@ -1618,7 +1632,7 @@ table.value-table td {
 }
 
 .primary-button {
-	border: 0;
+	/* border: 0; */
 	border-radius: 999px;
 	padding: 11px 16px;
 	background: var(--color-accent-fill);

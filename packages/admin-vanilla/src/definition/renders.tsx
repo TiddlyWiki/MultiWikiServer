@@ -67,7 +67,13 @@ function getLookupOptions(fieldKey: string, itemsByTab: AdminRecordStore): strin
   if (fieldKey === "plugins") {
     return Array.from(itemsByTab.availablePluginNames);
   }
-  if (fieldKey === "userRoles" || fieldKey === "bagPermissions" || fieldKey === "templatePermissions" || fieldKey === "recipePermissions") {
+  if (fieldKey === "userRoles" 
+    || fieldKey === "bagPermissions" 
+    || fieldKey === "recipeAdmins"
+    || fieldKey === "recipeUsers"
+    || fieldKey === "templateAdmins"
+    || fieldKey === "templateUsers"
+  ) {
     return Array.from(new Set(itemsByTab.roles.map((item) => item.name).filter(Boolean)));
   }
   return [];
@@ -302,10 +308,10 @@ function renderSearchMultiselectFieldEditor(ctx: FieldEditorContext<any>) {
   const editableLines = value;
   const pendingRowCount = fieldState.pendingRows[field.key] ?? 0;
   const lookupOptions = getLookupOptions(field.key, itemsByTab);
-  const itemLabel =
-    field.key === "plugins" ? "plugin" :
-      field.key === "userRoles" ? "role id" :
-        "bag";
+  const itemLabel = field.label;
+    // field.key === "plugins" ? "plugin" :
+    //   field.key === "userRoles" ? "role id" :
+    //     "bag";
   const templateRecord = is<WikiAdminRecord>(fieldState.draft, fieldState.tabId === "wikis")
     ? findTemplateRecordForWikiRecord(fieldState.draft, itemsByTab) : undefined;
   const templateReadonlyBagLines = field.key === "readonlyBags" && templateRecord ? templateRecord.readonlyBags : [];
@@ -341,7 +347,7 @@ function renderSearchMultiselectFieldEditor(ctx: FieldEditorContext<any>) {
           {renderSearchableInput({
             id: `${inputId}-${index}`,
             currentValue: line,
-            placeholder: `${itemLabel.charAt(0).toUpperCase()}${itemLabel.slice(1)} name`,
+            placeholder: itemLabel,
             options: lookupOptions,
             onInput: (nextValue) => updateLineValueAt(index, nextValue),
             disabled: ctx.disabled

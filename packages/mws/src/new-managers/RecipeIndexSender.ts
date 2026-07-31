@@ -6,13 +6,14 @@ import { join, resolve } from "node:path";
 import { mapGetInit } from "./wiki-utils";
 import { IdString } from "@mws/admin-vanilla/src/definition/tabs";
 import { serverEvents } from "@tiddlywiki/events";
-import { defaultPreloadFunction, TiddlerHasher, WikiPluginCache } from "../plugin-cache";
+import { BagImport, defaultPreloadFunction, PluginDefinition, TiddlerHasher, WikiPluginCache } from "../plugin-cache";
 import { RecipeInfo, RecipeResolver } from "./RecipeResolver";
+import { TiddlerFields } from "tiddlywiki";
 
 
 type IndexData = ART<RecipeResolver["getIndexData"]>;
 // #region serveIndex
-export async function serveIndex(
+export async function serveWikiIndex(
   state: ServerRequest,
   recipe_slug: string,
   type: "index" | "store.js" | "store.json"
@@ -23,52 +24,52 @@ export async function serveIndex(
     const recipe = await RecipeResolver.assertRecipe({
       state,
       recipe_slug,
-      needsWrite: false
     }).then(e => {
       state.asserted = true;
       return e;
     });
     const skipBagTiddlers = state.method === "HEAD";
     const index = await state.$transaction(async (prisma) => {
-      return await new RecipeResolver(recipe, prisma, state.user.isAdmin)
+      return await new RecipeResolver(recipe, prisma, state.user)
         .getIndexData(!skipBagTiddlers);
     });
-    return { recipe, index };
+    const etag = index.getIndexEtag("", state.pluginCache);
+    return { recipe, index, etag };
   };
 
   switch (type) {
     case "index": {
-      const { recipe, index } = await getData();
-
-      return await new IndexSender(
+      const { recipe, index, etag } = await getData();
+      const template = index.template.customHtmlEnabled ? index.template.htmlContent :
+        await readFile(resolve(state.config.cachePath, "tiddlywiki5.html"), "utf8");
+      const plugins = index.getPluginList(state.pluginCache);
+      await initPlugins(state.pluginCache, index.template.injectionFunction, plugins);
+      return await new WikiIndexSender(
+        state,
         recipe,
         index,
-        state,
-        index.template.externalPlugins,
-        BUILD_FLAG_EXTERNAL_STORE && index.template.externalStore
-      ).serveIndexFile();
+        etag,
+        plugins,
+      ).serveIndexFile(template);
     }
     case "store.json":
     case "store.js": {
 
-
-
-      const store = await (async () => {
+      const { recipe, index, etag: newEtag } = await (async () => {
         if (process.env.BUILD_FLAG_EXTERNAL_STORE) {
           const key = state.headers.cookie.get("mws_index_cache")!;
           const cached = IndexSender.storeCache.get(key) ?? await getData();
           IndexSender.storeCache.delete(key);
-          const { recipe, index } = cached;
-          return new StoreWriter(state, recipe, index, type);
+          return cached;
         } else {
-          const { recipe, index } = await getData();
-          return new StoreWriter(state, recipe, index, type);
+          return await getData();
         }
       })();
 
-      await store.init();
+      const plugins = index.getPluginList(state.pluginCache);
+      await initPlugins(state.pluginCache, index.template.injectionFunction, plugins);
+      const store = new WikiStoreWriter(state, recipe, index, type, plugins);
 
-      const newEtag = store.getEtag("");
       const match = state.headers.ifNoneMatch.has(newEtag);
 
       state.writeHead(match ? 304 : 200, {
@@ -101,98 +102,59 @@ export async function serveIndex(
   }
 
 }
+export async function serveDocsIndex(
+  state: ServerRequest,
+  tiddlers: TiddlerFields[],
+  plugins: string[],
+  twVersion: string,
+) {
+  const template = await readFile(resolve(state.config.cachePath, "tiddlywiki5.html"), "utf8");
+  await new DocsIndexSender(state, plugins, tiddlers, twVersion).serveIndexFile(template);
+}
+
 // #region StoreBase
-class StoreBase {
-  constructor(
-    public recipe: RecipeInfo,
-    private pluginCache: WikiPluginCache,
-    public lastEventId: string,
-    public template: IndexData["template"],
-  ) { }
 
-  get injectionFunction() { return this.template.injectionFunction; }
-  public plugins: string[] = emptyArray;
-  assertPlugins() {
-    if (this.plugins === emptyArray)
-      throw new Error("await this.init() first");
-  }
-  async init() {
 
-    if (!this.injectionFunction) throw new Error("INJECTION_FUNCTION_FALSEY: injection function is falsey");
+async function initPlugins(pluginCache: WikiPluginCache, injectionFunction: string, plugins: string[]) {
+  if (!injectionFunction) throw new Error("INJECTION_FUNCTION_FALSEY: injection function is falsey");
 
-    const { customHtmlEnabled, requiredPluginsEnabled } = this.template;
-
-    const plugins = [...new Set([
-      ...(!customHtmlEnabled ? ["$:/core"] : []),
-      ...(requiredPluginsEnabled ? this.pluginCache.requiredPlugins : []),
-      ...this.recipe.plugins as string[],
-    ]).values()];
-
-    if (!this.pluginCache.cacheArrayStrings.includes(this.injectionFunction)) {
-      await TiddlerHasher.assertTitleHashes(this.pluginCache, this.injectionFunction, plugins);
-    }
-
-    plugins.forEach(e => {
-      if (!this.pluginCache.pluginFiles.has(e))
-        console.log(`Recipe ${this.recipe.id} uses unknown plugin ${e}`);
-    });
-
-    this.plugins = plugins;
-
+  if (!pluginCache.cacheArrayStrings.includes(injectionFunction)) {
+    await TiddlerHasher.assertTitleHashes(pluginCache, injectionFunction, plugins);
   }
 
-  getEtag(template: string) {
-    this.assertPlugins();
-    const hash = createHash("md5");
-    hash.update(template);
-    hash.update(this.recipe.recipe_bags.map(e => e.bag.name).join(","));
-    hash.update(this.plugins.map(e => this.pluginCache.pluginHashes(this.injectionFunction).get(e) ?? "").join(","));
-    hash.update(String(this.lastEventId ?? 0));
-    const contentDigest = hash.digest("hex");
-    return `"${contentDigest}"`;
-  }
+  plugins.forEach(e => {
+    if (!pluginCache.pluginFiles.has(e))
+      console.log(`Recipe uses unknown plugin ${e}`);
+  });
 }
 
 const emptyArray = Object.seal([])
 // #region - IndexSender
-export class IndexSender extends StoreBase {
-  static storeCache = new Map<string, { recipe: RecipeInfo, index: IndexData }>();
+abstract class IndexSender {
+  static storeCache = new Map<string, { recipe: RecipeInfo, index: IndexData, etag: string; }>();
 
-  makeStoreWriter;
-  makeStoreData
+  protected abstract makeStoreWriter: () => StoreWriter;
+  protected abstract state: ServerRequest;
+  protected abstract lastEventId: string;
+  protected abstract enableExternalPlugins: boolean;
+  protected abstract enableExternalStore: boolean;
+  protected abstract injectStore: boolean;
+  protected abstract injectionLocation: string;
+  protected abstract injectionFunction: string;
+  protected abstract customHtmlEnabled: boolean;
+  protected abstract injectDefaultPreloadScript: boolean;
+  protected abstract recipeSlug: string;
+  protected abstract wikiSlug: string;
+  protected abstract etag: string;
+  protected abstract plugins: string[];
 
-  constructor(
-    recipe: RecipeInfo,
-    index: IndexData,
-    private state: ServerRequest<any, any>,
-    private enableExternalPlugins: boolean,
-    private enableExternalStore: boolean,
-  ) {
-    super(recipe, state.pluginCache, index.lastEventId, index.template);
 
-    this.makeStoreWriter = () => {
-      const writer = new StoreWriter(
-        state,
-        recipe,
-        index,
-        this.injectStore ? "store.js" : "store.json"
-      );
-      writer.plugins = this.plugins;
-      return writer;
-    }
-    this.makeStoreData = () => ({ recipe, index });
-  }
 
-  private get injectStore() { return this.customHtmlEnabled; }
-  private get injectionLocation() { return this.template.injectionLocation; }
-  private get customHtmlEnabled() { return this.template.customHtmlEnabled; }
   private get pluginFiles() { return this.state.pluginCache.pluginFiles; }
 
   private renderPluginTags(type: "script" | "preload", plugins: string[]) {
     const { pluginFiles, pluginHashes } = this.state.pluginCache;
     const preloadFunction = this.injectionFunction;
-
-
     return plugins.map(e => {
       const plugin = pluginFiles.get(e)!;
       const h = pluginHashes(preloadFunction).get(e)!;
@@ -211,12 +173,12 @@ export class IndexSender extends StoreBase {
 
   private renderStoreTags(type: "script" | "preload") {
     const pathPrefix = this.state.pathPrefix;
-    const recipe = this.recipe.slug;
+    const recipe = this.recipeSlug;
     switch (type) {
       case "preload":
-        return `<link rel="preload" href="${pathPrefix}/recipe/${encodeURIComponent(recipe)}/store.js" as="script" crossorigin="anonymous" />`;
+        return `<link rel="preload" href="${pathPrefix}/recipe/${this.recipeSlug}/store.js" as="script" crossorigin="anonymous" />`;
       case "script":
-        return `<script src="${pathPrefix}/recipe/${encodeURIComponent(recipe)}/store.js" crossorigin="anonymous"></script>`;
+        return `<script src="${pathPrefix}/recipe/${this.recipeSlug}/store.js" crossorigin="anonymous"></script>`;
       default:
         { const exhaustive: never = type; }
         throw new Error(`Unknown plugin tag type: ${type}`);
@@ -224,9 +186,7 @@ export class IndexSender extends StoreBase {
 
   }
 
-  async serveIndexFile() {
-    if (this.plugins === emptyArray)
-      await this.init();
+  async serveIndexFile(template: string) {
 
     if (this.enableExternalPlugins) {
       this.state.writeEarlyHints({
@@ -237,19 +197,13 @@ export class IndexSender extends StoreBase {
       });
     }
 
-    const template = this.customHtmlEnabled ? this.template.htmlContent :
-      await readFile(resolve(this.state.config.cachePath, "tiddlywiki5.html"), "utf8");
-
-    const newEtag = this.getEtag(template);
-    const match = this.state.headers.ifNoneMatch.has(newEtag);
+    const match = this.state.headers.ifNoneMatch.has(this.etag);
 
     const writerCacheKey = randomBytes(24).toString("base64url");
 
-
-
     this.state.writeHead(match ? 304 : 200, {
       contentType: "text/html",
-      etag: newEtag,
+      etag: this.etag,
       cacheControl: "max-age=0, private, no-cache",
       setCookie: {
         name: "mws_index_cache",
@@ -291,12 +245,11 @@ export class IndexSender extends StoreBase {
     if (this.enableExternalStore)
       await this.state.write(this.renderStoreTags("preload"));
 
-    if (this.enableExternalPlugins || this.enableExternalStore || this.injectStore) {
-      if (!this.customHtmlEnabled)
-        // this is hardcoded to the tiddlywiki default.
-        // custom html needs to take care of this itself
-        // boot prefix does this but it's in the body tag
-        await this.state.write(`
+    if (this.injectDefaultPreloadScript) {
+      // this is hardcoded to the tiddlywiki default.
+      // custom html needs to take care of this itself
+      // boot prefix does this but it's in the body tag
+      await this.state.write(`
 <script>
 window.$tw = window.$tw || Object.create(null);
 $tw.preloadTiddlers = $tw.preloadTiddlers || [];
@@ -358,20 +311,188 @@ $tw.preloadTiddler = function(fields) {
 
     return this.state.end();
   }
-
+  makeStoreData(): never {
+    throw new Error("not implemented");
+  }
 }
-// #region StoreWriter
-class StoreWriter extends StoreBase {
+class WikiIndexSender extends IndexSender {
+  protected lastEventId: string;
+  protected enableExternalPlugins: boolean;
+  protected enableExternalStore: boolean;
+  protected injectStore: boolean;
+  protected injectionLocation: string;
+  protected customHtmlEnabled: boolean;
+  protected injectDefaultPreloadScript: boolean;
+  protected recipeSlug: string;
+  protected wikiSlug: string;
+  protected makeStoreWriter: () => StoreWriter;
+  protected injectionFunction: string;
+  protected pluginCache: WikiPluginCache;
 
-  dropLastSuffix: boolean;
+
   constructor(
-    private state: Pick<ServerRequest, "user" | "pluginCache" | "write" | "writeFast" | "pipeFrom" | "pathPrefix" | "config">,
+    protected state: ServerRequest<any, any>,
     recipe: RecipeInfo,
     index: IndexData,
-    format: "store.js" | "store.json"
+    protected etag: string,
+    public plugins: string[],
   ) {
-    super(recipe, state.pluginCache, index.lastEventId, index.template);
+    super();
+    this.lastEventId = index.lastEventId;
+    this.enableExternalPlugins = index.template.externalPlugins;
+    this.enableExternalStore = BUILD_FLAG_EXTERNAL_STORE && index.template.externalStore;
+    this.injectStore = index.template.customHtmlEnabled;
+    this.injectionLocation = index.template.injectionLocation;
+    this.injectionFunction = index.template.injectionFunction;
+    this.customHtmlEnabled = index.template.customHtmlEnabled;
+    this.injectDefaultPreloadScript = index.injectDefault;
+    this.recipeSlug = encodeURIComponent(recipe.slug);
+    this.wikiSlug = recipe.slug;
+    this.pluginCache = state.pluginCache;
+
+    this.makeStoreWriter = () => {
+      return new WikiStoreWriter(
+        state,
+        recipe,
+        index,
+        this.injectStore ? "store.js" : "store.json",
+        this.plugins
+      );
+    }
+  }
+
+
+}
+class DocsIndexSender extends IndexSender {
+  protected lastEventId: string;
+  protected enableExternalPlugins: boolean;
+  protected enableExternalStore: boolean;
+  protected injectStore: boolean;
+  protected injectionLocation: string;
+  protected injectionFunction: string;
+  protected customHtmlEnabled: boolean;
+  protected injectDefaultPreloadScript: boolean;
+  protected etag: string;
+  protected recipeSlug: string;
+  protected wikiSlug: string;
+  protected makeStoreWriter: () => StoreWriter;
+  protected pluginCache: WikiPluginCache;
+
+  constructor(
+    protected state: ServerRequest,
+    public plugins: string[],
+    tiddlers: TiddlerFields[],
+    twVersion: string,
+  ) {
+    super();
+    this.pluginCache = state.pluginCache;
+    this.injectDefaultPreloadScript = false;
+    this.injectStore = false;
+    this.injectionFunction = defaultPreloadFunction;
+    this.etag = `"${twVersion}"`;
+    this.lastEventId = "0";
+    this.customHtmlEnabled = false;
+    this.injectStore = false;
+    this.injectDefaultPreloadScript = true;
+    this.enableExternalPlugins = true;
+    this.enableExternalStore = false;
+    this.injectionLocation = "</head>";
+    this.recipeSlug = undefined as never; // this should throw
+    this.wikiSlug = "";
+    this.makeStoreWriter = () => new DocsStoreWriter(state, tiddlers, "store.json", plugins);
+
+  }
+}
+// #region StoreWriter
+abstract class StoreWriter {
+  abstract writeStore(keepLastSuffix: boolean): Promise<void>;
+  abstract state: ServerRequest;
+  abstract prefix: string;
+  abstract suffix: string;
+
+  abstract lastEventId: string;
+  abstract recipeSlug: string;
+  abstract dropLastSuffix: boolean;
+  abstract externalPlugins: boolean;
+  abstract plugins: string[];
+
+  private get cachePath() { return this.state.pluginCache.cachePath; }
+  private get pluginFiles() { return this.state.pluginCache.pluginFiles; }
+
+  writeTiddler = async (fields: Record<string, string>, last: boolean = false) => {
+    await this.state.write(this.prefix + JSON.stringify(fields).replace(/</g, "\\u003c") + (last && this.dropLastSuffix ? "" : this.suffix));
+  };
+
+  writePlugins = async () => {
+    if (!this.externalPlugins) {
+      const fileStreams = this.plugins.map(e =>
+        createReadStream(join(this.cachePath, this.pluginFiles.get(e)!, "plugin.json"))
+      );
+      for (const stream of fileStreams) {
+        this.state.writeFast(this.prefix);
+        await this.state.pipeFrom(stream);
+        this.state.writeFast(this.suffix);
+      }
+    }
+  }
+
+  async writeFinalTiddlers(bagInfo: any, revisionInfo: any, keepLastSuffix: boolean) {
+
+    await this.writeTiddler({
+      title: "$:/state/multiwikiclient/tiddlers/bag",
+      text: JSON.stringify(bagInfo),
+      type: "application/json",
+    });
+    await this.writeTiddler({
+      title: "$:/state/multiwikiclient/tiddlers/revision",
+      text: JSON.stringify(revisionInfo),
+      type: "application/json",
+    });
+    await this.writeTiddler({
+      title: "$:/state/multiwikiclient/recipe/last_revision_id",
+      text: this.lastEventId,
+    });
+    await this.writeTiddler({
+      title: "$:/config/multiwikiclient/recipe",
+      text: this.recipeSlug,
+    });
+    if (process.env.DEVSERVER) {
+      await this.writeTiddler({
+        title: "$:/state/multiwikiclient/dev-mode",
+        text: "yes"
+      });
+    }
+    await this.writeTiddler({
+      title: "$:/config/multiwikiclient/host",
+      text: "$protocol$//$host$" + this.state.pathPrefix + "/",
+    }, !keepLastSuffix);
+
+  }
+
+}
+class WikiStoreWriter extends StoreWriter {
+  public prefix: string;
+  public suffix: string;
+  public lastEventId: string;
+  public recipeSlug: string;
+  public dropLastSuffix: boolean;
+  public externalPlugins: boolean;
+
+  private bagTiddlers;
+  private injectionFunction: string;
+  constructor(
+    public state: ServerRequest,
+    private recipe: RecipeInfo,
+    index: IndexData,
+    format: "store.js" | "store.json",
+    public plugins: string[],
+  ) {
+    super();
     this.bagTiddlers = index.bagTiddlers;
+    this.injectionFunction = index.template.injectionFunction;
+    this.externalPlugins = index.template.externalPlugins;
+    this.lastEventId = index.lastEventId;
+    this.recipeSlug = recipe.slug;
     switch (format) {
       case "store.js":
         this.prefix = this.injectionFunction + "(";
@@ -386,29 +507,11 @@ class StoreWriter extends StoreBase {
     }
   }
 
-  private prefix: string;
-  private suffix: string;
-  private bagTiddlers;
-
-  private get cachePath() { return this.state.pluginCache.cachePath; }
-  private get pluginFiles() { return this.state.pluginCache.pluginFiles; }
-
   async writeStore(keepLastSuffix: boolean) {
 
-    if (!this.template.externalPlugins) {
-      const fileStreams = this.plugins.map(e => createReadStream(join(this.cachePath, this.pluginFiles.get(e)!, "plugin.json")));
-      for (const stream of fileStreams) {
-        this.state.writeFast(this.prefix);
-        await this.state.pipeFrom(stream);
-        this.state.writeFast(this.suffix);
-      }
-    }
+    await this.writePlugins();
 
-    const writeTiddler = async (fields: Record<string, string>, last: boolean = false) => {
-      await this.state.write(this.prefix + JSON.stringify(fields).replace(/</g, "\\u003c") + (last && this.dropLastSuffix ? "" : this.suffix));
-    };
-
-    const r = new RecipeResolver(this.recipe, null, this.state.user.isAdmin);
+    const r = new RecipeResolver(this.recipe, null, this.state.user);
     // Build an index: title → set of bag_ids containing it.
     const titleBags = new Map<PrismaField<"Tiddler", "title">, Set<PrismaField<"Bag", "id">>>();
     const bagsMap = new Map<string, Map<string, IndexData["bagTiddlers"][number]["tiddlers"][number]>>();
@@ -437,39 +540,59 @@ class StoreWriter extends StoreBase {
       // save the revision for this title
       revisionInfo[title] = tiddler.revision.toString();
       // write the tiddler
-      await writeTiddler(tiddler.fields);
+      await this.writeTiddler(tiddler.fields);
     }
 
-    const lastRevisionId = String(this.lastEventId ?? 0);
+    await this.writeFinalTiddlers(bagInfo, revisionInfo, keepLastSuffix);
+  }
+}
 
-    await writeTiddler({
-      title: "$:/state/multiwikiclient/tiddlers/bag",
-      text: JSON.stringify(bagInfo),
-      type: "application/json",
-    });
-    await writeTiddler({
-      title: "$:/state/multiwikiclient/tiddlers/revision",
-      text: JSON.stringify(revisionInfo),
-      type: "application/json",
-    });
-    await writeTiddler({
-      title: "$:/state/multiwikiclient/recipe/last_revision_id",
-      text: lastRevisionId,
-    });
-    await writeTiddler({
-      title: "$:/config/multiwikiclient/recipe",
-      text: this.recipe.slug,
-    });
-    if (process.env.DEVSERVER) {
-      await writeTiddler({
-        title: "$:/state/multiwikiclient/dev-mode",
-        text: "yes"
-      });
+class DocsStoreWriter extends StoreWriter {
+  public prefix: string;
+  public suffix: string;
+  public lastEventId: string;
+  public recipeSlug: string;
+  public dropLastSuffix: boolean;
+  public externalPlugins: boolean;
+
+  private injectionFunction: string;
+  constructor(
+    public state: ServerRequest,
+    private tiddlers: TiddlerFields[],
+    format: "store.js" | "store.json",
+    public plugins: string[],
+  ) {
+    super();
+    this.injectionFunction = defaultPreloadFunction;
+    this.externalPlugins = true;
+    this.lastEventId = "0";
+    this.recipeSlug = "tw5.com";
+    switch (format) {
+      case "store.js":
+        this.prefix = this.injectionFunction + "(";
+        this.suffix = ");\n";
+        this.dropLastSuffix = false;
+        break;
+      case "store.json":
+        this.prefix = "";
+        this.suffix = ",\n";
+        this.dropLastSuffix = true;
+        break;
     }
-    await writeTiddler({
-      title: "$:/config/multiwikiclient/host",
-      text: "$protocol$//$host$" + this.state.pathPrefix + "/",
-    }, !keepLastSuffix);
+  }
+
+  async writeStore(keepLastSuffix: boolean) {
+
+    await this.writePlugins();
+
+    for (const fields of this.tiddlers) {
+      await this.writeTiddler(fields);
+    }
+
+    const bagInfo: Record<string, string> = {};
+    const revisionInfo: Record<string, string> = {};
+
+    await this.writeFinalTiddlers(bagInfo, revisionInfo, keepLastSuffix);
 
   }
 }

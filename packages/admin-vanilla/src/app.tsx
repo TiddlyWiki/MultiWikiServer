@@ -30,6 +30,7 @@ import { adminStorage, createDraft, getEmptyItems, jsonReviver } from "./definit
 import { definitely, is } from "./definition/utils";
 import { logout } from "./passwords";
 import { fieldTypeRenderSidebars, formatFieldValue, renderFieldEditor, renderFieldSidebar, renderSwitchField, textWithSlashes } from "./definition/renders";
+import { tw5logo } from "./logos";
 
 
 export type AdminRecord = { id: IdString; };
@@ -840,7 +841,20 @@ class RecordModalElement extends JSXElement {
 }
 
 // #region tab main
-
+function throttle(window: number) {
+  let active = false;
+  return () => {
+    if (!active) {
+      active = true;
+      setTimeout(() => {
+        active = false;
+      }, window);
+      return false;
+    } else {
+      return active;
+    }
+  }
+}
 
 @addstyles(css)
 @customElement("mws-app")
@@ -871,8 +885,9 @@ export class App extends JSXElement {
     if (!this.mainStorageError) return;
     this.mainStorageError = "";
   };
-
+  loadThrottle = throttle(3000);
   private readonly loadAdminRecords = async (reload = false) => {
+    if (this.loadThrottle()) return;
     this.clearMainStorageError();
 
     try {
@@ -927,6 +942,10 @@ export class App extends JSXElement {
             <p class="hero-copy">All your thoughts, in as many places as you need them.</p>
           </div>
           <div class="hero-account-shell">
+            <a href={pathPrefix + "/tw5/"} class="hero-account-trigger">
+              <span class="hero-account-name">{embeddedServerResponse.tw5Version}</span>
+              <MaterialSymbol icon={tw5logo} class="hero-account-icon" />
+            </a>
             <details class="hero-account-menu">
               <summary class="hero-account-trigger" aria-label="Open account menu">
                 <span class="hero-account-name">{embeddedServerResponse.userState.username}</span>

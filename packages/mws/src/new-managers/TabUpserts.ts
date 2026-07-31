@@ -509,7 +509,7 @@ export class RecipeImportWriter extends PerClassImportWriter<"recipe"> {
             bagName: e,
             isWritable: false,
             priority: i + writablePrefixBags.length,
-            prefix: "",
+            prefix: "" + i,
           } satisfies CompiledRecipeBagInput))
       ],
     }

@@ -159,7 +159,8 @@ export interface TabDefinition {
 
 
 const writableRoutingDescription =
-  "Define the write targets for title prefixes. " +
+  "Set the title prefix for each bag you want to write to. Tiddlers are only read from the bag matching the prefix."
+"Define the write targets for title prefixes. " +
   "The resolver matches prefixes from longest to shortest, so most specific prefix gets the tiddler. " +
   "A tiddler will first be read from the single writable bag it matches, then from readonly bags, " +
   "other writable bags are ignored. The default bag catches any titles that don't match a prefix. ";
@@ -189,8 +190,8 @@ const tabs = {
       { key: "displayName", label: "Display name", type: "string", section: "authored", mode: "create edit" },
       { key: "description", label: "Description", type: "text", section: "authored", mode: "create edit" },
       { key: "templateName", label: "Template", type: "search", section: "authored", mode: "create" },
-      { key: "readonlyBags", label: "Readonly bags", type: "search-multiselect", section: "authored", mode: "create edit" },
-      { key: "plugins", label: "Plugins", type: "search-multiselect", section: "authored", mode: "create edit" },
+      { key: "readonlyBags", label: "Bag name", type: "search-multiselect", section: "authored", mode: "create edit" },
+      { key: "plugins", label: "Plugin name", type: "search-multiselect", section: "authored", mode: "create edit" },
       { key: "lastCompiledAt", label: "Compiled", type: "string", section: "runtime", mode: "server" },
       {
         key: "writablePrefixBags",
@@ -225,9 +226,17 @@ const tabs = {
         architecture: "Read-only projection of the resolved plugin rows that will actually be used by the wiki page and preload path.",
       },
       {
-        key: "recipePermissions",
-        label: "Recipe permissions",
-        type: "permission-table",
+        key: "recipeUsers",
+        label: "Role name",
+        type: "search-multiselect",
+        section: "authored",
+        mode: "create edit",
+        architecture: "Edits permission rows on the wiki definition itself. These govern access to the wiki surface separately from bag-level read and write rights.",
+      },
+      {
+        key: "recipeAdmins",
+        label: "Role name",
+        type: "search-multiselect",
         section: "authored",
         mode: "create edit",
         architecture: "Edits permission rows on the wiki definition itself. These govern access to the wiki surface separately from bag-level read and write rights.",
@@ -251,11 +260,22 @@ const tabs = {
     ],
     fieldGroups: {
       authored: [
-        { title: "Wiki identity", description: "Name the wiki, describe it, and choose the template that provides its base routing model.", keys: ["slug", "displayName", "description", "templateName"], width: fullWidth, layout: stackLayout },
-        { title: "Writable routing", description: writableRoutingDescription, keys: ["writablePrefixBags"], width: fullWidth },
-        { title: "Bags", description: "Add wiki-specific readonly bags on top of anything inherited from the template.", keys: ["readonlyBags"], width: halfWidth },
+        { title: "Basic Info", keys: ["slug", "displayName", "description", "templateName"], width: fullWidth, layout: stackLayout },
+        {
+          title: "Writable bags",
+          description: "Tiddlers are written to and read from the longest matching prefix; unmatched titles use the default bag.",
+          keys: ["writablePrefixBags"],
+          width: fullWidth
+        },
+        {
+          title: "Readonly bags",
+          description: "Checked when the tiddler is not in the writable bag matching the prefix.",
+          keys: ["readonlyBags"], width: halfWidth
+        },
         { title: "Plugins", description: "Add wiki-specific plugins on top of the template plugin set.", keys: ["plugins"], width: halfWidth },
-        { title: "Access", description: "Control who can access the wiki surface itself. Bag access is handled separately on the participating bags.", keys: ["recipePermissions"], width: fullWidth },
+        { title: "Recipe Users", description: "Users able to open this wiki, assuming they have read permission on every bag as well.", keys: ["recipeUsers"], width: halfWidth },
+        { title: "Recipe Admins", description: "Users able to make changes on this page.", keys: ["recipeAdmins"], width: halfWidth },
+        { title: "Access", description: "Controls who can edit the wiki settings.", keys: ["recipePermissions"], width: fullWidth },
       ],
       runtime: [
         // { title: "Computed Write Prefix", description: "", keys: ["effectiveWritableBags"], width: fullWidth },
@@ -309,8 +329,24 @@ const tabs = {
         mode: "create edit",
         architecture: "Edits the template-level prefix-to-bag routing table that wikis inherit first. Longest prefix wins, and the empty string row is the fallback write target when no wiki-level override matches.",
       },
-      { key: "readonlyBags", label: "Readonly bags", type: "search-multiselect", section: "authored", mode: "create edit" },
-      { key: "plugins", label: "Plugins", type: "search-multiselect", section: "authored", mode: "create edit" },
+      { key: "readonlyBags", label: "Bag name", type: "search-multiselect", section: "authored", mode: "create edit" },
+      { key: "plugins", label: "Plugin name", type: "search-multiselect", section: "authored", mode: "create edit" },
+      {
+        key: "templateUsers",
+        label: "Role name",
+        type: "search-multiselect",
+        section: "authored",
+        mode: "create edit",
+        architecture: "Edits permission rows on the wiki definition itself. These govern access to the wiki surface separately from bag-level read and write rights.",
+      },
+      {
+        key: "templateAdmins",
+        label: "Role name",
+        type: "search-multiselect",
+        section: "authored",
+        mode: "create edit",
+        architecture: "Edits permission rows on the wiki definition itself. These govern access to the wiki surface separately from bag-level read and write rights.",
+      },
       {
         key: "requiredPluginsEnabled",
         label: "Include Required Plugins",
@@ -343,14 +379,6 @@ const tabs = {
         mode: "create edit",
         description: "TW5 version pinning.",
 
-      },
-      {
-        key: "templatePermissions",
-        label: "Template permissions",
-        type: "permission-table",
-        section: "authored",
-        mode: "create edit",
-        architecture: "Grants permission to view or change this template. Wikis using this template grant their roles an implicit view permission for the selected template.",
       },
       {
         key: "customHtmlEnabled",
@@ -415,7 +443,8 @@ const tabs = {
         { title: "Writable routing", description: writableRoutingDescription, keys: ["writablePrefixBags"], width: fullWidth },
         { title: "Bags", keys: ["readonlyBags"], width: halfWidth },
         { title: "Plugins", keys: ["plugins", "requiredPluginsEnabled", "externalPlugins"], width: halfWidth, layout: stackLayout },
-        { title: "Permissions", description: "Permissions for who can edit or use this template. Access to the template is required to apply it to a recipe, but not required to use that recipe.", keys: ["templatePermissions"], width: fullWidth, layout: stackLayout },
+        { title: "Template Users", description: "Users who can set this template on a recipe. This only applies to the user creating the recipe.", keys: ["templateUsers"], width: halfWidth },
+        { title: "Template Admins", description: "Users able to make changes on this page. This affects all recipes that use the template, regardless of any other permissions.", keys: ["templateAdmins"], width: halfWidth },
         { title: "Custom HTML shell", keys: ["htmlContent", "injectionArray", "injectionLocation"], headerFieldKey: "customHtmlEnabled", disabledWhenHeaderOff: true, width: fullWidth, layout: stackLayout },
       ],
       runtime: [
@@ -715,7 +744,9 @@ export interface WikiAdminRecord {
   writablePrefixBags: readonly WritablePrefixRow[];
   readonlyBags: readonly string[];
   plugins: readonly string[];
-  recipePermissions: readonly PermissionRow<RecipePermissionLevel>[];
+  // recipePermissions: readonly PermissionRow<RecipePermissionLevel>[];
+  recipeUsers: readonly string[],
+  recipeAdmins: readonly string[],
   // client field
   defaultWritableBag: string;
   readonlyBagCount: string;
@@ -743,7 +774,9 @@ export interface TemplateAdminRecord {
   writablePrefixBags: readonly WritablePrefixRow[];
   readonlyBags: readonly string[];
   plugins: readonly string[];
-  templatePermissions: readonly PermissionRow<TemplatePermissionLevel>[];
+  // templatePermissions: readonly PermissionRow<TemplatePermissionLevel>[];
+  templateUsers: readonly string[],
+  templateAdmins: readonly string[],
   requiredPluginsEnabled: boolean;
   externalStore: boolean;
   externalPlugins: boolean;

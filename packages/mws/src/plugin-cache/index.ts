@@ -11,7 +11,10 @@ import { createGunzip } from "zlib";
 import { pipeline } from "stream/promises";
 import { bootTiddlyWiki } from "../services/tiddlywiki";
 import { Debug } from "@prisma/client/runtime/client";
+import { loadWikiTiddlers } from "./importEditions";
+import { thrower } from "../new-managers";
 export * from "./importPlugins";
+export * from "./importEditions";
 
 export type WikiPluginCache = ART<typeof startupCache>;
 
@@ -26,7 +29,7 @@ interface TW5RegistryInfo {
   "dist-tags": { latest: string; };
 }
 
-export async function getTW5Path(wikiPath: string) {
+export async function getTW5Paths(wikiPath: string) {
   if (!fs.existsSync(path.resolve(wikiPath, "tw5"))) {
     throw new Error("You need to run update-tiddlywiki first");
   }
@@ -36,7 +39,8 @@ export async function getTW5Path(wikiPath: string) {
     const t = /^tw5-5\.([0-9]+)\.([0-9]+)(.*)/.exec(e);
     if (!t) return;
     const [, minor, patch, extra] = t;
-    return { minor, patch, extra };
+    const name = `tw5-5.${minor}.${patch}${extra}`;
+    return { minor, patch, extra, name };
   }))).filter(truthy).sort((a, b) => {
     return +a.minor - +b.minor
       || +a.patch - +b.patch
@@ -51,35 +55,38 @@ export async function getTW5Path(wikiPath: string) {
     path.resolve(wikiPath, "tw5", "versions.txt"),
     folders.map(e => `tw5-5.${e.minor}.${e.patch}${e.extra}`).join("\n")
   );
-  const e = folders.pop()!;
-  return path.resolve(wikiPath, "tw5", `tw5-5.${e.minor}.${e.patch}${e.extra}`);
+
+  return folders;
 }
 
 export async function bootDefaultTiddlyWiki(wikiPath: string) {
-  const { TiddlyWiki } = require(path.resolve(await getTW5Path(wikiPath), "boot/boot.js"));
+  const e = (await getTW5Paths(wikiPath)).pop()!;
+  const twPath = path.resolve(wikiPath, "tw5", `tw5-5.${e.minor}.${e.patch}${e.extra}`);
+  const { TiddlyWiki } = require(path.resolve(twPath, "boot/boot.js"));
   return await bootTiddlyWiki(wikiPath, TiddlyWiki);
 }
 
 export async function startupCache(wikiPath: string, cacheArrayStrings: readonly string[]) {
   const cachePath = path.resolve(wikiPath, "cache");
   fs.mkdirSync(cachePath, { recursive: true });
-  const $tw = await bootDefaultTiddlyWiki(wikiPath);
-
   const pkg = JSON.parse(fs.readFileSync(dist_resolve("../package.json"), "utf8"));
   Object.seal(cacheArrayStrings);
+
+  const $tw = await bootDefaultTiddlyWiki(wikiPath);
   // we only need the client since we don't load plugins server-side
   const {
     tiddlerFiles: pluginFiles,
     tiddlerHashes: pluginHashes,
     pluginsList
   } = await importPlugins(
-    path.join($tw.boot.corePath, ".."),
     cachePath,
     "client",
     $tw,
     pkg.version,
     cacheArrayStrings
   );
+
+  const tw5Docs = loadWikiTiddlers($tw, path.resolve($tw.boot.corePath, "../editions/tw5.com"), []);
 
   const requiredPlugins = [
     "$:/plugins/mws/client",
@@ -100,13 +107,15 @@ export async function startupCache(wikiPath: string, cacheArrayStrings: readonly
 
   fs.writeFileSync(filepath, result);
 
+  const filePlugins = new Map([...pluginFiles.entries()].map(e => e.reverse() as [string, string]));
+
   return {
     /** `(arrayString: string): TiddlerHasher;` */
     pluginHashes,
     /** Map of "title" to `relative("/wiki/cache", dirname("plugin.json"))`. Reverse of filePlugins. */
     pluginFiles,
     /** Map of `relative("/wiki/cache", dirname("plugin.json"))` to "title". Reverse of pluginFiles. */
-    filePlugins: new Map([...pluginFiles.entries()].map(e => e.reverse() as [string, string])),
+    filePlugins,
     /** List of plugins saved in the cache. */
     pluginsList,
     /** List of plugins generally required to make MWS work. */
@@ -115,5 +124,16 @@ export async function startupCache(wikiPath: string, cacheArrayStrings: readonly
     cachePath,
     /** Template "preloadFunction" values which are gzipped at startup and saved to disk to save CPU cycles per request. */
     cacheArrayStrings,
+    tw5Docs: {
+      plugins: [
+        "$:/core",
+        ...tw5Docs[0].plugins.map(folder =>
+          filePlugins.get(path.join("tiddlywiki", $tw.version, folder).replaceAll("\\", "/"))
+          ?? thrower(new Error("couldn't find the tw5 plugin " + folder))
+        )
+      ],
+      tiddlers: tw5Docs[0].tiddlers,
+      version: $tw.version,
+    },
   };
 }

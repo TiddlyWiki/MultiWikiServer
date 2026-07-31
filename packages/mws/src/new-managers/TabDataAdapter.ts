@@ -54,6 +54,8 @@ export type TemplateDefinition = Omit<
   | "lastUpdatedAt"
   | "templatePermissions"
   | "dependentWikis"
+  | "templateUsers"
+  | "templateAdmins"
 >;
 
 export type RecipeDefinition = Omit<
@@ -66,6 +68,8 @@ export type RecipeDefinition = Omit<
   | "effectiveWritableBags"
   | "effectiveReadonlyBags"
   | "effectivePluginSet"
+  | "recipeUsers"
+  | "recipeAdmins"
 >;
 
 declare global {
@@ -143,7 +147,11 @@ export class RecipeDataAdapter extends TabDataAdapter<"wikis"> {
       template.definition
     );
 
-    const recipePermissions = normalizePermissions(data.recipePermissions);
+    const recipePermissions = normalizePermissions<RecipePermissionLevel>([
+      ...data.recipeUsers.map(e => ({ level: "A_read" as const, role: e })),
+      ...data.recipeAdmins.map(e => ({ level: "B_write" as const, role: e })),
+    ]);
+
     const roles = await getRolesMapper(prisma, recipePermissions.map((row) => row.role));
 
     const [[id, lastCompiledAt]] = await importer.upsert([{
@@ -181,7 +189,7 @@ export class RecipeDataAdapter extends TabDataAdapter<"wikis"> {
     plugins: string[];
     recipePermissions: PermissionRow<RecipePermissionLevel>[];
     templateName: string;
-  }) {
+  }): DataStore["wikis"][number] {
     const effectivePluginSet = plugins;
     const effectiveReadonlyBags = allbags
       .filter(e => !e.isWritable)
@@ -197,10 +205,12 @@ export class RecipeDataAdapter extends TabDataAdapter<"wikis"> {
       slug,
       templateName,
       lastCompiledAt: lastCompiledAt.toISOString(),
-      recipePermissions,
+      // recipePermissions,
       effectiveWritableBags,
       effectiveReadonlyBags,
       effectivePluginSet,
+      recipeAdmins: recipePermissions.filter(e => e.level === "B_write").map(e => e.role),
+      recipeUsers: recipePermissions.filter(e => e.level === "A_read").map(e => e.role),
     };
   }
 
@@ -268,8 +278,12 @@ export class TemplateDataAdapter extends TabDataAdapter<"templates"> {
   async saveRow(prisma: PrismaTxnClient, data: DataSave["templates"][number]): Promise<DataStore["templates"][number]> {
     const importer = new TemplateImportWriter(prisma, false);
     await importer.checkExisting(data.id, data.name, this.user);
+    const templatePermissions = [
+      ...data.templateUsers.map(e => ({ level: "A_read" as const, role: e })),
+      ...data.templateAdmins.map(e => ({ level: "B_write" as const, role: e })),
+    ]
     // roles aren't connected to data tables so they can be swapped out for SSO
-    const roleIds = await getRolesMapper(prisma, data.templatePermissions.map((row) => row.role));
+    const roleIds = await getRolesMapper(prisma, templatePermissions.map((row) => row.role));
     let template: UpsertTemplateInput;
     const isDefault = data.name === DEFAULT_TEMPLATE;
     if (isDefault) {
@@ -282,7 +296,7 @@ export class TemplateDataAdapter extends TabDataAdapter<"templates"> {
           externalPlugins: data.externalPlugins,
           externalStore: data.externalStore,
         },
-        permissions: data.templatePermissions.map(e => ({ level: e.level, role_id: roleIds(e.role), })),
+        permissions: templatePermissions.map(e => ({ level: e.level, role_id: roleIds(e.role), })),
       }
     } else {
       template = {
@@ -302,7 +316,7 @@ export class TemplateDataAdapter extends TabDataAdapter<"templates"> {
           injectionFunction: data.injectionFunction,
           injectionLocation: data.injectionLocation,
         },
-        permissions: data.templatePermissions.map(e => ({ level: e.level, role_id: roleIds(e.role), })),
+        permissions: templatePermissions.map(e => ({ level: e.level, role_id: roleIds(e.role), })),
       };
     }
 
@@ -335,17 +349,14 @@ export class TemplateDataAdapter extends TabDataAdapter<"templates"> {
       }
     }
 
-    const roleNames = await new RoleImportWriter(prisma, false).getIdMapper();
     return {
       ...template.definition,
       id: new IdString(template_id),
       name: data.name,
       type: "simpleV1",
       lastUpdatedAt: updated.toISOString(),
-      templatePermissions: template.permissions.map(e => ({
-        level: e.level,
-        role: roleNames(e.role_id),
-      })),
+      templateAdmins: templatePermissions.filter(e => e.level === "B_write").map(e => e.role),
+      templateUsers: templatePermissions.filter(e => e.level === "A_read").map(e => e.role),
     };
   }
 
@@ -381,10 +392,8 @@ export class TemplateDataAdapter extends TabDataAdapter<"templates"> {
         name: template.name,
         type: "simpleV1",
         lastUpdatedAt: template.updated.toISOString(),
-        templatePermissions: template.permissions.map(e => ({
-          level: e.level,
-          role: roles(new IdString(e.role_id)),
-        })),
+        templateAdmins: template.permissions.filter(e => e.level === "B_write").map(e => roles(new IdString(e.role_id))),
+        templateUsers: template.permissions.filter(e => e.level === "A_read").map(e => roles(new IdString(e.role_id))),
       };
     });
   }

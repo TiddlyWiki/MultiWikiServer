@@ -11,7 +11,7 @@
 
 import { checkPath, checkQueryKeys, defineZodRoute, zod, ZodRoute } from "@tiddlywiki/server";
 import { serverEvents } from "@tiddlywiki/events";
-import { serveIndex, } from "./RecipeIndexSender";
+import { serveDocsIndex, serveWikiIndex, } from "./RecipeIndexSender";
 import { AdminLoad, AdminSave } from "./TabDataAdapter";
 import { RecipeStatus, RecipeStoreJS, RecipeStoreJSON, RecipeUpdates, TiddlerBatch, TiddlerList } from "./RecipeRoutes";
 
@@ -63,12 +63,26 @@ serverEvents.on("mws.routes", (root) => {
   const parent = root.defineRoute({
     method: [],
     denyFinal: true,
-    path: new RegExp(`^(?=/recipe/|/wiki/|/admin/|/api/)`),
+    path: new RegExp(`^(?=/recipe/|/wiki/|/admin/|/api/|/tw5/)`),
   }, async (state) => { });
 
   (Object.entries(ApiRoutes)).forEach(([key, val]) => {
     if (!val) return;
     defineZodRoute(parent, key, val as any);
+  });
+
+  parent.defineRoute<"ignore">({
+    method: ["GET", "HEAD", "OPTIONS"],
+    path: new RegExp(`^/tw5/$`),
+    bodyFormat: "ignore",
+  }, async (state) => {
+
+    if (state.method === "OPTIONS")
+      return state.sendEmpty(405);
+
+    const { plugins, tiddlers, version } = state.pluginCache.tw5Docs;
+    return await serveDocsIndex(state, tiddlers, plugins, version);
+
   });
 
   parent.defineRoute<"ignore">({
@@ -86,7 +100,7 @@ serverEvents.on("mws.routes", (root) => {
 
     const { recipe_slug } = state.pathParams;
     state.assertWikiReferer(recipe_slug);
-    return await serveIndex(state, recipe_slug, "index");
+    return await serveWikiIndex(state, recipe_slug, "index");
 
   }, async (state, e) => {
     if (state.headersSent) {

@@ -49,7 +49,7 @@ async function runner(arg) {
       // "test": "(git clean -dfx tests && cd tests && npm install .. --no-save && npm test)",
       // "fulltest": "mv node_modules node_modules_old; npm run test:pack; mv node_modules_old node_modules",
 
-      // await runner("build");
+      await runner("build");
       await Promise.resolve().then(async () => {
         // Cross-platform move operation
         moveFile("node_modules", "node_modules_off");
@@ -75,8 +75,8 @@ async function runner(arg) {
         // Read package.json to get version for cross-platform compatibility
         const packageJson = JSON.parse(readFileSync("package.json").toString());
         const packageVersion = packageJson.version;
-        await start(`npm install --save-exact @tiddlywiki/mws@latest`, [], {}, { cwd: "tests" })
-        // await start(`npm install --save-exact ./tiddlywiki-mws-${packageVersion}.tgz`, [], {}, { cwd: "tests" });
+        // await start(`npm install --save-exact @tiddlywiki/mws@latest`, [], {}, { cwd: "tests" })
+        await start(`npm install --save-exact ./tiddlywiki-mws-${packageVersion}.tgz`, [], {}, { cwd: "tests" });
         await start("npx mws update-tiddlywiki", [], {}, { cwd: "tests" });
         await start("npx mws init-store", [], {}, { cwd: "tests" });
         await start("npx mws listen --listener host=:: port=8080", [], {}, { cwd: "tests" });

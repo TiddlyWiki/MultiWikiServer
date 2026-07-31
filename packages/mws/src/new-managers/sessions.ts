@@ -31,8 +31,11 @@ export interface AuthUser {
   avatarUrl?: string;
   /** Default admin role name. Users with this role bypass most permissions. */
   AdminRoleName: string;
+  AdminRoleID: string;
   /** Default role for all users. */
   UserRoleName: string;
+  UserRoleID: string;
+
 }
 
 export const SessionKeyMap: RouterKeyMap<SessionManager, true> = {
@@ -141,7 +144,14 @@ export class SessionManager {
   static AdminRoleName = "ADMIN";
   static UserRoleName = "USER";
 
+  private static roleLookup: Record<string, string> = undefined as any;
+
   static async parseIncomingRequest(cookies: BetterCookie, config: ServerState): Promise<AuthUser> {
+
+    this.roleLookup ??= Object.fromEntries((await config.engine.roles.findMany({
+      where: { role_name: { in: [this.AdminRoleName, this.UserRoleName] } },
+      select: { role_id: true, role_name: true },
+    })).map(e => [e.role_name, e.role_id]));
 
     const sessionId = cookies.getAll("session") as PrismaField<"Sessions", "session_id">[];
     const session = sessionId && await config.engine.sessions.findFirst({
@@ -161,6 +171,8 @@ export class SessionManager {
       isLoggedIn: true,
       AdminRoleName: SessionManager.AdminRoleName,
       UserRoleName: SessionManager.UserRoleName,
+      AdminRoleID: this.roleLookup[this.AdminRoleName],
+      UserRoleID: this.roleLookup[this.UserRoleName],
     };
     else return {
       user_id: "" as PrismaField<"Users", "user_id">,
@@ -171,6 +183,8 @@ export class SessionManager {
       isLoggedIn: false,
       AdminRoleName: SessionManager.AdminRoleName,
       UserRoleName: SessionManager.UserRoleName,
+      AdminRoleID: this.roleLookup[this.AdminRoleName],
+      UserRoleID: this.roleLookup[this.UserRoleName],
     };
   }
 

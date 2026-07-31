@@ -16,6 +16,7 @@ import { mapGetInit } from "./wiki-utils";
 import { IdString } from "@mws/admin-vanilla/src/definition/tabs";
 import { serverEvents } from "@tiddlywiki/events";
 import { defaultPreloadFunction, TiddlerHasher, WikiPluginCache } from "../plugin-cache";
+import { AuthUser } from "./sessions";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -96,10 +97,9 @@ export class RecipeResolver {
    * bag in the ordering (including empty ones). Admins bypass. Lacking any one
    * yields a 403, not a filtered view.
    */
-  static async assertRecipe({ state, recipe_slug, needsWrite }: {
+  static async assertRecipe({ state, recipe_slug }: {
     state: ServerRequest
     recipe_slug: PrismaField<"Recipe", "slug">;
-    needsWrite: boolean;
   }) {
     const prisma = state.engine;
     const isAdmin = state.user.isAdmin;
@@ -163,20 +163,6 @@ export class RecipeResolver {
     if (!isAdmin && hasBagDeniedAccess)
       throw new SendError("BAG_NO_READ_PERMISSION", 403, { bagName: hasBagDeniedAccess.bag_id })
 
-    if (!isAdmin && needsWrite) {
-
-      state.okUser();
-
-      const hasWriteAccess = recipe.recipe_bags
-        .filter(recipeBag => recipeBag.is_writable)
-        .some(recipeBag =>
-          recipeBag.bag.permissions.some(permission => inArray(permission.level, WRITE_LEVELS))
-        );
-
-      if (!hasWriteAccess)
-        throw new SendError("BAG_NO_WRITE_PERMISSION", 403, { bagName: "" });
-
-    }
     return recipe;
 
   }
@@ -186,7 +172,7 @@ export class RecipeResolver {
   constructor(
     private recipe: RecipeInfo,
     private prisma: PrismaTxnClient | null,
-    private isAdmin: boolean,
+    private user: AuthUser,
   ) {
 
     const writablePrefixBags: Record<string, typeof recipe.recipe_bags[number]> = {};
@@ -209,7 +195,9 @@ export class RecipeResolver {
 
   /** Whether the requesting user may write to the given bag (uses already-fetched permissions). */
   canWriteBag(rb: RecipeBagRow): boolean {
-    if (this.isAdmin) return true;
+    // the second condition lets bags be readonly for admins
+    if (this.user.isAdmin && !rb.bag.permissions.find(e => e.role_id === this.user.AdminRoleID)) return true;
+    // permissions are sorted in descending level order
     return (WRITE_LEVELS as readonly string[]).includes(rb.bag.permissions[0]?.level ?? "");
   }
 
@@ -326,9 +314,13 @@ export class RecipeResolver {
   async saveTiddlers({ tiddlers }: { tiddlers: Record<string, any>[]; }): Promise<BatchMutationResult[]> {
     return await Promise.all((tiddlers ?? []).map(async fields => {
       const title = fields.title as PrismaField<"Tiddler", "title">;
-      if (!title) throw "tiddler must have a title";
+      if (!title)
+        throw new SendError("ARGUMENT_REQUIRED", 400, { name: "tiddlers.title" });
+
       const bag = this.getWriteTarget({ title });
-      if (!bag || !this.canWriteBag(bag)) throw "write not permitted";
+      if (!bag || !this.canWriteBag(bag))
+        throw new SendError("BAG_NO_WRITE_PERMISSION", 403, { bagName: bag?.bag.name ?? "" });
+
       const tiddler = await new WikiStore(this.prisma).saveTiddler({
         recipe_id: new IdString(this.recipe.id),
         bag_id: new IdString(bag.bag_id),
@@ -345,8 +337,12 @@ export class RecipeResolver {
   async deleteTiddlers({ titles }: { titles: PrismaField<"Tiddler", "title">[]; }): Promise<(BatchMutationResult | null)[]> {
     return await Promise.all((titles ?? []).map(async title => {
 
+      if (!title)
+        throw new SendError("ARGUMENT_REQUIRED", 400, { name: "titles.title" });
+
       const bag = this.getWriteTarget({ title });
-      if (!bag || !this.canWriteBag(bag)) throw "write not permitted";
+      if (!bag || !this.canWriteBag(bag))
+        throw new SendError("BAG_NO_WRITE_PERMISSION", 403, { bagName: bag?.bag.name ?? "" });
 
       const event = await new WikiStore(this.prisma).deleteTiddler({
         recipe_id: new IdString(this.recipe.id),
@@ -370,13 +366,15 @@ export class RecipeResolver {
     const templateRow = await this.prisma!.template.findUnique({ where: { id: this.recipe.template_id } });
     if (!templateRow) throw new Error("template not found");
 
-    const { customHtmlEnabled, injectionFunction, injectionLocation } = templateRow.definition;
+    const { customHtmlEnabled, injectionFunction, injectionLocation, externalPlugins, externalStore, } = templateRow.definition;
     const template = {
       ...templateRow.definition,
       name: templateRow.name,
       injectionFunction: customHtmlEnabled ? injectionFunction : defaultPreloadFunction,
       injectionLocation: customHtmlEnabled ? injectionLocation : "</head>",
     };
+
+    const injectDefault = !customHtmlEnabled && (externalPlugins || externalStore);
 
     const bagTiddlers = includeTiddlers ? await this.prisma!.bag.findMany({
       where: { id: { in: bagIds } },
@@ -388,10 +386,37 @@ export class RecipeResolver {
         },
       },
     }) : [];
+    const lastEventId = String(maxSeq._max.seq ?? 0);
 
-    return { bagTiddlers, lastEventId: String(maxSeq._max.seq ?? 0), template }
+    const getIndexEtag = (template: string, pluginCache: WikiPluginCache) => {
+      const plugins = getPluginList(pluginCache);
+      // this.assertPlugins();
+      const hash = createHash("md5");
+      hash.update(template);
+      hash.update(this.recipe.recipe_bags.map(e => e.bag.name).join(","));
+      // this is always needed because of the integrity hashes
+      hash.update(plugins.map(e => pluginCache.pluginHashes(injectionFunction).get(e) ?? "").join(","));
+      hash.update(lastEventId);
+      const contentDigest = hash.digest("hex");
+      return `"${contentDigest}"`;
+    }
+
+    const getPluginList = (pluginCache: WikiPluginCache) => {
+      const { customHtmlEnabled, requiredPluginsEnabled } = template;
+
+      const plugins = [...new Set([
+        ...(!customHtmlEnabled ? ["$:/core"] : []),
+        ...(requiredPluginsEnabled ? pluginCache.requiredPlugins : []),
+        ...this.recipe.plugins as string[],
+      ]).values()];
+
+      return plugins;
+    }
+
+    return { bagTiddlers, lastEventId, template, injectDefault, getIndexEtag, getPluginList, }
 
   }
+
 
 }
 

@@ -78,13 +78,14 @@ serverEvents.on("mws.routes", (root, config) => {
 
 
 export async function importPlugins(
-  twFolder: string,
   cacheFolder: string,
   type: string,
   $tw: TW,
   mwsVersion: string,
-  arrayStrings: readonly string[]) {
+  arrayStrings: readonly string[]
+) {
 
+  const twFolder = path.join($tw.boot.corePath, "..");
 
   const readLevel = (d: string) => {
     return (fs.readdirSync(path.join(twFolder, d)))

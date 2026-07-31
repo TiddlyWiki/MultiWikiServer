@@ -14,6 +14,7 @@ import escapeStringRegexp from 'escape-string-regexp';
 export interface ServerToReactAdmin {
   sendError?: SendError<any>;
   userState: ServerRequest["user"];
+  tw5Version: string;
 }
 
 export interface SendAdmin {
@@ -135,16 +136,16 @@ export async function setupClientBuild({ rootdir, publicdir, clientMounts, title
 
   return async function sendProdServer(state, sendError) {
     if (sendError)
-      return await serveIndex({ state, publicdir, status: sendError.status, serverResponse: { userState: state.user, sendError, } });
+      return await serveIndex({ state, publicdir, status: sendError.status, serverResponse: { userState: state.user, tw5Version: state.pluginCache.tw5Docs.version, sendError, } });
 
     if (state.urlInfo.pathname === "/" || clientMounts?.some(e => state.urlInfo.pathname === e || state.urlInfo.pathname.startsWith(e + "/")))
-      return await serveIndex({ state, publicdir, status: 200, serverResponse: { userState: state.user, } });
+      return await serveIndex({ state, publicdir, status: 200, serverResponse: { userState: state.user, tw5Version: state.pluginCache.tw5Docs.version, } });
 
     return state.sendFile(200, {}, {
       root: publicdir,
       reqpath: state.urlInfo.pathname,
       on404: !clientMounts ? (async () => {
-        await serveIndex({ state, publicdir, status: 200, serverResponse: { userState: state.user } })
+        await serveIndex({ state, publicdir, status: 200, serverResponse: { userState: state.user, tw5Version: state.pluginCache.tw5Docs.version, } })
       }) : undefined
     });
   };
@@ -230,7 +231,7 @@ async function startDevServer({ rootdir, publicdir, clientMounts, title }: Clien
         state,
         publicdir,
         status: sendError.status,
-        serverResponse: { userState: state.user, sendError }
+        serverResponse: { userState: state.user, tw5Version: state.pluginCache.tw5Docs.version, sendError }
       });
 
     if (state.urlInfo.pathname === "/" || clientMounts?.some(e => state.urlInfo.pathname === e || state.urlInfo.pathname.startsWith(e + "/")))
@@ -238,7 +239,7 @@ async function startDevServer({ rootdir, publicdir, clientMounts, title }: Clien
         state,
         publicdir,
         status: 200,
-        serverResponse: { userState: state.user }
+        serverResponse: { userState: state.user, tw5Version: state.pluginCache.tw5Docs.version, }
       });
 
     const headers = new Headers(state.headers);
@@ -263,7 +264,7 @@ async function startDevServer({ rootdir, publicdir, clientMounts, title }: Clien
           state,
           publicdir,
           status: proxyRes.status,
-          serverResponse: { userState: state.user }
+          serverResponse: { userState: state.user, tw5Version: state.pluginCache.tw5Docs.version, }
         });
       } else {
         return state.sendBuffer(proxyRes.status, {}, resBuffer);

@@ -138,7 +138,7 @@ model RecipeBag {
   recipe      Recipe  @relation(fields: [recipe_id], references: [id], onDelete: Cascade)
   bag         Bag     @relation(fields: [bag_id], references: [id], onDelete: Restrict)
 
-  @@id([recipe_id, bag_id, prefix])
+  @@id([recipe_id, bag_id, is_writable, prefix])
   @@map("recipe_bag")
 }
 
@@ -165,10 +165,10 @@ model Roles {
 }
 
 model Users {
-  user_id    String     @id @default(uuid(7))
-  username   String     @unique
-  email      String     @unique
-  password   String
+  user_id  String @id @default(uuid(7))
+  username String @unique
+  email    String @unique
+  password String
 
   // MySQL: multiple NULLs are allowed in unique columns and there is no way to make a partial index.
   // SQL Server: the `where` clause is required to get the "multiple NULLs allowed" behavior.
