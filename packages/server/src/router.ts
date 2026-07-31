@@ -14,7 +14,6 @@ import { matchedRoutes } from 'hono/route';
 import { serverEvents } from "@tiddlywiki/events";
 import SuperHeaders from "@remix-run/headers";
 import { BetterCookie } from "./better-headers";
-import { PrismaClientKnownRequestError } from "@tiddlywiki/mws-prisma/client/internal/prismaNamespace";
 
 declare module "hono/types" {
   interface RouterRoute {
