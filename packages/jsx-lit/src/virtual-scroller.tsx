@@ -4,6 +4,7 @@ import { addstylesinner, JSXElement } from "@tiddlywiki/jsx-lit";
 export class VirtualScroller extends JSXElement {
   private static registered = false;
   private static register() {
+    if (this.registered) return;
     addstylesinner(/*css*/`
 :host {
   overflow-y: auto;
@@ -27,7 +28,7 @@ export class VirtualScroller extends JSXElement {
 }  
 `, this);
     customElements.define("virtual-scroller", this);
-
+    this.registered = true;
   }
 
   constructor() {
