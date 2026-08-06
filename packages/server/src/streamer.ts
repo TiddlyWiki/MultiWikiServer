@@ -101,7 +101,6 @@ export class StreamerRequest {
   readonly url: string;
   /** The request headers. Never includes the four http2 headers, besides `:authority` as `host`. */
   readonly headers: SuperHeaders;
-  readonly cookies: BetterCookie;
   /** 
    * The path prefix is a essentially folder mount point. 
    * 
@@ -145,7 +144,6 @@ export class StreamerRequest {
     this.method = request.method;
     this.host = request.host;
     this.headers = request.headers;
-    this.cookies = request.cookies;
 
     this.pathParams = routePath.reduce((n, e) => Object.assign(n, e.groups), {});
 
