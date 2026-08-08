@@ -75,6 +75,7 @@ declare global {
       class?: string;
       slot?: string;
       id?: string;
+      xmlns?: string | null;
       /** Tells JSX not to reconcile the non-shadow children of this element which it would normally reconcile. */
       "webjsx-donotdescend"?: boolean;
     }

@@ -40,9 +40,9 @@ export function updateElement(
   parentNamespaceURI: string | null
 ): Element {
   if (!el || !isNodeTypeValidUpdate(el, jsx, el.namespaceURI)) {
-    const namespaceURI = jsx.props.xmlns
+    const namespaceURI = jsx.props.xmlns !== undefined
       ? (jsx.props.xmlns as string)
-      : jsx.type === "svg"
+      : jsx.type === "SVG"
         ? SVG_NAMESPACE
         : parentNamespaceURI ?? null;
 
