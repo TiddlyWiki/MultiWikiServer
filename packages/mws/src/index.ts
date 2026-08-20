@@ -6,6 +6,7 @@
 import { install } from "source-map-support";
 install();
 import { serverEvents } from "@tiddlywiki/events";
+import * as path from "path";
 
 import "@tiddlywiki/commander";
 import "@tiddlywiki/server";
@@ -22,13 +23,16 @@ import "./SendError";
 
 // startup
 import * as opaque from "@serenity-kit/opaque";
-import { dist_resolve, startup } from "@tiddlywiki/server";
+import { dist_resolve, startup, tryParseJSON } from "@tiddlywiki/server";
 import runCLI from "@tiddlywiki/commander";
 import { runBuildOnce } from "./services/setupDevServer";
 import { clientBuildDef } from "./startup";
+import { existsSync } from "fs";
+import { readFile } from "fs/promises";
 
 export * from "@tiddlywiki/server";
 export * from "@tiddlywiki/events";
+export * from "@tiddlywiki/commander";
 export {
   SessionManager,
   SessionManagerObject,
@@ -55,15 +59,67 @@ export * from "./new-managers";
 export * from "@tiddlywiki/mws-prisma";
 
 export default async function runMWS() {
-  await opaque.ready;
   if (process.env.CLIENT_BUILD) {
     await runBuildOnce(clientBuildDef);
-  } else {
-    serverEvents.eventLogging = !!process.env.VERBOSE;
-    await startup();
-    await runCLI();
-    serverEvents.eventLogging = false;
+    return;
   }
+  const wikiPath = path.resolve(process.cwd());
+  (async () => {
+    if (!existsSync(path.join(wikiPath, "package.json")))
+      throw "The wiki path does not have a package.json file"
+
+    const wikiPkg = tryParseJSON<{
+      "name": "@tiddlywiki/mws-instance",
+      "version": string,
+      "private": boolean,
+    }>(await readFile(path.join(wikiPath, "package.json"), "utf8"));
+
+    if (!wikiPkg)
+      throw "The wiki path has a package.json file with invalid JSON."
+    if (wikiPkg.name !== "@tiddlywiki/mws-instance")
+      throw "The wiki path package.json file is not named '@tiddlywiki/mws-instance'. "
+    if (!wikiPkg.version.startsWith("0.2"))
+      throw "The wiki path package.json file has the wrong version. "
+      + "Found " + wikiPkg.version + ", expected 0.2.x";
+
+    if (wikiPkg.private !== true) "PACKAGE_JSON_PRIVATE";
+
+  })().catch(e => {
+    if (e === "PACKAGE_JSON_PRIVATE") {
+      throw 'Your data folder package.json does not have `"private": true"` set. '
+      + 'Publishing your data folder is HIGHLY DANGEROUS and exposes '
+      + 'all your tiddlers to the public internet as well as making your '
+      + 'passwords easier to guess. Refusing to continue.';
+    }
+    if (typeof e === "string") {
+      throw [
+        "The current working directory does not appear to be a valid wiki path. ",
+        "In order to start the server properly, you must start it from the folder ",
+        "containing the passwords.key file. This is the root of your wiki folder.",
+        "",
+        "Error: " + e,
+        "",
+        "Since the package.json file for your wiki folder is created automatically, ",
+        "this usually means you are in the wrong folder. You should NOT edit the package.json ",
+        "file in the current folder to fix this.",
+        "",
+        "The current folder is: " + wikiPath,
+        "",
+        'This is also known as "Start In", "Working Directory", "Current Directory", etc. ',
+      ].join("\n");
+    } else {
+      throw e;
+    }
+  });
+
+  // the primary startup is in startup.ts
+  // changes to this sequence should be documented in a change log
+  serverEvents.eventLogging = !!process.env.VERBOSE;
+  await opaque.ready;
+  await startup();
+  await runCLI();
+  serverEvents.eventLogging = false;
+
 }
 
 serverEvents.on("cli.commander", (program) => {

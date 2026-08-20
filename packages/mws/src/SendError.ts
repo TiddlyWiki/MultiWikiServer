@@ -87,14 +87,14 @@ SendError.oninstance.push(e => {
     case "BAG_NO_READ_PERMISSION":
     case "BAG_NO_WRITE_PERMISSION":
     case "CANNOT_WRITE_STATIC_ROWS":
-    // case "HOST_NOT_RECOGNIZED": // misconfigured server if this throws
+
     case "INCORRECT_SERVER_RESPONSE_SENT":
     case "INSTANCE_NOT_FOUND":
     case "INSTANCE_NOT_WRITABLE":
     case "INSTANCE_NO_READ_PERMISSION":
     case "INSTANCE_NO_WRITE_PERMISSION":
     case "INTERNAL_SERVER_ERROR":
-    // case "INVALID_BODY_FORMAT": // a bug if this throws
+
     case "INVALID_REQUEST_BODY":
     case "INVALID_REQUEST_PATH":
     case "INVALID_REQUEST_QUERY":
@@ -122,6 +122,12 @@ SendError.oninstance.push(e => {
     case "SETTING_KEY_INVALID":
     case "TIDDLER_WIRE_FORMAT_UNKNOWN":
     case "WRITE_NOT_PERMITTED":
+    case "ACCESS_DENIED":
       { e.skiplog = true; break; }
+    case "INVALID_BODY_FORMAT": // a bug if this throws
+    case "HOST_NOT_RECOGNIZED": // misconfigured server if this throws
+      { break; }
+    default:
+      { const t: never = e; }
   }
 })

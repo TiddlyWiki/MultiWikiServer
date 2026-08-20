@@ -39,21 +39,11 @@ const path = require("path");
     console.log(`├─ ${file}`);
     fs.writeFileSync(abspath, fs.readFileSync(filePath));
   });
-
+  // remember to update Dockerfile as well
   console.log("└─ Running npm install...");
-  await start("npm", ["install", "--save-exact", "@tiddlywiki/mws@latest"], {
+  await start("npm", ["install", "--save-prefix=~", "@tiddlywiki/mws@latest"], {
     ...process.platform === "android" ? { GYP_DEFINES: "android_ndk_path=''", } : {}
   }, { cwd: folder });
-
-  // set the mws version so npm update works properly
-  /** @type {typeof import("../tests/package.json")} */
-  const json = JSON.parse(fs.readFileSync(path.resolve(folder, "package.json"), "utf8"));
-  if (json.dependencies["@tiddlywiki/mws"].startsWith("0.2"))
-    json.dependencies["@tiddlywiki/mws"] = "~" + json.dependencies["@tiddlywiki/mws"];
-  if (json.dependencies["@tiddlywiki/mws"].startsWith("0.1"))
-    json.dependencies["@tiddlywiki/mws"] = "~" + json.dependencies["@tiddlywiki/mws"];
-  fs.writeFileSync(path.resolve(folder, "package.json"), JSON.stringify(json));
-
   await start("npm", ["exec", "mws", "update-tiddlywiki"], {}, { cwd: folder });
   await start("npm", ["exec", "mws", "init-store"], {}, { cwd: folder });
 

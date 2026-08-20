@@ -89,6 +89,7 @@ export class SqliteAdapter {
         "The database does not match the configured migrations. ",
         "Since you are in dev mode, you probably just need to ",
         "delete the store folder and init a new database.",
+        "===============================================================",
       ].join("\n"));
       process.exit(1);
     } else {

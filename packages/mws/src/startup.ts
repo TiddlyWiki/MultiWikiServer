@@ -1,5 +1,5 @@
 import { serverEvents } from "@tiddlywiki/events";
-import { Router, ServerRoute, dist_resolve, is } from "@tiddlywiki/server";
+import { Router, ServerRoute, dist_resolve, is, tryParseJSON } from "@tiddlywiki/server";
 import { StateObject } from "./RequestState";
 import { ServerState, TiddlerCache } from "./ServerState";
 import { SessionManager } from "./new-managers/sessions";
@@ -17,6 +17,7 @@ import { bootTiddlyWiki } from "./services/tiddlywiki";
 import * as opaque from "@serenity-kit/opaque";
 import { UpdateTiddlyWikiCommand } from "./new-commands";
 import { PrismaClientKnownRequestError } from "@tiddlywiki/mws-prisma/client/internal/prismaNamespace";
+import { readFile } from "fs/promises";
 
 
 declare module "@tiddlywiki/events" {
@@ -45,6 +46,10 @@ serverEvents.on("cli.execute.before", async (name, params, options, instance) =>
     instance.wikiPath = wikiPath;
     return;
   }
+
+
+
+
   const cachePath = path.resolve(wikiPath, "cache");
 
   const passwordService = await createPasswordService(readPasswordMasterKey(wikiPath));
@@ -70,10 +75,7 @@ serverEvents.on("cli.execute.before", async (name, params, options, instance) =>
   await adapter.init();
   await serverEvents.emitAsync("mws.adapter.init.after", adapter);
   const engine: PrismaEngineClient = new PrismaClient({
-    log: [
-      ...Debug.enabled("prisma:query") ? ["query" as const] : [],
-      "info", "warn"
-    ],
+    log: ["info", "warn", ...Debug.enabled("prisma:query") ? ["query" as const] : []],
     adapter: adapter.adapter
   });
 
@@ -129,9 +131,6 @@ declare module "@tiddlywiki/server" {
 Router.allowedRequestedWithHeaders.TiddlyWiki = true;
 
 export const clientBuildDef: ClientBuildDefinition = {
-  // rootdir: dist_resolve("../packages/admin-mdui"),
-  // publicdir: dist_resolve("../public/admin-mdui"),
-  // title: "MWS Admin",
   rootdir: dist_resolve("../packages/admin-vanilla"),
   publicdir: dist_resolve("../public/admin-vanilla"),
   title: "MWS Admin",
@@ -142,11 +141,6 @@ serverEvents.on("listen.router.init", async (listen, router) => {
 
   router.config = listen.config;
 
-  // router.sendAdmin = await setupDevServer(listen.config);
-  // router.sendAdmin = await setupClientBuild({
-  //   rootdir: dist_resolve("../packages/react-admin"),
-  //   publicdir: dist_resolve("../public/react-admin")
-  // });
   router.sendAdmin = await setupClientBuild(clientBuildDef);
   router.createServerRequest = async (request, ...args) => {
     const user = await SessionManager.parseIncomingRequest(request.cookies, router.config);
