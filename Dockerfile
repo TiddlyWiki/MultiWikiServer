@@ -1,15 +1,20 @@
 # Use Node.js 22 Alpine image
 FROM node:22-alpine
 
-# Set working directory
+# The data-folder format is independent from the MWS package version. This
+# matches create-package/files/package.json, which is the template used by
+# `npm init @tiddlywiki/mws`.
+ARG MWS_VERSION=0.2.4
 WORKDIR /data
+RUN echo '{"name":"@tiddlywiki/mws-instance","private":true,"version":"0.2.0","scripts":{"start":"mws listen --listener"}}' > package.json
 
-# Create instance package.json that references MWS
-RUN echo '{"name":"@tiddlywiki/mws-instance","private":true,"version":"0.1.0","scripts":{"start":"mws listen --listener"}}' > package.json
-
-# Install TiddlyWiki and MultiWikiServer from npm
-# Using --omit=dev to keep image smaller
-RUN npm install --save-exact tiddlywiki@latest @tiddlywiki/mws@latest
+# Install the published MWS package for the target container platform. The
+# build tools are only needed when a native dependency has no prebuilt binary.
+# The create script then downloads TiddlyWiki with `mws update-tiddlywiki`.
+RUN apk add --no-cache --virtual .build-deps python3 make g++ \
+    && npm install --save-exact "@tiddlywiki/mws@${MWS_VERSION}" \
+    && npm exec mws update-tiddlywiki \
+    && apk del .build-deps
 
 # Expose default MWS port
 EXPOSE 8080
