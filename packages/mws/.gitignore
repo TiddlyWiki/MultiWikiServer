@@ -9,3 +9,4 @@ TiddlyWiki5
 /.vscode/settings.json
 editions/mws-docs/tiddlers/$__StoryList.tid
 /src/drizzle
+/src/tiddlyserver

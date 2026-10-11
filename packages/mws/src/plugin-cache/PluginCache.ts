@@ -1,8 +1,8 @@
 
 import * as crypto from "crypto";
 import * as path from "path";
-import { mapGetInit } from "../new-managers";
-import { open, readdir, readFile, stat } from "fs/promises";
+import { mapGetInit } from "../new-managers/wiki-utils";
+import { FileHandle, open, readdir, readFile, stat } from "fs/promises";
 import { importPlugins } from "./importPlugins";
 import { existsSync } from "fs";
 import { TiddlerFields } from "tiddlywiki";
@@ -166,29 +166,33 @@ async function* createFileChunkReader<T extends { update: (buf: Buffer) => T }>(
   }
 }
 
-async function createFileChunkHasher<T extends { update: (buf: Buffer) => T }>(filepath: string, hasher: T, chunkSize?: number) {
-  const s = await stat(filepath);
+
+async function createFileChunkHasher<T extends { update: (buf: Buffer) => T }>(file: string | FileHandle, hasher: T, chunkSize?: number) {
+  const s = typeof file === "string" ? await stat(file) : await file.stat();
   const resolvedChunkSize = chunkSize ?? Math.max(s.blksize || 0, defaultFileChunkSize);
   if (!Number.isInteger(resolvedChunkSize) || resolvedChunkSize <= 0) {
     throw new RangeError("chunkSize must be a positive integer");
   }
-  const fd = await open(filepath, "r");
+  const fd = typeof file === "string" ? await open(file, "r") : file;
   try {
+    let position = 0;
     const chunk = Buffer.allocUnsafe(resolvedChunkSize);
     while (true) {
-      const { bytesRead } = await fd.read(chunk, 0, resolvedChunkSize, null);
+      const { bytesRead } = await fd.read(chunk, 0, resolvedChunkSize, position);
       if (bytesRead === 0) { return; }
       hasher.update(chunk.subarray(0, bytesRead));
+      position += bytesRead;
     }
   } finally {
-    await fd.close();
+    if (typeof file === "string")
+      await fd.close();
   }
 }
 
 /** Read a file, reusing the same buffer for every block to save GC. */
-export async function hashFile(filepath: string) {
+export async function hashFile(file: string | FileHandle) {
   const hasher = crypto.createHash("sha384");
-  await createFileChunkHasher(filepath, hasher, 512 * 1024)
+  await createFileChunkHasher(file, hasher, 512 * 1024)
   return hasher.digest("base64");
 }
 

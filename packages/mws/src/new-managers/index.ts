@@ -20,6 +20,7 @@ export * from "./TabDataAdapter";
 export * from "./TabUpserts";
 export * from "./wiki-utils";
 export * from "./wiki-contract";
+export * from "./tiddlyserver";
 
 // #region Routes
 // ---------------------------------------------------------------------------
@@ -74,6 +75,20 @@ serverEvents.on("mws.routes", (root) => {
   parent.defineRoute<"ignore">({
     method: ["GET", "HEAD", "OPTIONS"],
     path: new RegExp(`^/tw5/(?<version>.*)$`),
+    bodyFormat: "ignore",
+  }, async (state) => {
+
+    if (state.method === "OPTIONS") return state.sendEmpty(405);
+
+    checkPath(state, z => ({ version: z.string() }), new Error());
+
+    return await serveDocsIndex(state, state.pathParams.version);
+
+  });
+
+  parent.defineRoute<"ignore">({
+    method: ["GET", "HEAD", "OPTIONS"],
+    path: new RegExp(`^/static/(?<path>.*)$`),
     bodyFormat: "ignore",
   }, async (state) => {
 
