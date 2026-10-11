@@ -552,7 +552,7 @@ export class UserDataAdapter extends TabDataAdapter<"users"> {
   }
 }
 
-
+// #region AdminSave
 export const AdminSave = zodRoute({
   method: ["PUT"],
   path: "/admin/:op/:tab",
@@ -597,6 +597,8 @@ export const AdminSave = zodRoute({
     return res2;
   }
 });
+
+// #region AdminLoad
 
 export const AdminLoad = zodRoute({
   method: ["GET"],

@@ -776,7 +776,6 @@ export interface TemplateAdminRecord {
   writablePrefixBags: readonly WritablePrefixRow[];
   readonlyBags: readonly string[];
   plugins: readonly string[];
-  // templatePermissions: readonly PermissionRow<TemplatePermissionLevel>[];
   templateUsers: readonly string[],
   templateAdmins: readonly string[],
   requiredPluginsEnabled: boolean;

@@ -54,6 +54,7 @@
     "@prisma/adapter-better-sqlite3": "7.8.0",
     "@prisma/client": "7.8.0",
     "@serenity-kit/opaque": "1.1.0",
+    "json5": "^2.2.3",
     "source-map-support": "0.5.21"
   },
   "devDependencies": {
