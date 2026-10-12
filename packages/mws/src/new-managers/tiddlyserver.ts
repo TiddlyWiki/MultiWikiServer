@@ -46,7 +46,7 @@ const fileSystemMountSchema = zod.strictObject({
   putSaver: zod.union([zod.boolean(), putSaverOptionsSchema]).optional(),
 });
 
-const fileSystemMountsSchema = zod.array(fileSystemMountSchema).refine(
+export const fileSystemMountsSchema = zod.array(fileSystemMountSchema).refine(
   mounts => new Set(mounts.map(mount => mount.webPath)).size === mounts.length,
   { message: "webPath values must be unique" },
 );

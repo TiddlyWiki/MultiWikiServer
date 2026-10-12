@@ -2,21 +2,25 @@ import { zod } from "@tiddlywiki/server";
 import { existsSync, readFileSync, openSync } from "fs";
 import { join } from "path";
 import * as JSON5 from "json5";
+import { fileSystemMountsSchema } from "./new-managers";
 
 const routeRootSchema = zod.string().regex(
   /^\/.*[^/]$/,
   "Route roots must start with '/' and must not end with '/'"
 );
+const optionalRouteRootSchema = routeRootSchema.or(zod.literal(""));
 
 const serverConfigSchema = zod.object({
   routeRoots: zod.object({
+    assets: routeRootSchema.default("/$assets"),
     cache: routeRootSchema.default("/$cache"),
     recipe: routeRootSchema.default("/recipe"),
     admin: routeRootSchema.default("/admin"),
-    wiki: routeRootSchema.default("/wiki"),
-    static: routeRootSchema.default("/static"),
+    wiki: optionalRouteRootSchema.default("/wiki"),
+    static: optionalRouteRootSchema.default("/static"),
     tw5: routeRootSchema.default("/tw5"),
   }).prefault({}),
+  staticMounts: fileSystemMountsSchema.prefault([]),
 }).prefault({});
 
 export function loadConfigSync(wikiPath: string) {

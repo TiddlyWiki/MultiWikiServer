@@ -24,6 +24,8 @@ export class ServerState {
   versions;
   rootRoutes;
 
+  staticMounts;
+
   setupRequired = false;
 
   attachmentsEnabled = false;
@@ -68,6 +70,7 @@ export class ServerState {
     const cfg = loadConfigSync(wikiPath);
 
     this.rootRoutes = cfg.routeRoots;
+    this.staticMounts = cfg.staticMounts;
 
   }
 

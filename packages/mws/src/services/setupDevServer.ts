@@ -102,10 +102,10 @@ async function generateHtml({ js, css, publicdir, rootdir, title }: {
     await readFile(join(rootdir, "index.html"), "utf8").catch(e => { console.log(e); throw e; })
   )
     .replaceAll(new RegExp(`([\t ]+)${css_placer_regex}`, "g"), (_, s) =>
-      css.map(e => `${s}<link rel="stylesheet" href="${"$$js:pathPrefix$$"}/${e}" />`).join("\n"))
+      css.map(e => `${s}<link rel="stylesheet" href="${"$$js:pathPrefix$$$$js:assets$$"}/${e}" />`).join("\n"))
 
     .replaceAll(new RegExp(`([\t ]+)${js_placer_regex}`, "g"), (_, s) =>
-      js.map(e => `${s}<script type="module" src="${"$$js:pathPrefix$$"}/${e}"></script>`).join("\n"))
+      js.map(e => `${s}<script type="module" src="${"$$js:pathPrefix$$$$js:assets$$"}/${e}"></script>`).join("\n"))
 
     .replaceAll(new RegExp(`([\t ]+)${title_placer_regex}`, "g"), (_, s) =>
       `${s}<title>${title}</title>`)
@@ -113,17 +113,40 @@ async function generateHtml({ js, css, publicdir, rootdir, title }: {
   await writeFile(publicdir + ".html", indexFile);
 }
 
+async function generateManifest({ rootdir, publicdir }: {
+  rootdir: string;
+  publicdir: string;
+}) {
+  const indexFile = await readFile(join(rootdir, "site.webmanifest"), "utf8")
+    .catch(e => { console.log(e); throw e; });
+  await writeFile(publicdir + ".webmanifest", indexFile);
+}
 
-async function make_index_file({ publicdir, pathPrefix, serverResponseJSON }: {
+
+async function make_index_file({ publicdir, pathPrefix, assetsPrefix, serverResponseJSON }: {
   publicdir: string;
   pathPrefix: string;
+  assetsPrefix: string;
   serverResponseJSON: string;
 }) {
 
-  return Buffer.from((await readFile(publicdir + ".html", "utf8"))
-    .replaceAll("$$js:pathPrefix$$", pathPrefix)
-    .replaceAll("`$$js:pathPrefix:stringify$$`", JSON.stringify(pathPrefix).replaceAll("</script>", "<\\/script>"))
-    .replaceAll("`$$js:embeddedServerResponse:stringify$$`", serverResponseJSON.replaceAll("</script>", "<\\/script>")),
+  return Buffer.from(
+    (await readFile(publicdir + ".html", "utf8"))
+      .replaceAll("$$js:pathPrefix$$", pathPrefix)
+      .replaceAll("$$js:assets$$", assetsPrefix)
+      .replaceAll("`$$js:pathPrefix:stringify$$`", JSON.stringify(pathPrefix).replaceAll("</script>", "<\\/script>"))
+      .replaceAll("`$$js:embeddedServerResponse:stringify$$`", serverResponseJSON.replaceAll("</script>", "<\\/script>")),
+    "utf8");
+}
+async function make_manifest_file({ publicdir, pathPrefix, assetsPrefix, }: {
+  publicdir: string;
+  pathPrefix: string;
+  assetsPrefix: string;
+}) {
+  return Buffer.from(
+    (await readFile(publicdir + ".webmanifest", "utf8"))
+      .replaceAll("$$js:pathPrefix$$", pathPrefix)
+      .replaceAll("$$js:assets$$", assetsPrefix),
     "utf8");
 }
 
@@ -150,15 +173,31 @@ export async function setupClientBuild({ rootdir, publicdir, clientMounts, title
         status: 200,
       });
 
+    if (state.urlInfo.pathname === "/site.webmanifest")
+      return await serveManifest({
+        state,
+        publicdir,
+      })
+
+
+    let pathname = state.urlInfo.pathname, isAsset = false;
+    if (pathname.startsWith(state.config.rootRoutes.assets)) {
+      pathname = pathname.slice(state.config.rootRoutes.assets.length);
+      isAsset = true;
+    }
     return state.sendFile(200, {}, {
       root: publicdir,
-      reqpath: state.urlInfo.pathname,
+      reqpath: pathname,
       on404: !clientMounts ? (async () => {
-        await serveIndex({
-          state,
-          publicdir,
-          status: 200,
-        })
+        if (isAsset) {
+          state.sendEmpty(404);
+        } else {
+          await serveIndex({
+            state,
+            publicdir,
+            status: 200,
+          })
+        }
       }) : undefined
     });
   };
@@ -180,12 +219,28 @@ async function serveIndex({ state, publicdir, status, sendError }: {
   const indexBuffer = await make_index_file({
     publicdir,
     pathPrefix: state.pathPrefix,
+    assetsPrefix: state.config.rootRoutes.assets,
     serverResponseJSON: JSON.stringify(serverResponse)
   });
   return state.sendBuffer(status, {
     contentType: { mediaType: "text/html", charset: "utf-8" },
     contentLength: indexBuffer.length,
   }, indexBuffer);
+}
+
+async function serveManifest({ state, publicdir }: {
+  state: ServerRequest;
+  publicdir: string;
+}): Promise<typeof STREAM_ENDED> {
+  const buffer = await make_manifest_file({
+    publicdir,
+    pathPrefix: state.pathPrefix,
+    assetsPrefix: state.config.rootRoutes.assets
+  });
+  return state.sendBuffer(200, {
+    contentType: { mediaType: "text/html", charset: "utf-8" },
+    contentLength: buffer.length,
+  }, buffer);
 }
 
 
@@ -203,10 +258,9 @@ export async function runBuildOnce({ rootdir, publicdir, title }: ClientBuildDef
   const { js, css } = parseMetafileEntryPoints({ entryPoints, result, publicdir });
   await writeFile(publicdir + ".json", JSON.stringify(result.metafile));
   await generateHtml({ js, css, rootdir, publicdir, title });
-
+  await generateManifest({ rootdir, publicdir });
   return result;
 }
-
 
 
 async function startDevServer({ rootdir, publicdir, clientMounts, title }: ClientBuildDefinition): Promise<SendAdmin> {
@@ -233,6 +287,7 @@ async function startDevServer({ rootdir, publicdir, clientMounts, title }: Clien
     const { css, js } = parseMetafileEntryPoints({ entryPoints, result, publicdir });
     await writeFile(publicdir + ".json", JSON.stringify(result.metafile));
     await generateHtml({ js, css, rootdir, publicdir, title });
+    await generateManifest({ rootdir, publicdir });
   }
 
   serverEvents.on("exit", () => ctx.dispose());
@@ -259,12 +314,23 @@ async function startDevServer({ rootdir, publicdir, clientMounts, title }: Clien
         status: 200,
       });
 
+    if (state.urlInfo.pathname === "/site.webmanifest")
+      return await serveManifest({
+        state,
+        publicdir,
+      })
+
     const headers = new Headers(state.headers);
     headers.set("host", "localhost");
-    const proxyRes = await fetch(`http://${DEV_HOST}:${port}${state.urlInfo.pathname}`, {
-      method: state.method,
-      headers,
-      body: state.readRawBody(),
+
+    let pathname = state.urlInfo.pathname, isAsset = false;
+    if (pathname.startsWith(state.config.rootRoutes.assets)) {
+      pathname = pathname.slice(state.config.rootRoutes.assets.length);
+      isAsset = true;
+    }
+
+    const proxyRes = await fetch(`http://${DEV_HOST}:${port}${pathname}`, {
+      method: state.method, headers, body: state.readRawBody(),
     });
 
     const headers2 = new SuperHeaders(proxyRes.headers);
@@ -273,7 +339,10 @@ async function startDevServer({ rootdir, publicdir, clientMounts, title }: Clien
       contentLength: headers2.contentLength,
       contentType: headers2.contentType,
     });
+
     if (headers2.contentLength === DEV_FALLBACK.length) {
+      // don't send the fallback for assets, it's just confusing
+      if (isAsset) return state.sendEmpty(404);
       const resBuffer = Buffer.from(await proxyRes.arrayBuffer());
       if (resBuffer.every((e, i) => e === DEV_FALLBACK[i])) {
         if (clientMounts) return state.sendEmpty(404);
@@ -290,6 +359,8 @@ async function startDevServer({ rootdir, publicdir, clientMounts, title }: Clien
     }
   };
 }
+
+
 
 
 export function registerStatsRoute(rootRoute: ServerRoute, statsJsonMap: Record<string, string>) {
