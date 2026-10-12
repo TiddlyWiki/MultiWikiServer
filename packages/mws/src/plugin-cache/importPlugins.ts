@@ -11,13 +11,14 @@ import { serverEvents } from "@tiddlywiki/events";
 import { PassThrough, Readable } from "stream";
 import { pipeline } from "stream/promises";
 import { FileNotFoundError, hashFile, PluginHashes } from "./PluginCache";
+import esr from "escape-string-regexp";
 
 export const defaultPreloadFunction = "$tw.preloadTiddler";
 
 serverEvents.on("mws.routes", (root, config) => {
   root.defineRoute({
     method: ["GET", "HEAD"],
-    path: /^\/\$cache\/(?<plugin>.*)\/plugin\.js$/,
+    path: new RegExp("^" + esr(config.rootRoutes.cache) + "/(?<plugin>.*)/plugin\\.js$"),
     bodyFormat: "ignore",
   }, async (state: ServerRequest<BodyFormat, string, unknown>) => {
     checkPath(state, z => ({ plugin: z.string() }), new Error());

@@ -19,5 +19,8 @@
   "peerDependencies": {
     "@remix-run/headers": "*",
     "hono": "*"
+  },
+  "dependencies": {
+    "escape-string-regexp": "^5.0.0"
   }
 }

@@ -11,8 +11,10 @@ import {
 } from "@mws/admin-vanilla/src/definition/tabs";
 import {
   checkData,
+  registerZodRoutes,
   SendError,
   ServerRequest,
+  ServerRoute,
   Z2,
   zod,
   zodRoute
@@ -36,6 +38,8 @@ import {
 import { createHash } from "crypto";
 import { debuglog } from "util";
 import { Debug } from "@prisma/client/runtime/client";
+import { ServerState } from "../ServerState";
+import escapeStringRegexp from "escape-string-regexp";
 
 
 
@@ -552,89 +556,104 @@ export class UserDataAdapter extends TabDataAdapter<"users"> {
   }
 }
 
-// #region AdminSave
-export const AdminSave = zodRoute({
-  method: ["PUT"],
-  path: "/admin/:op/:tab",
-  bodyFormat: "json",
-  securityChecks: { requestedWithHeader: true },
-  zodPathParams: z => ({
-    op: z.enum(["save"]),
-    tab: z.enum(["wikis", "templates", "bags", "users", "roles"] satisfies TabId[])
-  }),
-  zodRequestBody: z => z.any(),
-  inner: async (state) => {
-    state.assertReferer(["/"]);
-    state.asserted = state.user.isLoggedIn;
-    state.data = JSON.parse(JSON.stringify(state.data), (key: any, val: any) => {
-      if (typeof val === "string" && val.startsWith(IdString.prefix))
-        return new IdString(val.slice(IdString.prefix.length));
-      // if (typeof val === "string" && val.startsWith("KeyString____"))
-      //   return val.slice("KeyString____".length);
-      return val;
-    });
+export class AdminRoutes {
+  static defineRoutes(root: ServerRoute, config: ServerState) {
+    this.AdminPrefix = escapeStringRegexp(config.rootRoutes.admin);
+    const route = new AdminRoutes();
+    const keys = Object.keys(route).filter(e => route[e] instanceof zodRoute);
+    registerZodRoutes(root, route, keys)
+  }
+  static AdminPrefix: string;
 
-    checkData(state, () => buildTabZodObject(state.pathParams.tab, "DataSave"), new Error());
+  // #region AdminSave
+  AdminSave = zodRoute({
+    method: ["PUT"],
+    path: AdminRoutes.AdminPrefix + "/:op/:tab",
+    bodyFormat: "json",
+    securityChecks: { requestedWithHeader: true },
+    zodPathParams: z => ({
+      op: z.enum(["save"]),
+      tab: z.enum(["wikis", "templates", "bags", "users", "roles"] satisfies TabId[])
+    }),
+    zodRequestBody: z => z.any(),
+    inner: async (state) => {
+      state.assertReferer(["/"]);
+      state.asserted = state.user.isLoggedIn;
+      state.data = JSON.parse(JSON.stringify(state.data), (key: any, val: any) => {
+        if (typeof val === "string" && val.startsWith(IdString.prefix))
+          return new IdString(val.slice(IdString.prefix.length));
+        // if (typeof val === "string" && val.startsWith("KeyString____"))
+        //   return val.slice("KeyString____".length);
+        return val;
+      });
 
-    const res = await state.$transaction(async prisma => {
-      const { pathParams: { op, tab }, data } = state;
-      if (op !== "save") throw new Error(`Unsupported admin operation: ${op}`);
-      switch (tab) {
-        case "wikis": return await new RecipeDataAdapter(state.user).saveRow(prisma, data as IRecipeRow);
-        case "templates": return await new TemplateDataAdapter(state.user).saveRow(prisma, data as ITemplateRow);
-        case "bags": return await new BagDataAdapter(state.user).saveRow(prisma, data as IBagRow);
-        case "roles": return await new RoleDataAdapter(state.user).saveRow(prisma, data as IRoleRow);
-        case "users": return await new UserDataAdapter(state.user).saveRow(prisma, data as IUserRow);
-        default: {
-          const _exhaustive: never = tab;
-          throw new Error(`Unsupported admin tab: ${_exhaustive}`);
+      checkData(state, () => buildTabZodObject(state.pathParams.tab, "DataSave"), new Error());
+
+      const res = await state.$transaction(async prisma => {
+        const { pathParams: { op, tab }, data } = state;
+        switch (op) {
+          case "save": switch (tab) {
+            case "wikis": return await new RecipeDataAdapter(state.user).saveRow(prisma, data as IRecipeRow);
+            case "templates": return await new TemplateDataAdapter(state.user).saveRow(prisma, data as ITemplateRow);
+            case "bags": return await new BagDataAdapter(state.user).saveRow(prisma, data as IBagRow);
+            case "roles": return await new RoleDataAdapter(state.user).saveRow(prisma, data as IRoleRow);
+            case "users": return await new UserDataAdapter(state.user).saveRow(prisma, data as IUserRow);
+            default: {
+              const _exhaustive: never = tab;
+              throw new Error(`Unsupported admin tab: ${_exhaustive}`);
+            }
+          }
+          default: {
+            const _exhaustive: never = op;
+            throw new Error(`Unsupported admin operation: ${_exhaustive}`);
+          }
         }
-      }
-    });
+      });
 
-    const { success, data: res2, error } = buildTabZodObject(state.pathParams.tab, "DataStore").safeParse(res);
-    if (!success) console.log("Response validation: ", error);
-    return res2;
-  }
-});
+      const { success, data: res2, error } = buildTabZodObject(state.pathParams.tab, "DataStore").safeParse(res);
+      if (!success) console.log("Response validation: ", error);
+      return res2;
+    }
+  });
 
-// #region AdminLoad
+  // #region AdminLoad
 
-export const AdminLoad = zodRoute({
-  method: ["GET"],
-  path: "/admin/load",
-  bodyFormat: "ignore",
-  securityChecks: { requestedWithHeader: true },
-  zodPathParams: z => ({}),
-  inner: async (state) => {
-    state.assertReferer(["/"]);
-    state.asserted = state.user.isLoggedIn;
-    const res = await state.$transaction(async prisma => {
-      const roles = await new RoleImportWriter(prisma, false).getIdMapper();
-      return {
-        wikis: await new RecipeDataAdapter(state.user).getList(prisma, roles),
-        templates: await new TemplateDataAdapter(state.user).getList(prisma, roles),
-        bags: await new BagDataAdapter(state.user).getList(prisma, roles),
-        roles: await new RoleDataAdapter(state.user).getList(prisma),
-        users: await new UserDataAdapter(state.user).getList(prisma, roles),
-        availablePlugins: state.pluginCache.pluginsList.map(e => ({
-          name: e.title,
-          description: `${e.name}: ${e.desc}`,
+  AdminLoad = zodRoute({
+    method: ["GET"],
+    path: AdminRoutes.AdminPrefix + "/load",
+    bodyFormat: "ignore",
+    securityChecks: { requestedWithHeader: true },
+    zodPathParams: z => ({}),
+    inner: async (state) => {
+      state.assertReferer(["/"]);
+      state.asserted = state.user.isLoggedIn;
+      const res = await state.$transaction(async prisma => {
+        const roles = await new RoleImportWriter(prisma, false).getIdMapper();
+        return {
+          wikis: await new RecipeDataAdapter(state.user).getList(prisma, roles),
+          templates: await new TemplateDataAdapter(state.user).getList(prisma, roles),
+          bags: await new BagDataAdapter(state.user).getList(prisma, roles),
+          roles: await new RoleDataAdapter(state.user).getList(prisma),
+          users: await new UserDataAdapter(state.user).getList(prisma, roles),
+          availablePlugins: state.pluginCache.pluginsList.map(e => ({
+            name: e.title,
+            description: `${e.name}: ${e.desc}`,
+          })),
+        } satisfies Omit<DataStore, "availableBagNames" | "availablePluginNames">;
+      });
+      const { success, data, error } = zod.object({
+        wikis: buildTabZodObject("wikis", "DataStore").array(),
+        templates: buildTabZodObject("templates", "DataStore").array(),
+        bags: buildTabZodObject("bags", "DataStore").array(),
+        roles: buildTabZodObject("roles", "DataStore").array(),
+        users: buildTabZodObject("users", "DataStore").array(),
+        availablePlugins: zod.array(zod.object({
+          name: zod.string(),
+          description: zod.string(),
         })),
-      } satisfies Omit<DataStore, "availableBagNames" | "availablePluginNames">;
-    });
-    const { success, data, error } = zod.object({
-      wikis: buildTabZodObject("wikis", "DataStore").array(),
-      templates: buildTabZodObject("templates", "DataStore").array(),
-      bags: buildTabZodObject("bags", "DataStore").array(),
-      roles: buildTabZodObject("roles", "DataStore").array(),
-      users: buildTabZodObject("users", "DataStore").array(),
-      availablePlugins: zod.array(zod.object({
-        name: zod.string(),
-        description: zod.string(),
-      })),
-    }).safeParse(res);
-    if (!success) throw error;
-    return data;
-  }
-});
+      }).safeParse(res);
+      if (!success) throw error;
+      return data;
+    }
+  });
+}

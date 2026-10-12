@@ -3,9 +3,10 @@
 import "./main.css";
 import { App } from "./app";
 import { LoginForm } from "./app-login";
-import { AuthUser } from "@tiddlywiki/mws/src/new-managers/sessions";
+import type { AuthUser } from "@tiddlywiki/mws/src/new-managers/sessions";
 import { SendError } from "@tiddlywiki/server";
 import { ProfileForm } from "./app-profile";
+import type { ServerState } from "@tiddlywiki/mws/src/ServerState";
 
 // disables the "flash of white" styles
 document.documentElement.classList.add("loaded");
@@ -21,6 +22,7 @@ declare global {
   const embeddedServerResponse: {
     userState: AuthUser;
     tw5Versions: string[];
+    rootRoutes: ServerState["rootRoutes"];
     sendError?: ReturnType<SendError<any>["toJSON"]>;
   }
 }

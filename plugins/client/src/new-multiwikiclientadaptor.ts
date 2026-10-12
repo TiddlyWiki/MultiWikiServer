@@ -521,7 +521,7 @@ class MultiWikiClientAdaptor implements SyncAdaptor<MWSAdaptorInfo> {
 		return httpRequest({
 			...options,
 			responseType: "blob",
-			url: this.host + "recipe/" + encodeURIComponent(this.recipe) + options.url,
+			url: this.host + "/" + encodeURIComponent(this.recipe) + options.url,
 		}).then(async e => {
 			if (!e.ok) return [false, new Error(
 				`Server returned ${e.status}: ${e.headers.get("x-reason") ?? "(no reason)"}`

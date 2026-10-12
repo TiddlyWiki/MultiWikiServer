@@ -1,4 +1,4 @@
-import { SendError, ServerRequest } from "@tiddlywiki/server";
+import { SendError, ServerRequest, zod } from "@tiddlywiki/server";
 import { randomBytes } from "node:crypto";
 import { constants, createWriteStream } from "node:fs";
 import { chmod, FileHandle, lstat, open, realpath, rename, rm } from "node:fs/promises";
@@ -19,19 +19,41 @@ interface ResolvedPutSaverOptions {
   requireIfMatch: boolean;
 }
 
-export interface FileSystemMountGroup {
-  type: "group";
-  children: Record<string, FileSystemMountNode>;
-}
-
-export interface FileSystemMountFolder {
-  type: "folder";
-  path: string;
+export interface FileSystemMount {
+  webPath: string;
+  folderPath: string;
   putSaver?: boolean | PutSaverOptions;
 }
 
-export type FileSystemMountNode = FileSystemMountGroup | FileSystemMountFolder;
-export type FileSystemMountTree = Record<string, FileSystemMountNode>;
+export type FileSystemMounts = FileSystemMount[];
+
+const putSaverOptionsSchema = zod.strictObject({
+  maxBytes: zod.number().refine(Number.isSafeInteger, { message: "maxBytes must be a safe integer" }).positive().optional(),
+  requireIfMatch: zod.boolean().optional(),
+});
+
+const fileSystemMountSchema = zod.strictObject({
+  webPath: zod.string().refine(
+    path => path === "/" || (
+      path.startsWith("/")
+      && !path.endsWith("/")
+      && !path.includes("//")
+      && !!splitRequestPath(path)?.length
+    ),
+    { message: "webPath must be an absolute normalized URL path" },
+  ),
+  folderPath: zod.string().min(1),
+  putSaver: zod.union([zod.boolean(), putSaverOptionsSchema]).optional(),
+});
+
+const fileSystemMountsSchema = zod.array(fileSystemMountSchema).refine(
+  mounts => new Set(mounts.map(mount => mount.webPath)).size === mounts.length,
+  { message: "webPath values must be unique" },
+);
+
+export function validateFileSystemMounts(mounts: unknown): FileSystemMounts {
+  return fileSystemMountsSchema.parse(mounts);
+}
 
 export interface ResolvedFileSystemMount {
   root: string;
@@ -39,23 +61,37 @@ export interface ResolvedFileSystemMount {
   putSaver: ResolvedPutSaverOptions | null;
 }
 
-function resolvePutSaverOptions(options: FileSystemMountFolder["putSaver"]): ResolvedPutSaverOptions | null {
+function resolvePutSaverOptions(
+  options: FileSystemMount["putSaver"],
+  webPath: string,
+): ResolvedPutSaverOptions | null {
   if (!options) return null;
-  const maxBytes = typeof options === "object" ? options.maxBytes ?? DEFAULT_MAX_PUT_BYTES : DEFAULT_MAX_PUT_BYTES;
+  const { maxBytes = DEFAULT_MAX_PUT_BYTES, requireIfMatch = true } = typeof options === "object" ? options : {};
+
   if (!Number.isSafeInteger(maxBytes) || maxBytes <= 0)
-    throw new Error("putSaver.maxBytes must be a positive safe integer");
+    throw new Error(`${webPath}.putSaver.maxBytes must be a positive safe integer`);
+  if (typeof requireIfMatch !== "boolean")
+    throw new Error(`${webPath}.putSaver.requireIfMatch must be a boolean`);
+
   return {
     maxBytes,
-    requireIfMatch: typeof options === "object" ? options.requireIfMatch !== false : true,
+    requireIfMatch,
   };
 }
 
 function splitRequestPath(requestPath: string): string[] | null {
   try {
-    const segments = requestPath.split("/").filter(Boolean).map(decodeURIComponent);
-    return segments.every(segment => segment !== "." && segment !== ".." && !segment.includes("\0") && !segment.includes("/") && !segment.includes("\\"))
-      ? segments
-      : null;
+    const segments = requestPath
+      .split("/")
+      .filter(Boolean)
+      .map(decodeURIComponent);
+    return segments.every(segment =>
+      segment !== "."
+      && segment !== ".."
+      && !segment.includes("\0")
+      && !segment.includes("/")
+      && !segment.includes("\\")
+    ) ? segments : null;
   } catch {
     return null;
   }
@@ -64,35 +100,31 @@ function splitRequestPath(requestPath: string): string[] | null {
 
 
 export function resolveFileSystemMount(
-  tree: FileSystemMountTree,
+  mounts: FileSystemMounts,
   requestPath: string,
 ): ResolvedFileSystemMount | null {
   const segments = splitRequestPath(requestPath);
-  if (!segments?.length) return null;
+  if (!segments) return null;
 
-  let children = tree;
-  for (let index = 0; index < segments.length; index++) {
-    if (!Object.hasOwn(children, segments[index])) return null;
-    const node = children[segments[index]];
-    if (!node || typeof node !== "object") return null;
+  const matches = mounts
+    .map(mount => ({ mount, segments: splitRequestPath(mount.webPath) }))
+    .filter((entry): entry is { mount: FileSystemMount; segments: string[] } => !!entry.segments)
+    .filter(entry => entry.segments.every((segment, index) => segments[index] === segment))
+    .sort((a, b) => b.segments.length - a.segments.length);
+  const match = matches[0];
+  if (!match) return null;
 
-    if (node.type === "group") {
-      if (!node.children || typeof node.children !== "object") return null;
-      children = node.children;
-      continue;
-    }
-    if (node.type !== "folder" || typeof node.path !== "string") return null;
+  const root = resolve(match.mount.folderPath);
+  const path = resolve(root, ...segments.slice(match.segments.length));
+  const pathFromRoot = relative(root, path);
+  if (pathFromRoot === ".." || pathFromRoot.startsWith(`..${sep}`) || isAbsolute(pathFromRoot))
+    return null;
 
-    const root = resolve(node.path);
-    const path = resolve(root, ...segments.slice(index + 1));
-    const pathFromRoot = relative(root, path);
-    if (pathFromRoot === ".." || pathFromRoot.startsWith(`..${sep}`) || isAbsolute(pathFromRoot))
-      return null;
-
-    return { root, path, putSaver: resolvePutSaverOptions(node.putSaver) };
-  }
-
-  return null;
+  return {
+    root,
+    path,
+    putSaver: resolvePutSaverOptions(match.mount.putSaver, match.mount.webPath),
+  };
 }
 
 async function openMountedTarget(path: string): Promise<FileHandle | null> {
@@ -112,7 +144,7 @@ async function resolveMountRoot(rootPath: string): Promise<string> {
 }
 
 export async function serveStaticFile(
-  state: ServerRequest,
+  state: ServerRequest<"ignore">,
   mount: ResolvedFileSystemMount,
 ): Promise<typeof STREAM_ENDED> {
   const root = await resolveMountRoot(mount.root);
@@ -238,14 +270,12 @@ export async function saveMountedFile(
     }
 
     // make sure we're still working with the same file
-    if (!sameFile(stat, await lstat(path))) {
+    if (!sameFile(stat, await lstat(path)))
       return state.sendEmpty(409);
-    }
+
 
     // Compute the validator from a stable snapshot, then enforce the client's precondition.
     const etag = await makeEtag(target);
-    if (!sameFile(stat, await lstat(path)))
-      return state.sendEmpty(409);
     const ifMatch = checkIfMatch(state, etag, mount.putSaver.requireIfMatch);
     if (ifMatch !== "accept") {
       return state.sendEmpty(ifMatch === "missing" ? 428 : 412);
@@ -261,6 +291,11 @@ export async function saveMountedFile(
       parent,
       `.${basename(path, extension)}.${randomBytes(18).toString("base64url")}${extension}`,
     );
+
+    // make sure we're still working with the same file
+    if (!sameFile(stat, await lstat(path)))
+      return state.sendEmpty(409);
+
 
     try {
       const body = state.readStream();
@@ -303,19 +338,19 @@ export async function saveMountedFile(
 }
 
 export async function fileSystemMountHandler(
-  state: ServerRequest<"stream">,
-  tree: FileSystemMountTree,
+  state: ServerRequest<"stream"> | ServerRequest<"ignore">,
+  mounts: FileSystemMounts,
   path: string
 ): Promise<typeof STREAM_ENDED> {
-  const mount = resolveFileSystemMount(tree, path);
+  const mount = resolveFileSystemMount(mounts, path);
   if (!mount) return state.sendEmpty(404);
 
   switch (state.method) {
     case "GET":
     case "HEAD":
-      return serveStaticFile(state, mount);
+      return serveStaticFile(state as ServerRequest<"ignore">, mount);
     case "PUT":
-      return saveMountedFile(state, mount);
+      return saveMountedFile(state as ServerRequest<"stream">, mount);
     case "OPTIONS":
       return state.sendEmpty(204, {
         allow: mount.putSaver ? "GET, HEAD, PUT, OPTIONS" : "GET, HEAD, OPTIONS",

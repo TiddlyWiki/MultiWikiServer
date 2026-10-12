@@ -7,6 +7,7 @@ import { BuildOptions, BuildResult } from "esbuild";
 import { serverEvents } from "@tiddlywiki/events";
 import { objNumberSort } from "@tiddlywiki/server";
 import escapeStringRegexp from 'escape-string-regexp';
+import { ServerState } from "../ServerState";
 
 
 // export type ServerToReactAdmin = Partial<ServerToReactAdminMap> | null;
@@ -14,6 +15,7 @@ import escapeStringRegexp from 'escape-string-regexp';
 export interface ServerToReactAdmin {
   sendError?: SendError<any>;
   userState: ServerRequest["user"];
+  rootRoutes: ServerState["rootRoutes"];
   tw5Versions: string[];
 }
 
@@ -117,12 +119,11 @@ async function make_index_file({ publicdir, pathPrefix, serverResponseJSON }: {
   pathPrefix: string;
   serverResponseJSON: string;
 }) {
-  pathPrefix = (pathPrefix).replaceAll("</script>", "<\\/script>").toString();
-  serverResponseJSON = (serverResponseJSON).replaceAll("</script>", "<\\/script>").toString();
+
   return Buffer.from((await readFile(publicdir + ".html", "utf8"))
     .replaceAll("$$js:pathPrefix$$", pathPrefix)
-    .replaceAll("`$$js:pathPrefix:stringify$$`", JSON.stringify(pathPrefix))
-    .replaceAll("`$$js:embeddedServerResponse:stringify$$`", serverResponseJSON),
+    .replaceAll("`$$js:pathPrefix:stringify$$`", JSON.stringify(pathPrefix).replaceAll("</script>", "<\\/script>"))
+    .replaceAll("`$$js:embeddedServerResponse:stringify$$`", serverResponseJSON.replaceAll("</script>", "<\\/script>")),
     "utf8");
 }
 
@@ -137,19 +138,16 @@ export async function setupClientBuild({ rootdir, publicdir, clientMounts, title
   return async function sendProdServer(state, sendError) {
     if (sendError)
       return await serveIndex({
-        state, publicdir, status: sendError.status, serverResponse: {
-          userState: state.user,
-          tw5Versions: Array.from(state.pluginCache.versions),
-          sendError,
-        }
+        state,
+        publicdir,
+        status: sendError.status,
       });
 
     if (state.urlInfo.pathname === "/" || clientMounts?.some(e => state.urlInfo.pathname === e || state.urlInfo.pathname.startsWith(e + "/")))
       return await serveIndex({
-        state, publicdir, status: 200, serverResponse: {
-          userState: state.user,
-          tw5Versions: Array.from(state.pluginCache.versions),
-        }
+        state,
+        publicdir,
+        status: 200,
       });
 
     return state.sendFile(200, {}, {
@@ -157,10 +155,9 @@ export async function setupClientBuild({ rootdir, publicdir, clientMounts, title
       reqpath: state.urlInfo.pathname,
       on404: !clientMounts ? (async () => {
         await serveIndex({
-          state, publicdir, status: 200, serverResponse: {
-            userState: state.user,
-            tw5Versions: Array.from(state.pluginCache.versions),
-          }
+          state,
+          publicdir,
+          status: 200,
         })
       }) : undefined
     });
@@ -168,13 +165,18 @@ export async function setupClientBuild({ rootdir, publicdir, clientMounts, title
 
 }
 
-async function serveIndex({ state, publicdir, status, serverResponse }: {
+async function serveIndex({ state, publicdir, status, sendError }: {
   state: ServerRequest;
   publicdir: string;
   status: number;
-  serverResponse: ServerToReactAdmin;
+  sendError?: SendError<any>;
 }): Promise<typeof STREAM_ENDED> {
-
+  const serverResponse: ServerToReactAdmin = {
+    userState: state.user,
+    tw5Versions: Array.from(state.pluginCache.versions),
+    rootRoutes: state.config.rootRoutes,
+    sendError,
+  }
   const indexBuffer = await make_index_file({
     publicdir,
     pathPrefix: state.pathPrefix,
@@ -247,11 +249,7 @@ async function startDevServer({ rootdir, publicdir, clientMounts, title }: Clien
         state,
         publicdir,
         status: sendError.status,
-        serverResponse: {
-          userState: state.user,
-          tw5Versions: Array.from(state.pluginCache.versions),
-          sendError
-        }
+        sendError,
       });
 
     if (state.urlInfo.pathname === "/" || clientMounts?.some(e => state.urlInfo.pathname === e || state.urlInfo.pathname.startsWith(e + "/")))
@@ -259,10 +257,6 @@ async function startDevServer({ rootdir, publicdir, clientMounts, title }: Clien
         state,
         publicdir,
         status: 200,
-        serverResponse: {
-          userState: state.user,
-          tw5Versions: Array.from(state.pluginCache.versions),
-        }
       });
 
     const headers = new Headers(state.headers);
@@ -287,10 +281,6 @@ async function startDevServer({ rootdir, publicdir, clientMounts, title }: Clien
           state,
           publicdir,
           status: proxyRes.status,
-          serverResponse: {
-            userState: state.user,
-            tw5Versions: Array.from(state.pluginCache.versions),
-          }
         });
       } else {
         return state.sendBuffer(proxyRes.status, {}, resBuffer);

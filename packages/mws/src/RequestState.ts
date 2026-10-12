@@ -48,7 +48,7 @@ export class StateObject<
     this.engine = router.config.engine;
     this.PasswordService = router.config.PasswordService;
     this.pluginCache = router.config.pluginCache;
-    
+
 
     this.asserted = false;
     this.sendAdmin = (sendError?: SendError<any>): Promise<typeof STREAM_ENDED> =>
@@ -92,13 +92,17 @@ export class StateObject<
     if (!referer.pathname.startsWith(state.pathPrefix))
       throw new SendError("ACCESS_DENIED", 403, { reason: "Referer check failed" })
     // if a recipe endpoint somehow serves a page, it's definitely wiki content, so deny it
-    if (referer.pathname.startsWith(state.pathPrefix + "/recipe/"))
+    if (referer.pathname.startsWith(state.pathPrefix + state.config.rootRoutes.recipe + "/"))
       throw new SendError("ACCESS_DENIED", 403, { reason: "Referer check failed" })
     // pages outside the wiki path are allowed to access wiki endpoints if they want
-    if (!referer.pathname.startsWith(state.pathPrefix + "/wiki/"))
+    if (!referer.pathname.startsWith(state.pathPrefix + state.config.rootRoutes.wiki + "/"))
       return;
     // we now get the recipe name from the referer
-    const recipe_name = referer.pathname.substring(state.pathPrefix.length + "/wiki/".length);
+    const recipe_name = referer.pathname.substring(
+      state.pathPrefix.length
+      + state.config.rootRoutes.wiki.length
+      + "/".length
+    );
     const referer_slug = decodeURIComponent(recipe_name) as PrismaField<"Recipe", "id">;
     if (referer_slug !== recipe_slug)
       throw new SendError("ACCESS_DENIED", 403, { reason: "Referer check failed" })

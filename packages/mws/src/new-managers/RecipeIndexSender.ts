@@ -1,12 +1,10 @@
-import { SendError, ServerRequest } from "@tiddlywiki/server";
-import { createHash, pseudoRandomBytes, randomBytes } from "node:crypto";
+import { ServerRequest } from "@tiddlywiki/server";
+import { randomBytes } from "node:crypto";
 import { createReadStream } from "node:fs";
 import { readFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { mapGetInit } from "./wiki-utils";
-import { IdString } from "@mws/admin-vanilla/src/definition/tabs";
-import { serverEvents } from "@tiddlywiki/events";
-import { BagImport, defaultPreloadFunction, PluginDefinition, TiddlerHasher, PluginCache } from "../plugin-cache";
+import { defaultPreloadFunction, PluginCache } from "../plugin-cache";
 import { RecipeInfo, RecipeResolver } from "./RecipeResolver";
 import { TiddlerFields } from "tiddlywiki";
 import { ok } from "node:assert";
@@ -164,9 +162,9 @@ abstract class IndexSender {
       ok(h);
       switch (type) {
         case "preload":
-          return `<link rel="preload" href="${this.state.pathPrefix}/$cache/${plugin}/plugin.js?cb=${encodeURIComponent(preloadFunction)}" as="script" integrity="${h}" crossorigin="anonymous" />`;
+          return `<link rel="preload" href="${this.state.pathPrefix + this.state.config.rootRoutes.cache}/${plugin}/plugin.js?cb=${encodeURIComponent(preloadFunction)}" as="script" integrity="${h}" crossorigin="anonymous" />`;
         case "script":
-          return `<script src="${this.state.pathPrefix}/$cache/${plugin}/plugin.js?cb=${encodeURIComponent(preloadFunction)}" integrity="${h}" crossorigin="anonymous"></script>`;
+          return `<script src="${this.state.pathPrefix + this.state.config.rootRoutes.cache}/${plugin}/plugin.js?cb=${encodeURIComponent(preloadFunction)}" integrity="${h}" crossorigin="anonymous"></script>`;
         default:
           { const exhaustive: never = type; }
           throw new Error(`Unknown plugin tag type: ${type}`);
@@ -176,12 +174,13 @@ abstract class IndexSender {
 
   private renderStoreTags(type: "script" | "preload") {
     const pathPrefix = this.state.pathPrefix;
+    const endpt = this.state.config.rootRoutes.recipe;
     const recipe = this.recipeSlug;
     switch (type) {
       case "preload":
-        return `<link rel="preload" href="${pathPrefix}/recipe/${this.recipeSlug}/store.js" as="script" crossorigin="anonymous" />`;
+        return `<link rel="preload" href="${pathPrefix + endpt}/${this.recipeSlug}/store.js" as="script" crossorigin="anonymous" />`;
       case "script":
-        return `<script src="${pathPrefix}/recipe/${this.recipeSlug}/store.js" crossorigin="anonymous"></script>`;
+        return `<script src="${pathPrefix + endpt}/${this.recipeSlug}/store.js" crossorigin="anonymous"></script>`;
       default:
         { const exhaustive: never = type; }
         throw new Error(`Unknown plugin tag type: ${type}`);
@@ -195,7 +194,7 @@ abstract class IndexSender {
       this.state.writeEarlyHints({
         link: this.plugins.map(e => {
           const plugin = this.cache.pluginPaths.get(this.twVersion, e);
-          return `<${this.state.pathPrefix}/$cache/${plugin}/plugin.js>; rel=preload; as=script`;
+          return `<${this.state.pathPrefix + this.state.config.rootRoutes.cache}/${plugin}/plugin.js>; rel=preload; as=script`;
         }),
       });
     }
@@ -473,7 +472,7 @@ abstract class StoreWriter {
     }
     await this.writeTiddler({
       title: "$:/config/multiwikiclient/host",
-      text: "$protocol$//$host$" + this.state.pathPrefix + "/",
+      text: "$protocol$//$host$" + this.state.pathPrefix + this.state.config.rootRoutes.recipe,
     }, !keepLastSuffix);
 
   }

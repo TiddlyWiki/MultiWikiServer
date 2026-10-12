@@ -954,7 +954,7 @@ export class App extends JSXElement {
               <div class="hero-account-dropdown" role="menu" aria-label="Account options">
                 {embeddedServerResponse.tw5Versions.map(e => <>
                   <a
-                    href={pathPrefix + "/tw5/" + e}
+                    href={pathPrefix + embeddedServerResponse.rootRoutes.tw5 + "/" + e}
                     class="hero-account-action"
                     type="button"
                     role="menuitem"
@@ -1165,7 +1165,7 @@ function getListColumnLinkMappers(tabId: TabId): Partial<Record<string, ListColu
       return {
         slug: (item) => {
           definitely<WikiAdminRecord>(item);
-          return item.slug ? `${pathPrefix}/wiki/${encodeURIComponent(item.slug)}` : null;
+          return item.slug ? `${pathPrefix + embeddedServerResponse.rootRoutes.wiki}/${encodeURIComponent(item.slug)}` : null;
         },
       };
     case "templates":

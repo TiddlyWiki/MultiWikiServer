@@ -44,6 +44,7 @@
     "packages/mws/src/drizzle",
     "packages/mws/src/services/attachments.ts",
     "node_modules",
-    "**/node_modules/*"
+    "**/node_modules/*",
+    "packages/mws/src/tiddlyserver",
   ]
 }

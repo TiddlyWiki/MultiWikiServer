@@ -44,7 +44,7 @@ export class InMemoryAdminStorage implements AdminStorage {
   }
 
   public async loadAll(): Promise<AdminRecordStore> {
-    const data = await (await fetch(pathPrefix + "/admin/load", {
+    const data = await (await fetch(pathPrefix + embeddedServerResponse.rootRoutes.admin + "/load", {
       headers: { "X-Requested-With": "TiddlyWiki" }
     })).text();
 
@@ -67,7 +67,7 @@ export class InMemoryAdminStorage implements AdminStorage {
     console.log(record);
     const prunedRecord = this.pruneStoredRecord(tabId, record);
     const id = prunedRecord.id;
-    const response = await fetch(pathPrefix + "/admin/save/" + tabId, {
+    const response = await fetch(pathPrefix + embeddedServerResponse.rootRoutes.admin + "/save/" + tabId, {
       method: "PUT",
       body: JSON.stringify(prunedRecord),
       headers: {

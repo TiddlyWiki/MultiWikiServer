@@ -5,6 +5,8 @@ import { TW } from "tiddlywiki";
 import { SessionManager, SessionManagerObject } from "./new-managers/sessions";
 import { PluginCache } from "./plugin-cache/PluginCache";
 import { createPasswordService } from "./services/PasswordService";
+import { loadConfigSync } from "./ServerConfig";
+
 
 /** This is an alias for ServerState in case we want to separate the two purposes. */
 export type SiteConfig = ServerState;
@@ -20,6 +22,7 @@ export class ServerState {
   cachePath;
 
   versions;
+  rootRoutes;
 
   setupRequired = false;
 
@@ -61,6 +64,10 @@ export class ServerState {
     const pkg = JSON.parse(readFileSync(dist_resolve("../package.json"), "utf8"));
 
     this.versions = { tw5: pluginCache.versions, mws: pkg.version as string };
+
+    const cfg = loadConfigSync(wikiPath);
+
+    this.rootRoutes = cfg.routeRoots;
 
   }
 

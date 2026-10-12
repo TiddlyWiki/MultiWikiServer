@@ -9,11 +9,17 @@
 // single, batch, and list operations always present the same view and can
 // never disagree about where a title routes.
 
-import { checkPath, checkQueryKeys, defineZodRoute, zod, ZodRoute } from "@tiddlywiki/server";
+import { checkPath, checkQueryKeys, defineZodRoute, SendError, zod, ZodRoute } from "@tiddlywiki/server";
 import { serverEvents } from "@tiddlywiki/events";
 import { serveDocsIndex, serveWikiIndex, } from "./RecipeIndexSender";
-import { AdminLoad, AdminSave } from "./TabDataAdapter";
-import { RecipeStatus, RecipeStoreJS, RecipeStoreJSON, RecipeUpdates, TiddlerBatch, TiddlerList } from "./RecipeRoutes";
+
+import {
+  fileSystemMountHandler,
+  validateFileSystemMounts
+} from "./tiddlyserver";
+import { RecipeRoutes } from "./RecipeRoutes";
+import { AdminRoutes } from "./TabDataAdapter";
+import esr from "escape-string-regexp";
 
 export * from "./RecipeResolver";
 export * from "./TabDataAdapter";
@@ -59,22 +65,27 @@ type ClientRoute<T> =
   : never;
 
 
-serverEvents.on("mws.routes", (root) => {
-
+serverEvents.on("mws.routes", (root, config) => {
+  config.rootRoutes
   const parent = root.defineRoute({
     method: [],
     denyFinal: true,
-    path: new RegExp(`^(?=/recipe/|/wiki/|/admin/|/api/|/tw5/)`),
+    path: new RegExp(`^(?=${[
+      esr(config.rootRoutes.recipe),
+      esr(config.rootRoutes.admin),
+      esr(config.rootRoutes.static),
+      esr(config.rootRoutes.tw5),
+      esr(config.rootRoutes.wiki),
+    ].join("/|")}/)`),
   }, async (state) => { });
 
-  (Object.entries(ApiRoutes)).forEach(([key, val]) => {
-    if (!val) return;
-    defineZodRoute(parent, key, val as any);
-  });
+  RecipeRoutes.defineRoutes(parent, config);
+
+  AdminRoutes.defineRoutes(parent, config);
 
   parent.defineRoute<"ignore">({
     method: ["GET", "HEAD", "OPTIONS"],
-    path: new RegExp(`^/tw5/(?<version>.*)$`),
+    path: new RegExp(`^${esr(config.rootRoutes.tw5)}/(?<version>.*)$`),
     bodyFormat: "ignore",
   }, async (state) => {
 
@@ -87,22 +98,22 @@ serverEvents.on("mws.routes", (root) => {
   });
 
   parent.defineRoute<"ignore">({
-    method: ["GET", "HEAD", "OPTIONS"],
-    path: new RegExp(`^/static/(?<path>.*)$`),
-    bodyFormat: "ignore",
+    method: ["GET", "HEAD", "OPTIONS", "PUT"],
+    path: new RegExp(`^${esr(config.rootRoutes.static)}/(?<path>.*)$`),
+    bodyFormat: "stream",
   }, async (state) => {
-
-    if (state.method === "OPTIONS") return state.sendEmpty(405);
-
-    checkPath(state, z => ({ version: z.string() }), new Error());
-
-    return await serveDocsIndex(state, state.pathParams.version);
-
+    checkPath(state, z => ({ path: z.string() }), new Error());
+    const mounts = validateFileSystemMounts([{
+      webPath: "/test",
+      folderPath: "test",
+      putSaver: true,
+    }]);
+    await fileSystemMountHandler(state, mounts, state.pathParams.path);
   });
 
   parent.defineRoute<"ignore">({
     method: ["GET", "HEAD", "OPTIONS"],
-    path: new RegExp(`^/wiki/(?<recipe_slug>[^/]+)$`),
+    path: new RegExp(`^${esr(config.rootRoutes.wiki)}/(?<recipe_slug>[^/]+)$`),
     bodyFormat: "ignore",
   }, async (state) => {
 
@@ -121,37 +132,17 @@ serverEvents.on("mws.routes", (root) => {
     if (state.headersSent) {
       console.log(e.stack + "\nCaptured by:\n" + new Error("").stack?.split("\n").slice(1).join("\n"));
     }
-    // else if (state.headers.accept.accepts("text/html")) {
-    //   if (e instanceof SendError) {
-    //     return await state.sendAdmin({ status: e.status, serverResponse: { sendError: e } });
-    //   } else {
-    //     const se = new SendError("INTERNAL_SERVER_ERROR", 500, { message: "An unknown error occured. Details have been logged." })
-    //     await state.sendAdmin({ status: se.status, serverResponse: { sendError: se } });
-    //   }
-    // }
+    else if (state.headers.accept.accepts("text/html")) {
+      if (e instanceof SendError) {
+        return await state.sendAdmin(e);
+      } else {
+        const se = new SendError("INTERNAL_SERVER_ERROR", 500, { message: "An unknown error occured. Details have been logged." })
+        await state.sendAdmin(se);
+      }
+    }
     throw e;
   });
 });
 
 
 
-
-const ApiRoutes = {
-  RecipeStatus,
-  RecipeUpdates,
-  RecipeStoreJS,
-  RecipeStoreJSON,
-  TiddlerBatch,
-  TiddlerList,
-  AdminLoad,
-  AdminSave,
-};
-interface ClientRoutes {
-  AdminLoad: ClientRoute<typeof AdminLoad>;
-  AdminSave: ClientRoute<typeof AdminSave>;
-  TiddlerBatch: ClientRoute<typeof TiddlerBatch>;
-  TiddlerList: ClientRoute<typeof TiddlerList>;
-  RecipeStatus: ClientRoute<typeof RecipeStatus>;
-  RecipeUpdates: ClientRoute<typeof RecipeUpdates>;
-}
-type ClientRoutes2 = RouterRouteMap2<typeof ApiRoutes>;
