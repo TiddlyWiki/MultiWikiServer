@@ -1,149 +1,94 @@
-import { addstyles, customElement, JSXElement, state } from "@tiddlywiki/jsx-lit";
-import {
-  AdminRecord,
-} from "./app";
-import { FieldDefinition, IdString, FieldZodType, FieldType, Drafter } from "./definition/tabs";
-import css from "./app.inline.css";
-import { changeExistingPasswordWithCode, changeExistingPasswordWithPassword, loginWithOpaque, serverAcceptResetCode } from "./passwords";
-import { FomController } from "./FomController";
+import { customElement, state } from "@tiddlywiki/jsx-lit";
+import { AccountForm, AccountPage } from "./app-account";
+import { EditTextInput } from "./app-edit-pages.tsx";
+import { FormControl, FormGroup } from "./app-forms";
+import { EditorField } from "./app-shell";
+import { changeExistingPasswordWithPassword } from "./passwords";
 
-const profileFields = [
-  {
-    key: "username",
-    label: "Username",
-    type: "string",
-    mode: "server",
-  },
-  {
-    key: "email",
-    label: "Email",
-    type: "string",
-    mode: "server",
-  },
-  {
-    key: "roles",
-    label: "Roles",
-    type: "search-multiselect",
-    mode: "server"
-  }
-] as const satisfies FieldDefinition[];
-
-const updatePasswordFields = [
-
-  {
-    key: "password",
-    label: "Current password",
-    type: "enter-password",
-    mode: "create",
-  },
-  {
-    key: "newPassword",
-    label: "New password",
-    type: "enter-password",
-    mode: "create",
-  },
-  {
-    key: "confirmNewPassword",
-    label: "Confirm new password",
-    type: "enter-password",
-    mode: "create",
-  },
-] as const satisfies FieldDefinition[];
-
-
-type ProfileDraft = Drafter<typeof profileFields> & Drafter<typeof updatePasswordFields>;
-
-type LoginServerState = {
-  csrfToken: string;
-  emailEnabled: boolean;
+type ProfilePasswordValues = {
+  password: string;
+  newPassword: string;
+  confirmNewPassword: string;
 };
 
-const renderCallout = (content: JSX.Node) => <div class="field-callout"><p>{content}</p></div>;
-
-@addstyles(css)
 @customElement("mws-profile-form")
-export class ProfileForm extends JSXElement {
+export class ProfileForm extends AccountForm<ProfilePasswordValues> {
   // AGENTS: When the user edits this class directly, treat those changes as intentional and
   // important signals about desired behavior unless they explicitly ask to remove them.
-  useLightDOM: boolean = true;
-  constructor() { super(); }
-
-  control: FomController<ProfileDraft> = new FomController<ProfileDraft>(this);
-
-  handleAnySubmit: FomController<ProfileDraft>["handleAnySubmit"] = (...args) => this.control.handleAnySubmit(...args)
-
-  onCancel = async () => {
-    location.pathname = pathPrefix + "/";
-  }
-
-  @state() accessor props!: {}
-
-  // #region state
-  @state() accessor draft: ProfileDraft = this.createDraft();
-
+  protected readonly form = new FormGroup<ProfilePasswordValues>({
+    password: new FormControl(""),
+    newPassword: new FormControl(""),
+    confirmNewPassword: new FormControl(""),
+  });
   @state() private accessor mode: "profile" | "updatePassword" = "profile";
-  @state() private accessor isSubmitting: boolean = false;
-  @state() private accessor submitMessage: string = new URLSearchParams(globalThis.location?.search ?? "").get("state") === "password-changed"
-    ? "Password updated. You can now log in."
-    : "";
 
-
-  private createDraft(): ProfileDraft {
-    return {
-      id: new IdString(""),
-      email: "",
-      username: "",
-      roles: [],
-      password: "",
-      newPassword: "",
-      confirmNewPassword: "",
-    };
-  }
+  private readonly onCancel = () => {
+    location.pathname = pathPrefix + "/";
+  };
 
   protected render() {
+    this.observeForm();
+    const controls = this.form.controls;
+    const value = this.form.value;
+    const user = embeddedServerResponse.userState;
     switch (this.mode) {
-      case "profile": {
-
-        return this.control.renderCommon({
-          title: "User Profile",
-          copy: "View your profile.",
-          submitAction: this.handleProfileSubmit,
-          submitDisabled: false,
-          submitLabel: "Update Password",
-          backAction: this.onCancel,
-          backLabel: "Close",
-        }, <>
-          <div class="login-fields">
-            {profileFields.map((field) => this.control.renderField(field))}
+      case "profile": return <AccountPage
+        title="User Profile"
+        busy={this.isSubmitting} onSubmit={this.handleProfileSubmit}
+        renderFeedback={this.renderFeedback}
+        renderContent={() => <div class="login-fields">
+          <EditorField title="Username"
+            renderContent={() => <div class="field-value">{user.username}</div>} />
+          <EditorField title="Email"
+            renderContent={() => <div class="field-value is-empty">Not provided</div>} />
+          <EditorField 
+            title="Roles"
+            renderContent={() => user.roles.length
+              ? <ul class="value-list">
+                {user.roles.map((role) => <li>{role.role_name}</li>)}
+              </ul>
+              : <div class="field-value is-empty">None</div>} 
+              />
+        </div>}
+        renderActions={() => <footer class="login-actions">
+          <div class="login-action-row">
+            <button class="ghost-button" type="button"
+              disabled={this.isSubmitting} onclick={this.onCancel}>Close</button>
+            <button class="primary-button login-submit" type="submit"
+              disabled={this.isSubmitting}>Update Password</button>
           </div>
-        </>);
-
-      } break;
-
-
-      case "updatePassword": {
-
-        const updatePasswordActionDisabled = this.isSubmitting
-          || !this.draft.newPassword
-          || !this.draft.confirmNewPassword
-          || this.draft.newPassword !== this.draft.confirmNewPassword;
-
-        return this.control.renderCommon({
-          title: "Update password",
-          copy: "Choose a new password for your account.",
-          submitAction: this.handleUpdatePasswordSubmit,
-          submitDisabled: updatePasswordActionDisabled,
-          submitLabel: "Update password",
-          backAction: async () => { this.mode = "profile"; },
-        }, <>
-          <div class="login-fields">
-            {updatePasswordFields.map((field) => this.control.renderField(field))}
+        </footer>}
+      />;
+      case "updatePassword": return <AccountPage
+        title="Update password"
+        busy={this.isSubmitting} onSubmit={this.handleUpdatePasswordSubmit}
+        renderFeedback={this.renderFeedback}
+        renderContent={() => <div class="login-fields">
+          <EditorField title="Current password" inputId="profile-password"
+            renderContent={() => <EditTextInput inputId="profile-password"
+              control={controls.password} type="password"
+              autocomplete="current-password" />} />
+          <EditorField title="New password" inputId="profile-newPassword"
+            renderContent={() => <EditTextInput inputId="profile-newPassword"
+              control={controls.newPassword} type="password"
+              autocomplete="new-password" />} />
+          <EditorField title="Confirm new password" inputId="profile-confirmNewPassword"
+            renderContent={() => <EditTextInput inputId="profile-confirmNewPassword"
+              control={controls.confirmNewPassword} type="password"
+              autocomplete="new-password" />} />
+        </div>}
+        renderActions={() => <footer class="login-actions">
+          <div class="login-action-row">
+            <button class="ghost-button" type="button" disabled={this.isSubmitting}
+              onclick={() => { this.mode = "profile"; }}>Cancel</button>
+            <button class="primary-button login-submit" type="submit"
+              disabled={this.isSubmitting || !value.password || !value.newPassword
+                || !value.confirmNewPassword || value.newPassword !== value.confirmNewPassword}
+            >Update password</button>
           </div>
-        </>);
-      }
-
+        </footer>}
+      />;
     }
-
   }
 
   private readonly handleProfileSubmit = async () => {
@@ -158,8 +103,12 @@ export class ProfileForm extends JSXElement {
   }
 
   private readonly handleUpdatePasswordSubmit = async (): Promise<void> => {
-    const newPassword = this.draft.newPassword;
-    const confirmNewPassword = this.draft.confirmNewPassword;
+    const { password, newPassword, confirmNewPassword } = this.form.value;
+
+    if (!password) {
+      this.submitMessage = "Enter your current password.";
+      return;
+    }
 
     if (!newPassword || !confirmNewPassword) {
       this.submitMessage = "Enter and confirm your new password.";
@@ -179,7 +128,7 @@ export class ProfileForm extends JSXElement {
   };
 
   private submitUpdatePassword = async (): Promise<boolean> => {
-    const clientState = this.draft;
+    const clientState = this.form.value;
     await changeExistingPasswordWithPassword({
       username: embeddedServerResponse.userState.username,
       password: clientState.password,

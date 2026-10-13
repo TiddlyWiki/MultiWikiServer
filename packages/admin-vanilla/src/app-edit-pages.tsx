@@ -38,7 +38,8 @@ interface EditorLookups {
 interface TextInputProps {
   inputId: string;
   control: FormControl<string>;
-  type?: "text" | "email";
+  type?: "text" | "email" | "password";
+  autocomplete?: JSX.IntrinsicElements["input"]["autocomplete"];
   multiline?: boolean;
   code?: boolean;
   disabled?: boolean;
@@ -55,7 +56,7 @@ export class EditTextInput extends JSXElement {
   protected render() {
     const {
       inputId, control, type = "text", multiline, code, placeholder, options,
-      label,
+      label, autocomplete,
     } = this.props;
     this.useEffect(() => control.subscribe(() => this.requestUpdate()),
       [control]);
@@ -81,6 +82,7 @@ export class EditTextInput extends JSXElement {
       <input
         id={inputId} class="field-input" type={type}
         value={currentValue} disabled={disabled}
+        autocomplete={autocomplete}
         aria-label={label} placeholder={placeholder}
         list={options?.length ? `${inputId}-options` : undefined}
         oninput={oninput} onblur={onblur}

@@ -903,7 +903,7 @@ h6 {
 	background: var(--color-surface-list-hover);
 }
 
-body:has(.modal-shell[open]) {
+body:has(.modal-shell[open], mws-modal-view[open]) {
 	overflow: hidden
 }
 

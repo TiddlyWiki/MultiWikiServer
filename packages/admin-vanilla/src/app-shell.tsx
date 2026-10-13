@@ -1,4 +1,4 @@
-import { customElement, JSXElement, state } from "@tiddlywiki/jsx-lit";
+import { addstyles, customElement, JSXElement, state } from "@tiddlywiki/jsx-lit";
 import closeIcon from "@material-symbols/svg-400/outlined/close.svg";
 import errorIcon from "@material-symbols/svg-400/outlined/error.svg";
 import warningIcon from "@material-symbols/svg-400/outlined/warning.svg";
@@ -138,20 +138,144 @@ export class EditorField extends JSXElement {
   }
 }
 
+interface ModalViewProps {
+  open: boolean;
+  onClose: () => void;
+  onAfterClose: () => void;
+  children?: JSX.Node;
+}
+
+@customElement("mws-modal-view")
+@addstyles(`
+  :host {
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+    display: flex;
+    flex-direction: column;
+    padding: 28px;
+    box-sizing: border-box;
+  }
+  :host([hidden]) { display: none; }
+  .backdrop {
+    position: absolute;
+    inset: 0;
+    background: var(--color-overlay-modal);
+    backdrop-filter: blur(10px);
+  }
+  .panel {
+    position: relative;
+    width: 100%;
+    min-height: 0;
+    max-height: calc(100dvh - 56px);
+    display: flex;
+    flex-direction: column;
+    transform-origin: top center;
+  }
+  slot { display: contents; }
+  ::slotted(*) { max-height: inherit; }
+  @media (max-width: 900px) {
+    :host { padding: 14px; }
+    .panel { max-height: calc(100dvh - 28px); }
+  }
+`)
+export class ModalView extends JSXElement {
+  @state() accessor props!: ModalViewProps;
+  private wasOpen = false;
+  private animations: Animation[] = [];
+
+  constructor() {
+    super();
+    this.hidden = true;
+  }
+
+  private readonly updateAnimation = () => {
+    const { open } = this.props;
+    if (open === this.wasOpen) return;
+    this.wasOpen = open;
+    const backdrop = this.shadowRoot!.querySelector<HTMLElement>(".backdrop")!;
+    const panel = this.shadowRoot!.querySelector<HTMLElement>(".panel")!;
+    const interrupted = this.animations.length > 0;
+    const backdropOpacity = interrupted ? getComputedStyle(backdrop).opacity : open ? "0" : "1";
+    const panelOpacity = interrupted ? getComputedStyle(panel).opacity : open ? "0" : "1";
+    const panelTransform = interrupted ? getComputedStyle(panel).transform
+      : open ? "translateY(16px) scale(0.985)" : "none";
+    this.animations.forEach((animation) => animation.cancel());
+    this.animations = [];
+    this.hidden = false;
+    this.toggleAttribute("open", true);
+    this.inert = !open;
+
+    const finish = () => {
+      if (this.props.open !== open) return;
+      this.animations.forEach((animation) => animation.cancel());
+      this.animations = [];
+      if (!open) {
+        this.hidden = true;
+        this.removeAttribute("open");
+        this.props.onAfterClose();
+      }
+    };
+    if (matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      finish();
+      return;
+    }
+    const options: KeyframeAnimationOptions = {
+      duration: open ? 220 : 160,
+      easing: open ? "cubic-bezier(0.2, 0.8, 0.2, 1)" : "ease-in",
+      fill: "both",
+    };
+    this.animations = [
+      backdrop.animate([{ opacity: backdropOpacity }, { opacity: open ? 1 : 0 }], options),
+      panel.animate([
+        { opacity: panelOpacity, transform: panelTransform },
+        { opacity: open ? 1 : 0, transform: open ? "none" : "translateY(10px) scale(0.99)" },
+      ], options),
+    ];
+    void Promise.all(this.animations.map((animation) => animation.finished)).then(finish, () => {});
+  };
+
+  disconnectedCallback() {
+    this.animations.forEach((animation) => animation.cancel());
+    this.animations = [];
+    this.wasOpen = false;
+    this.hidden = true;
+    this.removeAttribute("open");
+    super.disconnectedCallback();
+  }
+
+  protected render() {
+    this.useUpdated(this.updateAnimation);
+    return <>
+      <div class="backdrop" onclick={() => {
+        if (this.props.open) this.props.onClose();
+      }} />
+      <div class="panel"><slot /></div>
+    </>;
+  }
+}
+
 @customElement("mws-edit-page")
 export class EditPage extends JSXElement {
   useLightDOM = true;
   @state() accessor props!: { model: EditPageModel | null };
+  private retainedModel: EditPageModel | null = null;
+
+  private readonly afterClose = () => {
+    if (this.props.model) return;
+    this.retainedModel = null;
+    this.requestUpdate();
+  };
 
   protected render() {
-    const { model } = this.props;
-    this.hidden = !model;
-    if (!model) return null;
-
-    return <div class="modal-shell" webjsx-attr-open onclick={(event) => {
-      if (event.target === event.currentTarget && !model.saving) model.onClose();
-    }}>
-      <section class="modal-card" role="dialog" aria-modal="true" aria-label={model.title} aria-busy={model.loading || model.saving ? "true" : "false"}>
+    if (this.props.model) this.retainedModel = this.props.model;
+    const model = this.retainedModel;
+    return <ModalView
+      open={!!this.props.model}
+      onClose={() => { if (model && !model.saving) model.onClose(); }}
+      onAfterClose={this.afterClose}
+    >
+      {model ? <section class="modal-card" role="dialog" aria-modal="true" aria-label={model.title} aria-busy={model.loading || model.saving ? "true" : "false"}>
         <header class="modal-header">
           <div class="modal-title">
             <p class="eyebrow">{model.eyebrow}</p>
@@ -184,12 +308,13 @@ export class EditPage extends JSXElement {
             <MaterialSymbol icon={closeIcon} />
           </button> : null}
         </footer> : null}
-      </section>
-    </div>;
+      </section> : null}
+    </ModalView>;
   }
 }
 
 interface ListPageProps {
+  pageId: string;
   title: string;
   eyebrow?: string;
   description?: string;
@@ -202,9 +327,62 @@ interface ListPageProps {
 export class ListPage extends JSXElement {
   useLightDOM = true;
   @state() accessor props!: ListPageProps;
+  private displayedProps: ListPageProps | null = null;
+  private transition: Animation | null = null;
+  private swapping = false;
+
+  private readonly updateAnimation = () => {
+    if (this.swapping || this.props.pageId === this.displayedProps?.pageId) return;
+    if (matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      this.displayedProps = this.props;
+      this.requestUpdate();
+      return;
+    }
+    const section = this.querySelector<HTMLElement>(".app-list-page")!;
+    const opacity = getComputedStyle(section).opacity;
+    this.transition?.cancel();
+    this.swapping = true;
+    section.inert = true;
+    const leave = section.animate([{ opacity }, { opacity: 0 }], {
+      duration: 70, easing: "ease-out", fill: "forwards",
+    });
+    this.transition = leave;
+    void leave.finished.then(async () => {
+      if (!this.isConnected || this.transition !== leave) return;
+      this.displayedProps = this.props;
+      this.requestUpdate();
+      await this.updateComplete;
+      if (!this.isConnected || this.transition !== leave) return;
+      leave.cancel();
+      section.inert = false;
+      const enter = section.animate([{ opacity: 0 }, { opacity: 1 }], {
+        duration: 110, easing: "ease-out", fill: "forwards",
+      });
+      this.transition = enter;
+      this.swapping = false;
+      this.requestUpdate();
+      void enter.finished.then(() => {
+        if (this.transition !== enter) return;
+        enter.cancel();
+        this.transition = null;
+      }, () => {});
+    }, () => {});
+  };
+
+  disconnectedCallback() {
+    this.transition?.cancel();
+    this.transition = null;
+    this.swapping = false;
+    this.querySelector<HTMLElement>(".app-list-page")?.removeAttribute("inert");
+    super.disconnectedCallback();
+  }
 
   protected render() {
-    const { title, eyebrow, description, ariaLabel, renderActions, renderContent } = this.props;
+    this.useUpdated(this.updateAnimation);
+    if (!this.displayedProps || this.props.pageId === this.displayedProps.pageId) {
+      this.displayedProps = this.props;
+    }
+    const { title, eyebrow, description, ariaLabel, renderActions, renderContent } = this.displayedProps;
     return <section class="app-list-page">
       <header class="app-page-heading">
         <div class="app-page-title">

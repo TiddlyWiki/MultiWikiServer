@@ -50,6 +50,7 @@ export class AppTabController {
   renderListContent = () => {
     const tab = this.activeTab;
     return <ListPage
+      pageId={tab.id}
       title={tab.label}
       eyebrow={tab.eyebrow}
       description={tab.description}
