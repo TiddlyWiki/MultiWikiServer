@@ -1,5 +1,5 @@
 import { customElement, JSXElement, addstyles, state } from "@tiddlywiki/jsx-lit";
-import css from "./app.inline.css";
+// import css from "./app.inline.css";
 import warningIcon from "@material-symbols/svg-400/outlined/warning.svg";
 import closeIcon from "@material-symbols/svg-400/outlined/close.svg";
 import accountCircleIcon from "@material-symbols/svg-400/outlined/account_circle.svg";
@@ -856,7 +856,7 @@ function throttle(window: number) {
   }
 }
 
-@addstyles(css)
+// @addstyles(css)
 @customElement("mws-app")
 export class App extends JSXElement {
   // don't use shadow dom. allows inheriting main.css styles.
