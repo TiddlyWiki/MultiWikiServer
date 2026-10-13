@@ -9,17 +9,17 @@
 // single, batch, and list operations always present the same view and can
 // never disagree about where a title routes.
 
-import { checkPath, checkQueryKeys, defineZodRoute, RouterRouteMap, SendError, ServerRequest, zod, ZodRoute } from "@tiddlywiki/server";
+import { checkPath, RouterRouteMap, SendError, ServerRequest, zod, ZodRoute } from "@tiddlywiki/server";
 import { serverEvents } from "@tiddlywiki/events";
 import { serveDocsIndex, serveWikiIndex, } from "./RecipeIndexSender";
 
 import {
-  fileSystemMountHandler,
-  validateFileSystemMounts
+  fileSystemMountHandler
 } from "./tiddlyserver";
 import { RecipeRoutes } from "./RecipeRoutes";
 import { AdminRoutes } from "./TabDataAdapter";
 import esr from "escape-string-regexp";
+import { SessionManager } from "./sessions";
 
 export * from "./RecipeResolver";
 export * from "./TabDataAdapter";
@@ -67,7 +67,9 @@ type ClientRoute<T> =
 export type AdminRoutesMap = RouterRouteMap<AdminRoutes>;
 
 serverEvents.on("mws.routes", (root, config) => {
-  config.rootRoutes
+  // this has to happen first so static and wiki can't override it
+  SessionManager.defineRoutes(root);
+
   const parent = root.defineRoute({
     method: [],
     denyFinal: true,

@@ -3,8 +3,13 @@ import { AppShell, EditPage, FeedbackNotice, } from "./app-shell";
 import type { EditPageModel, RenderContent } from "./app-shell";
 import { AppTabController } from "./app-tab-controller";
 import { getEditPageRenders } from "./app-edit-pages.tsx";
-import { AdminClient, DataSave, DataStore, IdString, PageId } from "@/server";
+import { IdString, PageId } from "@/server";
 
+const jsonReviver = (key: any, val: any) => {
+  if (typeof val === "string" && val.startsWith(IdString.prefix))
+    return new IdString(val.slice(IdString.prefix.length));
+  return val;
+};
 
 export interface AdminTab {
   id: PageId;
@@ -23,7 +28,7 @@ export class AppAdmin extends JSXElement {
   @state() accessor props: Record<string, never> = {};
 
   @state() accessor editPage: EditPageModel | null = null;
-  @state() accessor selectedRecord: { tabId: PageId; saved: DataStore[PageId][number] } | null = null;
+  @state() accessor selectedRecord: { tabId: PageId; saved: any } | null = null;
   @state() accessor data: any = null;
   @state() accessor isLoadingData = false;
   @state() accessor loadError = "";
@@ -33,6 +38,7 @@ export class AppAdmin extends JSXElement {
   tabController = new AppTabController(this);
 
   private readonly closeEditor = () => {
+    if (this.editPage?.saving) return;
     this.editPage = null;
     this.selectedRecord = null;
   };
@@ -53,41 +59,65 @@ export class AppAdmin extends JSXElement {
   // <FeedbackNotice title="Loading admin records..." tone="info" />
 
   openCreate(tabId: PageId, title: string, eyebrow: string, description: string) {
+    if (this.editPage?.saving) return;
     this.selectedRecord = null;
     this.openEditor(tabId, title, eyebrow, description, "create");
   }
 
-  openEdit(tabId: PageId, saved: DataStore[PageId][number], title: string, eyebrow: string, description: string) {
+  openEdit(tabId: PageId, saved: any, title: string, eyebrow: string, description: string) {
+    if (this.editPage?.saving) return;
     this.selectedRecord = { tabId, saved };
     this.openEditor(tabId, `Edit ${title}`, eyebrow, description, "edit", saved);
   }
 
-  private openEditor(tabId: PageId, title: string, eyebrow: string, description: string, mode: "create" | "edit", saved?: DataStore[PageId][number]) {
-    const { getValue, ...renders } = getEditPageRenders(tabId, this.data, saved);
-    this.editPage = {
+  private openEditor(tabId: PageId, title: string, eyebrow: string, description: string, mode: "create" | "edit", saved?: any) {
+    const { form, ...renders } = getEditPageRenders(tabId, this.data, saved);
+    const model: EditPageModel = {
       title,
       eyebrow,
       description,
       mode,
       saveLabel: "Save",
       onClose: this.closeEditor,
-      onSave: () => {
-        console.log("Admin form", { tabId, mode, value: getValue() });
-        this.closeEditor();
+      onSave: async () => {
+        if (!this.editPage || this.editPage.saving || this.editPage.onSave !== model.onSave) return;
+        this.editPage = { ...this.editPage, saving: true, error: undefined };
+        form.disable();
+        try {
+          await this.saveStoreData(tabId, form.value);
+          if (this.editPage && this.editPage.onSave === model.onSave) {
+            this.editPage = { ...this.editPage, saving: false };
+            this.closeEditor();
+          }
+        } catch (error) {
+          if (this.editPage && this.editPage.onSave === model.onSave) {
+            this.editPage = {
+              ...this.editPage,
+              error: error instanceof Error ? error.message : "Failed to save admin record.",
+            };
+          }
+        } finally {
+          form.enable();
+          if (this.editPage && this.editPage.onSave === model.onSave) {
+            this.editPage = { ...this.editPage, saving: false };
+          }
+        }
+      },
+      onDismissError: () => {
+        if (this.editPage && this.editPage.onSave === model.onSave) {
+          this.editPage = { ...this.editPage, error: undefined };
+        }
       },
       ...renders,
     };
+    this.editPage = model;
   }
   getStoreData = async () => {
     if (this.isLoadingData) return;
     this.isLoadingData = true;
     this.loadError = "";
 
-    const jsonReviver = (key: any, val: any) => {
-      if (typeof val === "string" && val.startsWith(IdString.prefix))
-        return new IdString(val.slice(IdString.prefix.length));
-      return val;
-    };
+
 
     try {
       const response = await fetch(pathPrefix + embeddedServerResponse.rootRoutes.admin + "/load", {
@@ -103,6 +133,34 @@ export class AppAdmin extends JSXElement {
       this.isLoadingData = false;
     }
   };
+
+  async saveStoreData(tabId: PageId, item: any): Promise<any> {
+    if (!this.data) throw new Error("Admin records have not loaded.");
+    if (tabId === "templates") item.twVersion ||= null;
+    const url = pathPrefix + embeddedServerResponse.rootRoutes.admin + "/save/" + tabId;
+    const response = await fetch(url, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Requested-With": "TiddlyWiki",
+      },
+      body: JSON.stringify(item),
+    });
+    const text = await response.text();
+    if (!response.ok) throw new Error(text || `Failed to save admin record (${response.status}).`);
+    const updatedRecord = JSON.parse(text, jsonReviver);
+    const records: any[] = this.data[tabId];
+    const id = updatedRecord.id.toString();
+    this.data = {
+      ...this.data,
+      [tabId]: records.some((record) => record.id.toString() === id)
+        ? records.map((record) => record.id.toString() === id ? updatedRecord : record)
+        : [...records, updatedRecord],
+    };
+    return updatedRecord;
+  }
+
+
 
   protected render() {
 

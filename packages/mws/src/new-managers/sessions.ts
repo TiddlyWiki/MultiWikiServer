@@ -96,9 +96,6 @@ export type RouterPathRouteMap<T> = {
 }
 export type SessionManagerMap = RouterPathRouteMap<SessionManager>;
 
-serverEvents.on("mws.routes", (root, config) => {
-  SessionManager.defineRoutes(root)
-});
 
 class RateLimiter {
   private readonly nextRunAt = new Map<string, number>();
@@ -138,7 +135,18 @@ export class SessionManager {
   static defineRoutes(root: ServerRoute) {
     const route = new SessionManager();
     const keys = Object.keys(route).filter(e => route[e] instanceof zodRoute);
-    registerZodRoutes(root, route, keys)
+    registerZodRoutes(root, route, keys);
+    // these are the display routes for login and profile
+    // this will be registered before static and wiki to prevent
+    // them from overriding this
+    root.defineRoute({
+      method: ['GET', 'HEAD', 'OPTIONS', 'PUT'],
+      path: /^\/(?<item>login|profile)$/,
+      bodyFormat: "stream",
+    }, async state => {
+      await state.sendAdmin();
+      return STREAM_ENDED;
+    });
   }
 
   static AdminRoleName = "ADMIN";

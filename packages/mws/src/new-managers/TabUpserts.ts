@@ -1,5 +1,4 @@
 import { SendError, ServerRequest } from "@tiddlywiki/server";
-import { RecipeDefinition, TemplateDefinition } from "./TabDataAdapter";
 import {
   CompiledRecipeBagInput,
   type UpsertBagInput,
@@ -10,11 +9,12 @@ import {
 } from "./wiki-contract";
 import { Prisma } from "@tiddlywiki/mws-prisma";
 import { mapGetInit, thrower } from "./wiki-utils";
-import { IdString, TabId } from "@mws/admin-vanilla/src/definition/tabs";
 import { Debug } from "@prisma/client/runtime/client";
+import { PageId, RecipeDefinition, TemplateDefinition } from "./TabDataTypes";
+import { IdString } from "@/server";
 
 export const DEFAULT_TEMPLATE = "Blank Template";
-
+type TabId = PageId;
 export type ImportedRoleRows = Awaited<ReturnType<PrismaTxnClient["roles"]["findMany"]>>;
 export type ImportedUserRows = Awaited<ReturnType<PrismaTxnClient["users"]["findMany"]>>;
 export type ImportedBagRows = Awaited<ReturnType<PrismaTxnClient["bag"]["findMany"]>>;
@@ -473,7 +473,7 @@ export class RecipeImportWriter extends PerClassImportWriter<"recipe"> {
   // #region COMPILE
   compileRecipeSimpleV1(
     recipeDefinition: RecipeDefinition,
-    templateDefinition: TemplateDefinition
+    templateDefinition: TemplateDefinition,
   ): { bags: CompiledRecipeBagInput[], plugins: string[] } {
     // Set takes the order of first appearance.
     const plugins = Array.from(new Set([

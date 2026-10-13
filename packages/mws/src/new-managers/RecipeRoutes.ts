@@ -27,13 +27,14 @@ export class RecipeRoutes {
     inner: async (state) => {
       const { recipe_slug } = state.pathParams;
       state.assertWikiReferer(recipe_slug);
-      const recipe = await RecipeResolver.assertRecipe({
+      const recipe = (await RecipeResolver.assertRecipe({
         state,
         recipe_slug,
+        sendNotFound: true,
       }).then(e => {
         state.asserted = true;
         return e;
-      });
+      }))!;
       return await state.$transaction(async (prisma) => {
         const r = new RecipeResolver(recipe, prisma, state.user);
         const { isAdmin, user_id, username, isLoggedIn } = state.user;
@@ -66,13 +67,14 @@ export class RecipeRoutes {
     inner: async (state) => {
       const { recipe_slug } = state.pathParams;
       state.assertWikiReferer(recipe_slug);
-      const recipe = await RecipeResolver.assertRecipe({
+      const recipe = (await RecipeResolver.assertRecipe({
         state,
         recipe_slug,
+        sendNotFound: true,
       }).then(e => {
         state.asserted = true;
         return e;
-      });
+      }))!;
       return await state.$transaction(async (prisma) => {
         const r = new RecipeResolver(recipe, prisma, state.user);
         return await r.listTiddlers();
@@ -92,7 +94,7 @@ export class RecipeRoutes {
     inner: async (state) => {
       const { recipe_slug } = state.pathParams;
       state.assertWikiReferer(recipe_slug);
-      throw await serveWikiIndex(state, recipe_slug, "store.js");
+      throw await serveWikiIndex(state, recipe_slug, "store.js", true);
     },
   })
   // #region RecipeStore
@@ -108,7 +110,7 @@ export class RecipeRoutes {
     inner: async (state) => {
       const { recipe_slug } = state.pathParams;
       state.assertWikiReferer(recipe_slug);
-      throw await serveWikiIndex(state, recipe_slug, "store.json");
+      throw await serveWikiIndex(state, recipe_slug, "store.json", true);
     },
   })
   // #region RecipeUpdates
@@ -126,13 +128,14 @@ export class RecipeRoutes {
       const { recipe_slug } = state.pathParams;
       state.assertWikiReferer(recipe_slug);
 
-      const recipe = await RecipeResolver.assertRecipe({
+      const recipe = (await RecipeResolver.assertRecipe({
         state,
         recipe_slug,
+        sendNotFound: true,
       }).then(e => {
         state.asserted = true;
         return e;
-      });
+      }))!;
 
       return await state.$transaction(async (prisma) => {
         const r = new RecipeResolver(recipe, prisma, state.user);
@@ -192,13 +195,14 @@ export class RecipeRoutes {
 
 
 
-      const recipe = await RecipeResolver.assertRecipe({
+      const recipe = (await RecipeResolver.assertRecipe({
         state,
         recipe_slug,
+        sendNotFound: true,
       }).then(e => {
         state.asserted = true;
         return e;
-      });
+      }))!;
 
       return await state.$transaction(async (prisma) => {
 

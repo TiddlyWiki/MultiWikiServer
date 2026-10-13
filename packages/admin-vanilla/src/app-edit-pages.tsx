@@ -7,7 +7,7 @@ import {
 import type { EditPageModel } from "./app-shell";
 import { MaterialSymbol } from "./material-symbol";
 import { FormArray, FormControl, FormGroup } from "./app-forms";
-import { PageId, WritablePrefixRow, DataStore } from "@/server";
+import { PageId, WritablePrefixRow, DataStore, IdString } from "@/server";
 
 type Wiki = DataStore["wikis"][number];
 type Template = DataStore["templates"][number];
@@ -339,78 +339,8 @@ function stringList(
     control={control} options={options} />;
 }
 
-function createEditorForm<Controls extends Record<string, FormControl<any>>>(
-  controls: Controls,
-) {
-  return { form: new FormGroup(controls), controls };
-}
-
 function stringControls(values: readonly string[] = []): FormArray<string> {
   return new FormArray(values.map((value) => new FormControl(value)));
-}
-
-function createWikiForm(value: Partial<Wiki>, mode: "create" | "edit") {
-  const editor = createEditorForm({
-    slug: new FormControl(value.slug ?? ""),
-    displayName: new FormControl(value.displayName ?? ""),
-    description: new FormControl(value.description ?? ""),
-    templateName: new FormControl(value.templateName ?? ""),
-    writablePrefixBags: new FormArray<WritablePrefixRow>(
-      (value.writablePrefixBags ?? []).map(prefixControl)),
-    readonlyBags: stringControls(value.readonlyBags),
-    plugins: stringControls(value.plugins),
-    recipeUsers: stringControls(value.recipeUsers),
-    recipeAdmins: stringControls(value.recipeAdmins),
-  });
-  if (mode === "edit") editor.controls.templateName.disable(false);
-  return editor;
-}
-
-function createTemplateForm(value: Partial<Template>) {
-  return createEditorForm({
-    name: new FormControl(value.name ?? ""),
-    description: new FormControl(value.description ?? ""),
-    twVersion: new FormControl(value.twVersion ?? ""),
-    writablePrefixBags: new FormArray<WritablePrefixRow>(
-      (value.writablePrefixBags ?? []).map(prefixControl)),
-    readonlyBags: stringControls(value.readonlyBags),
-    plugins: stringControls(value.plugins),
-    requiredPluginsEnabled: new FormControl(value.requiredPluginsEnabled ?? true),
-    externalPlugins: new FormControl(value.externalPlugins ?? false),
-    externalStore: new FormControl(value.externalStore ?? false),
-    templateUsers: stringControls(value.templateUsers),
-    templateAdmins: stringControls(value.templateAdmins),
-    customHtmlEnabled: new FormControl(value.customHtmlEnabled ?? false),
-    htmlContent: new FormControl(value.htmlContent ?? ""),
-    injectionFunction: new FormControl(
-      value.injectionFunction ?? "$tw.preloadTiddlers"),
-    injectionLocation: new FormControl(value.injectionLocation ?? ""),
-  });
-}
-
-function createBagForm(value: Partial<Bag>) {
-  return createEditorForm({
-    name: new FormControl(value.name ?? ""),
-    description: new FormControl(value.description ?? ""),
-    bagPermissions: new FormArray<BagPermission>(
-      (value.bagPermissions ?? []).map(permissionControl)),
-  });
-}
-
-function createRoleForm(value: Partial<Role>) {
-  return new FormGroup({
-    name: new FormControl(value.name ?? ""),
-    description: new FormControl(value.description ?? ""),
-  });
-}
-
-function createUserForm(value: Partial<User>) {
-  return createEditorForm({
-    username: new FormControl(value.username ?? ""),
-    email: new FormControl(value.email ?? ""),
-    userRoles: stringControls(value.userRoles),
-    resetCode: new FormControl(value.resetCode ?? ""),
-  });
 }
 
 @customElement("mws-edit-custom-html-fields")
@@ -503,11 +433,30 @@ export class EditRoutingPreview extends JSXElement {
   }
 }
 
+
+function createWikiForm(value: DataStore["wikis"][number], mode: "create" | "edit") {
+  const form = new FormGroup<any>({
+    id: new FormControl(value.id ?? new IdString("")),
+    slug: new FormControl(value.slug ?? ""),
+    displayName: new FormControl(value.displayName ?? ""),
+    description: new FormControl(value.description ?? ""),
+    templateName: new FormControl(value.templateName ?? ""),
+    writablePrefixBags: new FormArray<WritablePrefixRow>(
+      (value.writablePrefixBags ?? []).map(prefixControl)),
+    readonlyBags: stringControls(value.readonlyBags),
+    plugins: stringControls(value.plugins),
+    recipeUsers: stringControls(value.recipeUsers),
+    recipeAdmins: stringControls(value.recipeAdmins),
+  });
+  if (mode === "edit") form.controls.templateName.disable(false);
+  return form;
+}
+
 export function renderWikiEditor(
-  editor: ReturnType<typeof createWikiForm>, lookups: EditorLookups,
+  form: any, lookups: EditorLookups,
   targets: readonly WritablePrefixRow[] = [],
 ) {
-  const { controls } = editor;
+  const { controls } = form;
   return <>
     <PageSection
       renderContent={() => <>
@@ -570,10 +519,35 @@ export function renderWikiEditor(
   </>;
 }
 
+
+function createTemplateForm(value: DataStore["templates"][number]) {
+  return new FormGroup<any>({
+    id: new FormControl(value.id ?? new IdString("")),
+    type: new FormControl(value.type ?? "simpleV1"),
+    name: new FormControl(value.name ?? ""),
+    description: new FormControl(value.description ?? ""),
+    twVersion: new FormControl(value.twVersion ?? ""),
+    writablePrefixBags: new FormArray<WritablePrefixRow>(
+      (value.writablePrefixBags ?? []).map(prefixControl)),
+    readonlyBags: stringControls(value.readonlyBags),
+    plugins: stringControls(value.plugins),
+    requiredPluginsEnabled: new FormControl(value.requiredPluginsEnabled ?? true),
+    externalPlugins: new FormControl(value.externalPlugins ?? false),
+    externalStore: new FormControl(value.externalStore ?? false),
+    templateUsers: stringControls(value.templateUsers),
+    templateAdmins: stringControls(value.templateAdmins),
+    customHtmlEnabled: new FormControl(value.customHtmlEnabled ?? false),
+    htmlContent: new FormControl(value.htmlContent ?? ""),
+    injectionFunction: new FormControl(
+      value.injectionFunction ?? "$tw.preloadTiddlers"),
+    injectionLocation: new FormControl(value.injectionLocation ?? ""),
+  });
+}
+
 export function renderTemplateEditor(
-  editor: ReturnType<typeof createTemplateForm>, lookups: EditorLookups,
+  form: any, lookups: EditorLookups,
 ) {
-  const { controls } = editor;
+  const { controls } = form;
   return <PageSection
     renderContent={() => <>
       <PageCard
@@ -669,10 +643,20 @@ export function renderTemplateEditor(
   />;
 }
 
+function createBagForm(value: DataStore["bags"][number]) {
+  return new FormGroup<any>({
+    id: new FormControl(value.id ?? new IdString("")),
+    name: new FormControl(value.name ?? ""),
+    description: new FormControl(value.description ?? ""),
+    bagPermissions: new FormArray<BagPermission>(
+      (value.bagPermissions ?? []).map(permissionControl)),
+  });
+}
+
 export function renderBagEditor(
-  editor: ReturnType<typeof createBagForm>, lookups: EditorLookups,
+  form: any, lookups: EditorLookups,
 ) {
-  const { controls } = editor;
+  const { controls } = form;
   return <PageSection
     renderContent={() => <>
       <PageCard
@@ -694,8 +678,17 @@ export function renderBagEditor(
   />;
 }
 
+function createRoleForm(value: DataStore["roles"][number]) {
+  return new FormGroup<any>({
+    id: new FormControl(value.id ?? new IdString("")),
+    name: new FormControl(value.name ?? ""),
+    description: new FormControl(value.description ?? ""),
+  });
+}
+
+
 export function renderRoleEditor(
-  form: FormGroup<{ name: string; description: string }>,
+  form: any,
 ) {
   return <PageSection
     renderContent={() =>
@@ -710,10 +703,20 @@ export function renderRoleEditor(
   />;
 }
 
+function createUserForm(value: DataStore["users"][number]) {
+  return new FormGroup<any>({
+    id: new FormControl(value.id ?? new IdString("")),
+    username: new FormControl(value.username ?? ""),
+    email: new FormControl(value.email ?? ""),
+    userRoles: stringControls(value.userRoles),
+    resetCode: new FormControl(value.resetCode ?? ""),
+  });
+}
+
 export function renderUserEditor(
-  editor: ReturnType<typeof createUserForm>, lookups: EditorLookups,
+  form: any, lookups: EditorLookups,
 ) {
-  const { controls } = editor;
+  const { controls } = form;
   return <PageSection
     renderContent={() => <>
       <PageCard
@@ -744,14 +747,18 @@ function currentText(title: string, value?: string | null) {
     title={title}
     renderContent={() => <div class="field-value">
       <pre>{value || "None"}</pre>
-    </div>} />;
+    </div>}
+  />;
 }
 
 function currentList(title: string, values: readonly string[]) {
   return <CurrentSection
-    title={title} renderContent={() => values.length
+    title={title}
+    renderContent={() => values.length
       ? <ul class="value-list">{values.map((value) => <li>{value}</li>)}</ul>
-      : <p>None</p>} />;
+      : <p>None</p>
+    }
+  />;
 }
 
 export function renderWikiCurrent(saved: Wiki) {
@@ -804,70 +811,65 @@ export function renderBagCurrent(saved: Bag, data: DataStore | null) {
 type EditPageRenders = Pick<
   EditPageModel, "renderCurrent" | "renderEditor"
 > & {
-  getValue: () => object;
+  form: FormGroup<any>;
 };
 
 export function getEditPageRenders(
-  tabId: PageId, data: DataStore | null, saved?: DataStore[PageId][number],
+  tabId: PageId, data: any, saved?: any,
 ): EditPageRenders {
   const lookups: EditorLookups = {
-    bags: data?.bags.map((bag) => bag.name) ?? [],
-    plugins: data?.availablePlugins.map((plugin) => plugin.name) ?? [],
-    templates: data?.templates.map((template) => template.name) ?? [],
-    roles: data?.roles.map((role) => role.name) ?? [],
+    bags: data?.bags.map((bag: any) => bag.name) ?? [],
+    plugins: data?.availablePlugins.map((plugin: any) => plugin.name) ?? [],
+    templates: data?.templates.map((template: any) => template.name) ?? [],
+    roles: data?.roles.map((role: any) => role.name) ?? [],
     versions: embeddedServerResponse.tw5Versions,
   };
   switch (tabId) {
     case "wikis": {
-      const wiki = saved as Wiki | undefined;
-      const form = createWikiForm(wiki ?? {}, wiki ? "edit" : "create");
+      const form = createWikiForm(saved ?? {}, saved ? "edit" : "create");
       return {
-        getValue: () => form.form.value,
-        renderCurrent: wiki ? () => renderWikiCurrent(wiki) : undefined,
+        form,
+        renderCurrent: saved ? () => renderWikiCurrent(saved) : undefined,
         renderEditor: () => renderWikiEditor(form, lookups,
-          wiki?.effectiveWritableBags)
+          saved?.effectiveWritableBags)
       };
     }
     case "templates": {
-      const template = saved as Template | undefined;
-      const form = createTemplateForm(template ?? {});
+      const form = createTemplateForm(saved ?? {});
       return {
-        getValue: () => form.form.value,
-        renderCurrent: template
-          ? () => renderTemplateCurrent(template, data) : undefined,
+        form,
+        renderCurrent: saved
+          ? () => renderTemplateCurrent(saved, data) : undefined,
         renderEditor: () => renderTemplateEditor(form, lookups)
       };
     }
     case "bags": {
-      const bag = saved as Bag | undefined;
-      const form = createBagForm(bag ?? {});
+      const form = createBagForm(saved ?? {});
       return {
-        getValue: () => form.form.value,
-        renderCurrent: bag ? () => renderBagCurrent(bag, data) : undefined,
+        form,
+        renderCurrent: saved ? () => renderBagCurrent(saved, data) : undefined,
         renderEditor: () => renderBagEditor(form, lookups)
       };
     }
     case "roles": {
-      const role = saved as Role | undefined;
-      const form = createRoleForm(role ?? {});
+      const form = createRoleForm(saved ?? {});
       return {
-        getValue: () => form.value,
-        renderCurrent: role ? () => <>
-          {currentText("Name", role.name)}
-          {currentText("Description", role.description)}
+        form,
+        renderCurrent: saved ? () => <>
+          {currentText("Name", saved.name)}
+          {currentText("Description", saved.description)}
         </> : undefined,
         renderEditor: () => renderRoleEditor(form)
       };
     }
     case "users": {
-      const user = saved as User | undefined;
-      const form = createUserForm(user ?? {});
+      const form = createUserForm(saved ?? {});
       return {
-        getValue: () => form.form.value,
-        renderCurrent: user ? () => <>
-          {currentText("Username", user.username)}
-          {currentText("Email", user.email)}
-          {currentList("Roles", user.userRoles)}
+        form,
+        renderCurrent: saved ? () => <>
+          {currentText("Username", saved.username)}
+          {currentText("Email", saved.email)}
+          {currentList("Roles", saved.userRoles)}
         </> : undefined,
         renderEditor: () => renderUserEditor(form, lookups)
       };

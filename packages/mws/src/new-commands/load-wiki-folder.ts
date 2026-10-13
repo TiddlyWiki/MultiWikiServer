@@ -3,8 +3,8 @@ import { PluginCache, bootTiddlyWikiVersion, loadWikiTiddlers } from "../plugin-
 import { TiddlerFields, TW } from "tiddlywiki";
 import * as path from "path";
 import { WikiStore, BagDataAdapter, RecipeDataAdapter, toMappingRows } from "../new-managers";
-import { IdString } from "@mws/admin-vanilla/src/definition/tabs";
 import { serverEvents } from "@tiddlywiki/events";
+import { IdString } from "@/server";
 
 serverEvents.on("cli.register", (commands) => {
 	commands[info.name] = { info, Command: LoadWikiFolderCommand };
