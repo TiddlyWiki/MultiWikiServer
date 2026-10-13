@@ -15,18 +15,21 @@ type IndexData = ART<RecipeResolver["getIndexData"]>;
 export async function serveWikiIndex(
   state: ServerRequest,
   recipe_slug: string,
-  type: "index" | "store.js" | "store.json"
-) {
+  type: "index" | "store.js" | "store.json",
+  sendNotFound: boolean,
+): Promise<typeof STREAM_ENDED | undefined> {
   // we get close the transaction before we start sending the data 
   // so the transaction isn't held up by client bandwidth
   const getData = async () => {
     const recipe = await RecipeResolver.assertRecipe({
       state,
       recipe_slug,
+      sendNotFound,
     }).then(e => {
       state.asserted = true;
       return e;
     });
+    if (!recipe) return null;
     const skipBagTiddlers = state.method === "HEAD";
     const index = await state.$transaction(async (prisma) => {
       return await new RecipeResolver(recipe, prisma, state.user)
@@ -38,7 +41,9 @@ export async function serveWikiIndex(
 
   switch (type) {
     case "index": {
-      const { recipe, index, etag } = await getData();
+      const data = await getData();
+      if (!data) return undefined;
+      const { recipe, index, etag } = data;
       const { injectionFunction, twVersion } = index.template;
       const version = state.pluginCache.versionFromTemplate(twVersion);
       if (!version) throw new Error("wut");
@@ -57,7 +62,8 @@ export async function serveWikiIndex(
     case "store.json":
     case "store.js": {
 
-      const { recipe, index, etag: newEtag } = await (async () => {
+
+      const data = await (async () => {
         if (process.env.BUILD_FLAG_EXTERNAL_STORE) {
           const key = state.headers.cookie.get("mws_index_cache")!;
           const cached = IndexSender.storeCache.get(key) ?? await getData();
@@ -67,6 +73,8 @@ export async function serveWikiIndex(
           return await getData();
         }
       })();
+      if (!data) return undefined;
+      const { recipe, index, etag: newEtag } = data;
       const { injectionFunction, twVersion } = index.template;
 
       const version = state.pluginCache.versionFromTemplate(twVersion);
@@ -188,7 +196,7 @@ abstract class IndexSender {
 
   }
 
-  async serveIndexFile(template: string) {
+  async serveIndexFile(template: string): Promise<typeof STREAM_ENDED> {
 
     if (this.enableExternalPlugins) {
       this.state.writeEarlyHints({

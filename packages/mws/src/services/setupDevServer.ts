@@ -2,7 +2,7 @@ import { existsSync, rmSync } from "fs";
 import { request } from "http";
 import { readFile, writeFile } from "fs/promises";
 import { join, relative, resolve } from "path";
-import { checkPath, dist_resolve, SendError, SendErrorReasonData, ServerRequest, ServerRoute, SuperHeaders } from "@tiddlywiki/server";
+import { checkPath, dist_resolve, SendError, SendErrorReasonData, SendErrorTypes, ServerRequest, ServerRoute, SuperHeaders } from "@tiddlywiki/server";
 import { BuildOptions, BuildResult } from "esbuild";
 import { serverEvents } from "@tiddlywiki/events";
 import { objNumberSort } from "@tiddlywiki/server";
@@ -159,11 +159,12 @@ export async function setupClientBuild({ rootdir, publicdir, clientMounts, title
   if (!existsSync(publicdir)) throw new Error(`${publicdir} does not exist`);
 
   return async function sendProdServer(state, sendError) {
-    if (sendError)
+    if (sendError && (sendError as SendErrorTypes).reason !== "NOT_FOUND")
       return await serveIndex({
         state,
         publicdir,
         status: sendError.status,
+        sendError,
       });
 
     if (state.urlInfo.pathname === "/" || clientMounts?.some(e => state.urlInfo.pathname === e || state.urlInfo.pathname.startsWith(e + "/")))
@@ -179,25 +180,22 @@ export async function setupClientBuild({ rootdir, publicdir, clientMounts, title
         publicdir,
       })
 
-
     let pathname = state.urlInfo.pathname, isAsset = false;
     if (pathname.startsWith(state.config.rootRoutes.assets)) {
       pathname = pathname.slice(state.config.rootRoutes.assets.length);
       isAsset = true;
     }
+
     return state.sendFile(200, {}, {
       root: publicdir,
       reqpath: pathname,
-      on404: !clientMounts ? (async () => {
-        if (isAsset) {
-          state.sendEmpty(404);
-        } else {
-          await serveIndex({
-            state,
-            publicdir,
-            status: 200,
-          })
-        }
+      on404: !clientMounts && !isAsset ? (async () => {
+        await serveIndex({
+          state,
+          publicdir,
+          status: 200,
+          sendError: new SendError("NOT_FOUND", 404, null),
+        })
       }) : undefined
     });
   };
@@ -299,7 +297,7 @@ async function startDevServer({ rootdir, publicdir, clientMounts, title }: Clien
     if (state.headers.get("sec-fetch-dest") === "document")
       await rebuild().catch((e) => { if (!(e.errors && e.warnings)) throw e; });
 
-    if (sendError)
+    if (sendError && (sendError as SendErrorTypes).reason !== "NOT_FOUND")
       return await serveIndex({
         state,
         publicdir,
@@ -320,14 +318,15 @@ async function startDevServer({ rootdir, publicdir, clientMounts, title }: Clien
         publicdir,
       })
 
-    const headers = new Headers(state.headers);
-    headers.set("host", "localhost");
 
     let pathname = state.urlInfo.pathname, isAsset = false;
     if (pathname.startsWith(state.config.rootRoutes.assets)) {
       pathname = pathname.slice(state.config.rootRoutes.assets.length);
       isAsset = true;
     }
+
+    const headers = new Headers(state.headers);
+    headers.set("host", "localhost");
 
     const proxyRes = await fetch(`http://${DEV_HOST}:${port}${pathname}`, {
       method: state.method, headers, body: state.readRawBody(),
@@ -341,15 +340,22 @@ async function startDevServer({ rootdir, publicdir, clientMounts, title }: Clien
     });
 
     if (headers2.contentLength === DEV_FALLBACK.length) {
-      // don't send the fallback for assets, it's just confusing
-      if (isAsset) return state.sendEmpty(404);
+      // recieve the proxied response
       const resBuffer = Buffer.from(await proxyRes.arrayBuffer());
+      // make sure this is actually the fallback
       if (resBuffer.every((e, i) => e === DEV_FALLBACK[i])) {
+        // don't send the fallback for assets, it's just confusing
+        if (isAsset) return state.sendEmpty(404);
+        // don't send the fallback for clientMounts that don't match, 
+        // that's the point of clientMounts
         if (clientMounts) return state.sendEmpty(404);
+        // regular root and client mounts already got sent
+        // so here we're sending the generic NOT_FOUND
         return await serveIndex({
           state,
           publicdir,
           status: proxyRes.status,
+          sendError: new SendError("NOT_FOUND", 404, null),
         });
       } else {
         return state.sendBuffer(proxyRes.status, {}, resBuffer);

@@ -90,10 +90,10 @@ export class StateObject<
     const referer = new URL(state.headers.referer);
     // for now pages outside the path prefix are denied, but this should probably change
     if (!referer.pathname.startsWith(state.pathPrefix))
-      throw new SendError("ACCESS_DENIED", 403, { reason: "Referer check failed" })
+      throw new SendError("ACCESS_DENIED", 403, { reason: "Referer check failed 1" })
     // if a recipe endpoint somehow serves a page, it's definitely wiki content, so deny it
     if (referer.pathname.startsWith(state.pathPrefix + state.config.rootRoutes.recipe + "/"))
-      throw new SendError("ACCESS_DENIED", 403, { reason: "Referer check failed" })
+      throw new SendError("ACCESS_DENIED", 403, { reason: "Referer check failed 2" })
     // pages outside the wiki path are allowed to access wiki endpoints if they want
     if (!referer.pathname.startsWith(state.pathPrefix + state.config.rootRoutes.wiki + "/"))
       return;
@@ -105,7 +105,7 @@ export class StateObject<
     );
     const referer_slug = decodeURIComponent(recipe_name) as PrismaField<"Recipe", "id">;
     if (referer_slug !== recipe_slug)
-      throw new SendError("ACCESS_DENIED", 403, { reason: "Referer check failed" })
+      throw new SendError("ACCESS_DENIED", 403, { reason: "Referer check failed 3" })
   }
 
   /** 

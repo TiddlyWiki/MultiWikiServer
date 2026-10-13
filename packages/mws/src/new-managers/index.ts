@@ -9,7 +9,7 @@
 // single, batch, and list operations always present the same view and can
 // never disagree about where a title routes.
 
-import { checkPath, checkQueryKeys, defineZodRoute, SendError, zod, ZodRoute } from "@tiddlywiki/server";
+import { checkPath, checkQueryKeys, defineZodRoute, SendError, ServerRequest, zod, ZodRoute } from "@tiddlywiki/server";
 import { serverEvents } from "@tiddlywiki/events";
 import { serveDocsIndex, serveWikiIndex, } from "./RecipeIndexSender";
 
@@ -73,9 +73,10 @@ serverEvents.on("mws.routes", (root, config) => {
     path: new RegExp(`^(?=${[
       esr(config.rootRoutes.recipe),
       esr(config.rootRoutes.admin),
-      esr(config.rootRoutes.static),
       esr(config.rootRoutes.tw5),
-      esr(config.rootRoutes.wiki),
+      esr(config.rootRoutes.assets),
+      // esr(config.rootRoutes.static),
+      // esr(config.rootRoutes.wiki),
     ].join("/|")}/)`),
   }, async (state) => { });
 
@@ -90,49 +91,102 @@ serverEvents.on("mws.routes", (root, config) => {
   }, async (state) => {
 
     if (state.method === "OPTIONS") return state.sendEmpty(405);
-
     checkPath(state, z => ({ version: z.string() }), new Error());
-
     return await serveDocsIndex(state, state.pathParams.version);
 
   });
 
   parent.defineRoute<"ignore">({
-    method: ["GET", "HEAD", "OPTIONS", "PUT"],
-    path: new RegExp(`^${esr(config.rootRoutes.static)}/(?<path>.*)$`),
-    bodyFormat: "stream",
-  }, async (state) => {
-    checkPath(state, z => ({ path: z.string() }), new Error());
-    const mounts = validateFileSystemMounts([{
-      webPath: "/test",
-      folderPath: "test",
-      putSaver: true,
-    }]);
-    await fileSystemMountHandler(state, mounts, state.pathParams.path);
-  });
-
-  parent.defineRoute<"ignore">({
     method: ["GET", "HEAD", "OPTIONS"],
-    path: new RegExp(`^${esr(config.rootRoutes.wiki)}/(?<recipe_slug>[^/]+)$`),
+    path: new RegExp(`^${esr(config.rootRoutes.assets)}/(?<path>.*)$`),
     bodyFormat: "ignore",
   }, async (state) => {
 
-    if (state.method === "OPTIONS")
+    if (state.method === "OPTIONS") return state.sendEmpty(405);
+    checkPath(state, z => ({ path: z.string() }), new Error());
+    return state.sendAdmin();
+
+  });
+
+
+  async function serveStatic(state: ServerRequest<"ignore", string, unknown>, path: string, sendNotFound: boolean) {
+    return await fileSystemMountHandler(state, state.config.staticMounts, path, sendNotFound);
+  }
+
+  async function serveWiki(state: ServerRequest<"ignore", string, unknown>, recipe_slug: string, sendNotFound: boolean) {
+    if (state.method === "OPTIONS" || state.method === "PUT")
       return state.sendEmpty(405);
-
-    checkPath(state, z => ({
-      recipe_slug: z.prismaField("Recipe", "slug", "string"),
-    }), new Error());
-
-    const { recipe_slug } = state.pathParams;
+    recipe_slug = recipe_slug.slice(1);
     state.assertWikiReferer(recipe_slug);
-    return await serveWikiIndex(state, recipe_slug, "index");
+    return await serveWikiIndex(state, recipe_slug, "index", sendNotFound);
+  }
+
+  root.defineRoute<"ignore">({
+    method: ["GET", "HEAD", "OPTIONS", "PUT"],
+    path: new RegExp(`^(?<path>.*)$`),
+    bodyFormat: "ignore",
+  }, async (state) => {
+
+    checkPath(state, z => ({ path: z.string(), }), new Error());
+
+    const path = state.pathParams.path;
+    const { static: staticRoot, wiki: wikiRoot } = config.rootRoutes;
+    const or_404 = (handled: any) => {
+      // most of these will return STREAM_ENDED or throw STREAM_ENDED.
+      // they aren't throwing SendError
+      if (handled) return;
+      throw new SendError("NOT_FOUND", 404, null);
+    }
+
+    // **Both roots set**
+    // 1. Path matches static; item exists → static serves.
+    // 2. Path matches static; item missing → 404.
+    // **Only static root set**
+    // 6. Path matches static; item exists → static serves.
+    // 7. Path matches static; item missing → 404.
+    if (staticRoot && state.pathParams.path.startsWith(staticRoot + "/")) {
+      return or_404(await serveStatic(state, path.slice(staticRoot.length), false));
+    }
+
+    // **Both roots set**
+    // 3. Path matches wiki; item exists → wiki serves.
+    // 4. Path matches wiki; item missing → 404.
+    // **Only wiki root set**
+    // 10. Path matches wiki; item exists → wiki serves.
+    // 11. Path matches wiki; item missing → 404.
+    if (wikiRoot && state.pathParams.path.startsWith(wikiRoot + "/")) {
+      return or_404(await serveWiki(state, path.slice(wikiRoot.length), false));
+    }
+
+    // **Only wiki root set**
+    // 12. Path misses wiki; static item exists → static serves.
+    // 13. Path misses wiki; static item missing → 404.
+    // **Neither root set**
+    // 14. Static item exists → static serves.
+    if (!staticRoot) {
+      const handled = await serveStatic(state, path, false);
+      if (handled || wikiRoot) return or_404(handled);
+    }
+
+    // **Only static root set**
+    // 8. Path misses static; wiki item exists → wiki serves.
+    // 9. Path misses static; wiki item missing → 404.
+    // **Neither root set**
+    // 15. Static item missing; wiki item exists → wiki serves.
+    // 16. Static and wiki items missing → 404.
+    if (!wikiRoot) {
+      return or_404(await serveWiki(state, path, false));
+    }
+
+    // **Both roots set**
+    // 5. Path matches neither → 404.
+    // sendAdmin will override SendError NOT_FOUND if it has an exact match for the path
+    return or_404(undefined);
 
   }, async (state, e) => {
     if (state.headersSent) {
       console.log(e.stack + "\nCaptured by:\n" + new Error("").stack?.split("\n").slice(1).join("\n"));
-    }
-    else if (state.headers.accept.accepts("text/html")) {
+    } else if (state.headers.accept.accepts("text/html")) {
       if (e instanceof SendError) {
         return await state.sendAdmin(e);
       } else {

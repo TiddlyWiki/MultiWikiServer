@@ -19,7 +19,17 @@ const serverConfigSchema = zod.object({
     wiki: optionalRouteRootSchema.default("/wiki"),
     static: optionalRouteRootSchema.default("/static"),
     tw5: routeRootSchema.default("/tw5"),
-  }).prefault({}),
+  }).superRefine(
+    ({ wiki: wikiRoot, static: staticRoot }, context) => {
+      if (wikiRoot && (wikiRoot === staticRoot)) {
+        context.addIssue({
+          code: "custom",
+          message: "Wiki and static route roots must differ when non-empty",
+          path: [wikiRoot && !staticRoot ? "wiki" : "static"],
+        });
+      }
+    }
+  ).prefault({}),
   staticMounts: fileSystemMountsSchema.prefault([]),
 }).prefault({});
 

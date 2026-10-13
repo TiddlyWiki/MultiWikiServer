@@ -45,7 +45,7 @@ interface BatchMutationResult {
 //   is_writable: PrismaField<"RecipeBag", "is_writable">;
 // }
 
-export type RecipeInfo = ART<typeof RecipeResolver.assertRecipe>;
+export type RecipeInfo = ART<typeof RecipeResolver.assertRecipe> & {};
 export type RecipeBagRow = RecipeInfo["recipe_bags"][number];
 export type WriteTarget = ART<RecipeResolver["getWriteTarget"]>
 export type ReadInfo = ART<RecipeResolver["getReadInfo"]>;
@@ -97,9 +97,10 @@ export class RecipeResolver {
    * bag in the ordering (including empty ones). Admins bypass. Lacking any one
    * yields a 403, not a filtered view.
    */
-  static async assertRecipe({ state, recipe_slug }: {
+  static async assertRecipe({ state, recipe_slug, sendNotFound }: {
     state: ServerRequest
     recipe_slug: PrismaField<"Recipe", "slug">;
+    sendNotFound: boolean;
   }) {
     const prisma = state.engine;
     const isAdmin = state.user.isAdmin;
@@ -140,8 +141,10 @@ export class RecipeResolver {
       },
     });
 
-    if (!recipe)
+    if (!recipe && sendNotFound)
       throw state.sendEmpty(404, { "x-reason": "recipe not found" });
+    else if (!recipe) 
+      return undefined;
 
     if (!state.user.isAdmin) {
       if (!recipe.permissions.length)

@@ -83,6 +83,10 @@ declare module "@tiddlywiki/server" {
 
     "TW5DOCS_NOT_FOUND":
     SendErrorItem<404, null>
+
+    "NOT_FOUND":
+    SendErrorItem<404, null>
+
   }
 }
 SendError.oninstance.push(e => {
@@ -129,6 +133,7 @@ SendError.oninstance.push(e => {
     case "TIDDLER_WIRE_FORMAT_UNKNOWN":
     case "WRITE_NOT_PERMITTED":
     case "ACCESS_DENIED":
+    case "NOT_FOUND": // usually from the catch-all route
       { e.skiplog = true; break; }
     case "INVALID_BODY_FORMAT": // a bug if this throws
     case "HOST_NOT_RECOGNIZED": // misconfigured server if this throws

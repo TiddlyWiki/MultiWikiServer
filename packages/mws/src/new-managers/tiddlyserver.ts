@@ -146,10 +146,11 @@ async function resolveMountRoot(rootPath: string): Promise<string> {
 export async function serveStaticFile(
   state: ServerRequest<"ignore">,
   mount: ResolvedFileSystemMount,
-): Promise<typeof STREAM_ENDED> {
+  sendNotFound: boolean,
+): Promise<typeof STREAM_ENDED | undefined> {
   const root = await resolveMountRoot(mount.root);
   const target = await openMountedTarget(mount.path);
-  if (!target) return state.sendEmpty(404);
+  if (!target) return sendNotFound ? state.sendEmpty(404) : undefined;
 
   try {
     const stat = await target.stat();
@@ -244,7 +245,8 @@ class PutTooLargeError extends Error {
 export async function saveMountedFile(
   state: ServerRequest<"stream">,
   mount: ResolvedFileSystemMount,
-): Promise<typeof STREAM_ENDED> {
+  sendNotFound: boolean,
+): Promise<typeof STREAM_ENDED | undefined> {
   // Only same-origin pages may save, and only when PUT is explicitly enabled for the mount.
   assertSameOrigin(state);
   if (!mount.putSaver)
@@ -257,7 +259,7 @@ export async function saveMountedFile(
   // Resolve the configured root and open the target without following a final symlink.
   const root = await resolveMountRoot(mount.root);
   const target = await openMountedTarget(mount.path);
-  if (!target) return state.sendEmpty(404);
+  if (!target) return sendNotFound ? state.sendEmpty(404) : undefined;
 
   try {
     // Verify the opened target is a regular file that resolves inside the configured root.
@@ -340,17 +342,18 @@ export async function saveMountedFile(
 export async function fileSystemMountHandler(
   state: ServerRequest<"stream"> | ServerRequest<"ignore">,
   mounts: FileSystemMounts,
-  path: string
-): Promise<typeof STREAM_ENDED> {
+  path: string,
+  sendNotFound: boolean,
+): Promise<typeof STREAM_ENDED | undefined> {
   const mount = resolveFileSystemMount(mounts, path);
-  if (!mount) return state.sendEmpty(404);
+  if (!mount) return sendNotFound ? state.sendEmpty(404) : undefined;
 
   switch (state.method) {
     case "GET":
     case "HEAD":
-      return serveStaticFile(state as ServerRequest<"ignore">, mount);
+      return serveStaticFile(state as ServerRequest<"ignore">, mount, sendNotFound);
     case "PUT":
-      return saveMountedFile(state as ServerRequest<"stream">, mount);
+      return saveMountedFile(state as ServerRequest<"stream">, mount, sendNotFound);
     case "OPTIONS":
       return state.sendEmpty(204, {
         allow: mount.putSaver ? "GET, HEAD, PUT, OPTIONS" : "GET, HEAD, OPTIONS",

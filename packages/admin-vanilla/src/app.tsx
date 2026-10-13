@@ -914,6 +914,8 @@ export class App extends JSXElement {
     document.addEventListener("click", this.handleAccountMenuClick, true);
     window.addEventListener("pageshow", this.handlePageShow);
     void this.loadAdminRecords();
+    if(embeddedServerResponse.sendError)
+      this.mainStorageError = embeddedServerResponse.sendError.reason + ": " + JSON.stringify(embeddedServerResponse.sendError.details);
   }
 
   disconnectedCallback(): void {
@@ -1165,7 +1167,7 @@ function getListColumnLinkMappers(tabId: TabId): Partial<Record<string, ListColu
       return {
         slug: (item) => {
           definitely<WikiAdminRecord>(item);
-          return item.slug ? `${pathPrefix + embeddedServerResponse.rootRoutes.wiki}/${encodeURIComponent(item.slug)}` : null;
+          return item.slug ? `${pathPrefix + embeddedServerResponse.rootRoutes.wiki}/${item.slug.split("/").map(encodeURIComponent).join("/")}` : null;
         },
       };
     case "templates":
