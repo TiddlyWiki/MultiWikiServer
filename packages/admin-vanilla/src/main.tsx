@@ -2,6 +2,7 @@
 // global css (not scoped)
 import "./main.css";
 import { App } from "./app";
+import { AppAdmin } from "./app-admin";
 import { LoginForm } from "./app-login";
 import type { AuthUser } from "@tiddlywiki/mws/src/new-managers/sessions";
 import { SendError } from "@tiddlywiki/server";
@@ -55,7 +56,8 @@ function setup() {
     document.body.appendChild(new ProfileForm());
   }
   else {
-    document.body.appendChild(new App());
+    const previewShell = new URLSearchParams(location.search).get("layout") === "shell";
+    document.body.appendChild(previewShell ? new AppAdmin() : new App());
   }
 
 }

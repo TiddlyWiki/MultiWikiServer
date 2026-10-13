@@ -46,5 +46,6 @@
     "node_modules",
     "**/node_modules/*",
     "packages/mws/src/tiddlyserver",
+    "packages/admin-vanilla/src/definition",
   ]
 }

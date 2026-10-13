@@ -1,13 +1,14 @@
 import {
-  DataSave,
-  DataStore,
+  // DataSave,
+  // DataStore,
   IdString,
 
   WritablePrefixRow,
   PermissionRow,
   TabId,
   TemplateTypes,
-  buildTabZodObject
+  buildTabZodObject,
+  ExtraServerStuff
 } from "@mws/admin-vanilla/src/definition/tabs";
 import {
   checkData,
@@ -41,40 +42,148 @@ import { Debug } from "@prisma/client/runtime/client";
 import { ServerState } from "../ServerState";
 import escapeStringRegexp from "escape-string-regexp";
 
+export interface DataStore extends ExtraServerStuff {
+  wikis: {
+    id: IdString;
+    slug: string;
+    displayName: string;
+    templateName: string;
+    description: string;
+    readonlyBags: readonly string[];
+    plugins: readonly string[];
+    lastCompiledAt: string;
+    writablePrefixBags: readonly WritablePrefixRow[];
+    effectiveWritableBags: readonly WritablePrefixRow[];
+    effectiveReadonlyBags: readonly string[];
+    effectivePluginSet: readonly string[];
+    recipeUsers: readonly string[];
+    recipeAdmins: readonly string[];
+  }[];
+  templates: {
+    name: string;
+    id: IdString;
+    description: string;
+    readonlyBags: readonly string[];
+    plugins: readonly string[];
+    writablePrefixBags: readonly WritablePrefixRow[];
+    lastUpdatedAt: string;
+    type: TemplateTypes;
+    templateUsers: readonly string[];
+    templateAdmins: readonly string[];
+    requiredPluginsEnabled: boolean;
+    externalStore: boolean;
+    externalPlugins: boolean;
+    twVersion: string | null;
+    customHtmlEnabled: boolean;
+    htmlContent: string;
+    injectionFunction: string;
+    injectionLocation: string;
+  }[];
+  bags: {
+    id: IdString;
+    description: string;
+    name: string;
+    bagPermissions: readonly PermissionRow<BagPermissionLevel>[];
+  }[];
+  users: {
+    id: IdString;
+    username: string;
+    email: string;
+    userRoles: readonly string[];
+    resetCode: string;
+  }[];
+  roles: {
+    name: string;
+    id: IdString;
+    description: string;
+  }[];
+}
+
+type IWikiSave = {
+  id: IdString;
+  slug: string;
+  displayName: string;
+  templateName: string;
+  description: string;
+  readonlyBags: readonly string[];
+  plugins: readonly string[];
+  writablePrefixBags: readonly WritablePrefixRow[];
+  recipeUsers: readonly string[];
+  recipeAdmins: readonly string[];
+}
+type ITempSave = {
+  id: IdString;
+  description: string;
+  readonlyBags: readonly string[];
+  plugins: readonly string[];
+  writablePrefixBags: readonly WritablePrefixRow[];
+  name: string;
+  type: TemplateTypes;
+  templateUsers: readonly string[];
+  templateAdmins: readonly string[];
+  requiredPluginsEnabled: boolean;
+  externalStore: boolean;
+  externalPlugins: boolean;
+  twVersion: string | null;
+  customHtmlEnabled: boolean;
+  htmlContent: string;
+  injectionFunction: string;
+  injectionLocation: string;
+}
+
+type IBagSave = {
+  id: IdString;
+  description: string;
+  name: string;
+  bagPermissions: readonly PermissionRow<BagPermissionLevel>[];
+}
+
+type IUserSave = {
+  id: IdString;
+  username: string;
+  email: string;
+  userRoles: readonly string[];
+  resetCode: string;
+}
+
+type IRoleSave = {
+  id: IdString;
+  description: string;
+  name: string;
+}
+
+export interface DataSave {
+  wikis: IWikiSave[],
+  templates: ITempSave[],
+  bags: IBagSave[],
+  users: IUserSave[],
+  roles: IRoleSave[],
+}
 
 
-type IRecipeRow = DataStore["wikis"][number];
-type ITemplateRow = DataStore["templates"][number];
-type IBagRow = DataStore["bags"][number];
-// type IPluginRow = DataStore["plugins"][number];
-type IUserRow = DataStore["users"][number];
-type IRoleRow = DataStore["roles"][number];
+export type TemplateDefinition = {
+  description: string;
+  readonlyBags: readonly string[];
+  plugins: readonly string[];
+  writablePrefixBags: readonly WritablePrefixRow[];
+  type: TemplateTypes;
+  requiredPluginsEnabled: boolean;
+  externalStore: boolean;
+  externalPlugins: boolean;
+  twVersion: string | null;
+  customHtmlEnabled: boolean;
+  htmlContent: string;
+  injectionFunction: string;
+  injectionLocation: string;
+};
 
-
-export type TemplateDefinition = Omit<
-  DataStore["templates"][number],
-  | "id"
-  | "name"
-  | "lastUpdatedAt"
-  | "templatePermissions"
-  | "dependentWikis"
-  | "templateUsers"
-  | "templateAdmins"
->;
-
-export type RecipeDefinition = Omit<
-  DataStore["wikis"][number],
-  | "id"
-  | "slug"
-  | "templateName"
-  | "lastCompiledAt"
-  | "recipePermissions"
-  | "effectiveWritableBags"
-  | "effectiveReadonlyBags"
-  | "effectivePluginSet"
-  | "recipeUsers"
-  | "recipeAdmins"
->;
+export type RecipeDefinition = {
+  description: string;
+  plugins: readonly string[];
+  displayName: string;
+  readonlyBags: readonly string[];
+  writablePrefixBags: readonly WritablePrefixRow[];
+}
 
 declare global {
   namespace PrismaJson {
@@ -193,7 +302,7 @@ export class RecipeDataAdapter extends TabDataAdapter<"wikis"> {
     plugins: string[];
     recipePermissions: PermissionRow<RecipePermissionLevel>[];
     templateName: string;
-  }): DataStore["wikis"][number] {
+  }) {
     const effectivePluginSet = plugins;
     const effectiveReadonlyBags = allbags
       .filter(e => !e.isWritable)
@@ -251,7 +360,7 @@ export class RecipeDataAdapter extends TabDataAdapter<"wikis"> {
     const templates = await new TemplateImportWriter(prisma, false).getIdMapper();
     const bags = await new BagImportWriter(prisma, false).getIdMapper();
 
-    return recipes.map((recipe): IRecipeRow => {
+    return recipes.map((recipe) => {
       recipe.recipe_bags.sort(e => e.priority);
       return this.buildResponse({
         allbags: recipe.recipe_bags.map(e => ({
@@ -389,7 +498,7 @@ export class TemplateDataAdapter extends TabDataAdapter<"templates"> {
       orderBy: { id: "asc" },
     });
 
-    return templates.map((template): ITemplateRow => {
+    return templates.map((template) => {
       /* @deprecated - version 0.2 */
       if (template.definition.twVersion?.startsWith("tw5-"))
         template.definition.twVersion = template.definition.twVersion.slice(4);
@@ -397,7 +506,7 @@ export class TemplateDataAdapter extends TabDataAdapter<"templates"> {
         ...template.definition,
         id: new IdString(template.id),
         name: template.name,
-        type: "simpleV1",
+        type: "simpleV1" as const,
         lastUpdatedAt: template.updated.toISOString(),
         templateAdmins: template.permissions.filter(e => e.level === "B_write").map(e => roles(new IdString(e.role_id))),
         templateUsers: template.permissions.filter(e => e.level === "A_read").map(e => roles(new IdString(e.role_id))),
@@ -593,11 +702,11 @@ export class AdminRoutes {
         const { pathParams: { op, tab }, data } = state;
         switch (op) {
           case "save": switch (tab) {
-            case "wikis": return await new RecipeDataAdapter(state.user).saveRow(prisma, data as IRecipeRow);
-            case "templates": return await new TemplateDataAdapter(state.user).saveRow(prisma, data as ITemplateRow);
-            case "bags": return await new BagDataAdapter(state.user).saveRow(prisma, data as IBagRow);
-            case "roles": return await new RoleDataAdapter(state.user).saveRow(prisma, data as IRoleRow);
-            case "users": return await new UserDataAdapter(state.user).saveRow(prisma, data as IUserRow);
+            case "wikis": return await new RecipeDataAdapter(state.user).saveRow(prisma, data);
+            case "templates": return await new TemplateDataAdapter(state.user).saveRow(prisma, data);
+            case "bags": return await new BagDataAdapter(state.user).saveRow(prisma, data);
+            case "roles": return await new RoleDataAdapter(state.user).saveRow(prisma, data);
+            case "users": return await new UserDataAdapter(state.user).saveRow(prisma, data);
             default: {
               const _exhaustive: never = tab;
               throw new Error(`Unsupported admin tab: ${_exhaustive}`);
