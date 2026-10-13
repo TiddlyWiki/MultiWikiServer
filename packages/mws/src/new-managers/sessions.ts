@@ -191,7 +191,7 @@ export class SessionManager {
   login1 = zodSession("/login/1", z => z.object({
     username: z.prismaField("Users", "username", "string"),
     startLoginRequest: z.string(),
-  }), async (state) => { state.assertReferer(["/login"]); }, async (state, prisma) => {
+  }), async (state) => { state.assertReferer(["/login", "/profile"]); }, async (state, prisma) => {
     const { username, startLoginRequest } = state.data;
 
     const user = await prisma.users.findUnique({
@@ -223,7 +223,7 @@ export class SessionManager {
     finishLoginRequest: z.string(),
     loginSession: z.string(),
     skipCookie: z.boolean().optional().default(false),
-  }), async (state) => { state.assertReferer(["/login"]); }, async (state, prisma) => {
+  }), async (state) => { state.assertReferer(["/login", "/profile"]); }, async (state, prisma) => {
     const { finishLoginRequest, skipCookie, loginSession } = state.data;
 
     if (!loginSession) throw "Login session not found.";

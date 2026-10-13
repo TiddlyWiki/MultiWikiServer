@@ -1,15 +1,4 @@
-import {
-  // DataSave,
-  // DataStore,
-  IdString,
 
-  WritablePrefixRow,
-  PermissionRow,
-  TabId,
-  TemplateTypes,
-  buildTabZodObject,
-  ExtraServerStuff
-} from "@mws/admin-vanilla/src/definition/tabs";
 import {
   checkData,
   registerZodRoutes,
@@ -41,148 +30,12 @@ import { debuglog } from "util";
 import { Debug } from "@prisma/client/runtime/client";
 import { ServerState } from "../ServerState";
 import escapeStringRegexp from "escape-string-regexp";
+import { IdString, } from "@/server";
+import { RecipeDefinition, TemplateDefinition, PageId, TemplateTypes, WritablePrefixRow, DataSave, DataStore } from "./TabDataTypes";
 
-export interface DataStore extends ExtraServerStuff {
-  wikis: {
-    id: IdString;
-    slug: string;
-    displayName: string;
-    templateName: string;
-    description: string;
-    readonlyBags: readonly string[];
-    plugins: readonly string[];
-    lastCompiledAt: string;
-    writablePrefixBags: readonly WritablePrefixRow[];
-    effectiveWritableBags: readonly WritablePrefixRow[];
-    effectiveReadonlyBags: readonly string[];
-    effectivePluginSet: readonly string[];
-    recipeUsers: readonly string[];
-    recipeAdmins: readonly string[];
-  }[];
-  templates: {
-    name: string;
-    id: IdString;
-    description: string;
-    readonlyBags: readonly string[];
-    plugins: readonly string[];
-    writablePrefixBags: readonly WritablePrefixRow[];
-    lastUpdatedAt: string;
-    type: TemplateTypes;
-    templateUsers: readonly string[];
-    templateAdmins: readonly string[];
-    requiredPluginsEnabled: boolean;
-    externalStore: boolean;
-    externalPlugins: boolean;
-    twVersion: string | null;
-    customHtmlEnabled: boolean;
-    htmlContent: string;
-    injectionFunction: string;
-    injectionLocation: string;
-  }[];
-  bags: {
-    id: IdString;
-    description: string;
-    name: string;
-    bagPermissions: readonly PermissionRow<BagPermissionLevel>[];
-  }[];
-  users: {
-    id: IdString;
-    username: string;
-    email: string;
-    userRoles: readonly string[];
-    resetCode: string;
-  }[];
-  roles: {
-    name: string;
-    id: IdString;
-    description: string;
-  }[];
-}
-
-type IWikiSave = {
-  id: IdString;
-  slug: string;
-  displayName: string;
-  templateName: string;
-  description: string;
-  readonlyBags: readonly string[];
-  plugins: readonly string[];
-  writablePrefixBags: readonly WritablePrefixRow[];
-  recipeUsers: readonly string[];
-  recipeAdmins: readonly string[];
-}
-type ITempSave = {
-  id: IdString;
-  description: string;
-  readonlyBags: readonly string[];
-  plugins: readonly string[];
-  writablePrefixBags: readonly WritablePrefixRow[];
-  name: string;
-  type: TemplateTypes;
-  templateUsers: readonly string[];
-  templateAdmins: readonly string[];
-  requiredPluginsEnabled: boolean;
-  externalStore: boolean;
-  externalPlugins: boolean;
-  twVersion: string | null;
-  customHtmlEnabled: boolean;
-  htmlContent: string;
-  injectionFunction: string;
-  injectionLocation: string;
-}
-
-type IBagSave = {
-  id: IdString;
-  description: string;
-  name: string;
-  bagPermissions: readonly PermissionRow<BagPermissionLevel>[];
-}
-
-type IUserSave = {
-  id: IdString;
-  username: string;
-  email: string;
-  userRoles: readonly string[];
-  resetCode: string;
-}
-
-type IRoleSave = {
-  id: IdString;
-  description: string;
-  name: string;
-}
-
-export interface DataSave {
-  wikis: IWikiSave[],
-  templates: ITempSave[],
-  bags: IBagSave[],
-  users: IUserSave[],
-  roles: IRoleSave[],
-}
-
-
-export type TemplateDefinition = {
-  description: string;
-  readonlyBags: readonly string[];
-  plugins: readonly string[];
-  writablePrefixBags: readonly WritablePrefixRow[];
-  type: TemplateTypes;
-  requiredPluginsEnabled: boolean;
-  externalStore: boolean;
-  externalPlugins: boolean;
-  twVersion: string | null;
-  customHtmlEnabled: boolean;
-  htmlContent: string;
-  injectionFunction: string;
-  injectionLocation: string;
-};
-
-export type RecipeDefinition = {
-  description: string;
-  plugins: readonly string[];
-  displayName: string;
-  readonlyBags: readonly string[];
-  writablePrefixBags: readonly WritablePrefixRow[];
+export interface PermissionRow<Level extends string = string> {
+  role: string;
+  level: Level;
 }
 
 declare global {
@@ -228,7 +81,7 @@ function normalizePermissions<Level extends string>(rows: readonly PermissionRow
 }
 
 
-abstract class TabDataAdapter<TAB extends TabId> {
+abstract class TabDataAdapter<TAB extends PageId> {
   constructor(protected user: ServerRequest["user"]) { }
   abstract saveRow(prisma: PrismaTxnClient, data: DataSave[TAB][number]): Promise<DataStore[TAB][number]>;
   // roles aren't connected to data tables so they can be swapped out for SSO
@@ -665,6 +518,17 @@ export class UserDataAdapter extends TabDataAdapter<"users"> {
   }
 }
 
+import * as TabDataZod from "./TabDataZod";
+
+export interface AdminClient {
+  AdminSave<TAB extends "roles" | "users" | "wikis" | "templates" | "bags">(
+    op: "save",
+    tab: TAB,
+    data: DataSave[TAB][number],
+  ): Promise<DataStore[TAB][number]>;
+  AdminLoad(): Promise<DataStore>;
+}
+
 export class AdminRoutes {
   static defineRoutes(root: ServerRoute, config: ServerState) {
     this.AdminPrefix = escapeStringRegexp(config.rootRoutes.admin);
@@ -682,7 +546,7 @@ export class AdminRoutes {
     securityChecks: { requestedWithHeader: true },
     zodPathParams: z => ({
       op: z.enum(["save"]),
-      tab: z.enum(["wikis", "templates", "bags", "users", "roles"] satisfies TabId[])
+      tab: z.enum(["wikis", "templates", "bags", "users", "roles"] satisfies PageId[])
     }),
     zodRequestBody: z => z.any(),
     inner: async (state) => {
@@ -696,7 +560,20 @@ export class AdminRoutes {
         return val;
       });
 
-      checkData(state, () => buildTabZodObject(state.pathParams.tab, "DataSave"), new Error());
+      checkData(state, () => {
+        // buildTabZodObject(state.pathParams.tab, "DataSave")
+        switch (state.pathParams.tab) {
+          case "wikis": return TabDataZod.iWikiSaveSchema;
+          case "templates": return TabDataZod.iTemplateSaveSchema;
+          case "bags": return TabDataZod.iBagSaveSchema;
+          case "roles": return TabDataZod.iRoleSaveSchema;
+          case "users": return TabDataZod.iUserSaveSchema;
+          default: {
+            const _exhaustive: never = state.pathParams.tab;
+            throw new Error(`Unsupported admin tab: ${_exhaustive}`);
+          }
+        }
+      }, new Error());
 
       const res = await state.$transaction(async prisma => {
         const { pathParams: { op, tab }, data } = state;
@@ -719,7 +596,20 @@ export class AdminRoutes {
         }
       });
 
-      const { success, data: res2, error } = buildTabZodObject(state.pathParams.tab, "DataStore").safeParse(res);
+      const { success, data: res2, error } = (() => {
+        // buildTabZodObject(state.pathParams.tab, "DataStore")
+        switch (state.pathParams.tab) {
+          case "wikis": return TabDataZod.iWikiLoadSchema;
+          case "templates": return TabDataZod.iTemplateLoadSchema;
+          case "bags": return TabDataZod.iBagLoadSchema;
+          case "roles": return TabDataZod.iRoleLoadSchema;
+          case "users": return TabDataZod.iUserLoadSchema;
+          default: {
+            const _exhaustive: never = state.pathParams.tab;
+            throw new Error(`Unsupported admin tab: ${_exhaustive}`);
+          }
+        }
+      })().safeParse(res);
       if (!success) console.log("Response validation: ", error);
       return res2;
     }
@@ -750,17 +640,7 @@ export class AdminRoutes {
           })),
         } satisfies Omit<DataStore, "availableBagNames" | "availablePluginNames">;
       });
-      const { success, data, error } = zod.object({
-        wikis: buildTabZodObject("wikis", "DataStore").array(),
-        templates: buildTabZodObject("templates", "DataStore").array(),
-        bags: buildTabZodObject("bags", "DataStore").array(),
-        roles: buildTabZodObject("roles", "DataStore").array(),
-        users: buildTabZodObject("users", "DataStore").array(),
-        availablePlugins: zod.array(zod.object({
-          name: zod.string(),
-          description: zod.string(),
-        })),
-      }).safeParse(res);
+      const { success, data, error } = TabDataZod.dataStoreSchema.safeParse(res);
       if (!success) throw error;
       return data;
     }

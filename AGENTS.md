@@ -8,6 +8,7 @@ When the user changes subject or goes on a side tangant about something, assume 
 
 - Declare required props with `@state() accessor props!: PropsType;` without a default initializer. Props are assigned before the first render.
 - Do not wrap JSX fragments in parentheses unless required by syntax. Use `() => <>...</>` and `return <>...</>;` directly, including for multiline fragments.
+- Keep short JSX elements on one line. Wrap only long elements: opening element name on its own line, one attribute per line, and `/>` or `></Element>` on its own line.
 - MaterialSymbol injects raw SVG in light DOM and supplies no intrinsic icon sizing. New button contexts must size BOTH the material-symbol host and its SVG explicitly; editor actions use .editor-row-action with an 18px non-shrinking host and 100% SVG dimensions.
 
 ### Ownership and data flow

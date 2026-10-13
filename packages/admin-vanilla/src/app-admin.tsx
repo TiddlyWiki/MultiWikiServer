@@ -1,16 +1,10 @@
 import { customElement, JSXElement, state } from "@tiddlywiki/jsx-lit";
-import {
-  AppShell,
-  EditPage,
-  FeedbackNotice,
-} from "./app-shell";
+import { AppShell, EditPage, FeedbackNotice, } from "./app-shell";
 import type { EditPageModel, RenderContent } from "./app-shell";
 import { AppTabController } from "./app-tab-controller";
 import { getEditPageRenders } from "./app-edit-pages.tsx";
-import { IdString } from "./definition/tabs";
-import type { DataStore } from "./definition/tabs";
+import { AdminClient, DataSave, DataStore, IdString, PageId } from "@/server";
 
-export type PageId = "wikis" | "templates" | "bags" | "roles" | "users";
 
 export interface AdminTab {
   id: PageId;
@@ -22,8 +16,6 @@ export interface AdminTab {
   dividerBefore?: boolean;
   renderListContent: RenderContent;
 }
-
-
 
 @customElement("mws-app-admin")
 export class AppAdmin extends JSXElement {

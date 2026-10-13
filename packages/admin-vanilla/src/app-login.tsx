@@ -254,7 +254,6 @@ export class LoginForm extends AccountForm<LoginValues> {
               renderContent={() => <EditTextInput
                 inputId="login-resetCode"
                 control={controls.resetCode}
-                autocomplete="off"
               />}
             />
           </div>

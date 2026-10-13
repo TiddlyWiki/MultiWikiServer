@@ -6,18 +6,8 @@ import {
 } from "./app-shell";
 import type { EditPageModel } from "./app-shell";
 import { MaterialSymbol } from "./material-symbol";
-import type { DataStore } from "@tiddlywiki/mws/src";
 import { FormArray, FormControl, FormGroup } from "./app-forms";
-
-export interface WritablePrefixRow {
-  prefix: string;
-  bagName: string;
-}
-
-export interface PermissionRow<Level extends string = string> {
-  role: string;
-  level: Level;
-}
+import { PageId, WritablePrefixRow, DataStore } from "@/server";
 
 type Wiki = DataStore["wikis"][number];
 type Template = DataStore["templates"][number];
@@ -25,7 +15,6 @@ type Bag = DataStore["bags"][number];
 type User = DataStore["users"][number];
 type Role = DataStore["roles"][number];
 
-type PageId = "wikis" | "templates" | "bags" | "roles" | "users";
 
 interface EditorLookups {
   bags: readonly string[];

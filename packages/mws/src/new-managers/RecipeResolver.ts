@@ -13,10 +13,10 @@ import { createReadStream } from "node:fs";
 import { readFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { mapGetInit } from "./wiki-utils";
-import { IdString } from "@mws/admin-vanilla/src/definition/tabs";
 import { serverEvents } from "@tiddlywiki/events";
 import { defaultPreloadFunction, TiddlerHasher, PluginCache, requiredPlugins } from "../plugin-cache";
 import { AuthUser } from "./sessions";
+import { IdString } from "@/server";
 
 // ---------------------------------------------------------------------------
 // Types

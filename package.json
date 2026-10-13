@@ -47,6 +47,7 @@
     "prisma:gen": "cd tools && npm run prisma:gen",
     "prisma:mig": "cd tools && npm run prisma:mig",
     "dev-quick-reset": "node scripts/scripts.mjs dev-quick-reset",
+    "zod-types": "npx ts-to-zod packages/mws/src/new-managers/TabDataTypes.ts packages/mws/src/new-managers/TabDataZod.ts",
     "env": "env",
     "test": "node scripts/scripts.mjs test"
   },
@@ -59,6 +60,7 @@
   },
   "devDependencies": {
     "@types/node": "^24.6.0",
-    "@types/source-map-support": "0.5.10"
+    "@types/source-map-support": "0.5.10",
+    "ts-to-zod": "^5.1.0"
   }
 }

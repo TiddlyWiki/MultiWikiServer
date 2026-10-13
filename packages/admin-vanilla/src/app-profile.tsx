@@ -32,62 +32,101 @@ export class ProfileForm extends AccountForm<ProfilePasswordValues> {
     const value = this.form.value;
     const user = embeddedServerResponse.userState;
     switch (this.mode) {
-      case "profile": return <AccountPage
-        title="User Profile"
-        busy={this.isSubmitting} onSubmit={this.handleProfileSubmit}
-        renderFeedback={this.renderFeedback}
-        renderContent={() => <div class="login-fields">
-          <EditorField title="Username"
-            renderContent={() => <div class="field-value">{user.username}</div>} />
-          <EditorField title="Email"
-            renderContent={() => <div class="field-value is-empty">Not provided</div>} />
-          <EditorField 
-            title="Roles"
-            renderContent={() => user.roles.length
-              ? <ul class="value-list">
-                {user.roles.map((role) => <li>{role.role_name}</li>)}
-              </ul>
-              : <div class="field-value is-empty">None</div>} 
-              />
-        </div>}
-        renderActions={() => <footer class="login-actions">
-          <div class="login-action-row">
-            <button class="ghost-button" type="button"
-              disabled={this.isSubmitting} onclick={this.onCancel}>Close</button>
-            <button class="primary-button login-submit" type="submit"
-              disabled={this.isSubmitting}>Update Password</button>
-          </div>
-        </footer>}
-      />;
-      case "updatePassword": return <AccountPage
-        title="Update password"
-        busy={this.isSubmitting} onSubmit={this.handleUpdatePasswordSubmit}
-        renderFeedback={this.renderFeedback}
-        renderContent={() => <div class="login-fields">
-          <EditorField title="Current password" inputId="profile-password"
-            renderContent={() => <EditTextInput inputId="profile-password"
-              control={controls.password} type="password"
-              autocomplete="current-password" />} />
-          <EditorField title="New password" inputId="profile-newPassword"
-            renderContent={() => <EditTextInput inputId="profile-newPassword"
-              control={controls.newPassword} type="password"
-              autocomplete="new-password" />} />
-          <EditorField title="Confirm new password" inputId="profile-confirmNewPassword"
-            renderContent={() => <EditTextInput inputId="profile-confirmNewPassword"
-              control={controls.confirmNewPassword} type="password"
-              autocomplete="new-password" />} />
-        </div>}
-        renderActions={() => <footer class="login-actions">
-          <div class="login-action-row">
-            <button class="ghost-button" type="button" disabled={this.isSubmitting}
-              onclick={() => { this.mode = "profile"; }}>Cancel</button>
-            <button class="primary-button login-submit" type="submit"
-              disabled={this.isSubmitting || !value.password || !value.newPassword
-                || !value.confirmNewPassword || value.newPassword !== value.confirmNewPassword}
-            >Update password</button>
-          </div>
-        </footer>}
-      />;
+      case "profile":
+        return <AccountPage
+          title="User Profile"
+          busy={this.isSubmitting}
+          onSubmit={this.handleProfileSubmit}
+          renderFeedback={this.renderFeedback}
+          renderContent={() => <div class="login-fields">
+            <EditorField
+              title="Username"
+              renderContent={() => <div class="field-value">{user.username}</div>}
+            />
+            <EditorField
+              title="Email"
+              renderContent={() => <div class="field-value is-empty">Not implemented</div>}
+            />
+            <EditorField
+              title="Roles"
+              renderContent={() => user.roles.length
+                ? <ul class="value-list">
+                  {user.roles.map((role) => <li>{role.role_name}</li>)}
+                </ul>
+                : <div class="field-value is-empty">None</div>}
+            />
+          </div>}
+          renderActions={() => <footer class="login-actions">
+            <div class="login-action-row">
+              <button
+                class="ghost-button"
+                type="button"
+                disabled={this.isSubmitting}
+                onclick={this.onCancel}
+              >Close</button>
+              <button
+                class="primary-button login-submit"
+                type="submit"
+                disabled={this.isSubmitting}
+              >Update Password</button>
+            </div>
+          </footer>}
+        />;
+      case "updatePassword":
+        return <AccountPage
+          title="Update password"
+          busy={this.isSubmitting}
+          onSubmit={this.handleUpdatePasswordSubmit}
+          renderFeedback={this.renderFeedback}
+          renderContent={() => <div class="login-fields">
+            <EditorField
+              title="Current password"
+              inputId="profile-password"
+              renderContent={() => <EditTextInput
+                inputId="profile-password"
+                control={controls.password}
+                type="password"
+                autocomplete="current-password"
+              />}
+            />
+            <EditorField
+              title="New password"
+              inputId="profile-newPassword"
+              renderContent={() => <EditTextInput
+                inputId="profile-newPassword"
+                control={controls.newPassword}
+                type="password"
+                autocomplete="new-password"
+              />}
+            />
+            <EditorField
+              title="Confirm new password"
+              inputId="profile-confirmNewPassword"
+              renderContent={() => <EditTextInput
+                inputId="profile-confirmNewPassword"
+                control={controls.confirmNewPassword}
+                type="password"
+                autocomplete="new-password"
+              />}
+            />
+          </div>}
+          renderActions={() => <footer class="login-actions">
+            <div class="login-action-row">
+              <button
+                class="ghost-button"
+                type="button"
+                disabled={this.isSubmitting}
+                onclick={() => { this.mode = "profile"; }}
+              >Cancel</button>
+              <button
+                class="primary-button login-submit"
+                type="submit"
+                disabled={this.isSubmitting || !value.password || !value.newPassword
+                  || !value.confirmNewPassword || value.newPassword !== value.confirmNewPassword}
+              >Update password</button>
+            </div>
+          </footer>}
+        />;
     }
   }
 

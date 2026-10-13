@@ -9,7 +9,7 @@
 // single, batch, and list operations always present the same view and can
 // never disagree about where a title routes.
 
-import { checkPath, checkQueryKeys, defineZodRoute, SendError, ServerRequest, zod, ZodRoute } from "@tiddlywiki/server";
+import { checkPath, checkQueryKeys, defineZodRoute, RouterRouteMap, SendError, ServerRequest, zod, ZodRoute } from "@tiddlywiki/server";
 import { serverEvents } from "@tiddlywiki/events";
 import { serveDocsIndex, serveWikiIndex, } from "./RecipeIndexSender";
 
@@ -64,6 +64,7 @@ type ClientRoute<T> =
   ? B extends "ignore" ? ExtractTypes2<PATH, Q2, undefined, RES> : ExtractTypes2<PATH, Q2, REQ, RES>
   : never;
 
+export type AdminRoutesMap = RouterRouteMap<AdminRoutes>;
 
 serverEvents.on("mws.routes", (root, config) => {
   config.rootRoutes
