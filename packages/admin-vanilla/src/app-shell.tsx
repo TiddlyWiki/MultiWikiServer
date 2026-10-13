@@ -30,7 +30,7 @@ export interface EditPageModel {
 
 interface SectionProps {
   title?: string;
-  description?: string;
+  description?: string | string[];
   renderContent: RenderContent;
 }
 
@@ -44,7 +44,11 @@ export class PageSection extends JSXElement {
     return <section class="modal-section">
       {title || description ? <header class="modal-section-header">
         {title ? <div><h4>{title}</h4></div> : null}
-        {description ? <p>{description}</p> : null}
+        {description
+          ? Array.isArray(description)
+            ? description.map(e => <p>{e}</p>)
+            : <p>{description}</p>
+          : null}
       </header> : null}
       <div class="section-field-grid">{renderContent()}</div>
     </section>;
@@ -76,7 +80,11 @@ export class PageCard extends JSXElement {
           {title ? <h4>{title}</h4> : null}
           {renderHeaderAction?.()}
         </div>
-        {description ? <p>{description}</p> : null}
+        {description
+          ? Array.isArray(description)
+            ? description.map(e => <p>{e}</p>)
+            : <p>{description}</p>
+          : null}
       </header> : null}
       <div class={layout === "stack" ? "composite-fields is-stack" : layout === "grid" ? "composite-fields" : "single-field"}>
         {renderContent()}
@@ -119,7 +127,11 @@ export class EditorField extends JSXElement {
     return <div class="field-block">
       <div class="field-editor">
         {title ? <label class="field-label" for={inputId}>{title}</label> : null}
-        {description ? <p class="field-helper">{description}</p> : null}
+        {description
+          ? Array.isArray(description)
+            ? description.map(e => <p class="field-helper">{e}</p>)
+            : <p class="field-helper">{description}</p>
+          : null}
         {renderContent()}
       </div>
     </div>;
@@ -179,6 +191,8 @@ export class EditPage extends JSXElement {
 
 interface ListPageProps {
   title: string;
+  eyebrow?: string;
+  description?: string;
   ariaLabel: string;
   renderActions: RenderContent;
   renderContent: RenderContent;
@@ -190,10 +204,14 @@ export class ListPage extends JSXElement {
   @state() accessor props!: ListPageProps;
 
   protected render() {
-    const { title, ariaLabel, renderActions, renderContent } = this.props;
+    const { title, eyebrow, description, ariaLabel, renderActions, renderContent } = this.props;
     return <section class="app-list-page">
       <header class="app-page-heading">
-        <h2>{title}</h2>
+        <div class="app-page-title">
+          {eyebrow ? <p class="eyebrow">{eyebrow}</p> : null}
+          <h2>{title}</h2>
+          {description ? <p class="section-copy">{description}</p> : null}
+        </div>
         <div class="app-page-actions">{renderActions?.()}</div>
       </header>
       <div class="app-page-content">

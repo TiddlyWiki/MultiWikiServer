@@ -4,10 +4,19 @@ When the user changes subject or goes on a side tangant about something, assume 
 
 - Prefer the following tools: get_errors, vscode_listCodeUsages, vscode_renameSymbol, lsp_code_actions, lsp_completion, lsp_definition, lsp_document_symbols, lsp_format_document, lsp_hover, lsp_references, lsp_rename_symbol, lsp_signature_help, lsp_workspace_symbols.
 
-## JSXElement conventions
+## Workspace conventions
 
 - Declare required props with `@state() accessor props!: PropsType;` without a default initializer. Props are assigned before the first render.
 - Do not wrap JSX fragments in parentheses unless required by syntax. Use `() => <>...</>` and `return <>...</>;` directly, including for multiline fragments.
+- MaterialSymbol injects raw SVG in light DOM and supplies no intrinsic icon sizing. New button contexts must size BOTH the material-symbol host and its SVG explicitly; editor actions use .editor-row-action with an 18px non-shrinking host and 100% SVG dimensions.
+
+### Ownership and data flow
+
+- Carry agreed architectural constraints through follow-up requests, including small UI fixes. Explicit inputs, clear ownership, and one-way data flow are acceptance criteria, not optional cleanup.
+- Before changing a value's source or ownership, trace its owner, initiating call site, and receiving function. Moving a value requires completing the parameter/prop handoff in the same change, not merely removing or redisplaying it.
+- Pass operation metadata explicitly from the initiating caller. Do not substitute ambient selection state such as `activeTab` for an operation's supplied identity such as `tabId`, or reach through broad context objects just because the value is available there.
+- Keep shared metadata at its existing owner; do not duplicate copy or configuration in renderers to avoid updating a caller.
+- Validate the ownership contract as well as types. For selection-sensitive operations, check that a different active selection cannot change the operation's inputs. Clean diagnostics alone do not establish architectural correctness.
 
 ### Rendering and composition
 

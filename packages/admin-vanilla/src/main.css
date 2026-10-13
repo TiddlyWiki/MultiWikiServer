@@ -336,6 +336,18 @@
 	border-bottom: 1px solid var(--color-border-soft);
 }
 
+.app-shell-layout .app-page-title {
+	display: grid;
+	gap: 8px;
+	flex: 1 1 260px;
+	min-width: 0;
+	overflow-wrap: anywhere;
+}
+
+.app-shell-layout .app-page-title .eyebrow {
+	margin: 0;
+}
+
 .app-shell-layout .app-page-heading h2 {
 	margin: 0;
 	font-family: Georgia, "Times New Roman", serif;
@@ -1495,7 +1507,8 @@ footer.modal-header {
 	grid-column: 1 / -1;
 }
 
-.field-card:only-child {
+.section-field-grid > .field-card:only-child,
+.section-field-grid > mws-page-card:only-child > .field-card {
 	grid-column: 1 / -1;
 }
 
@@ -1851,6 +1864,15 @@ footer.modal-header {
 	white-space: nowrap;
 }
 
+.row-action-button:disabled {
+	background: var(--color-surface-disabled);
+	color: var(--color-text-soft);
+	cursor: not-allowed;
+	filter: none;
+	box-shadow: none;
+	opacity: 0.55;
+}
+
 .ghost-button:hover,
 .primary-button:hover,
 .close-button:hover,
@@ -1860,8 +1882,10 @@ footer.modal-header {
 
 .ghost-button:disabled:hover,
 .primary-button:disabled:hover,
+.row-action-button:disabled:hover,
 .ghost-button:disabled:focus-visible,
-.primary-button:disabled:focus-visible {
+.primary-button:disabled:focus-visible,
+.row-action-button:disabled:focus-visible {
 	filter: none;
 }
 

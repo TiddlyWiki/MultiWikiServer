@@ -18,6 +18,7 @@ export interface AdminTab {
   ariaLabel: string;
   createLabel: string;
   eyebrow: string;
+  description: string;
   dividerBefore?: boolean;
   renderListContent: RenderContent;
 }
@@ -56,27 +57,33 @@ export class AppAdmin extends JSXElement {
       renderContent={() => <pre style="white-space: break-spaces;">{this.loadError}</pre>}
       onDismiss={() => { this.loadError = ""; }}
     />
-    : this.isLoadingData
-      ? <FeedbackNotice title="Loading admin records..." tone="info" />
-      : null;
+    : null;
+  // <FeedbackNotice title="Loading admin records..." tone="info" />
 
-  openCreate(tabId: PageId, title: string, eyebrow: string) {
+  openCreate(tabId: PageId, title: string, eyebrow: string, description: string) {
     this.selectedRecord = null;
-    this.openEditor(tabId, title, eyebrow, "create");
+    this.openEditor(tabId, title, eyebrow, description, "create");
   }
 
-  openEdit(tabId: PageId, saved: DataStore[PageId][number], title: string, eyebrow: string) {
+  openEdit(tabId: PageId, saved: DataStore[PageId][number], title: string, eyebrow: string, description: string) {
     this.selectedRecord = { tabId, saved };
-    this.openEditor(tabId, `Edit ${title}`, eyebrow, "edit", saved);
+    this.openEditor(tabId, `Edit ${title}`, eyebrow, description, "edit", saved);
   }
 
-  private openEditor(tabId: PageId, title: string, eyebrow: string, mode: "create" | "edit", saved?: DataStore[PageId][number]) {
+  private openEditor(tabId: PageId, title: string, eyebrow: string, description: string, mode: "create" | "edit", saved?: DataStore[PageId][number]) {
+    const { getValue, ...renders } = getEditPageRenders(tabId, this.data, saved);
     this.editPage = {
       title,
       eyebrow,
+      description,
       mode,
+      saveLabel: "Save",
       onClose: this.closeEditor,
-      ...getEditPageRenders(tabId, this.data, saved),
+      onSave: () => {
+        console.log("Admin form", { tabId, mode, value: getValue() });
+        this.closeEditor();
+      },
+      ...renders,
     };
   }
   getStoreData = async () => {
@@ -94,6 +101,7 @@ export class AppAdmin extends JSXElement {
       const response = await fetch(pathPrefix + embeddedServerResponse.rootRoutes.admin + "/load", {
         headers: { "X-Requested-With": "TiddlyWiki" }
       });
+      await new Promise(r => setTimeout(r, 1000));
       const text = await response.text();
       if (!response.ok) throw new Error(text || `Failed to load admin records (${response.status}).`);
       this.data = JSON.parse(text, jsonReviver);

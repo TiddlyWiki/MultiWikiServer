@@ -10,10 +10,11 @@ export class AppTabController {
   constructor(public context: AppAdmin) { }
 
   private renderEditAction(tabId: PageId, record: DataStore[PageId][number], title: string, eyebrow: string) {
+    const tab = this.tabs.find((tab) => tab.id === tabId)!;
     return <button class="row-action-button" type="button"
       aria-label={`Edit ${title}`} title={`Edit ${title}`}
       disabled={this.context.isLoadingData}
-      onclick={() => this.context.openEdit(tabId, record, title, eyebrow)}>
+      onclick={() => this.context.openEdit(tabId, record, title, eyebrow, tab.description)}>
       <MaterialSymbol icon={editIcon} webjsx-attr-aria-hidden="true" />
       <span>Edit</span>
     </button>;
@@ -50,13 +51,15 @@ export class AppTabController {
     const tab = this.activeTab;
     return <ListPage
       title={tab.label}
+      eyebrow={tab.eyebrow}
+      description={tab.description}
       ariaLabel={tab.ariaLabel}
       renderActions={() => (
         <button
           class="primary-button"
           type="button"
           disabled={!this.context.data || this.context.isLoadingData}
-          onclick={() => this.context.openCreate(tab.id, tab.createLabel, tab.eyebrow)}
+          onclick={() => this.context.openCreate(tab.id, tab.createLabel, tab.eyebrow, tab.description)}
         >
           {tab.createLabel}
         </button>
@@ -79,6 +82,7 @@ export class AppTabController {
       ariaLabel: "Wikis",
       createLabel: "Create wiki",
       eyebrow: "Your thoughts",
+      description: "Final wiki instances built from a template plus per-wiki customizations.",
       renderListContent: () => this.context.data.wikis.map((wiki: DataStore["wikis"][number]) => <RichListItem
         key={wiki.id.toString()}
         renderActions={() => this.renderEditAction("wikis", wiki, wiki.displayName || wiki.slug, "Your thoughts")}
@@ -102,6 +106,7 @@ export class AppTabController {
       ariaLabel: "Templates",
       createLabel: "Create template",
       eyebrow: "Wiki Blueprints",
+      description: "Reusable recipe definitions. Changes made to a template apply to every wiki using it.",
       renderListContent: () => this.context.data.templates.map((template: DataStore["templates"][number]) => <RichListItem
         key={template.id.toString()}
         renderActions={() => this.renderEditAction("templates", template, template.name, "Wiki Blueprints")}
@@ -125,6 +130,7 @@ export class AppTabController {
       ariaLabel: "Bags",
       createLabel: "Create bag",
       eyebrow: "Tiddler Storage",
+      description: "Concrete tiddler storage with role-based access control.",
       renderListContent: () => this.context.data.bags.map((bag: DataStore["bags"][number]) => <RichListItem
         key={bag.id.toString()}
         renderActions={() => this.renderEditAction("bags", bag, bag.name, "Tiddler Storage")}
@@ -151,6 +157,7 @@ export class AppTabController {
       ariaLabel: "Roles",
       createLabel: "Create role",
       eyebrow: "Access profiles",
+      description: "Named access profiles that can be assigned to user accounts.",
       dividerBefore: true,
       renderListContent: () => this.context.data.roles.map((role: DataStore["roles"][number]) => <RichListItem
         key={role.id.toString()}
@@ -168,6 +175,7 @@ export class AppTabController {
       ariaLabel: "Users",
       createLabel: "Create user",
       eyebrow: "Account logins",
+      description: "User accounts with assigned roles.",
       renderListContent: () => this.context.data.users.map((user: DataStore["users"][number]) => <RichListItem
         key={user.id.toString()}
         renderActions={() => this.renderEditAction("users", user, user.username, "Account logins")}
