@@ -1,6 +1,5 @@
-import { PageId } from "@/server";
-import { serverEvents } from "@tiddlywiki/events";
-import { SendError, SendErrorItem } from "@tiddlywiki/server";
+import { PageId, SendError, SendErrorItem } from "@/server";
+
 type TabId = PageId;
 declare module "@tiddlywiki/server" {
   interface SendErrorReasonData {

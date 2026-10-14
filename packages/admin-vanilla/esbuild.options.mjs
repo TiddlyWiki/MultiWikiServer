@@ -42,7 +42,12 @@ export default async function ({ rootdir, publicdir }) {
     sourcemap: true,
     metafile: true,
     splitting: false,
-    loader: { '.inline.css': 'text', ".svg": "text", ".data-url": "dataurl" },
+    loader: { 
+      '.inline.css': 'text', 
+      ".svg": "text", 
+      ".data-url": "dataurl",
+      ".data.svg": "dataurl",
+    },
     format: "esm",
     treeShaking: true,
     minify: prod && !process.env.NOMINIFY,
@@ -71,6 +76,7 @@ export default async function ({ rootdir, publicdir }) {
         allow: [
           join(rootdir, "../server/src/Z2.ts"),
           join(rootdir, "../server/src/SendError.ts"),
+          join(rootdir, "../server/src/utils-cross-platform.ts"),
           join(rootdir, "../mws/src/utils/shared.ts"),
           join(rootdir, "../mws/src/new-managers/TabDataTypes.ts"),
           join(rootdir, "../mws/src/new-managers/TabDataZod.ts"),

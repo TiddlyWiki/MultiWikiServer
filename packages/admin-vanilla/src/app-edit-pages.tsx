@@ -4,11 +4,29 @@ import deleteIcon from "@material-symbols/svg-400/outlined/delete.svg";
 import {
   CurrentSection, EditorField, PageCard, PageSection,
 } from "./app-shell";
-import type { EditPageModel } from "./app-shell";
+import type { EditPageModel, RenderContent } from "./app-shell";
 import { MaterialSymbol } from "./material-symbol";
 import { FormArray, FormControl, FormGroup } from "./app-forms";
-import { PageId, WritablePrefixRow, DataStore, IdString } from "@/server";
-import { createBagForm, createRoleForm, createTemplateForm, createUserForm, createWikiForm, permissionControl, prefixControl } from "./app-edit-forms";
+import {
+  PageId,
+  WritablePrefixRow,
+  DataStore,
+  IdString,
+  zodWikiDataSaveSchema,
+  zodTemplateDataSaveSchema,
+  zodBagDataSaveSchema,
+  zodRoleDataSaveSchema,
+  zodUserDataSaveSchema
+} from "@/server";
+import {
+  createBagForm,
+  createRoleForm,
+  createTemplateForm,
+  createUserForm,
+  createWikiForm,
+  permissionControl,
+  prefixControl
+} from "./app-edit-forms";
 
 type Wiki = DataStore["wikis"][number];
 type Template = DataStore["templates"][number];
@@ -536,8 +554,8 @@ export function renderTemplateEditor(
   return <PageSection
     renderContent={() => <>
       <PageCard
-        title="Template basics" 
-        width="full" 
+        title="Template basics"
+        width="full"
         layout="stack"
         renderContent={() => <>
           {textField("template-name", "Name", controls.name)}
@@ -568,8 +586,8 @@ export function renderTemplateEditor(
           controls.readonlyBags, lookups.bags)}
       />
       <PageCard
-        title="Plugins" 
-        layout="stack" 
+        title="Plugins"
+        layout="stack"
         renderContent={() => <>
           <EditorField
             renderContent={() => stringList("template-plugins", "Plugin name",
@@ -615,8 +633,8 @@ export function renderTemplateEditor(
           controls.templateAdmins, lookups.roles)}
       />
       <PageCard
-        title="Custom HTML shell" 
-        width="full" 
+        title="Custom HTML shell"
+        width="full"
         layout="stack"
         description={"Enable custom HTML shell settings when this template "
           + "should serve authored HTML instead of the default page shell."}
@@ -626,7 +644,7 @@ export function renderTemplateEditor(
           control={controls.customHtmlEnabled}
         />}
         renderContent={() => <EditCustomHtmlFields
-          enabled={controls.customHtmlEnabled} 
+          enabled={controls.customHtmlEnabled}
           htmlContent={controls.htmlContent}
           injectionFunction={controls.injectionFunction}
           injectionLocation={controls.injectionLocation}
@@ -643,8 +661,8 @@ export function renderBagEditor(
   return <PageSection
     renderContent={() => <>
       <PageCard
-        title="Bag basics" 
-        width="full" 
+        title="Bag basics"
+        width="full"
         layout="stack"
         renderContent={() => <>
           {textField("bag-name", "Name", controls.name)}
@@ -656,7 +674,7 @@ export function renderBagEditor(
         title="Permissions" width="full"
         description={["These are the operative permissions allowing users to read and write to this bag. A bag's presence in a recipe does not grant users of that recipe permission to read or write the bag."]}
         renderContent={() => <EditPermissionList
-          control={controls.bagPermissions} 
+          control={controls.bagPermissions}
           roles={lookups.roles}
         />}
       />
@@ -671,8 +689,8 @@ export function renderRoleEditor(
   return <PageSection
     renderContent={() =>
       <PageCard
-        title="Role basics" 
-        width="full" 
+        title="Role basics"
+        width="full"
         layout="stack"
         renderContent={() => <>
           {textField("role-name", "Role name", form.controls.name)}
@@ -690,8 +708,8 @@ export function renderUserEditor(
   return <PageSection
     renderContent={() => <>
       <PageCard
-        title="User identity" 
-        width="full" 
+        title="User identity"
+        width="full"
         layout="stack"
         renderContent={() => <>
           {textField("user-username", "Username", controls.username)}
@@ -780,10 +798,11 @@ export function renderBagCurrent(saved: Bag, data: DataStore | null) {
   </>;
 }
 
-type EditPageRenders = Pick<
-  EditPageModel, "renderCurrent" | "renderEditor"
-> & {
+export interface EditPageRenders {
   form: FormGroup<any>;
+  renderCurrent?: RenderContent;
+  renderEditor?: RenderContent;
+  renderPreview?: RenderContent;
 };
 
 export function getEditPageRenders(

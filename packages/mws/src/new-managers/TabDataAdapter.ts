@@ -518,6 +518,7 @@ export class UserDataAdapter extends TabDataAdapter<"users"> {
   }
 }
 
+import * as TabDataTypes from "./TabDataTypes";
 import * as TabDataZod from "./TabDataZod";
 
 export interface AdminClient {
@@ -528,7 +529,6 @@ export interface AdminClient {
   ): Promise<DataStore[TAB][number]>;
   AdminLoad(): Promise<DataStore>;
 }
-
 export class AdminRoutes {
   static defineRoutes(root: ServerRoute, config: ServerState) {
     this.AdminPrefix = escapeStringRegexp(config.rootRoutes.admin);
@@ -568,13 +568,13 @@ export class AdminRoutes {
       });
 
       checkData(state, () => {
-        // buildTabZodObject(state.pathParams.tab, "DataSave")
+
         switch (state.pathParams.tab) {
-          case "wikis": return TabDataZod.iWikiSaveSchema;
-          case "templates": return TabDataZod.iTemplateSaveSchema;
-          case "bags": return TabDataZod.iBagSaveSchema;
-          case "roles": return TabDataZod.iRoleSaveSchema;
-          case "users": return TabDataZod.iUserSaveSchema;
+          case "wikis": return TabDataTypes.zodWikiDataSaveSchema;
+          case "templates": return TabDataTypes.zodTemplateDataSaveSchema;
+          case "bags": return TabDataTypes.zodBagDataSaveSchema;
+          case "roles": return TabDataTypes.zodRoleDataSaveSchema;
+          case "users": return TabDataTypes.zodUserDataSaveSchema;
           default: {
             const _exhaustive: never = state.pathParams.tab;
             throw new Error(`Unsupported admin tab: ${_exhaustive}`);

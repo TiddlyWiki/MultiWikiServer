@@ -2,8 +2,10 @@ import { customElement, JSXElement, state } from "@tiddlywiki/jsx-lit";
 import { AppShell, EditPage, FeedbackNotice, } from "./app-shell";
 import type { EditPageModel, RenderContent } from "./app-shell";
 import { AppTabController } from "./app-tab-controller";
-import { getEditPageRenders } from "./app-edit-pages.tsx";
-import { IdString, PageId } from "@/server";
+import { EditPageRenders, getEditPageRenders } from "./app-edit-pages.tsx";
+import { IdString, PageId, SendError } from "@/server";
+import { tryParseJSON } from "@/server";
+import { text } from "stream/consumers";
 
 const jsonReviver = (key: any, val: any) => {
   if (typeof val === "string" && val.startsWith(IdString.prefix))
@@ -28,10 +30,11 @@ export class AppAdmin extends JSXElement {
   @state() accessor props: Record<string, never> = {};
 
   @state() accessor editPage: EditPageModel | null = null;
+  @state() accessor editRenders: EditPageRenders | null = null;
   @state() accessor selectedRecord: { tabId: PageId; saved: any } | null = null;
   @state() accessor data: any = null;
   @state() accessor isLoadingData = false;
-  @state() accessor loadError = "";
+  @state() accessor loadError: Error | null = null;
 
 
 
@@ -40,6 +43,7 @@ export class AppAdmin extends JSXElement {
   private readonly closeEditor = () => {
     if (this.editPage?.saving) return;
     this.editPage = null;
+    this.editRenders = null;
     this.selectedRecord = null;
   };
 
@@ -48,15 +52,17 @@ export class AppAdmin extends JSXElement {
     if (this.data === null) void this.getStoreData();
   }
 
-  renderFeedback = () => this.loadError
-    ? <FeedbackNotice
-      title="Unable to load admin records"
-      tone="error"
-      renderContent={() => <pre style="white-space: break-spaces;">{this.loadError}</pre>}
-      onDismiss={() => { this.loadError = ""; }}
-    />
-    : null;
-  // <FeedbackNotice title="Loading admin records..." tone="info" />
+  renderFeedback = () => this.loadError ? <FeedbackNotice
+    onDismiss={this.renderFeedback_onDismiss}
+    title="Unable to load admin records"
+    tone="error"
+  >
+    <pre style="white-space: break-spaces;">
+      {SendError.errorString(this.loadError)}
+    </pre>
+  </FeedbackNotice> : null;
+  renderFeedback_onDismiss = () => { this.loadError = null; };
+
 
   openCreate(tabId: PageId, title: string, eyebrow: string, description: string) {
     if (this.editPage?.saving) return;
@@ -71,7 +77,8 @@ export class AppAdmin extends JSXElement {
   }
 
   private openEditor(tabId: PageId, title: string, eyebrow: string, description: string, mode: "create" | "edit", saved?: any) {
-    const { form, ...renders } = getEditPageRenders(tabId, this.data, saved);
+    this.editRenders = getEditPageRenders(tabId, this.data, saved);
+    const form = this.editRenders.form;
     const model: EditPageModel = {
       title,
       eyebrow,
@@ -93,7 +100,7 @@ export class AppAdmin extends JSXElement {
           if (this.editPage && this.editPage.onSave === model.onSave) {
             this.editPage = {
               ...this.editPage,
-              error: error instanceof Error ? error.message : "Failed to save admin record.",
+              error: error instanceof Error ? error : new Error("Failed to save admin record."),
             };
           }
         } finally {
@@ -108,59 +115,68 @@ export class AppAdmin extends JSXElement {
           this.editPage = { ...this.editPage, error: undefined };
         }
       },
-      ...renders,
     };
     this.editPage = model;
   }
   getStoreData = async () => {
     if (this.isLoadingData) return;
     this.isLoadingData = true;
-    this.loadError = "";
-
-
-
-    try {
-      const response = await fetch(pathPrefix + embeddedServerResponse.rootRoutes.admin + "/load", {
-        headers: { "X-Requested-With": "TiddlyWiki" }
-      });
+    this.loadError = null;
+    await fetch(pathPrefix + embeddedServerResponse.rootRoutes.admin + "/load", {
+      headers: { "X-Requested-With": "TiddlyWiki" }
+    }).then(async response => {
       await new Promise(r => setTimeout(r, 1000));
       const text = await response.text();
-      if (!response.ok) throw new Error(text || `Failed to load admin records (${response.status}).`);
-      this.data = JSON.parse(text, jsonReviver);
-    } catch (error) {
-      this.loadError = error instanceof Error ? error.message : "Failed to load admin records.";
-    } finally {
-      this.isLoadingData = false;
-    }
+      if (!response.ok) {
+        this.loadError = this.handleErrorResponse(tryParseJSON(text) || text);
+      } else {
+        this.data = JSON.parse(text, jsonReviver);;
+      }
+    }).catch(e => {
+      if (e instanceof Error) this.loadError = e;
+      else this.loadError = new Error(`${e}`);
+    });
+    this.isLoadingData = false;
   };
 
   async saveStoreData(tabId: PageId, item: any): Promise<any> {
     if (!this.data) throw new Error("Admin records have not loaded.");
     if (tabId === "templates") item.twVersion ||= null;
     const url = pathPrefix + embeddedServerResponse.rootRoutes.admin + "/save/" + tabId;
-    const response = await fetch(url, {
+    return await fetch(url, {
       method: "PUT",
       headers: {
         "Content-Type": "application/json",
         "X-Requested-With": "TiddlyWiki",
       },
       body: JSON.stringify(item),
+    }).then(async response => {
+      const text = await response.text();
+      if (!response.ok) {
+        throw this.handleErrorResponse(tryParseJSON(text) || text);
+      } else {
+        const updatedRecord = JSON.parse(text, jsonReviver);
+        const records: any[] = this.data[tabId];
+        const id = updatedRecord.id.toString();
+        this.data = {
+          ...this.data,
+          [tabId]: records.some((record) => record.id.toString() === id)
+            ? records.map((record) => record.id.toString() === id ? updatedRecord : record)
+            : [...records, updatedRecord],
+        };
+      }
     });
-    const text = await response.text();
-    if (!response.ok) throw new Error(text || `Failed to save admin record (${response.status}).`);
-    const updatedRecord = JSON.parse(text, jsonReviver);
-    const records: any[] = this.data[tabId];
-    const id = updatedRecord.id.toString();
-    this.data = {
-      ...this.data,
-      [tabId]: records.some((record) => record.id.toString() === id)
-        ? records.map((record) => record.id.toString() === id ? updatedRecord : record)
-        : [...records, updatedRecord],
-    };
-    return updatedRecord;
   }
 
-
+  handleErrorResponse(error: any) {
+    if (!error) {
+      return new Error(`Server error: Failed to save admin record.`)
+    } else if (typeof error === "object" && error.status && error.reason) {
+      return new SendError(error.reason, error.status, error.details);
+    } else {
+      return new Error(`Server error: ${error.message ?? error}`);
+    }
+  }
 
   protected render() {
 
@@ -170,7 +186,11 @@ export class AppAdmin extends JSXElement {
         renderFeedback={this.renderFeedback}
         renderContent={this.tabController.renderListContent}
       />
-      <EditPage model={this.editPage} />
+      <EditPage model={this.editPage} >
+        {this.editRenders?.renderEditor && <display-content slot="editor">{this.editRenders.renderEditor() ?? null}</display-content>}
+        {this.editRenders?.renderCurrent && <display-content slot="sidebar">{this.editRenders.renderCurrent() ?? null}</display-content>}
+        {this.editRenders?.renderPreview && <display-content slot="preview">{this.editRenders.renderPreview() ?? null}</display-content>}
+      </EditPage>
     </>;
   }
 }

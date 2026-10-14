@@ -8,6 +8,7 @@ import accountCircleIcon from "@material-symbols/svg-400/outlined/account_circle
 import { MaterialSymbol } from "./material-symbol";
 import { tw5logo } from "./logos";
 import { logout } from "./passwords";
+import { SendError } from "@/server";
 
 export type RenderContent = () => JSX.Node;
 
@@ -18,11 +19,8 @@ export interface EditPageModel {
   mode: "create" | "edit";
   loading?: boolean;
   saving?: boolean;
-  error?: string;
+  error?: Error;
   saveLabel?: string;
-  renderCurrent?: RenderContent;
-  renderEditor?: RenderContent;
-  renderPreview?: RenderContent;
   onClose: () => void;
   onSave?: () => void | Promise<void>;
   onDismissError?: () => void;
@@ -232,7 +230,7 @@ export class ModalView extends JSXElement {
         { opacity: open ? 1 : 0, transform: open ? "none" : "translateY(10px) scale(0.99)" },
       ], options),
     ];
-    void Promise.all(this.animations.map((animation) => animation.finished)).then(finish, () => {});
+    void Promise.all(this.animations.map((animation) => animation.finished)).then(finish, () => { });
   };
 
   disconnectedCallback() {
@@ -256,10 +254,186 @@ export class ModalView extends JSXElement {
 }
 
 @customElement("mws-edit-page")
+@addstyles(`
+  :host { display: contents; }
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  slot { display: contents; }
+  .modal-card {
+    width: 100%;
+    max-height: calc(100dvh - 56px);
+    display: flex;
+    flex-direction: column;
+    border: 1px solid var(--color-border-soft);
+    border-radius: 28px;
+    box-shadow: 0 18px 40px var(--color-shadow-card);
+    overflow: hidden;
+    background: var(--color-surface-modal);
+  }
+  .modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 20px;
+    padding: 24px 26px;
+    flex: 0 0 116px;
+    min-height: 116px;
+    border-bottom: 1px solid var(--color-border-soft);
+    background: linear-gradient(180deg, var(--color-surface-modal-header-top) 0%, var(--color-surface-modal-header-bottom) 100%);
+  }
+  footer.modal-header {
+    border-top: 1px solid var(--color-border-soft);
+    border-bottom: 0;
+  }
+  footer.modal-header mws-feedback-notice { width: 100%; }
+  .modal-header h3 {
+    margin: 0 0 8px;
+    font-family: Georgia, "Times New Roman", serif;
+    font-weight: 600;
+    font-size: 2rem;
+    color: var(--color-text-heading);
+  }
+  .modal-header p { margin: 0; color: var(--color-text-muted); }
+  .modal-header .eyebrow {
+    margin: 0 0 8px;
+    text-transform: uppercase;
+    letter-spacing: 0.18em;
+    font-size: 0.72rem;
+    color: var(--color-accent-eyebrow);
+  }
+  .modal-title { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+  button { font: inherit; cursor: pointer; }
+  .close-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    width: 44px;
+    height: 44px;
+    border: 0;
+    border-radius: 50%;
+    background: var(--color-surface-ghost-button);
+    color: var(--color-accent-button-text);
+    padding: 0;
+  }
+  .close-button material-symbol,
+  .close-button svg { display: block; width: 20px; height: 20px; }
+  material-symbol svg { fill: currentColor; }
+  .modal-layout {
+    display: flex;
+    align-items: flex-start;
+    gap: 22px;
+    padding: 24px;
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: auto;
+  }
+  .modal-loading-shell {
+    display: grid;
+    gap: 18px;
+    padding: 32px 26px 36px;
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: auto;
+    align-content: start;
+  }
+  .modal-loading-bar {
+    position: relative;
+    height: 12px;
+    border-radius: 999px;
+    overflow: hidden;
+    background: var(--color-fill-loading-bar);
+    border: 1px solid var(--color-border-accent-soft);
+  }
+  .modal-loading-bar span {
+    display: block;
+    width: 38%;
+    height: 100%;
+    border-radius: inherit;
+    background: linear-gradient(90deg, var(--color-accent-track-soft) 0%, var(--color-accent-track-mid) 48%, var(--color-accent-track) 100%);
+    transform: translate3d(-120%, 0, 0);
+    animation: modal-loading-slide 1.2s ease-in-out infinite;
+    will-change: transform;
+  }
+  .modal-loading-copy { margin: 0; color: var(--color-text-soft); line-height: 1.6; }
+  @keyframes modal-loading-slide {
+    0% { transform: translate3d(-120%, 0, 0); }
+    100% { transform: translate3d(280%, 0, 0); }
+  }
+  .modal-sidebar {
+    flex: 0 0 260px;
+    width: 260px;
+    max-width: 100%;
+    position: sticky;
+    top: 0;
+    align-self: start;
+    display: grid;
+    gap: 16px;
+    padding: 20px;
+    border: 1px solid var(--color-border-soft);
+    border-radius: 20px;
+    box-shadow: 0 18px 40px var(--color-shadow-card);
+    background: var(--color-surface-sidebar);
+    overflow: hidden;
+  }
+  .modal-main { display: grid; flex: 1 1 0; min-width: 0; gap: 22px; }
+  .modal-actions {
+    display: grid;
+    grid-auto-flow: column;
+    grid-auto-columns: max-content;
+    justify-content: end;
+    gap: 12px;
+    padding-top: 2px;
+  }
+  .ghost-button {
+    border: 0;
+    padding: 10px 14px;
+    border-radius: 999px;
+    background: var(--color-surface-ghost-button);
+    color: var(--color-accent-button-text);
+    white-space: nowrap;
+  }
+  .primary-button {
+    border: 1px solid var(--color-border-soft);
+    border-radius: 999px;
+    padding: 11px 16px;
+    background: var(--color-accent-fill);
+    color: var(--color-primary-button-text);
+    font-weight: 700;
+    box-shadow: 0 18px 40px var(--color-shadow-button);
+  }
+  button:hover { filter: brightness(0.98); }
+  button:disabled {
+    cursor: not-allowed;
+    filter: none;
+    box-shadow: none;
+    opacity: 0.55;
+  }
+  .primary-button:disabled,
+  .ghost-button:disabled {
+    background: var(--color-surface-disabled);
+    color: var(--color-text-soft);
+  }
+  @media (max-width: 1080px) {
+    .modal-layout { flex-direction: column; align-items: stretch; }
+    .modal-sidebar { flex: 0 0 auto; width: 100%; position: relative; }
+    .modal-actions { grid-auto-flow: row; grid-auto-columns: 1fr; justify-content: stretch; }
+  }
+  @media (max-width: 900px) {
+    .modal-card { max-height: calc(100dvh - 28px); }
+  }
+  @media (max-width: 640px) {
+    .modal-header { flex-direction: column; align-items: start; }
+  }
+`)
 export class EditPage extends JSXElement {
-  useLightDOM = true;
-  @state() accessor props!: { model: EditPageModel | null };
+  @state() accessor props!: { model: EditPageModel | null; };
+  @state() private accessor hasSidebar = false;
   private retainedModel: EditPageModel | null = null;
+
+  private readonly updateSidebar = (event: Event) => {
+    this.hasSidebar = (event.currentTarget as HTMLSlotElement).assignedElements().length > 0;
+  };
 
   private readonly afterClose = () => {
     if (this.props.model) return;
@@ -270,6 +444,7 @@ export class EditPage extends JSXElement {
   protected render() {
     if (this.props.model) this.retainedModel = this.props.model;
     const model = this.retainedModel;
+    this.toggleAttribute("open", !!model);
     return <ModalView
       open={!!this.props.model}
       onClose={() => { if (model && !model.saving) model.onClose(); }}
@@ -290,10 +465,12 @@ export class EditPage extends JSXElement {
           <div class="modal-loading-bar" aria-hidden="true"><span></span></div>
           <p class="modal-loading-copy" role="status">Loading details...</p>
         </div> : <div class="modal-layout">
-          {model.renderCurrent ? <aside class="field-index modal-sidebar">{model.renderCurrent()}</aside> : null}
-          <div class="field-stack modal-main">
-            {model.renderEditor?.()}
-            {model.renderPreview?.()}
+          <aside class="modal-sidebar" hidden={!this.hasSidebar}>
+            <slot name="sidebar" onslotchange={this.updateSidebar} />
+          </aside>
+          <div class="modal-main">
+            <slot name="editor" />
+            <slot name="preview" />
             <footer class="modal-actions">
               <button class="ghost-button" type="button" onclick={model.onClose} disabled={model.saving}>{model.onSave ? "Cancel" : "Close"}</button>
               {model.onSave ? <button class="primary-button" type="button" onclick={model.onSave} disabled={model.saving}>
@@ -302,15 +479,24 @@ export class EditPage extends JSXElement {
             </footer>
           </div>
         </div>}
-        {model.error ? <footer class="modal-header" role="alert" aria-live="polite">
-          <pre style="white-space: break-spaces;">{model.error}</pre>
-          {model.onDismissError ? <button class="error-close-button" type="button" onclick={model.onDismissError} aria-label="Dismiss error message">
-            <MaterialSymbol icon={closeIcon} />
-          </button> : null}
-        </footer> : null}
+        {model.error ? (
+          // <footer class="modal-header" role="alert" aria-live="polite"></footer>
+          <FeedbackNotice
+            onDismiss={model.onDismissError}
+            title="Failed to save"
+            tone="error"
+            webjsx-attr-role="alert"
+            webjsx-attr-aria-live="polite"
+          >
+            <pre style="white-space: break-spaces;">
+              {SendError.errorString(model.error)}
+            </pre>
+          </FeedbackNotice>
+        ) : null}
       </section> : null}
     </ModalView>;
   }
+
 }
 
 interface ListPageProps {
@@ -365,8 +551,8 @@ export class ListPage extends JSXElement {
         if (this.transition !== enter) return;
         enter.cancel();
         this.transition = null;
-      }, () => {});
-    }, () => {});
+      }, () => { });
+    }, () => { });
   };
 
   disconnectedCallback() {
@@ -435,17 +621,109 @@ export class RichListItem extends JSXElement {
 interface FeedbackNoticeProps {
   title: string;
   tone?: "info" | "success" | "warning" | "error";
-  renderContent?: RenderContent;
+  children?: JSX.Node;
   onDismiss?: () => void;
 }
 
 @customElement("mws-feedback-notice")
+@addstyles(`
+  :host { display: block; }
+  :host([hidden]) { display: none; }
+  * { box-sizing: border-box; }
+  .app-feedback-notice {
+    --notice-color: var(--color-feedback-info);
+    display: grid;
+    grid-template-columns: 24px minmax(0, 1fr) auto;
+    align-items: start;
+    gap: 14px;
+    padding: 16px 18px;
+    border: 1px solid var(--color-border-soft);
+    border-left: 4px solid var(--notice-color);
+    border-radius: 8px;
+    background: var(--color-surface-panel-strong);
+    background: color-mix(in srgb, var(--notice-color) 7%, var(--color-surface-card));
+  }
+  .is-success { --notice-color: var(--color-feedback-success); }
+  .is-warning { --notice-color: var(--color-feedback-warning); }
+  .is-error { --notice-color: var(--color-danger); }
+  .app-feedback-icon {
+    display: flex;
+    color: var(--notice-color);
+    padding-top: 2px;
+  }
+  .app-feedback-icon material-symbol,
+  .app-feedback-icon svg {
+    display: block;
+    width: 24px;
+    height: 24px;
+  }
+  material-symbol svg { fill: currentColor; }
+  .app-feedback-message {
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+  .app-feedback-message h2 {
+    margin: 0;
+    font-size: 1rem;
+    line-height: 1.6;
+    color: var(--color-text-strong);
+  }
+  .app-feedback-body {
+    display: block;
+    color: var(--color-text-muted);
+    line-height: 1.6;
+  }
+  ::slotted(*) { margin-top: 4px; }
+  ::slotted(p),
+  ::slotted(pre) { margin: 4px 0 0; }
+  ::slotted(pre) {
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    font-size: 0.88rem;
+    max-height: 240px;
+    overflow: auto;
+  }
+  .app-feedback-dismiss {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    padding: 8px;
+    margin-top: -4px;
+    border: 0;
+    border-radius: 6px;
+    background: transparent;
+    color: var(--color-text-muted);
+    font: inherit;
+    cursor: pointer;
+  }
+  .app-feedback-dismiss:hover {
+    background: var(--color-border-soft);
+    color: var(--color-text-strong);
+  }
+  .app-feedback-dismiss:focus-visible {
+    outline: 2px solid var(--notice-color);
+    outline-offset: 2px;
+  }
+  .app-feedback-dismiss material-symbol,
+  .app-feedback-dismiss svg {
+    display: block;
+    width: 20px;
+    height: 20px;
+  }
+  @media (max-width: 640px) {
+    .app-feedback-notice {
+      gap: 10px;
+      padding: 14px 12px;
+    }
+  }
+`)
 export class FeedbackNotice extends JSXElement {
-  useLightDOM = true;
   @state() accessor props!: FeedbackNoticeProps;
 
   protected render() {
-    const { title, tone = "info", renderContent, onDismiss } = this.props;
+    const { title, tone = "info", onDismiss } = this.props;
     const icon = {
       info: infoIcon,
       success: successIcon,
@@ -462,9 +740,7 @@ export class FeedbackNotice extends JSXElement {
       </span>
       <div class="app-feedback-message">
         <h2>{title}</h2>
-        {renderContent ? <div class="app-feedback-body">
-          {renderContent()}
-        </div> : null}
+        <slot class="app-feedback-body" />
       </div>
       {onDismiss ? <button
         class="app-feedback-dismiss"

@@ -193,6 +193,7 @@ export class LoginForm extends AccountForm<LoginValues> {
             />
           </div>
           <div class="login-options" aria-label="Login options">
+            {/* 
             <label class="login-checkbox" for="login-remember-me">
               <input id="login-remember-me" class="login-checkbox-input"
                 type="checkbox" checked={this.rememberMe}
@@ -201,6 +202,7 @@ export class LoginForm extends AccountForm<LoginValues> {
                 onchange={(event) => { this.rememberMe = event.currentTarget.checked; }} />
               <span>Remember me</span>
             </label>
+            */}
             <button class="login-link-button" type="button"
               disabled={this.isSubmitting}
               onclick={this.handleForgotPasswordClick}>Forgot password?</button>

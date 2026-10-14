@@ -1,4 +1,4 @@
-import { IdString } from "@/server";
+import { IdString, zod } from "@/server";
 
 
 export type BagPermissionLevel = | "A_read" | "B_write" | "C_admin";
@@ -113,3 +113,105 @@ export interface TemplateDefinition extends TemplateSharedDefinition {
 export interface RecipeDefinition extends TemplateSharedDefinition {
   displayName: string;
 }
+
+
+import * as TabDataZod from "./TabDataZod";
+
+const checkUniquePrefixes = (
+  data: { writablePrefixBags: WritablePrefixRow[] },
+  context: zod.RefinementCtx,
+) => {
+  const prefixes = new Set<string>();
+  data.writablePrefixBags.forEach((row, index) => {
+    if (!row.bagName.trim()) return;
+    if (prefixes.has(row.prefix)) {
+      context.addIssue({
+        code: "custom",
+        message: "Writable prefixes must be unique, including the default prefix.",
+        path: ["writablePrefixBags", index, "prefix"],
+      });
+    }
+    prefixes.add(row.prefix);
+  });
+};
+
+export const zodWikiDataSaveSchema = TabDataZod.iWikiSaveSchema
+  .superRefine(checkUniquePrefixes)
+  .refine(data => data.templateName.trim().length > 0, {
+    message: "Template name is required.",
+    path: ["templateName"],
+  })
+  .refine(data => data.slug.trim().length > 0, {
+    message: "Slug is required.",
+    path: ["slug"],
+  })
+  .refine(data => !data.slug.startsWith("/") && !data.slug.endsWith("/"), {
+    message: "Slug must not start or end with a forward slash.",
+    path: ["slug"],
+  })
+  .refine(data => data.displayName.trim().length > 0, {
+    message: "Display name is required.",
+    path: ["displayName"],
+  });
+export const zodTemplateDataSaveSchema = TabDataZod.iTemplateSaveSchema
+  .superRefine(checkUniquePrefixes)
+  .refine(data => data.name.trim().length > 0, {
+    message: "Template name is required.",
+    path: ["templateName"],
+  })
+  .superRefine((
+    data,
+    context: zod.RefinementCtx,
+  ) => {
+    if (!data.customHtmlEnabled) return;
+    const trimmedContent = data.htmlContent.trim();
+    if (!trimmedContent.length) {
+      context.addIssue({
+        code: "custom",
+        message: "HTML Content is required.",
+        path: ["htmlContent"],
+      });
+    }
+    if (!data.injectionFunction.trim().length) {
+      context.addIssue({
+        code: "custom",
+        message: "Injection function is required.",
+        path: ["injectionFunction"],
+      });
+    }
+    const trimmedLocation = data.injectionLocation.trim()
+    if (!trimmedLocation.length) {
+      context.addIssue({
+        code: "custom",
+        message: "Injection marker is required.",
+        path: ["injectionLocation"],
+      });
+    }
+    if (trimmedLocation && trimmedContent && trimmedContent.indexOf(trimmedLocation) === -1) {
+      context.addIssue({
+        code: "custom",
+        message: "HTML content does not contain injection marker.",
+        path: ["htmlContent"],
+      });
+      context.addIssue({
+        code: "custom",
+        message: "HTML content does not contain injection marker.",
+        path: ["injectionLocation"],
+      });
+    }
+  });
+export const zodBagDataSaveSchema = TabDataZod.iBagSaveSchema
+  .refine(data => data.name.trim().length > 0, {
+    message: "Bag name is required.",
+    path: ["name"],
+  });
+export const zodRoleDataSaveSchema = TabDataZod.iRoleSaveSchema
+  .refine(data => data.name.trim().length > 0, {
+    message: "Role name is required.",
+    path: ["name"],
+  });
+export const zodUserDataSaveSchema = TabDataZod.iUserSaveSchema
+  .refine(data => data.username.trim().length > 0, {
+    message: "Username is required.",
+    path: ["username"],
+  });
