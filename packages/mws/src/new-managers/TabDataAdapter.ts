@@ -538,6 +538,12 @@ export class AdminRoutes {
   }
   static AdminPrefix: string;
 
+  okIsLoggedIn(state: ServerRequest) {
+    state.asserted = state.user.isLoggedIn;
+    if (!state.asserted)
+      throw new SendError("UNAUTHORIZED", 401, null);
+  }
+
   // #region AdminSave
   AdminSave = zodRoute({
     method: ["PUT"],
@@ -550,8 +556,9 @@ export class AdminRoutes {
     }),
     zodRequestBody: z => z.any(),
     inner: async (state) => {
+
       state.assertReferer(["/"]);
-      state.asserted = state.user.isLoggedIn;
+      this.okIsLoggedIn(state);
       state.data = JSON.parse(JSON.stringify(state.data), (key: any, val: any) => {
         if (typeof val === "string" && val.startsWith(IdString.prefix))
           return new IdString(val.slice(IdString.prefix.length));
@@ -625,7 +632,7 @@ export class AdminRoutes {
     zodPathParams: z => ({}),
     inner: async (state) => {
       state.assertReferer(["/"]);
-      state.asserted = state.user.isLoggedIn;
+      this.okIsLoggedIn(state);
       const res = await state.$transaction(async prisma => {
         const roles = await new RoleImportWriter(prisma, false).getIdMapper();
         return {

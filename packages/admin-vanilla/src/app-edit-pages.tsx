@@ -8,13 +8,14 @@ import type { EditPageModel } from "./app-shell";
 import { MaterialSymbol } from "./material-symbol";
 import { FormArray, FormControl, FormGroup } from "./app-forms";
 import { PageId, WritablePrefixRow, DataStore, IdString } from "@/server";
+import { createBagForm, createRoleForm, createTemplateForm, createUserForm, createWikiForm, permissionControl, prefixControl } from "./app-edit-forms";
 
 type Wiki = DataStore["wikis"][number];
 type Template = DataStore["templates"][number];
 type Bag = DataStore["bags"][number];
 type User = DataStore["users"][number];
 type Role = DataStore["roles"][number];
-
+type BagPermission = Bag["bagPermissions"][number];
 
 interface EditorLookups {
   bags: readonly string[];
@@ -44,7 +45,10 @@ export class EditTextInput extends JSXElement {
 
   protected render() {
     const {
-      inputId, control, type = "text", multiline, code, placeholder, options,
+      inputId, control,
+      type = "text",
+      multiline, code,
+      placeholder, options,
       label, autocomplete,
     } = this.props;
     this.useEffect(() => control.subscribe(() => this.requestUpdate()),
@@ -66,7 +70,8 @@ export class EditTextInput extends JSXElement {
       oninput={oninput} onblur={onblur}
       ref={(element) => {
         if (element.value !== currentValue) element.value = currentValue;
-      }} />;
+      }}
+    />;
     return <>
       <input
         id={inputId} class="field-input" type={type}
@@ -77,7 +82,8 @@ export class EditTextInput extends JSXElement {
         oninput={oninput} onblur={onblur}
         ref={(element) => {
           if (element.value !== currentValue) element.value = currentValue;
-        }} />
+        }}
+      />
       {options?.length ? <datalist id={`${inputId}-options`}>
         {options.map((option) => <option value={option} />)}
       </datalist> : null}
@@ -202,14 +208,6 @@ interface PrefixListProps {
   bags: readonly string[];
 }
 
-function prefixControl(
-  row: WritablePrefixRow = { prefix: "", bagName: "" },
-): FormGroup<WritablePrefixRow> {
-  return new FormGroup({
-    prefix: new FormControl(row.prefix),
-    bagName: new FormControl(row.bagName),
-  });
-}
 
 @customElement("mws-edit-prefix-list")
 export class EditPrefixList extends JSXElement {
@@ -223,7 +221,10 @@ export class EditPrefixList extends JSXElement {
     return <div class="row-editor-stack">
       {control.controls.map((entry, index) => {
         const row = entry as FormGroup<WritablePrefixRow>;
-        return <div class="row-editor-row row-editor-row-wide" key={rowKey(row)}>
+        return <div
+          class="row-editor-row row-editor-row-wide"
+          key={rowKey(row)}
+        >
           <div class="prefix-input-shell">
             <EditTextInput
               inputId={`${inputId}-${index}-prefix`}
@@ -246,21 +247,11 @@ export class EditPrefixList extends JSXElement {
   }
 }
 
-type BagPermission = Bag["bagPermissions"][number];
-
 interface PermissionListProps {
   control: FormArray<BagPermission>;
   roles: readonly string[];
 }
 
-function permissionControl(
-  row: BagPermission = { role: "", level: "A_read" },
-): FormGroup<BagPermission> {
-  return new FormGroup({
-    role: new FormControl(row.role),
-    level: new FormControl(row.level),
-  });
-}
 
 @customElement("mws-edit-permission-level")
 export class EditPermissionLevel extends JSXElement {
@@ -306,7 +297,8 @@ export class EditPermissionList extends JSXElement {
           <EditTextInput
             inputId={`bag-permission-${index}-role`}
             control={row.controls.role} label="Role" placeholder="Role"
-            options={roles} />
+            options={roles}
+          />
           <EditPermissionLevel control={row.controls.level} />
           {rowActions("permission", control.disabled,
             () => removeRow(control, index))}
@@ -339,9 +331,7 @@ function stringList(
     control={control} options={options} />;
 }
 
-function stringControls(values: readonly string[] = []): FormArray<string> {
-  return new FormArray(values.map((value) => new FormControl(value)));
-}
+
 
 @customElement("mws-edit-custom-html-fields")
 export class EditCustomHtmlFields extends JSXElement {
@@ -434,27 +424,41 @@ export class EditRoutingPreview extends JSXElement {
 }
 
 
-function createWikiForm(value: DataStore["wikis"][number], mode: "create" | "edit") {
-  const form = new FormGroup<any>({
-    id: new FormControl(value.id ?? new IdString("")),
-    slug: new FormControl(value.slug ?? ""),
-    displayName: new FormControl(value.displayName ?? ""),
-    description: new FormControl(value.description ?? ""),
-    templateName: new FormControl(value.templateName ?? ""),
-    writablePrefixBags: new FormArray<WritablePrefixRow>(
-      (value.writablePrefixBags ?? []).map(prefixControl)),
-    readonlyBags: stringControls(value.readonlyBags),
-    plugins: stringControls(value.plugins),
-    recipeUsers: stringControls(value.recipeUsers),
-    recipeAdmins: stringControls(value.recipeAdmins),
-  });
-  if (mode === "edit") form.controls.templateName.disable(false);
-  return form;
+@customElement("mws-wiki-routing-preview")
+export class WikiRoutingPreview extends JSXElement {
+  useLightDOM = true;
+  @state() accessor props!: {
+    routing: FormArray<WritablePrefixRow>;
+    templateName: FormControl<string>;
+    templates: readonly Template[];
+  };
+
+  protected render() {
+    const { routing, templateName, templates } = this.props;
+    this.useEffect(() => {
+      const routingSubscription = routing.subscribe(() => this.requestUpdate());
+      const templateSubscription = templateName.subscribe(() => this.requestUpdate());
+      return () => {
+        routingSubscription.unsubscribe();
+        templateSubscription.unsubscribe();
+      };
+    }, [routing, templateName]);
+    const template = templates.find((entry) => entry.name === templateName.value);
+    const targets = new Map<string, string>();
+    for (const row of [...template?.writablePrefixBags ?? [], ...routing.value]) {
+      const bagName = row.bagName.trim();
+      if (bagName) targets.set(row.prefix, bagName);
+    }
+    return <EditRoutingPreview
+      targets={Array.from(targets, ([prefix, bagName]) => ({ prefix, bagName }))}
+    />;
+  }
 }
+
 
 export function renderWikiEditor(
   form: any, lookups: EditorLookups,
-  targets: readonly WritablePrefixRow[] = [],
+  templates: readonly Template[] = [],
 ) {
   const { controls } = form;
   return <>
@@ -511,8 +515,11 @@ export function renderWikiEditor(
       title="Operations and diagnostics" renderContent={() =>
         <PageCard
           title="Title routing test" width="full"
-          description={"Test a title against the wiki's current prefix rules to see which bag would receive writes."}
-          renderContent={() => <EditRoutingPreview targets={targets}
+          description={"Test a title against the wiki's proposed prefix rules to see which bag would receive writes."}
+          renderContent={() => <WikiRoutingPreview
+            routing={controls.writablePrefixBags}
+            templateName={controls.templateName}
+            templates={templates}
           />}
         />}
     />
@@ -520,29 +527,7 @@ export function renderWikiEditor(
 }
 
 
-function createTemplateForm(value: DataStore["templates"][number]) {
-  return new FormGroup<any>({
-    id: new FormControl(value.id ?? new IdString("")),
-    type: new FormControl(value.type ?? "simpleV1"),
-    name: new FormControl(value.name ?? ""),
-    description: new FormControl(value.description ?? ""),
-    twVersion: new FormControl(value.twVersion ?? ""),
-    writablePrefixBags: new FormArray<WritablePrefixRow>(
-      (value.writablePrefixBags ?? []).map(prefixControl)),
-    readonlyBags: stringControls(value.readonlyBags),
-    plugins: stringControls(value.plugins),
-    requiredPluginsEnabled: new FormControl(value.requiredPluginsEnabled ?? true),
-    externalPlugins: new FormControl(value.externalPlugins ?? false),
-    externalStore: new FormControl(value.externalStore ?? false),
-    templateUsers: stringControls(value.templateUsers),
-    templateAdmins: stringControls(value.templateAdmins),
-    customHtmlEnabled: new FormControl(value.customHtmlEnabled ?? false),
-    htmlContent: new FormControl(value.htmlContent ?? ""),
-    injectionFunction: new FormControl(
-      value.injectionFunction ?? "$tw.preloadTiddlers"),
-    injectionLocation: new FormControl(value.injectionLocation ?? ""),
-  });
-}
+
 
 export function renderTemplateEditor(
   form: any, lookups: EditorLookups,
@@ -551,7 +536,9 @@ export function renderTemplateEditor(
   return <PageSection
     renderContent={() => <>
       <PageCard
-        title="Template basics" width="full" layout="stack"
+        title="Template basics" 
+        width="full" 
+        layout="stack"
         renderContent={() => <>
           {textField("template-name", "Name", controls.name)}
           {textField("template-description", "Description", controls.description,
@@ -581,7 +568,9 @@ export function renderTemplateEditor(
           controls.readonlyBags, lookups.bags)}
       />
       <PageCard
-        title="Plugins" layout="stack" renderContent={() => <>
+        title="Plugins" 
+        layout="stack" 
+        renderContent={() => <>
           <EditorField
             renderContent={() => stringList("template-plugins", "Plugin name",
               controls.plugins, lookups.plugins)}
@@ -626,31 +615,25 @@ export function renderTemplateEditor(
           controls.templateAdmins, lookups.roles)}
       />
       <PageCard
-        title="Custom HTML shell" width="full" layout="stack"
+        title="Custom HTML shell" 
+        width="full" 
+        layout="stack"
         description={"Enable custom HTML shell settings when this template "
           + "should serve authored HTML instead of the default page shell."}
         renderHeaderAction={() => <EditToggle
           inputId="template-custom-html"
-          label="Custom HTML shell" control={controls.customHtmlEnabled}
+          label="Custom HTML shell"
+          control={controls.customHtmlEnabled}
         />}
         renderContent={() => <EditCustomHtmlFields
-          enabled={controls.customHtmlEnabled} htmlContent={controls.htmlContent}
+          enabled={controls.customHtmlEnabled} 
+          htmlContent={controls.htmlContent}
           injectionFunction={controls.injectionFunction}
           injectionLocation={controls.injectionLocation}
         />}
       />
     </>}
   />;
-}
-
-function createBagForm(value: DataStore["bags"][number]) {
-  return new FormGroup<any>({
-    id: new FormControl(value.id ?? new IdString("")),
-    name: new FormControl(value.name ?? ""),
-    description: new FormControl(value.description ?? ""),
-    bagPermissions: new FormArray<BagPermission>(
-      (value.bagPermissions ?? []).map(permissionControl)),
-  });
 }
 
 export function renderBagEditor(
@@ -660,7 +643,9 @@ export function renderBagEditor(
   return <PageSection
     renderContent={() => <>
       <PageCard
-        title="Bag basics" width="full" layout="stack"
+        title="Bag basics" 
+        width="full" 
+        layout="stack"
         renderContent={() => <>
           {textField("bag-name", "Name", controls.name)}
           {textField("bag-description", "Description", controls.description,
@@ -671,19 +656,12 @@ export function renderBagEditor(
         title="Permissions" width="full"
         description={["These are the operative permissions allowing users to read and write to this bag. A bag's presence in a recipe does not grant users of that recipe permission to read or write the bag."]}
         renderContent={() => <EditPermissionList
-          control={controls.bagPermissions} roles={lookups.roles}
+          control={controls.bagPermissions} 
+          roles={lookups.roles}
         />}
       />
     </>}
   />;
-}
-
-function createRoleForm(value: DataStore["roles"][number]) {
-  return new FormGroup<any>({
-    id: new FormControl(value.id ?? new IdString("")),
-    name: new FormControl(value.name ?? ""),
-    description: new FormControl(value.description ?? ""),
-  });
 }
 
 
@@ -693,7 +671,9 @@ export function renderRoleEditor(
   return <PageSection
     renderContent={() =>
       <PageCard
-        title="Role basics" width="full" layout="stack"
+        title="Role basics" 
+        width="full" 
+        layout="stack"
         renderContent={() => <>
           {textField("role-name", "Role name", form.controls.name)}
           {textField("role-description", "Role description",
@@ -703,16 +683,6 @@ export function renderRoleEditor(
   />;
 }
 
-function createUserForm(value: DataStore["users"][number]) {
-  return new FormGroup<any>({
-    id: new FormControl(value.id ?? new IdString("")),
-    username: new FormControl(value.username ?? ""),
-    email: new FormControl(value.email ?? ""),
-    userRoles: stringControls(value.userRoles),
-    resetCode: new FormControl(value.resetCode ?? ""),
-  });
-}
-
 export function renderUserEditor(
   form: any, lookups: EditorLookups,
 ) {
@@ -720,7 +690,9 @@ export function renderUserEditor(
   return <PageSection
     renderContent={() => <>
       <PageCard
-        title="User identity" width="full" layout="stack"
+        title="User identity" 
+        width="full" 
+        layout="stack"
         renderContent={() => <>
           {textField("user-username", "Username", controls.username)}
           {textField("user-email", "Email", controls.email, { type: "email" })}
@@ -831,15 +803,14 @@ export function getEditPageRenders(
         form,
         renderCurrent: saved ? () => renderWikiCurrent(saved) : undefined,
         renderEditor: () => renderWikiEditor(form, lookups,
-          saved?.effectiveWritableBags)
+          data?.templates ?? [])
       };
     }
     case "templates": {
       const form = createTemplateForm(saved ?? {});
       return {
         form,
-        renderCurrent: saved
-          ? () => renderTemplateCurrent(saved, data) : undefined,
+        renderCurrent: saved ? () => renderTemplateCurrent(saved, data) : undefined,
         renderEditor: () => renderTemplateEditor(form, lookups)
       };
     }

@@ -1,10 +1,10 @@
 import { AdminTab, AppAdmin } from "./app-admin";
 import { ListPage, RichListItem } from "./app-shell";
 import { requestUpdate } from "./requestUpdate";
-import type { DataStore } from "./definition/tabs";
-import type { PageId } from "./app-admin";
 import editIcon from "@material-symbols/svg-400/outlined/edit.svg";
 import { MaterialSymbol } from "./material-symbol";
+import { DataStore, PageId } from "@/server";
+import { renderWikiCurrent, renderWikiEditor } from "./app-edit-pages";
 
 export class AppTabController {
   constructor(public context: AppAdmin) { }

@@ -20,7 +20,7 @@ const prod = true;
  * @returns 
  */
 export default async function ({ rootdir, publicdir }) {
-
+  console.log(rootdir);
   /** @type {{in: string; out: string;}[]} */
   const entryPoints = [
     { in: resolve(rootdir, 'polyfill.ts'), out: "polyfill" },
@@ -63,6 +63,19 @@ export default async function ({ rootdir, publicdir }) {
     },
     conditions: prod ? [] : ["development"],
     plugins: [
+      forbidDirectoryPlugin({
+        directories: [
+          join(rootdir, '../mws/src'),
+          join(rootdir, '../server/src'),
+        ],
+        allow: [
+          join(rootdir, "../server/src/Z2.ts"),
+          join(rootdir, "../server/src/SendError.ts"),
+          join(rootdir, "../mws/src/utils/shared.ts"),
+          join(rootdir, "../mws/src/new-managers/TabDataTypes.ts"),
+          join(rootdir, "../mws/src/new-managers/TabDataZod.ts"),
+        ],
+      }),
       textLoaderPlugin,
       copy({
         assets: [{
@@ -137,3 +150,72 @@ export const textLoaderPlugin = {
 
   },
 };
+
+
+
+// ...existing code...
+
+import { isAbsolute, relative, sep } from 'node:path';
+
+/**
+ * @param {{ directories: string[]; allow?: string[] }} options
+ * Relative allow entries are resolved against every forbidden directory.
+ * @returns {import('esbuild').Plugin}
+ */
+export function forbidDirectoryPlugin({ directories, allow = [] }) {
+  const skip = Symbol('directory-boundary-probe');
+
+  return {
+    name: 'forbid-directory-js',
+
+    setup(build) {
+      const roots = directories.map(directory =>
+        resolve(build.initialOptions.absWorkingDir ?? process.cwd(), directory));
+      const allowed = new Set(roots.flatMap(root => allow.map(file => resolve(root, file))));
+
+      build.onResolve({ filter: /.*/ }, async args => {
+        if (args.pluginData?.[skip]) return;
+
+        const result = await build.resolve(args.path, {
+          importer: args.importer,
+          resolveDir: args.resolveDir,
+          kind: args.kind,
+          namespace: args.namespace,
+          with: args.with,
+          pluginData: { ...args.pluginData, [skip]: true },
+        });
+
+        // Let normal resolution handle failures and permitted imports.
+        // Do not return the probe result: its recursion marker must not leak.
+        if (result.errors.length || result.external) return;
+
+        if (allowed.has(result.path)) return;
+
+        const root = roots.find(directory => {
+          const child = relative(directory, result.path);
+          return child !== '..' &&
+            !child.startsWith(`..${sep}`) &&
+            !isAbsolute(child);
+        });
+        if (root === undefined) return;
+
+        const child = relative(root, result.path);
+
+        return {
+          errors: [{
+            text: `Forbidden import: ${result.path}`,
+            notes: [
+              { text: `Importer: ${args.importer || '<entry point>'}` },
+              { text: `Import specifier: ${args.path}` },
+              { text: `Import kind: ${args.kind}` },
+              { text: `Resolve directory: ${args.resolveDir}` },
+              { text: `Namespace: ${args.namespace} → ${result.namespace}` },
+              { text: `Forbidden directory: ${root}` },
+              { text: `To permit this file, add it to the exceptions list in esbuild.options.mjs.` },
+            ],
+          }],
+        };
+      });
+    },
+  };
+}

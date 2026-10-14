@@ -4,9 +4,12 @@ import "./main.css";
 import { AppAdmin } from "./app-admin";
 import { LoginForm } from "./app-login";
 import type { AuthUser } from "@tiddlywiki/mws/src/new-managers/sessions";
-import { SendError } from "@tiddlywiki/server";
+import { SendError } from "@/server";
 import { ProfileForm } from "./app-profile";
 import type { ServerState } from "@tiddlywiki/mws/src/ServerState";
+import { iBagLoadSchema } from "@/server";
+
+console.log(iBagLoadSchema);
 
 // disables the "flash of white" styles
 document.documentElement.classList.add("loaded");

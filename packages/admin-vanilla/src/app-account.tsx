@@ -20,8 +20,13 @@ export class AccountPage extends JSXElement {
 
   protected render() {
     const {
-      title, description, busy, onSubmit,
-      renderContent, renderFeedback, renderActions,
+      title,
+      description,
+      busy,
+      onSubmit,
+      renderContent,
+      renderFeedback,
+      renderActions,
     } = this.props;
     return <div class="admin-shell">
       <section class="modal-card" aria-label={title}
@@ -93,7 +98,7 @@ export abstract class AccountForm<Value extends object> extends JSXElement {
                 .map(([key, value]) => `\n${key}: ${value}`).join("");
             }
           }
-        } catch {}
+        } catch { }
       }
     } finally {
       this.form.enable();

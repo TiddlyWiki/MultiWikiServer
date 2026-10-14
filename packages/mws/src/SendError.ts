@@ -1,6 +1,7 @@
-import { TabId } from "@mws/admin-vanilla/src/definition/tabs";
+import { PageId } from "@/server";
 import { serverEvents } from "@tiddlywiki/events";
 import { SendError, SendErrorItem } from "@tiddlywiki/server";
+type TabId = PageId;
 declare module "@tiddlywiki/server" {
   interface SendErrorReasonData {
     "RECIPE_NOT_FOUND":
@@ -77,6 +78,8 @@ declare module "@tiddlywiki/server" {
 
     "ACCESS_DENIED":
     SendErrorItem<403, { reason: string }>
+    "UNAUTHORIZED":
+    SendErrorItem<401, null>
 
     "INVALID_REQUEST":
     SendErrorItem<400, null>
@@ -133,6 +136,7 @@ SendError.oninstance.push(e => {
     case "TIDDLER_WIRE_FORMAT_UNKNOWN":
     case "WRITE_NOT_PERMITTED":
     case "ACCESS_DENIED":
+    case "UNAUTHORIZED":
     case "NOT_FOUND": // usually from the catch-all route
       { e.skiplog = true; break; }
     case "INVALID_BODY_FORMAT": // a bug if this throws

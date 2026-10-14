@@ -1,6 +1,6 @@
 import { BagPermissionLevel, RecipePermissionLevel, TemplatePermissionLevel } from "@tiddlywiki/mws-prisma";
-import { RecipeDefinition, TemplateDefinition } from "./TabDataAdapter";
-import { DataStore, IdString, PermissionRow, TemplateTypes, WritablePrefixRow } from "@mws/admin-vanilla/src/definition/tabs";
+import { DataStore, RecipeDefinition, TemplateDefinition } from "./TabDataTypes";
+import { IdString } from "@/server";
 
 export interface UpsertRoleInput {
   name: string;

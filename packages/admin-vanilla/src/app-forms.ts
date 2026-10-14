@@ -32,7 +32,7 @@ export class FormControl<Value> {
       this.ownDisabled = true;
       this.emitDisabledChange();
     }
-    if (callNotify) this.notify();
+    if (callNotify) this.parent?.notify();
   }
 
   enable(callNotify: boolean = true): void {
@@ -40,7 +40,7 @@ export class FormControl<Value> {
       this.ownDisabled = false;
       this.emitDisabledChange();
     }
-    if (callNotify) this.notify();
+    if (callNotify) this.parent?.notify();
   }
 
   private emitDisabledChange(): void {
@@ -130,6 +130,7 @@ export class FormControl<Value> {
   }
 
   notify(): void {
+    this.emitValueChange();
     this.parent?.notify();
   }
 
@@ -140,7 +141,7 @@ export class FormControl<Value> {
   setValue(value: Value, callNotify: boolean = true): void {
     this.currentValue = value;
     this.emitValueChange();
-    if (callNotify) this.notify();
+    if (callNotify) this.parent?.notify();
   }
 }
 
@@ -183,7 +184,7 @@ export class FormGroup<Value extends object> extends FormControl<Value> {
     this.adoptControls([control]);
     this.controls[key] = control;
     this.emitValueChange();
-    if (callNotify) this.notify();
+    if (callNotify) this.parent?.notify();
     return this;
   }
 
@@ -193,7 +194,7 @@ export class FormGroup<Value extends object> extends FormControl<Value> {
     delete this.controls[key];
     this.releaseControl(control);
     this.emitValueChange();
-    if (callNotify) this.notify();
+    if (callNotify) this.parent?.notify();
     return control;
   }
 
@@ -212,7 +213,7 @@ export class FormGroup<Value extends object> extends FormControl<Value> {
       this.controls[key].setValue(value[key], false);
     }
     this.emitValueChange();
-    if (callNotify) this.notify();
+    if (callNotify) this.parent?.notify();
   }
 
   patchValue(value: Partial<Value>, callNotify: boolean = true): void {
@@ -222,7 +223,7 @@ export class FormGroup<Value extends object> extends FormControl<Value> {
       }
     }
     this.emitValueChange();
-    if (callNotify) this.notify();
+    if (callNotify) this.parent?.notify();
   }
 
   private static readValue<Value extends object>(controls: FormGroupControls<Value>): Value {
@@ -264,7 +265,7 @@ export class FormArray<Value> extends FormControl<Value[]> {
     this.adoptControls([control]);
     this.controls.push(control);
     this.emitValueChange();
-    if (callNotify) this.notify();
+    if (callNotify) this.parent?.notify();
     return this;
   }
 
@@ -273,7 +274,7 @@ export class FormArray<Value> extends FormControl<Value[]> {
     const [control] = this.controls.splice(index, 1);
     this.releaseControl(control);
     this.emitValueChange();
-    if (callNotify) this.notify();
+    if (callNotify) this.parent?.notify();
     return control;
   }
 
@@ -284,7 +285,7 @@ export class FormArray<Value> extends FormControl<Value[]> {
     const [control] = this.controls.splice(oldIndex, 1);
     this.controls.splice(newIndex, 0, control);
     this.emitValueChange();
-    if (callNotify) this.notify();
+    if (callNotify) this.parent?.notify();
     return this;
   }
 
@@ -298,6 +299,6 @@ export class FormArray<Value> extends FormControl<Value[]> {
     }
     this.controls.forEach((control, index) => control.setValue(value[index], false));
     this.emitValueChange();
-    if (callNotify) this.notify();
+    if (callNotify) this.parent?.notify();
   }
 }
