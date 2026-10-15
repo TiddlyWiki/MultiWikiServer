@@ -21,7 +21,7 @@ Internal notes by core developers
 
 ## some ideas
 
-- webdav or samba for importing or editing tiddlers (winfsp, fuse)
+- file system connection for importing or editing tiddlers (winfsp, fuse)
   - multiple folder views (flat, folder, tag)
 - active node server for a specific folder (also a massive security bypass)
 - instructions for process users on different platforms (e.g. linux permission users)

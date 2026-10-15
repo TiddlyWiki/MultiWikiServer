@@ -145,8 +145,8 @@ export const zodWikiDataSaveSchema = TabDataZod.iWikiSaveSchema
     message: "Slug is required.",
     path: ["slug"],
   })
-  .refine(data => !data.slug.startsWith("/") && !data.slug.endsWith("/"), {
-    message: "Slug must not start or end with a forward slash.",
+  .refine(data => !data.slug.startsWith("/"), {
+    message: "Slug must not start with a forward slash.",
     path: ["slug"],
   })
   .refine(data => data.displayName.trim().length > 0, {
