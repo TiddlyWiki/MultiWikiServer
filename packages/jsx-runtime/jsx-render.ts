@@ -117,7 +117,9 @@ function updateAttributes(
     if (key === "style" && typeof value === "object" && value !== null && el instanceof HTMLElement) {
       el.style.cssText = "";
       for (const [styleKey, styleValue] of Object.entries(value as Record<string, string>)) {
-        if (Object.prototype.hasOwnProperty.call(el.style, styleKey)) {
+        if (styleKey.startsWith("--")) {
+          el.style.setProperty(styleKey, styleValue);
+        } else if (styleKey in el.style) {
           el.style[styleKey as any] = styleValue;
         } else {
           el.style.setProperty(styleKey, styleValue);
