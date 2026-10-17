@@ -174,7 +174,8 @@ export class LoginForm extends AccountForm<LoginValues> {
     switch (this.mode) {
       case "login": return <AccountPage
         title="Log in"
-        busy={this.isSubmitting} onSubmit={this.handleLoginSubmit}
+        busy={this.isSubmitting}
+        onSubmit={this.handleLoginSubmit}
         renderFeedback={this.renderFeedback}
         renderContent={() => <>
           <div class="login-fields">
@@ -304,7 +305,7 @@ export class LoginForm extends AccountForm<LoginValues> {
     const clientState = this.form.value;
     await loginWithOpaque(clientState.username, clientState.password, true);
     location.href = location.origin + pathPrefix + "/";
-    return true;
+    return new Promise(() => { }); // hang since the page is already loading
   }
   private submitForgotPassword = async (): Promise<boolean> => {
     await this.ensureServerState();
