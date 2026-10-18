@@ -1,0 +1,22 @@
+title: Usage: load-wiki-folder
+tags: Usage
+type: text/plain
+
+Usage: mws load-wiki-folder <path> [options]
+
+Load a TiddlyWiki folder into a bag
+
+Arguments:
+  path                           Path to the folder containing a tiddlywiki.info file
+
+Options:
+  --recipe-name <string>         Name of the recipe to create
+  --recipe-description <string>  Description of the recipe
+  --bag-description <string>     Description of the bag
+  --bag-relative-root <string>   Bag names are relative to this path instead of absolute.
+  --bag-name-prefix <string>     A prefix added to bag names after the relative path name
+                                 is calculated.
+  --template-name <string>       Template for this recipe
+  --owner-roles <string>         Roles to set on the recipes and bags.
+  --overwrite                    Confirm that you want to overwrite existing content
+  --skip-existing                Confirm that you want to skip existing content

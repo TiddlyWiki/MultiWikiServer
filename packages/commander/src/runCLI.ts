@@ -2,6 +2,8 @@ import { BaseCommand, CommandFile } from "./BaseCommand";
 import chalk from "chalk";
 import * as commander from "commander";
 import { serverEvents } from "@tiddlywiki/events";
+import { writeFileSync } from "fs";
+import { dist_resolve } from "@tiddlywiki/server";
 
 declare module "@tiddlywiki/events" {
 
@@ -42,6 +44,7 @@ export async function runCLI() {
   const cmd = process.argv[2];
   if (!cmd) return void commander.outputHelp();
   if (cmd === "help") return void commander.parse();
+  if (cmd === "export-usage-internal") return exportUsageInternal(commander, commands);
 
   const cmdDef: CommandFile | undefined = Object.values(commands).find(e => e.info.name === cmd);
   if (!cmdDef) {
@@ -84,8 +87,6 @@ function parseCLI(cmder: commander.Command, cmd: string, cli: string[]) {
   }
   return { params, options };
 }
-
-
 
 
 function parseOption(
@@ -213,4 +214,23 @@ function getCLI(commands: Record<string, CommandFile>) {
     this._usage = str;
     return this;
   }
+}
+
+
+
+function exportUsageInternal(
+  commander: commander.Command,
+  commands: Record<string, CommandFile>
+) {
+  commander.commands.forEach(e => {
+    const lines = [
+      "title: Usage: " + e.name(),
+      "tags: Usage",
+      "type: text/plain",
+      "",
+    ];
+    e.configureOutput({ writeOut: (e) => { lines.push(e) } });
+    e.outputHelp();
+    writeFileSync(dist_resolve("../editions/mws-docs/tiddlers/usage-" + e.name() + ".tid"), lines.join("\n"));
+  })
 }

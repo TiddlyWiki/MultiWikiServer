@@ -1,0 +1,23 @@
+title: Usage: update-tiddlywiki
+tags: Usage
+type: text/plain
+
+Usage: mws update-tiddlywiki [options]
+
+Update TiddlyWiki to the latest version
+
+Options:
+  --manual-version <string>  Download the specified version of TiddlyWiki from NPM.
+  --registry-url <string>    Download the tiddlywiki registry entry from this URL instead
+                             of NPM.
+  --manual-tarball <string>  Path to a tarball file to manually extract instead of
+                             downloading. This runs the command entirely offline. The
+                             version will be extracted from the package.json file.
+
+
+This command does the following actions:
+- Download the registry entry from NPM.
+- Download the latest tarball specified in the registry.
+- Extract the tarball to a versioned directory.
+
+MWS will auto-detect and use the latest version on startup.

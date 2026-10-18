@@ -1,0 +1,7 @@
+title: Usage: init-store
+tags: Usage
+type: text/plain
+
+Usage: mws init-store 
+
+Initialize the MWS data folder

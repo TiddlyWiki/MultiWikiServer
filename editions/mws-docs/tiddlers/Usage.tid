@@ -1,5 +1,5 @@
 created: 20241105133737778
-modified: 20250612223124466
+modified: 20261018010316252
 tags: TableOfContents
 title: Usage
 type: text/vnd.tiddlywiki
@@ -12,3 +12,7 @@ If you intend to make an MWS installation available on the Internet, the server 
 
 * Change the administrator password
 * Install HTTPS server certificates from an online certificate service like [[Let's Encrypt|https://letsencrypt.org/]].
+
+Additional server commands are available via the command line.
+
+<<toc>>

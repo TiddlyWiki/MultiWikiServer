@@ -17,6 +17,7 @@ const TSUP = "tools/node_modules/.bin/tsup";
 async function runner(arg) {
   switch (arg) {
     case "docs":
+      await run(BIN + " export-usage-internal", {});
       await run([
         "node dev/wiki/tw5/5.4.1/tiddlywiki.js",
         "+plugins/tiddlywiki/tiddlyweb",
@@ -26,6 +27,7 @@ async function runner(arg) {
         "host=::",
         "port=5001",
       ].join(" "), {});
+      break;
     case "start":
       if (!existsSync("tools/node_modules"))
         await run("cd tools && npm i", {});
@@ -37,6 +39,7 @@ async function runner(arg) {
       });
       break;
     case "build":
+      await run(BIN + " export-usage-internal", {});
       await run(TSUP, {});
       await run(BIN, { CLIENT_BUILD: "1" });
       await run(TSUP, { BUILD_ENV: "runtime" });

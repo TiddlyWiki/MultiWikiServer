@@ -1,0 +1,7 @@
+title: Usage: test-args
+tags: Usage
+type: text/plain
+
+Usage: mws test-args 
+
+Prints the command args to console. Useful for testing your inputs.
