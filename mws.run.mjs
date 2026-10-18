@@ -9,4 +9,7 @@ if (existsSync(`${cwd}/mws.dev.mjs`)) {
   process.exit(1);
 }
 
-import("./dist/mws.js").then(mws => mws.default());
+import("./dist/mws.js").then(mws => mws.default()).catch(e => {
+  if (e === "ERROR_LOGGED") return;
+  console.log(e);
+});

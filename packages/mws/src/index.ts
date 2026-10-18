@@ -42,7 +42,7 @@ export {
   PasswordService
 } from "./services/PasswordService";
 export {
-  
+
   defaultPreloadFunction,
 } from "./plugin-cache";
 export * from "./services/setupDevServer";
@@ -58,7 +58,7 @@ export default async function runMWS() {
     return;
   }
   const wikiPath = path.resolve(process.cwd());
-  (async () => {
+  await (async () => {
     if (!existsSync(path.join(wikiPath, "package.json")))
       throw "The wiki path does not have a package.json file"
 
@@ -76,20 +76,22 @@ export default async function runMWS() {
       throw "The wiki path package.json file has the wrong version. "
       + "Found " + wikiPkg.version + ", expected 0.2.x";
 
-    if (wikiPkg.private !== true) "PACKAGE_JSON_PRIVATE";
-
-  })().catch(e => {
-    if (e === "PACKAGE_JSON_PRIVATE") {
-      throw 'Your data folder package.json does not have `"private": true"` set. '
-      + 'Publishing your data folder is HIGHLY DANGEROUS and exposes '
-      + 'all your tiddlers to the public internet as well as making your '
-      + 'passwords easier to guess. Refusing to continue.';
+    if (wikiPkg.private !== true) {
+      console.log(
+        'Your data folder package.json does not have `"private": true"` set. '
+        + 'Publishing your data folder is HIGHLY DANGEROUS and exposes '
+        + 'all your tiddlers to the public internet as well as making your '
+        + 'passwords easier to guess. Refusing to continue.');
+      throw "ERROR_LOGGED";
     }
-    if (typeof e === "string") {
-      throw [
+  })().catch(e => {
+    if (e === "ERROR_LOGGED") {
+      throw e;
+    } else if (typeof e === "string") {
+      console.log([
         "The current working directory does not appear to be a valid wiki path. ",
         "In order to start the server properly, you must start it from the folder ",
-        "containing the passwords.key file. This is the root of your wiki folder.",
+        "containing the passwords.key and package.json files. This is the root of your wiki folder.",
         "",
         "Error: " + e,
         "",
@@ -100,7 +102,8 @@ export default async function runMWS() {
         "The current folder is: " + wikiPath,
         "",
         'This is also known as "Start In", "Working Directory", "Current Directory", etc. ',
-      ].join("\n");
+      ].join("\n"))
+      throw e;
     } else {
       throw e;
     }
