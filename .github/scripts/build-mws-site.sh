@@ -95,6 +95,6 @@ git config --global user.name "GitHub Actions"
 git add -A .
 git commit --message "GitHub build: $GITHUB_RUN_NUMBER of $TW5_BUILD_BRANCH ($(date +'%F %T %Z'))"
 git show -q
-git remote add deploy "https://x-access-token:${GH_TOKEN}@github.com/TiddlyWiki/mws.tiddlywiki.com-gh-pages.git"
+git remote add deploy "https://$GH_TOKEN@github.com/TiddlyWiki/mws.tiddlywiki.com-gh-pages.git"
 git push deploy main
 popd
