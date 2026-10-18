@@ -6,11 +6,12 @@ import { dist_resolve, RouteDef, ServerRequest, ServerRoute } from "@tiddlywiki/
 import { serverEvents } from "@tiddlywiki/events";
 import { bootDefaultTiddlyWiki } from "../plugin-cache";
 import { TW } from "tiddlywiki";
+import { ServerState } from "../ServerState";
 
-serverEvents.on("mws.routes", async (rootRoute, config) => {
+export const registerDocsRoute = (rootRoute: ServerRoute, config: ServerState) => {
 
   if (config.enableDocsRoute) {
-    const $tw = await bootDefaultTiddlyWiki(config.wikiPath);
+    const $tw = bootDefaultTiddlyWiki(config.wikiPath);
     mountTW5Route({
       $tw,
       rootRoute,
@@ -26,11 +27,10 @@ serverEvents.on("mws.routes", async (rootRoute, config) => {
       }
     })
   }
-
-})
+};
 
 export function mountTW5Route({ $tw, rootRoute, mountPath, singleFile, args, variables }: {
-  $tw: TW;
+  $tw: Promise<TW>;
   rootRoute: ServerRoute;
   /** The mount point of TW5, equivelant to pathPrefix. */
   mountPath: string;
@@ -45,72 +45,20 @@ export function mountTW5Route({ $tw, rootRoute, mountPath, singleFile, args, var
   /** Variables passed into the TW5 server */
   variables: Record<string, string>;
 }) {
-  if (!mountPath.startsWith("/") || mountPath.endsWith("/"))
-    throw new Error("mountPath must start, and not end, with a slash.");
-  rootRoute.defineRoute({
-    method: ["OPTIONS", "GET", "HEAD", "POST", "PUT", "DELETE"],
-    bodyFormat: "stream",
-    path: new RegExp("^" + mountPath + "(/|$)"),
-  }, TW5Route({
+
+  const hooks = instanceTW5DataFolderNode({
     $tw,
     mountPath,
     singleFile,
     argv: args,
     variables,
-  }));
-}
-
-/**
- * `tiddlywiki [+<pluginname> | ++<pluginpath>] [<wikipath>] ...[--command ...args]`
- * 
- * 
- * 
- * @param options
- * @param options.rootRoute  
- */
-export function TW5Route({
-  $tw,
-  mountPath,
-  singleFile,
-  argv,
-  variables = {},
-}: {
-  $tw: TW;
-  mountPath: string;
-  singleFile: boolean;
-  argv: string[];
-  variables?: Record<string, string>;
-}) {
-
-  const last = basename(mountPath);
-
-  $tw.preloadTiddler({
-    title: "$:/config/tiddlyweb/host",
-    // if the page url doesn't end with a slash, we have to include the basename here
-    text: singleFile ? last + "/" : "",
   });
 
-  $tw.boot.argv = argv;
-
-  const hooks = new EventEmitter<{
-    req: [req: IncomingMessage | Http2ServerRequest, res: ServerResponse | Http2ServerResponse, mount: string]
-  }>();
-
-  // Boot the TW5 app
-  $tw.boot.boot(() => {
-    const Server = $tw.modules.execute("$:/core/modules/server/server.js", "tw-routes.ts").Server;
-    const twserver = new Server({
-      wiki: $tw.wiki,
-      variables,
-      routes: [],
-    });
-    $tw.hooks.invokeHook("th-server-command-post-start", twserver, null, "mws");
-    hooks.on("req", (req, res, pathPrefix) => {
-      twserver.requestHandler(req, res, { pathPrefix } as any);
-    });
-  });
-
-  return async (state: ServerRequest) => {
+  rootRoute.defineRoute({
+    method: ["OPTIONS", "GET", "HEAD", "POST", "PUT", "DELETE"],
+    bodyFormat: "stream",
+    path: new RegExp("^" + mountPath + "(/|$)"),
+  }, async (state: ServerRequest) => {
 
     if (singleFile && state.urlInfo.pathname === mountPath + "/")
       throw state.redirect(mountPath);
@@ -118,16 +66,68 @@ export function TW5Route({
       throw state.redirect(mountPath + "/");
 
     // the streamer does NOT remove state.pathPrefix from streamer.req.url, only from streamer.url
-    // @ts-expect-error because streamer is private
-    const { req, res } = state.streamer;
+    // const { req, res } = state;
     // regardless of singleFile, this has to end with a slash
-    if (req.url === state.pathPrefix + mountPath)
-      req.url = state.pathPrefix + mountPath + "/";
+    // if (req.url === state.pathPrefix + mountPath)
+    //   req.url = state.pathPrefix + mountPath + "/";
 
-    const prom = new Promise((r, c) => res.on("finish", r).on("error", c));
-    hooks.emit("req", req, res, state.pathPrefix + mountPath);
-    return prom.then(() => STREAM_ENDED);
-  };
+    // const prom = new Promise((r, c) => res.on("finish", r).on("error", c));
+    // hooks.emit("req", req, res, state.pathPrefix + mountPath);
+    // return prom.then(() => STREAM_ENDED);
+  });
+}
+
+function startNodeServer(){
 
 }
 
+export function instanceTW5DataFolderNode({
+  $tw,
+  mountPath,
+  singleFile,
+  argv,
+  variables = {},
+}: {
+  $tw: Promise<TW>;
+  mountPath: string;
+  singleFile: boolean;
+  argv: string[];
+  variables?: Record<string, string>;
+}) {
+  if (!mountPath.startsWith("/") || mountPath.endsWith("/"))
+    throw new Error("mountPath must start, and not end, with a slash.");
+
+  const hooks = new EventEmitter<{
+    req: [req: IncomingMessage | Http2ServerRequest, res: ServerResponse | Http2ServerResponse, mount: string]
+  }>();
+
+  $tw.then($tw => {
+
+    const last = basename(mountPath);
+
+    $tw.preloadTiddler({
+      title: "$:/config/tiddlyweb/host",
+      // if the page url doesn't end with a slash, we have to include the basename here
+      text: singleFile ? last + "/" : "",
+    });
+
+    $tw.boot.argv = argv;
+
+    // Boot the TW5 app
+    $tw.boot.boot(() => {
+      const Server = $tw.modules.execute("$:/core/modules/server/server.js", "tw-routes.ts").Server;
+      const twserver = new Server({
+        wiki: $tw.wiki,
+        variables,
+        routes: [],
+      });
+      $tw.hooks.invokeHook("th-server-command-post-start", twserver, null, "mws");
+      hooks.on("req", (req, res, pathPrefix) => {
+        twserver.requestHandler(req, res, { pathPrefix } as any);
+      });
+    });
+  });
+
+  return hooks;
+
+}

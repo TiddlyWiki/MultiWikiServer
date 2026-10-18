@@ -9,10 +9,10 @@ serverEvents.on("cli.register", (commands) => {
 
 const info: CommandInfo = {
 	name: "set-admin-password",
-	description: "Set the admin password in case you get locked out.",
+	description: "Reset an admin password in case you get locked out.",
 	arguments: [],
 	options: [
-		["username <string>", "Reset the password of a specific ADMIN user (default: admin)"]
+		["username <string>", "Specify the username to set the password for (default: admin)"]
 	]
 };
 

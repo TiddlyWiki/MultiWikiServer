@@ -1,5 +1,5 @@
 created: 20250417170314382
-modified: 20250717214743442
+modified: 20261018004006095
 tags: TableOfContents
 title: HelloThere
 type: text/vnd.tiddlywiki
@@ -12,7 +12,7 @@ type: text/vnd.tiddlywiki
 Planned features include:
 
 * Hosting multiple wikis at once, using the [[Bags and Recipes Model]] for sharing data between them
-* Full support for SQLite, as well as MariaDB/MySQL, Postgres, and Microsoft SQL Server
+* Full support for SQLite, MariaDB/MySQL, Postgres, and Microsoft SQL Server
 * Robust built-in synchronisation handlers for syncing data to the filesystem
 * Flexible authentication and authorisation options
 * Improved handling of file uploads and attachments, allowing gigabyte video files to be uploaded and streamed

@@ -6,16 +6,17 @@ import { TW } from "tiddlywiki";
 import { createGzip } from "zlib";
 import { stat, writeFile } from "fs/promises";
 import { readableBuffers } from "../utils";
-import { BodyFormat, checkPath, checkQueryKeys, dist_resolve, ServerRequest, truthy } from "@tiddlywiki/server";
+import { BodyFormat, checkPath, checkQueryKeys, dist_resolve, ServerRequest, ServerRoute, truthy } from "@tiddlywiki/server";
 import { serverEvents } from "@tiddlywiki/events";
 import { PassThrough, Readable } from "stream";
 import { pipeline } from "stream/promises";
 import { FileNotFoundError, hashFile, PluginHashes } from "./PluginCache";
 import esr from "escape-string-regexp";
+import { ServerState } from "../ServerState";
 
 export const defaultPreloadFunction = "$tw.preloadTiddler";
 
-serverEvents.on("mws.routes", (root, config) => {
+export const registerCacheRoutes = (root: ServerRoute, config: ServerState) => {
   root.defineRoute({
     method: ["GET", "HEAD"],
     path: new RegExp("^" + esr(config.rootRoutes.cache) + "/(?<plugin>.*)/plugin\\.js$"),
@@ -76,7 +77,7 @@ serverEvents.on("mws.routes", (root, config) => {
       }, fs.createReadStream(pluginFile));
     }
   })
-})
+};
 
 
 export async function importPlugins(

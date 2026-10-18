@@ -17,6 +17,15 @@ const TSUP = "tools/node_modules/.bin/tsup";
 async function runner(arg) {
   switch (arg) {
     case "docs":
+      await run([
+        "node dev/wiki/tw5/5.4.1/tiddlywiki.js",
+        "+plugins/tiddlywiki/tiddlyweb",
+        "+plugins/tiddlywiki/filesystem",
+        "editions/mws-docs",
+        "--listen",
+        "host=::",
+        "port=5001",
+      ].join(" "), {});
     case "start":
       if (!existsSync("tools/node_modules"))
         await run("cd tools && npm i", {});

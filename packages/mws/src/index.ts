@@ -47,10 +47,6 @@ export {
 } from "./plugin-cache";
 export * from "./services/setupDevServer";
 export * from "./services/tiddlywiki";
-export {
-  mountTW5Route,
-  TW5Route
-} from "./services/tw-routes";
 export * from "./new-commands";
 export * from "./new-managers";
 

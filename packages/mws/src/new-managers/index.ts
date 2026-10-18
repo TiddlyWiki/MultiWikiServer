@@ -20,6 +20,8 @@ import { RecipeRoutes } from "./RecipeRoutes";
 import { AdminRoutes } from "./TabDataAdapter";
 import esr from "escape-string-regexp";
 import { SessionManager } from "./sessions";
+import { registerCacheRoutes } from "../plugin-cache";
+import { registerDocsRoute } from "../services/tw-routes";
 
 export * from "./RecipeResolver";
 export * from "./TabDataAdapter";
@@ -87,6 +89,10 @@ serverEvents.on("mws.routes", (root, config) => {
 
   AdminRoutes.defineRoutes(parent, config);
 
+  registerCacheRoutes(parent, config);
+
+  registerDocsRoute(root, config);
+
   parent.defineRoute<"ignore">({
     method: ["GET", "HEAD", "OPTIONS"],
     path: new RegExp(`^${esr(config.rootRoutes.tw5)}/(?<version>.*)$`),
@@ -134,7 +140,7 @@ serverEvents.on("mws.routes", (root, config) => {
 
     const path = state.pathParams.path;
     const { static: staticRoot, wiki: wikiRoot } = config.rootRoutes;
-    const or_404 = (handled: any) => {
+    const or_404 = (handled?: any) => {
       // most of these will return STREAM_ENDED or throw STREAM_ENDED.
       // they aren't throwing SendError
       if (handled) return;
@@ -184,7 +190,7 @@ serverEvents.on("mws.routes", (root, config) => {
     // **Both roots set**
     // 5. Path matches neither → 404.
     // sendAdmin will override SendError NOT_FOUND if it has an exact match for the path
-    return or_404(undefined);
+    return or_404();
 
   }, async (state, e) => {
     if (state.headersSent) {

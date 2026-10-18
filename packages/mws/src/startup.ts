@@ -150,7 +150,6 @@ serverEvents.on("listen.router.init", async (listen, router) => {
   await router.config.engine.roles.findMany({})
 
   await serverEvents.emitAsync("mws.router.init", router);
-
   await serverEvents.emitAsync("mws.routes.important", router.rootRoute, router.config);
   await serverEvents.emitAsync("mws.routes", router.rootRoute, router.config);
   registerStatsRoute(router.rootRoute, {
