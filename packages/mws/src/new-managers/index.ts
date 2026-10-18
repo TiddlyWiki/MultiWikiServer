@@ -72,28 +72,14 @@ serverEvents.on("mws.routes", (root, config) => {
   // this has to happen first so static and wiki can't override it
   SessionManager.defineRoutes(root);
 
-  const parent = root.defineRoute({
-    method: [],
-    denyFinal: true,
-    path: new RegExp(`^(?=${[
-      esr(config.rootRoutes.recipe),
-      esr(config.rootRoutes.admin),
-      esr(config.rootRoutes.tw5),
-      esr(config.rootRoutes.assets),
-      // esr(config.rootRoutes.static),
-      // esr(config.rootRoutes.wiki),
-    ].join("/|")}/)`),
-  }, async (state) => { });
 
-  RecipeRoutes.defineRoutes(parent, config);
+  RecipeRoutes.defineRoutes(root, config);
 
-  AdminRoutes.defineRoutes(parent, config);
+  AdminRoutes.defineRoutes(root, config);
 
-  registerCacheRoutes(parent, config);
+  registerCacheRoutes(root, config);
 
-  registerDocsRoute(root, config);
-
-  parent.defineRoute<"ignore">({
+  root.defineRoute<"ignore">({
     method: ["GET", "HEAD", "OPTIONS"],
     path: new RegExp(`^${esr(config.rootRoutes.tw5)}/(?<version>.*)$`),
     bodyFormat: "ignore",
@@ -105,7 +91,7 @@ serverEvents.on("mws.routes", (root, config) => {
 
   });
 
-  parent.defineRoute<"ignore">({
+  root.defineRoute<"ignore">({
     method: ["GET", "HEAD", "OPTIONS"],
     path: new RegExp(`^${esr(config.rootRoutes.assets)}/(?<path>.*)$`),
     bodyFormat: "ignore",
