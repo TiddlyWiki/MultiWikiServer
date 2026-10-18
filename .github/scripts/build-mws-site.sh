@@ -2,6 +2,11 @@
 
 # Build mws.tiddlywiki.com assets.
 
+if [ -z "$GH_TOKEN" ]; then
+	echo 'GH_TOKEN must be set to a token with write access to TiddlyWiki/mws.tiddlywiki.com-gh-pages' >&2
+	exit 1
+fi
+
 # Default to the version of TiddlyWiki installed in this repo
 
 git clone --depth=1 --branch=master "https://github.com/TiddlyWiki/TiddlyWiki5.git"
