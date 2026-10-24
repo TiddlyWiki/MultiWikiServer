@@ -21,7 +21,7 @@ const observer = new MutationObserver((mutations) => {
 const observerCallbacks = new WeakMap<Element, (() => void)[]>();
 
 export function render(root: Element | DocumentFragment, child: MaybeArray<JSX.Node>) {
-  updateChildren(root, [child].flat(Infinity) as JSX.Node[]);
+  return updateChildren(root, [child].flat(Infinity) as JSX.Node[]);
 }
 /*
 KNOWN OR PREDICTED ISSUES:
@@ -232,9 +232,9 @@ function updateChildren(
       }
       newChildNodes[i] = newChildNode;
     }
-    replaceChildren(el, newChildNodes);
+    return replaceChildren(el, newChildNodes);
   } else {
-    replaceChildren(el, []);
+    return replaceChildren(el, []);
   }
 }
 function isValidCurChildNode(e: (ChildNode & {
@@ -277,6 +277,7 @@ function replaceChildren(el: ParentNode, newChildNodes: (ChildNode | string)[]) 
       throw new Error("Node to be removed is still a child of the parent.");
     observerCallbacks.delete(node as Element);
   });
+  return removed;
 }
 function isNodeTypeValidUpdate(node: Element | null, def: JSX.Element, namespace: string | null) {
   if (node === null) return false;

@@ -213,18 +213,18 @@ export class JSXElement extends ReactiveElement {
     }
   }
 
-  protected useMemo<T>(fn: () => T, deps: any[] = []): T {
+  protected useMemo<T>(fn: (old?: T | undefined) => T, deps: any[] = []): T {
 
     const state = this.protectHook<{
       value: T,
       deps?: any[]
     }>(this.useMemo, () => ({
-      value: fn(),
+      value: fn(undefined),
       deps: deps
     }));
 
     if (checkDeps(state.deps, deps)) {
-      state.value = fn();
+      state.value = fn(state.value);
       state.deps = deps;
     }
 
