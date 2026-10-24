@@ -23,6 +23,8 @@ When the user changes subject or goes on a side tangant about something, assume 
 
 - `JSXElement` extends Lit's `ReactiveElement` and is an actual custom element in the DOM, not a React component. Lit provides reactive scheduling and lifecycle; JSX is rendered by `@tiddlywiki/jsx-runtime`, not React or `lit-html`.
 - Register subclasses with `@customElement("element-name")` and implement `protected render()` to return `JSX.Node`.
+- Define `JSXElement` CSS with ``@addstyles(`...`)`` from `@tiddlywiki/jsx-lit` instead of returning a `<style>` element from `render()`. The decorator appends a constructable stylesheet to the class's Lit `styles`.
+- In the default shadow-DOM mode, Lit adopts `@addstyles` styles into the component's shadow root. Selectors are scoped to that shadow tree: use `:host` for the custom-element host and `::slotted(...)` for light-DOM children exposed through slots. Document styles do not cross the shadow boundary except through inherited values, CSS custom properties, and explicitly exposed parts.
 - When rendering `<SomeElement ... />`, the JSX runtime constructs or reuses the element and assigns the complete JSX props object to its `.props` property. Objects and callbacks remain JavaScript values, not serialized attributes.
 - Use render-function props for composition, for example `renderContent: () => JSX.Node`. The receiving element explicitly calls `this.props.renderContent()`. These callbacks are not React function components.
 - Keep layout components independent of domain data: accept render functions for content rather than imposing a universal field schema.
@@ -40,9 +42,9 @@ When the user changes subject or goes on a side tangant about something, assume 
 ### Light DOM and styling
 
 - Use `useLightDOM = true` for admin components so their rendered content inherits the shared styles in `packages/admin-vanilla/src/main.css`. The default is shadow DOM.
+- With `useLightDOM = true`, `@addstyles` styles are installed as reference-counted `<style>` elements in `document.head`. They are global document CSS, so scope selectors to the component tag or another stable owning selector; `:host` does not apply in document CSS.
 - In light DOM, the element renders into itself. The parent JSX renderer does not descend into its children; the element owns that subtree. Pass content through render props rather than expecting native shadow-slot behavior.
 - The host is already a DOM element. Use host properties such as `this.hidden` instead of adding a child wrapper solely to hide the component. Host elements also participate in layout; account for them in grid, flex, and direct-child selectors. Use `display:contents;` if their presence is undesired.
-- Styles supplied through Lit's element styles are installed globally in light DOM and reference-counted when useLightDOM is true.
 - Returning `null` clears rendered children but does not remove the host from its parent. Returning `JSXElement.DO_NOT_RENDER` leaves the existing rendered children untouched.
 - Keep components that need persistent lifecycle or animation state mounted; change their props instead of conditionally creating and removing them.
 
