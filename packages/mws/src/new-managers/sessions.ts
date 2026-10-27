@@ -3,6 +3,7 @@ import { checkData, checkPath, jsonify, JsonValue, registerZodRoutes, RouterKeyM
 import { createHash, randomBytes } from "node:crypto";
 import { ServerState } from "../ServerState";
 import { serverEvents } from "@tiddlywiki/events";
+import { b64 } from "../services/CryptoService";
 
 
 export interface SessionManagerObject {
@@ -195,18 +196,21 @@ export class SessionManager {
 
       };
     }
-    else return {
-      user_id: "" as PrismaField<"Users", "user_id">,
-      username: "(anon)" as PrismaField<"Users", "username">,
-      isAdmin: false,
-      roles: [],
-      session_id: undefined,
-      isLoggedIn: false,
-      AdminRoleName: SessionManager.AdminRoleName,
-      UserRoleName: SessionManager.UserRoleName,
-      AdminRoleID: this.roleLookup[this.AdminRoleName],
-      UserRoleID: this.roleLookup[this.UserRoleName],
-    };
+    else {
+      const guest_session = headers.cookie.get("guest_session");
+      return {
+        user_id: "" as PrismaField<"Users", "user_id">,
+        username: "(anon)" as PrismaField<"Users", "username">,
+        isAdmin: false,
+        roles: [],
+        session_id: guest_session ?? undefined,
+        isLoggedIn: false,
+        AdminRoleName: SessionManager.AdminRoleName,
+        UserRoleName: SessionManager.UserRoleName,
+        AdminRoleID: this.roleLookup[this.AdminRoleName],
+        UserRoleID: this.roleLookup[this.UserRoleName],
+      };
+    }
   }
 
   login1 = zodSession("/login/1", z => z.object({
@@ -261,14 +265,7 @@ export class SessionManager {
 
     if (!skipCookie) {
       // the client can ask to skip the cookie for things like password change
-      state.setCookie({
-        name: "session",
-        value: session_id,
-        httpOnly: true,
-        path: state.pathPrefix + "/",
-        secure: state.assumeHTTPS,
-        sameSite: "Lax"
-      });
+      state.setSessionCookie("session", session_id);
     }
 
     // NEVER send the session_key! The client already has it!
@@ -439,7 +436,7 @@ export class SessionManager {
 
 
 async function createSession(prisma: PrismaTxnClient, user_id: PrismaField<"Users", "user_id">, session_key: string) {
-  const session_id = randomBytes(16).toString("base64url");
+  const session_id = b64.encode(crypto.getRandomValues(new Uint8Array(16)));
   return await prisma.sessions.create({
     data: {
       user_id,

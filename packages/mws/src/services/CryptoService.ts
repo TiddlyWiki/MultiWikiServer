@@ -1,7 +1,7 @@
 const utf8 = new TextEncoder()
 
 class Base64Encoder {
-  encode(buf: ArrayBuffer) {
+  encode(buf: ArrayBuffer | Uint8Array) {
     const bytes = buf instanceof Uint8Array ? buf : new Uint8Array(buf)
     if (typeof bytes.toBase64 === 'function') {
       return bytes.toBase64({ alphabet: 'base64url', omitPadding: true })
@@ -29,23 +29,7 @@ class Base64Encoder {
 }
 
 
-const B64URL_RE = /^[A-Za-z0-9_-]*$/
-
-function fromB64Url(str: string, maxLen = 1024): Uint8Array<ArrayBuffer> | null {
-  if (typeof Uint8Array.fromBase64 === 'function') {
-    return Uint8Array.fromBase64(str, { alphabet: 'base64url', lastChunkHandling: 'strict' })
-  }
-
-  // Fallback: atob + canonical check
-  try {
-    const b64 = str.replace(/-/g, '+').replace(/_/g, '/')
-    const padded = b64 + '='.repeat((4 - (b64.length % 4)) % 4)
-    return Uint8Array.from(atob(padded), (c) => c.charCodeAt(0));
-  } catch {
-    return null
-  }
-}
-const b64 = new Base64Encoder()
+export const b64 = new Base64Encoder()
 
 
 export class SignData {

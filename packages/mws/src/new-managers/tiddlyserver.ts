@@ -152,11 +152,17 @@ export async function serveStaticFile(
   const target = await openMountedTarget(mount.path);
   if (!target) return sendNotFound ? state.sendEmpty(404) : undefined;
 
+
   try {
     const stat = await target.stat();
     const path = await realpath(mount.path);
     if (!isWithinRoot(root, path))
       throw new SendError("ACCESS_DENIED", 403, { reason: "Mounted path resolves outside its root" });
+
+    state.requestAuthToken = state.urlInfo.searchParams.get("page_token");
+    const pageToken = await state.makePageToken("static-file:" + path);
+    if (!state.requestAuthToken && pageToken)
+      throw state.redirect(state.urlInfo.pathname + "?page_token=" + encodeURIComponent(pageToken));
 
     const etag = stat.isFile() ? await makeEtag(target) : undefined;
 
@@ -270,6 +276,8 @@ export async function saveMountedFile(
     if (!stat.isFile()) {
       return state.sendEmpty(405);
     }
+    state.requestAuthToken = state.urlInfo.searchParams.get("page_token");
+    await state.okPageToken(["static-file:" + path]);
 
     // make sure we're still working with the same file
     if (!sameFile(stat, await lstat(path)))

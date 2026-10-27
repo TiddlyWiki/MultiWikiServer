@@ -6,6 +6,7 @@ import { SendError } from "@tiddlywiki/server";
 import { AuthUser, SecFetch } from './new-managers/sessions';
 import { guarded } from './utils/guarded-promise';
 import { make_index_file, make_manifest_file } from './services/setupDevServer';
+import { b64 } from './services/CryptoService';
 
 
 declare module "@tiddlywiki/server" {
@@ -73,11 +74,26 @@ export class StateObject<
 
   serveAdminPath = "/admin";
 
+  setSessionCookie(name: string, value: string) {
+    this.setCookie({
+      name,
+      value,
+      httpOnly: true,
+      path: this.pathPrefix + "/",
+      secure: this.assumeHTTPS,
+      sameSite: "Lax"
+    });
+  }
+
   async serveIndex({ publicdir, status, sendError }: {
     publicdir: string;
     status: number;
     sendError?: SendError<any>;
   }): Promise<typeof STREAM_ENDED> {
+    if (!this.user.session_id) {
+      this.user.session_id = b64.encode(crypto.getRandomValues(new Uint8Array(16)));
+      this.setSessionCookie("guest_session", this.user.session_id);
+    }
     const serverResponse: ServerAdminResponse = {
       userState: this.user,
       tw5Versions: Array.from(this.pluginCache.versions),
@@ -152,10 +168,14 @@ export class StateObject<
     const secFetchSite = this.headers.get("sec-fetch-site") as "cross-site" | "same-origin" | "same-site" | "none" | null;
     const secFetchUser = this.headers.get("sec-fetch-user") === "?1";
 
-    if (secFetchDest === "document" && secFetchMode === "navigate" && this.user.session_id) {
+    if (secFetchDest === "document" && secFetchMode === "navigate") {
+      if (!this.user.session_id) return null;
       const parts: string[] = [this.user.session_id, pathname];
       // nonce and timestamp are not needed.
       return await this.config.signer.encode(parts.join("|"));
+    } else {
+      // throw new SendError("ACCESS_DENIED", 403, { reason: "page must be a document load" });
+      await this.okPageToken([pathname]);
     }
     return null;
   }
