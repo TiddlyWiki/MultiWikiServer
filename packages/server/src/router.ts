@@ -220,7 +220,7 @@ export class Router {
     public rootRoute: ServerRoute,
     public hono = new Hono<HonoEnv>(),
   ) {
-    this.hono.use(this.routeHandlerMiddleware);
+
   }
 
   catcherInner: (this: undefined, e: any) => void = (e: any) => { };

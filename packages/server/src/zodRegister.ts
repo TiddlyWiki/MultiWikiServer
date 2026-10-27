@@ -157,3 +157,21 @@ export function checkPath<
   state.pathParams = pathCheck.data as any;
 }
 
+export function checkPathLoose<
+  T extends { [x: string]: core.$ZodType<unknown, string | undefined>; }
+>(
+  state: ServerRequest,
+  zodPathParams: (z: Z2<"STRING">) => T,
+  registerError: Error
+): asserts state is ServerRequest & { pathParams: zod.infer<zod.ZodObject<T>> } {
+  const pathCheck = Z2.looseObject(zodPathParams(Z2)).safeParse(state.pathParams);
+  if (!pathCheck.success) {
+    console.log(`${pathCheck.error}\nfor\n${registerError.stack?.split("\n").slice(1).join("\n")}`);
+    throw state.sendError(400, "INVALID_REQUEST_PATH", {
+      prettyErrors: Z2.prettifyError(pathCheck.error).toString(),
+      flattenedErrors: Z2.flattenError(pathCheck.error),
+    });
+  }
+  state.pathParams = pathCheck.data as any;
+}
+

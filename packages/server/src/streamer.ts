@@ -56,6 +56,8 @@ export interface IncomingHttpHeaders extends http.IncomingHttpHeaders {
   "x-requested-with"?: string;
 }
 
+export type ApplyHeaders = SuperHeadersPropertyInit & Record<`x-${string}`, string>;
+
 export interface SendFileOptions extends Omit<SendOptions, "root" | "dotfiles" | "index" | "start" | "end"> {
   root: string;
   reqpath: string;
@@ -96,8 +98,9 @@ export class StreamerRequest {
 
   readonly host: string;
   readonly method: string;
-  readonly urlInfo: URL;
   /** The request url with path prefix removed. */
+  readonly urlInfo: URL;
+  /** The request path with path prefix removed. */
   readonly url: string;
   /** The request headers. Never includes the four http2 headers, besides `:authority` as `host`. */
   readonly headers: SuperHeaders;
@@ -690,7 +693,7 @@ export class Streamer extends StreamerRequest {
   //   this.res.headers.set(name, value);
   // }
 
-  applyHeaders(headers: (SuperHeadersPropertyInit & Record<`x-${string}`, string>)) {
+  applyHeaders(headers: ApplyHeaders) {
     this.res.headers.apply(headers as any);
   }
 
