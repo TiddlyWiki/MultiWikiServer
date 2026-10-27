@@ -17,6 +17,7 @@ import { bootDefaultTiddlyWiki, defaultPreloadFunction, startupCache } from "./p
 import { PluginCache } from "./plugin-cache/PluginCache";
 import { createPasswordService } from "./services/PasswordService";
 import { ClientBuildDefinition, registerStatsRoute, SendAdmin, setupClientBuild } from "./services/setupDevServer";
+import { SignData } from "./services/CryptoService";
 
 
 declare module "@tiddlywiki/events" {
@@ -49,8 +50,9 @@ serverEvents.on("cli.execute.before", async (name, params, options, instance) =>
 
 
   const cachePath = path.resolve(wikiPath, "cache");
-
-  const passwordService = await createPasswordService(readPasswordMasterKey(wikiPath));
+  const masterkey = readPasswordMasterKey(wikiPath);
+  const passwordService = await createPasswordService(masterkey);
+  const cryptoKey = await SignData.importKey(masterkey);
 
   const cacheArrayStrings = [defaultPreloadFunction];
   await serverEvents.emitAsync("mws.cache.init.before", { cacheArrayStrings });
@@ -77,7 +79,7 @@ serverEvents.on("cli.execute.before", async (name, params, options, instance) =>
     adapter: adapter.adapter
   });
 
-  const config = new ServerState({ wikiPath, cachePath, storePath }, engine, passwordService, cache);
+  const config = new ServerState({ wikiPath, cachePath, storePath }, engine, passwordService, cryptoKey, cache);
   await serverEvents.emitAsync("mws.config.init.before", config);
   await config.init();
   await serverEvents.emitAsync("mws.config.init.after", config);
@@ -139,13 +141,16 @@ serverEvents.on("listen.router.init", async (listen, router) => {
 
   router.sendAdmin = await setupClientBuild(clientBuildDef);
   router.createServerRequest = async (request, ...args) => {
-    const user = await SessionManager.parseIncomingRequest(request.cookies, router.config);
+    const user = await SessionManager.parseIncomingRequest(request.headers, router.config);
     return new StateObject(user, router, request, ...args);
   }
-  router.hono = router.hono.use(secureHeaders({
-    strictTransportSecurity: false,
-    referrerPolicy: "strict-origin-when-cross-origin"
-  }));
+  router.hono = router.hono
+    .use(secureHeaders({
+      strictTransportSecurity: false,
+      referrerPolicy: "strict-origin-when-cross-origin",
+      crossOriginOpenerPolicy: "no-referrer",
+    }))
+    .use(router.routeHandlerMiddleware);
 
   await router.config.engine.roles.findMany({})
 

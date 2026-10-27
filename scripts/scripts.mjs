@@ -35,7 +35,6 @@ async function runner(arg) {
       await start(BIN, process.argv.slice(3), {
         DEVSERVER: true ? "watch" : "build",
         ENABLE_EXTERNAL_PLUGINS: "1",
-        ENABLE_DOCS_ROUTE: arg === "docs" ? "1" : "",
       });
       break;
     case "build":

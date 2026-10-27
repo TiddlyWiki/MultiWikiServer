@@ -5,9 +5,10 @@ import { readFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { mapGetInit } from "./wiki-utils";
 import { defaultPreloadFunction, PluginCache } from "../plugin-cache";
-import { RecipeInfo, RecipeResolver } from "./RecipeResolver";
+import { RecipeInfo, RecipeResolver, RecipeStatus } from "./RecipeResolver";
 import { TiddlerFields } from "tiddlywiki";
 import { ok } from "node:assert";
+import { RecipeRoutes } from "./RecipeRoutes";
 
 
 type IndexData = ART<RecipeResolver["getIndexData"]>;
@@ -31,19 +32,24 @@ export async function serveWikiIndex(
     });
     if (!recipe) return null;
     const skipBagTiddlers = state.method === "HEAD";
-    const index = await state.$transaction(async (prisma) => {
-      return await new RecipeResolver(recipe, prisma, state.user)
-        .getIndexData(!skipBagTiddlers);
+    const pageToken = await state.makePageToken(state.config.rootRoutes.wiki + "/" + recipe_slug);
+
+    const { index, status } = await state.$transaction(async (prisma) => {
+      const resolver = new RecipeResolver(recipe, prisma, state.user);
+      const index = await resolver.getIndexData(!skipBagTiddlers);
+      const status = resolver.getRecipeStatus(pageToken);
+      return { index, status }
     });
+
     const etag = index.getIndexEtag("", state.pluginCache);
-    return { recipe, index, etag };
+    return { recipe, index, etag, status };
   };
 
   switch (type) {
     case "index": {
       const data = await getData();
       if (!data) return undefined;
-      const { recipe, index, etag } = data;
+      const { recipe, index, etag, status } = data;
       const { injectionFunction, twVersion } = index.template;
       const version = state.pluginCache.versionFromTemplate(twVersion);
       if (!version) throw new Error("wut");
@@ -57,31 +63,23 @@ export async function serveWikiIndex(
         index,
         etag,
         plugins,
+        status,
       ).serveIndexFile(template);
     }
     case "store.json":
     case "store.js": {
-
-
-      const data = await (async () => {
-        if (process.env.BUILD_FLAG_EXTERNAL_STORE) {
-          const key = state.headers.cookie.get("mws_index_cache")!;
-          const cached = IndexSender.storeCache.get(key) ?? await getData();
-          IndexSender.storeCache.delete(key);
-          return cached;
-        } else {
-          return await getData();
-        }
-      })();
+      const data = await getData();
       if (!data) return undefined;
-      const { recipe, index, etag: newEtag } = data;
+      const { recipe, index, etag: newEtag, status } = data;
       const { injectionFunction, twVersion } = index.template;
 
       const version = state.pluginCache.versionFromTemplate(twVersion);
 
       const plugins = index.getPluginList();
+
       await initPlugins(state.pluginCache, injectionFunction, version, plugins);
-      const store = new WikiStoreWriter(state, recipe, index, type, plugins, version);
+
+      const store = new WikiStoreWriter(state, recipe, index, type, plugins, version, status);
 
       const match = state.headers.ifNoneMatch.has(newEtag);
 
@@ -138,13 +136,12 @@ async function initPlugins(pluginCache: PluginCache, injectionFunction: string, 
 const emptyArray = Object.seal([])
 // #region - IndexSender
 abstract class IndexSender {
-  static storeCache = new Map<string, { recipe: RecipeInfo, index: IndexData, etag: string; }>();
+
 
   protected abstract makeStoreWriter: () => StoreWriter;
   protected abstract state: ServerRequest;
   protected abstract lastEventId: string;
   protected abstract enableExternalPlugins: boolean;
-  protected abstract enableExternalStore: boolean;
   protected abstract injectStore: boolean;
   protected abstract injectionLocation: string;
   protected abstract injectionFunction: string;
@@ -155,6 +152,7 @@ abstract class IndexSender {
   protected abstract etag: string;
   protected abstract plugins: string[];
   protected abstract twVersion: string;
+  protected abstract status: RecipeStatus | null;
 
 
 
@@ -168,32 +166,17 @@ abstract class IndexSender {
       ok(plugin);
       const h = this.state.pluginCache.pluginHashes(preloadFunction).get(plugin)!;
       ok(h);
+      const link = `${this.state.pathPrefix + this.state.config.rootRoutes.cache}/${plugin}/plugin.js?cb=${encodeURIComponent(preloadFunction)}`;
       switch (type) {
         case "preload":
-          return `<link rel="preload" href="${this.state.pathPrefix + this.state.config.rootRoutes.cache}/${plugin}/plugin.js?cb=${encodeURIComponent(preloadFunction)}" as="script" integrity="${h}" crossorigin="anonymous" />`;
+          return `<link rel="preload" href="${link}" as="script" integrity="${h}" crossorigin="anonymous" />`;
         case "script":
-          return `<script src="${this.state.pathPrefix + this.state.config.rootRoutes.cache}/${plugin}/plugin.js?cb=${encodeURIComponent(preloadFunction)}" integrity="${h}" crossorigin="anonymous"></script>`;
+          return `<script src="${link}" integrity="${h}" crossorigin="anonymous" ></script>`;
         default:
           { const exhaustive: never = type; }
           throw new Error(`Unknown plugin tag type: ${type}`);
       }
     }).join("\n") + "\n";
-  }
-
-  private renderStoreTags(type: "script" | "preload") {
-    const pathPrefix = this.state.pathPrefix;
-    const endpt = this.state.config.rootRoutes.recipe;
-    const recipe = this.recipeSlug;
-    switch (type) {
-      case "preload":
-        return `<link rel="preload" href="${pathPrefix + endpt}/${this.recipeSlug}/store.js" as="script" crossorigin="anonymous" />`;
-      case "script":
-        return `<script src="${pathPrefix + endpt}/${this.recipeSlug}/store.js" crossorigin="anonymous"></script>`;
-      default:
-        { const exhaustive: never = type; }
-        throw new Error(`Unknown plugin tag type: ${type}`);
-    }
-
   }
 
   async serveIndexFile(template: string): Promise<typeof STREAM_ENDED> {
@@ -209,20 +192,20 @@ abstract class IndexSender {
 
     const match = this.state.headers.ifNoneMatch.has(this.etag);
 
-    const writerCacheKey = randomBytes(24).toString("base64url");
+    // const writerCacheKey = randomBytes(24).toString("base64url");
 
     this.state.writeHead(match ? 304 : 200, {
       contentType: "text/html",
       etag: this.etag,
       cacheControl: "max-age=0, private, no-cache",
-      setCookie: {
-        name: "mws_index_cache",
-        value: writerCacheKey,
-        httpOnly: true,
-        sameSite: "Strict",
-        maxAge: 10,
-        path: this.state.pathPrefix + "/",
-      }
+      // setCookie: {
+      //   name: "mws_index_cache",
+      //   value: writerCacheKey,
+      //   httpOnly: true,
+      //   sameSite: "Strict",
+      //   maxAge: 10,
+      //   path: this.state.pathPrefix + "/",
+      // }
     });
 
     if (this.state.method === "HEAD" || match)
@@ -252,9 +235,6 @@ abstract class IndexSender {
     if (this.enableExternalPlugins)
       await this.state.write(this.renderPluginTags("preload", this.plugins));
 
-    if (this.enableExternalStore)
-      await this.state.write(this.renderStoreTags("preload"));
-
     if (this.injectDefaultPreloadScript) {
       // this is hardcoded to the tiddlywiki default.
       // custom html needs to take care of this itself
@@ -273,51 +253,39 @@ $tw.preloadTiddler = function(fields) {
     if (this.enableExternalPlugins)
       await this.state.write(this.renderPluginTags("script", this.plugins));
 
+    const loader = this.injectStore ? {
+      state: this.state,
+      before: async function () {
+        this.state.writeFast("<script>\n");
+      },
+      after: async function () {
+        this.state.writeFast("</script>\n");
+        await this.state.write(template.substring(headPos));
+      },
+      writer: this.makeStoreWriter()
+    } : {
+      state: this.state,
+      marker: "",
+      markerPos: -1,
+      before: async function () {
+        // Splice into the tiddler store
+        this.marker = `<script class="tiddlywiki-tiddler-store" type="application/json">[`;
+        this.markerPos = template.indexOf(this.marker);
+        if (this.markerPos === -1) throw new Error("Cannot find tiddler store in template");
+        await this.state.write(template.substring(headPos, this.markerPos));
+        await this.state.write(this.marker);
+      },
+      after: async function () {
+        await this.state.write(template.substring(this.markerPos + this.marker.length));
+      },
 
-    if (this.enableExternalStore) {
-      await this.state.write(this.renderStoreTags("script"));
-      await this.state.write(template.substring(headPos));
-      // this gets disabled by the build flag regardless of anything else
-      // mostly because I can't find a valid reason to have this feature
-      if (process.env.BUILD_FLAG_EXTERNAL_STORE) {
-        IndexSender.storeCache.set(writerCacheKey, this.makeStoreData());
-        setTimeout(() => { IndexSender.storeCache.delete(writerCacheKey); }, 20000);
-      }
-    } else {
-
-      const loader = this.injectStore ? {
-        state: this.state,
-        before: async function () {
-          this.state.writeFast("<script>\n");
-        },
-        after: async function () {
-          this.state.writeFast("</script>\n");
-          await this.state.write(template.substring(headPos));
-        },
-        writer: this.makeStoreWriter()
-      } : {
-        state: this.state,
-        marker: "",
-        markerPos: -1,
-        before: async function () {
-          // Splice into the tiddler store
-          this.marker = `<script class="tiddlywiki-tiddler-store" type="application/json">[`;
-          this.markerPos = template.indexOf(this.marker);
-          if (this.markerPos === -1) throw new Error("Cannot find tiddler store in template");
-          await this.state.write(template.substring(headPos, this.markerPos));
-          await this.state.write(this.marker);
-        },
-        after: async function () {
-          await this.state.write(template.substring(this.markerPos + this.marker.length));
-        },
-
-        writer: this.makeStoreWriter()
-      }
-
-      await loader.before();
-      await loader.writer.writeStore(true);
-      await loader.after();
+      writer: this.makeStoreWriter()
     }
+
+    await loader.before();
+    await loader.writer.writeStore(true);
+    await loader.after();
+
 
     return this.state.end();
   }
@@ -328,7 +296,6 @@ $tw.preloadTiddler = function(fields) {
 class WikiIndexSender extends IndexSender {
   protected lastEventId: string;
   protected enableExternalPlugins: boolean;
-  protected enableExternalStore: boolean;
   protected injectStore: boolean;
   protected injectionLocation: string;
   protected customHtmlEnabled: boolean;
@@ -347,11 +314,11 @@ class WikiIndexSender extends IndexSender {
     index: IndexData,
     protected etag: string,
     public plugins: string[],
+    protected status: RecipeStatus,
   ) {
     super();
     this.lastEventId = index.lastEventId;
     this.enableExternalPlugins = index.template.externalPlugins;
-    this.enableExternalStore = BUILD_FLAG_EXTERNAL_STORE && index.template.externalStore;
     this.injectStore = index.template.customHtmlEnabled;
     this.injectionLocation = index.template.injectionLocation;
     this.injectionFunction = index.template.injectionFunction;
@@ -370,6 +337,7 @@ class WikiIndexSender extends IndexSender {
         this.injectStore ? "store.js" : "store.json",
         this.plugins,
         this.twVersion,
+        this.status,
       );
     }
   }
@@ -379,7 +347,6 @@ class WikiIndexSender extends IndexSender {
 class DocsIndexSender extends IndexSender {
   protected lastEventId: string;
   protected enableExternalPlugins: boolean;
-  protected enableExternalStore: boolean;
   protected injectStore: boolean;
   protected injectionLocation: string;
   protected injectionFunction: string;
@@ -390,6 +357,7 @@ class DocsIndexSender extends IndexSender {
   protected wikiSlug: string;
   protected makeStoreWriter: () => StoreWriter;
   protected pluginCache: PluginCache;
+  protected status: null;
 
   constructor(
     protected state: ServerRequest,
@@ -408,12 +376,12 @@ class DocsIndexSender extends IndexSender {
     this.injectStore = false;
     this.injectDefaultPreloadScript = true;
     this.enableExternalPlugins = true;
-    this.enableExternalStore = false;
     this.injectionLocation = "</head>";
     this.recipeSlug = undefined as never; // this should throw
     this.wikiSlug = "";
     this.makeStoreWriter = () => new DocsStoreWriter(state, tiddlers, "store.json", plugins, twVersion);
     this.twVersion = twVersion;
+    this.status = null;
 
   }
 }
@@ -430,6 +398,7 @@ abstract class StoreWriter {
   abstract externalPlugins: boolean;
   abstract plugins: string[];
   abstract twVersion: string;
+  abstract status: RecipeStatus | null;
 
   // private get cachePath() { return this.state.pluginCache.cachePath; }
   // private get pluginFiles() { return this.state.pluginCache.pluginFiles; }
@@ -472,6 +441,10 @@ abstract class StoreWriter {
       title: "$:/config/multiwikiclient/recipe",
       text: this.recipeSlug,
     });
+    await this.writeTiddler({
+      title: "$:/config/multiwikiclient/status",
+      text: JSON.stringify(this.status, null, 2),
+    });
     if (process.env.DEVSERVER) {
       await this.writeTiddler({
         title: "$:/state/multiwikiclient/dev-mode",
@@ -504,6 +477,7 @@ class WikiStoreWriter extends StoreWriter {
     format: "store.js" | "store.json",
     public plugins: string[],
     public twVersion: string,
+    public status: RecipeStatus,
   ) {
     super();
     this.bagTiddlers = index.bagTiddlers;
@@ -572,6 +546,7 @@ class DocsStoreWriter extends StoreWriter {
   public recipeSlug: string;
   public dropLastSuffix: boolean;
   public externalPlugins: boolean;
+  public status: null = null;
 
 
   private injectionFunction: string;

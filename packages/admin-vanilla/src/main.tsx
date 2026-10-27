@@ -3,11 +3,11 @@
 import "./main.css";
 import { AppAdmin } from "./app-admin";
 import { LoginForm } from "./app-login";
-import type { AuthUser } from "@tiddlywiki/mws/src/new-managers/sessions";
+// import type { AuthUser } from "@tiddlywiki/mws/src/new-managers/sessions";
 import { SendError } from "@/server";
 import { ProfileForm } from "./app-profile";
-import type { ServerState } from "@tiddlywiki/mws/src/ServerState";
 import { iBagLoadSchema } from "@/server";
+import type { ServerAdminResponse } from "@tiddlywiki/mws/src/RequestState";
 
 console.log(iBagLoadSchema);
 
@@ -19,14 +19,14 @@ window.addEventListener("drop", (e) => {
   console.log("Prevented the default browser behavior of doing stuff with dropped stuff. If you have a use case for this, please open an issue.");
 });
 
-
 declare global {
   const pathPrefix: string;
   const embeddedServerResponse: {
-    userState: AuthUser;
-    tw5Versions: string[];
-    rootRoutes: ServerState["rootRoutes"];
+    userState: ServerAdminResponse["userState"];
+    tw5Versions: ServerAdminResponse["tw5Versions"]
+    rootRoutes: ServerAdminResponse["rootRoutes"];
     sendError?: ReturnType<SendError<any>["toJSON"]>;
+    pageToken: ServerAdminResponse["pageToken"];
   }
 }
 

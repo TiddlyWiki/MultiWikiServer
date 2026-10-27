@@ -3,7 +3,9 @@ import { Types } from '@tiddlywiki/mws-prisma';
 import { ServerState } from "./ServerState";
 import { BodyFormat, Router, ServerRequest, Streamer } from "@tiddlywiki/server";
 import { SendError } from "@tiddlywiki/server";
-import { AuthUser } from './new-managers/sessions';
+import { AuthUser, SecFetch } from './new-managers/sessions';
+import { guarded } from './utils/guarded-promise';
+import { make_index_file, make_manifest_file } from './services/setupDevServer';
 
 
 declare module "@tiddlywiki/server" {
@@ -17,6 +19,15 @@ declare module "@tiddlywiki/server" {
     D = unknown
   > extends StateObject<B, M, D> { }
 
+}
+
+
+export interface ServerAdminResponse {
+  sendError?: SendError<any>;
+  userState: ServerRequest["user"];
+  rootRoutes: ServerState["rootRoutes"];
+  tw5Versions: string[];
+  pageToken: string | null;
 }
 
 
@@ -39,6 +50,7 @@ export class StateObject<
   asserted;
   PasswordService;
   pluginCache;
+  requestAuthToken;
 
   constructor(user: AuthUser, router: Router, ...parts: ConstructorParameters<typeof Streamer>) {
     super(...parts);
@@ -49,11 +61,58 @@ export class StateObject<
     this.PasswordService = router.config.PasswordService;
     this.pluginCache = router.config.pluginCache;
 
+    this.requestAuthToken = this.headers.authorization?.startsWith("Bearer ")
+      ? this.headers.authorization.slice(7)
+      : null;
+
 
     this.asserted = false;
     this.sendAdmin = (sendError?: SendError<any>): Promise<typeof STREAM_ENDED> =>
       router.sendAdmin(this, sendError);
   }
+
+  serveAdminPath = "/admin";
+
+  async serveIndex({ publicdir, status, sendError }: {
+    publicdir: string;
+    status: number;
+    sendError?: SendError<any>;
+  }): Promise<typeof STREAM_ENDED> {
+    const serverResponse: ServerAdminResponse = {
+      userState: this.user,
+      tw5Versions: Array.from(this.pluginCache.versions),
+      rootRoutes: this.config.rootRoutes,
+      sendError,
+      pageToken: await this.makePageToken(this.serveAdminPath),
+    }
+    const indexBuffer = await make_index_file({
+      publicdir,
+      pathPrefix: this.pathPrefix,
+      assetsPrefix: this.config.rootRoutes.assets,
+      serverResponseJSON: JSON.stringify(serverResponse)
+    });
+    return this.sendBuffer(status, {
+      contentType: { mediaType: "text/html", charset: "utf-8" },
+      contentLength: indexBuffer.length,
+      contentSecurityPolicy: null,
+    }, indexBuffer);
+  }
+
+  async serveManifest({ publicdir }: {
+    publicdir: string;
+  }): Promise<typeof STREAM_ENDED> {
+    const buffer = await make_manifest_file({
+      publicdir,
+      pathPrefix: this.pathPrefix,
+      assetsPrefix: this.config.rootRoutes.assets
+    });
+    return this.sendBuffer(200, {
+      contentType: { mediaType: "text/html", charset: "utf-8" },
+      contentLength: buffer.length,
+      contentSecurityPolicy: null,
+    }, buffer);
+  }
+
 
   okUser() {
     if (!this.user.isLoggedIn)
@@ -64,6 +123,14 @@ export class StateObject<
       throw new SendError("ACCESS_DENIED", 403, { reason: "User not authenticated" })
     if (!this.user.isAdmin)
       throw new SendError("ACCESS_DENIED", 403, { reason: "User is not an admin" })
+  }
+
+  okPageToken(urls: string[]) {
+    // failing to await this will probably cause the process to exit, which is good
+    return guarded(async () => {
+      if (!await this.checkPageToken(urls, this.requestAuthToken))
+        throw new SendError("ACCESS_DENIED", 403, { reason: "pathname signature failed" });
+    })();
   }
 
   async $transaction<T>(fn: (prisma: PrismaTxnClient) => Promise<T>): Promise<T> {
@@ -78,53 +145,29 @@ export class StateObject<
     return this.engine.$transaction(arg(this.engine), options);
   }
 
-  /** 
-   * This is intended to prevent malicious code attempting to access restricted
-   * bags using the credentials of more privelaged users and then saving the data
-   * to less restricted bags. Eventually this is intended to have a more complete 
-   * system where a page requests permission to access another page on behalf of the user.
-   */
-  assertWikiReferer(recipe_slug: string) {
-    const state = this;
-    if (!state.headers.referer) return;
-    const referer = new URL(state.headers.referer);
-    // for now pages outside the path prefix are denied, but this should probably change
-    if (!referer.pathname.startsWith(state.pathPrefix))
-      throw new SendError("ACCESS_DENIED", 403, { reason: "Referer check failed 1" })
-    // if a recipe endpoint somehow serves a page, it's definitely wiki content, so deny it
-    if (referer.pathname.startsWith(state.pathPrefix + state.config.rootRoutes.recipe + "/"))
-      throw new SendError("ACCESS_DENIED", 403, { reason: "Referer check failed 2" })
-    // pages outside the wiki path are allowed to access wiki endpoints if they want
-    if (!referer.pathname.startsWith(state.pathPrefix + state.config.rootRoutes.wiki + "/"))
-      return;
-    // we now get the recipe name from the referer
-    const recipe_name = referer.pathname.substring(
-      state.pathPrefix.length
-      + state.config.rootRoutes.wiki.length
-      + "/".length
-    );
-    const referer_slug = decodeURIComponent(recipe_name) as PrismaField<"Recipe", "id">;
-    if (referer_slug !== recipe_slug)
-      throw new SendError("ACCESS_DENIED", 403, { reason: "Referer check failed 3" })
+  async makePageToken(pathname: string) {
+
+    const secFetchDest = this.headers.get("sec-fetch-dest") as Request["destination"] | null;
+    const secFetchMode = this.headers.get("sec-fetch-mode") as Request["mode"] | null;
+    const secFetchSite = this.headers.get("sec-fetch-site") as "cross-site" | "same-origin" | "same-site" | "none" | null;
+    const secFetchUser = this.headers.get("sec-fetch-user") === "?1";
+
+    if (secFetchDest === "document" && secFetchMode === "navigate" && this.user.session_id) {
+      const parts: string[] = [this.user.session_id, pathname];
+      // nonce and timestamp are not needed.
+      return await this.config.signer.encode(parts.join("|"));
+    }
+    return null;
   }
 
-  /** 
-   * If this throws in the wrong situation it may be a bug.
-   * Normally this is intended to keep wiki code from trying to acces admin or login paths,
-   * since malicious code would be accessing it from every computer that opens the wiki.
-   * It is not intended to restrict legitimate scenarios, especially not scenarios coded into
-   * the admin-vanilla client. If it throws under stock conditions, it's a bug.
-   */
-  assertReferer(url: string[]) {
-    const state = this;
-    // referer is a voluntary header
-    if (!state.headers.referer) return;
-    const referer = new URL(state.headers.referer);
-    // deny referers from outside our pathprefix
-    if (!url.some(e => referer.pathname.startsWith(state.pathPrefix + e)))
-      throw new SendError("ACCESS_DENIED", 403, { reason: "Referer check failed" })
+  async checkPageToken(url: string[], pageToken: string | null) {
+    if (!this.user.session_id || !pageToken || pageToken === "null") return false;
+    for (const pathname of url) {
+      const parts: string[] = [this.user.session_id, pathname]
+      if (await this.config.signer.decode(parts.join("|"), pageToken)) return true;
+    }
+    return false;
   }
-
 
 }
 

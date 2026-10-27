@@ -9,7 +9,7 @@
 // single, batch, and list operations always present the same view and can
 // never disagree about where a title routes.
 
-import { checkPath, RouterRouteMap, SendError, ServerRequest, zod, ZodRoute } from "@tiddlywiki/server";
+import { ApplyHeaders, checkPath, RouterRouteMap, SendError, ServerRequest, zod, ZodRoute } from "@tiddlywiki/server";
 import { serverEvents } from "@tiddlywiki/events";
 import { serveDocsIndex, serveWikiIndex, } from "./RecipeIndexSender";
 
@@ -21,7 +21,7 @@ import { AdminRoutes } from "./TabDataAdapter";
 import esr from "escape-string-regexp";
 import { SessionManager } from "./sessions";
 import { registerCacheRoutes } from "../plugin-cache";
-import { registerDocsRoute } from "../services/tw-routes";
+import { CSPBuilder } from "./build-csp";
 
 export * from "./RecipeResolver";
 export * from "./TabDataAdapter";
@@ -72,7 +72,6 @@ serverEvents.on("mws.routes", (root, config) => {
   // this has to happen first so static and wiki can't override it
   SessionManager.defineRoutes(root);
 
-
   RecipeRoutes.defineRoutes(root, config);
 
   AdminRoutes.defineRoutes(root, config);
@@ -103,35 +102,57 @@ serverEvents.on("mws.routes", (root, config) => {
 
   });
 
-
-  async function serveStatic(state: ServerRequest<"ignore", string, unknown>, path: string, sendNotFound: boolean) {
-    return await fileSystemMountHandler(state, state.config.staticMounts, path, sendNotFound);
+  function buildResponseHeaders(options: { type: "wiki", recipe_slug_encoded: string } | { type: "static" }, state: ServerRequest): ApplyHeaders {
+    // pathname always starts with a / and pathprefix has already been removed
+    // path prefix always starts with a slash and does not end with a slash, or else is empty
+    // const pathparts = state.urlInfo.pathname.split("/");
+    const workerSrc = ["blob:", "data:"];
+    // if (pathparts.length > 2) {
+    //   workerSrc.push(state.urlInfo.origin + state.pathPrefix + pathparts.slice(0, 2).join("/") + "/");
+    // }
+    return {
+      referrerPolicy: "no-referrer",
+      crossOriginOpenerPolicy: "noopener-allow-popups",
+      xFrameOptions: "DENY",
+      xContentTypeOptions: "nosniff",
+      cacheControl: { private: true, noStore: true },
+      contentSecurityPolicy: new CSPBuilder()
+        .set({ type: "worker-src", sources: workerSrc })
+        .set({ type: "frame-ancestors", sources: ["'none'"] })
+        .toString()
+    }
   }
 
-  async function serveWiki(state: ServerRequest<"ignore", string, unknown>, recipe_slug: string, sendNotFound: boolean) {
-    if (state.method === "OPTIONS" || state.method === "PUT")
-      return state.sendEmpty(405);
-    recipe_slug = recipe_slug.slice(1);
-    state.assertWikiReferer(recipe_slug);
-    return await serveWikiIndex(state, recipe_slug, "index", sendNotFound);
-  }
 
   root.defineRoute<"ignore">({
     method: ["GET", "HEAD", "OPTIONS", "PUT"],
     path: new RegExp(`^(?<path>.*)$`),
-    bodyFormat: "ignore",
+    bodyFormat: "stream",
   }, async (state) => {
 
     checkPath(state, z => ({ path: z.string(), }), new Error());
 
-    const path = state.pathParams.path;
+    async function serveStatic(path: string) {
+      state.applyHeaders({ ...buildResponseHeaders({ type: "static" }, state) });
+      return await fileSystemMountHandler(state, state.config.staticMounts, path, false);
+    }
+
+    async function serveWiki(recipe_slug: string) {
+      if (state.method === "OPTIONS" || state.method === "PUT") return state.sendEmpty(405);
+      state.applyHeaders({ ...buildResponseHeaders({ type: "wiki", recipe_slug_encoded: encodeURIComponent(recipe_slug) }, state) });
+      return await serveWikiIndex(state, recipe_slug, "index", false);
+    }
+
     const { static: staticRoot, wiki: wikiRoot } = config.rootRoutes;
     const or_404 = (handled?: any) => {
       // most of these will return STREAM_ENDED or throw STREAM_ENDED.
       // they aren't throwing SendError
-      if (handled) return;
+      if (handled) return handled;
       throw new SendError("NOT_FOUND", 404, null);
     }
+
+    if (state.pathParams.path === "/")
+      return state.sendAdmin();
 
     // **Both roots set**
     // 1. Path matches static; item exists → static serves.
@@ -140,7 +161,7 @@ serverEvents.on("mws.routes", (root, config) => {
     // 6. Path matches static; item exists → static serves.
     // 7. Path matches static; item missing → 404.
     if (staticRoot && state.pathParams.path.startsWith(staticRoot + "/")) {
-      return or_404(await serveStatic(state, path.slice(staticRoot.length), false));
+      return or_404(await serveStatic(state.pathParams.path.slice(staticRoot.length)));
     }
 
     // **Both roots set**
@@ -150,7 +171,7 @@ serverEvents.on("mws.routes", (root, config) => {
     // 10. Path matches wiki; item exists → wiki serves.
     // 11. Path matches wiki; item missing → 404.
     if (wikiRoot && state.pathParams.path.startsWith(wikiRoot + "/")) {
-      return or_404(await serveWiki(state, path.slice(wikiRoot.length), false));
+      return or_404(await serveWiki(state.pathParams.path.slice(wikiRoot.length + 1)));
     }
 
     // **Only wiki root set**
@@ -159,7 +180,7 @@ serverEvents.on("mws.routes", (root, config) => {
     // **Neither root set**
     // 14. Static item exists → static serves.
     if (!staticRoot) {
-      const handled = await serveStatic(state, path, false);
+      const handled = await serveStatic(state.pathParams.path);
       if (handled || wikiRoot) return or_404(handled);
     }
 
@@ -170,7 +191,7 @@ serverEvents.on("mws.routes", (root, config) => {
     // 15. Static item missing; wiki item exists → wiki serves.
     // 16. Static and wiki items missing → 404.
     if (!wikiRoot) {
-      return or_404(await serveWiki(state, path, false));
+      return or_404(await serveWiki(state.pathParams.path.slice(1)));
     }
 
     // **Both roots set**

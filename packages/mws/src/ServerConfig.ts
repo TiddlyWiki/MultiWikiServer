@@ -30,7 +30,9 @@ const serverConfigSchema = zod.object({
       }
     }
   ).prefault({}),
-  staticMounts: fileSystemMountsSchema.prefault([]),
+  staticMounts: fileSystemMountsSchema.prefault(process.env.DEVSERVER ? [{
+    folderPath: "./test", webPath: "/test", putSaver: true
+  }] : []),
 }).prefault({});
 
 export function loadConfigSync(wikiPath: string) {
@@ -41,3 +43,4 @@ export function loadConfigSync(wikiPath: string) {
       : undefined
   );
 }
+

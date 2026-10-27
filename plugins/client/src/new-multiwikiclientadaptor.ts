@@ -195,6 +195,7 @@ const LAST_REVISION_ID_TIDDLER = "$:/state/multiwikiclient/recipe/last_revision_
 const MWC_STATE_TIDDLER_PREFIX = "$:/state/multiwikiclient/";
 const BAG_STATE_TIDDLER = "$:/state/multiwikiclient/tiddlers/bag";
 const REVISION_STATE_TIDDLER = "$:/state/multiwikiclient/tiddlers/revision";
+const STATUS_TIDDLER = "$:/config/multiwikiclient/status";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -210,6 +211,7 @@ interface MWSAdaptorInfo {
 interface RecipeStatus {
 	isAdmin: boolean;
 	user_id: string;
+	pageToken: string;
 	username: string;
 	isLoggedIn: boolean;
 	template: { type: string; definition: unknown; parameters: unknown };
@@ -254,6 +256,7 @@ class MultiWikiClientAdaptor implements SyncAdaptor<MWSAdaptorInfo> {
 	private tiddlerBag = new Map<string, string>();
 	/** title → revision, populated on save */
 	private tiddlerRevision = new Map<string, string>();
+	private status: RecipeStatus;
 
 	constructor(options: { wiki: Wiki }) {
 		this.wiki = options.wiki;
@@ -261,6 +264,7 @@ class MultiWikiClientAdaptor implements SyncAdaptor<MWSAdaptorInfo> {
 		this.recipe = this.wiki.getTiddlerText(CONFIG_RECIPE_TIDDLER, "")!;
 		this.isDevMode = this.wiki.getTiddlerText(IS_DEV_MODE_TIDDLER) === "yes";
 		this.lastSeq = this.wiki.getTiddlerText(LAST_REVISION_ID_TIDDLER, "0")!;
+		this.status = JSON.parse(this.wiki.getTiddlerText(STATUS_TIDDLER)!);
 		this.initialLoadDone = this.lastSeq !== "0";
 		this.logger = new $tw.utils.Logger("MultiWikiClientAdaptor");
 	}
@@ -316,7 +320,7 @@ class MultiWikiClientAdaptor implements SyncAdaptor<MWSAdaptorInfo> {
 		let text = this.wiki.getTiddlerText(CONFIG_HOST_TIDDLER, DEFAULT_HOST_TIDDLER)!;
 		[
 			{ name: "protocol", value: document.location.protocol },
-			{ name: "host",     value: document.location.host },
+			{ name: "host", value: document.location.host },
 			{ name: "pathname", value: document.location.pathname },
 		].forEach(({ name, value }) => {
 			text = $tw.utils.replaceString(text, new RegExp("\\$" + name + "\\$", "mg"), value);
@@ -329,23 +333,12 @@ class MultiWikiClientAdaptor implements SyncAdaptor<MWSAdaptorInfo> {
 	// -------------------------------------------------------------------------
 
 	async getStatus(callback: ServerStatusCallback) {
-		const [ok, , result] = await this.recipeRequest({ method: "GET", url: "/status" });
-		if (!ok && result?.status === 0) {
-			this.offline = true;
-			this.isLoggedIn = false;
-			this.isReadOnly = true;
-			this.username = "(offline)";
-			this.error = "The webpage is forbidden from contacting the server.";
-		} else if (ok) {
-			const status = result!.responseJSON as RecipeStatus;
-			this.offline = false;
-			this.error = null;
-			this.isLoggedIn = status?.isLoggedIn ?? false;
-			this.username = status?.username ?? "(anon)";
-			this.isReadOnly = !(status?.bags?.some(b => b.canUserWrite) ?? false);
-		} else {
-			this.error = `Server error ${result?.status}`;
-		}
+		const status = this.status;
+		this.offline = false;
+		this.error = null;
+		this.isLoggedIn = status?.isLoggedIn ?? false;
+		this.username = status?.username ?? "(anon)";
+		this.isReadOnly = !(status?.bags?.some(b => b.canUserWrite) ?? false);
 		callback(this.error, this.isLoggedIn, this.username, this.isReadOnly, false);
 	}
 
@@ -512,11 +505,15 @@ class MultiWikiClientAdaptor implements SyncAdaptor<MWSAdaptorInfo> {
 	private async recipeRequest(options: {
 		method: string;
 		url: string;
-		headers?: HeadersInit;
+		headers?: Record<string, string>;
 		queryParams?: Record<string, string>;
 		requestBodyString?: string;
 	}) {
 		if (!options.url.startsWith("/")) throw new Error("URL must start with /");
+		if (!options.headers) options.headers = {};
+		if (!options.headers.authorization) {
+			options.headers.authorization = "Bearer " + this.status.pageToken;
+		}
 		const isDevMode = this.isDevMode;
 		return httpRequest({
 			...options,
@@ -585,8 +582,10 @@ function httpRequest<TYPE extends "arraybuffer" | "blob" | "text">(options: Http
 		const request = new XMLHttpRequest();
 		request.responseType = options.responseType;
 		request.open(options.method, url, true);
-		if (!headers.has("content-type")) headers.set("content-type", "application/x-www-form-urlencoded; charset=UTF-8");
-		if (!headers.has("x-requested-with")) headers.set("x-requested-with", "TiddlyWiki");
+		if (!headers.has("content-type"))
+			headers.set("content-type", "application/x-www-form-urlencoded; charset=UTF-8");
+		if (!headers.has("x-requested-with"))
+			headers.set("x-requested-with", "TiddlyWiki");
 		headers.set("accept", "application/json");
 		headers.forEach((v, k) => request.setRequestHeader(k, v));
 		request.onreadystatechange = function () {

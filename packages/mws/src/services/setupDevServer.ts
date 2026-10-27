@@ -12,13 +12,6 @@ import { ServerState } from "../ServerState";
 
 // export type ServerToReactAdmin = Partial<ServerToReactAdminMap> | null;
 
-export interface ServerToReactAdmin {
-  sendError?: SendError<any>;
-  userState: ServerRequest["user"];
-  rootRoutes: ServerState["rootRoutes"];
-  tw5Versions: string[];
-}
-
 export interface SendAdmin {
   (state: ServerRequest<any, any, any>, sendError?: SendError<any>): Promise<typeof STREAM_ENDED>;
 }
@@ -123,7 +116,7 @@ async function generateManifest({ rootdir, publicdir }: {
 }
 
 
-async function make_index_file({ publicdir, pathPrefix, assetsPrefix, serverResponseJSON }: {
+export async function make_index_file({ publicdir, pathPrefix, assetsPrefix, serverResponseJSON }: {
   publicdir: string;
   pathPrefix: string;
   assetsPrefix: string;
@@ -138,7 +131,7 @@ async function make_index_file({ publicdir, pathPrefix, assetsPrefix, serverResp
       .replaceAll("`$$js:embeddedServerResponse:stringify$$`", serverResponseJSON.replaceAll("</script>", "<\\/script>")),
     "utf8");
 }
-async function make_manifest_file({ publicdir, pathPrefix, assetsPrefix, }: {
+export async function make_manifest_file({ publicdir, pathPrefix, assetsPrefix, }: {
   publicdir: string;
   pathPrefix: string;
   assetsPrefix: string;
@@ -160,23 +153,20 @@ export async function setupClientBuild({ rootdir, publicdir, clientMounts, title
 
   return async function sendProdServer(state, sendError) {
     if (sendError && (sendError as SendErrorTypes).reason !== "NOT_FOUND")
-      return await serveIndex({
-        state,
+      return await state.serveIndex({
         publicdir,
         status: sendError.status,
         sendError,
       });
 
     if (state.urlInfo.pathname === "/" || clientMounts?.some(e => state.urlInfo.pathname === e || state.urlInfo.pathname.startsWith(e + "/")))
-      return await serveIndex({
-        state,
+      return await state.serveIndex({
         publicdir,
         status: 200,
       });
 
     if (state.urlInfo.pathname === "/site.webmanifest")
-      return await serveManifest({
-        state,
+      return await state.serveManifest({
         publicdir,
       })
 
@@ -186,12 +176,13 @@ export async function setupClientBuild({ rootdir, publicdir, clientMounts, title
       isAsset = true;
     }
 
-    return state.sendFile(200, {}, {
+    return state.sendFile(200, {
+      contentSecurityPolicy: null,
+    }, {
       root: publicdir,
       reqpath: pathname,
       on404: !clientMounts && !isAsset ? (async () => {
-        await serveIndex({
-          state,
+        await state.serveIndex({
           publicdir,
           status: 200,
           sendError: new SendError("NOT_FOUND", 404, null),
@@ -200,45 +191,6 @@ export async function setupClientBuild({ rootdir, publicdir, clientMounts, title
     });
   };
 
-}
-
-async function serveIndex({ state, publicdir, status, sendError }: {
-  state: ServerRequest;
-  publicdir: string;
-  status: number;
-  sendError?: SendError<any>;
-}): Promise<typeof STREAM_ENDED> {
-  const serverResponse: ServerToReactAdmin = {
-    userState: state.user,
-    tw5Versions: Array.from(state.pluginCache.versions),
-    rootRoutes: state.config.rootRoutes,
-    sendError,
-  }
-  const indexBuffer = await make_index_file({
-    publicdir,
-    pathPrefix: state.pathPrefix,
-    assetsPrefix: state.config.rootRoutes.assets,
-    serverResponseJSON: JSON.stringify(serverResponse)
-  });
-  return state.sendBuffer(status, {
-    contentType: { mediaType: "text/html", charset: "utf-8" },
-    contentLength: indexBuffer.length,
-  }, indexBuffer);
-}
-
-async function serveManifest({ state, publicdir }: {
-  state: ServerRequest;
-  publicdir: string;
-}): Promise<typeof STREAM_ENDED> {
-  const buffer = await make_manifest_file({
-    publicdir,
-    pathPrefix: state.pathPrefix,
-    assetsPrefix: state.config.rootRoutes.assets
-  });
-  return state.sendBuffer(200, {
-    contentType: { mediaType: "text/html", charset: "utf-8" },
-    contentLength: buffer.length,
-  }, buffer);
 }
 
 
@@ -298,23 +250,20 @@ async function startDevServer({ rootdir, publicdir, clientMounts, title }: Clien
       await rebuild().catch((e) => { if (!(e.errors && e.warnings)) throw e; });
 
     if (sendError && (sendError as SendErrorTypes).reason !== "NOT_FOUND")
-      return await serveIndex({
-        state,
+      return await state.serveIndex({
         publicdir,
         status: sendError.status,
         sendError,
       });
 
     if (state.urlInfo.pathname === "/" || clientMounts?.some(e => state.urlInfo.pathname === e || state.urlInfo.pathname.startsWith(e + "/")))
-      return await serveIndex({
-        state,
+      return await state.serveIndex({
         publicdir,
         status: 200,
       });
 
     if (state.urlInfo.pathname === "/site.webmanifest")
-      return await serveManifest({
-        state,
+      return await state.serveManifest({
         publicdir,
       })
 
@@ -337,6 +286,7 @@ async function startDevServer({ rootdir, publicdir, clientMounts, title }: Clien
     state.applyHeaders({
       contentLength: headers2.contentLength,
       contentType: headers2.contentType,
+      contentSecurityPolicy: null,
     });
 
     if (headers2.contentLength === DEV_FALLBACK.length) {
@@ -351,8 +301,7 @@ async function startDevServer({ rootdir, publicdir, clientMounts, title }: Clien
         if (clientMounts) return state.sendEmpty(404);
         // regular root and client mounts already got sent
         // so here we're sending the generic NOT_FOUND
-        return await serveIndex({
-          state,
+        return await state.serveIndex({
           publicdir,
           status: proxyRes.status,
           sendError: new SendError("NOT_FOUND", 404, null),

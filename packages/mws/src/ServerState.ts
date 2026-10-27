@@ -6,6 +6,7 @@ import { SessionManager, SessionManagerObject } from "./new-managers/sessions";
 import { PluginCache } from "./plugin-cache/PluginCache";
 import { createPasswordService } from "./services/PasswordService";
 import { loadConfigSync } from "./ServerConfig";
+import { SignData } from "./services/CryptoService";
 
 
 /** This is an alias for ServerState in case we want to separate the two purposes. */
@@ -31,6 +32,8 @@ export class ServerState {
   attachmentsEnabled = false;
   attachmentSizeLimit = 0; // 100 * 1024; // 100 KB
   enableDocsRoute = false;
+  
+  signer;
 
   // fieldModules;
   // contentTypeInfo: Record<string, ContentTypeInfo>;
@@ -52,6 +55,7 @@ export class ServerState {
     // $tw: TW,
     public engine: PrismaEngineClient,
     public PasswordService: PasswordService,
+    public cryptoKey: CryptoKey,
     public pluginCache: PluginCache
   ) {
     this.wikiPath = wikiPath;
@@ -71,6 +75,8 @@ export class ServerState {
 
     this.rootRoutes = cfg.routeRoots;
     this.staticMounts = cfg.staticMounts;
+
+    this.signer = new SignData(cryptoKey);
 
   }
 
@@ -94,6 +100,8 @@ export class ServerState {
     ];
 
   async init() {
+    await SignData.importKey(crypto.getRandomValues(new Uint8Array(32)))
+
     const users = await this.engine.users.count();
     if (!users) { this.setupRequired = true; }
 
@@ -181,3 +189,5 @@ export interface ContentTypeInfo {
 };
 
 export type PasswordService = ART<typeof createPasswordService>;
+
+

@@ -1,5 +1,5 @@
 
-import { BetterCookie, jsonify, JsonValue, registerZodRoutes, RouterKeyMap, SendError, ServerRoute, Streamer, Z2, zod, ZodRoute, zodRoute, ZodState } from "@tiddlywiki/server";
+import { checkData, checkPath, jsonify, JsonValue, registerZodRoutes, RouterKeyMap, SendError, ServerRoute, Streamer, SuperHeaders, tryParseJSON, Z2, zod, ZodRoute, zodRoute, ZodState } from "@tiddlywiki/server";
 import { createHash, randomBytes } from "node:crypto";
 import { ServerState } from "../ServerState";
 import { serverEvents } from "@tiddlywiki/events";
@@ -8,7 +8,7 @@ import { serverEvents } from "@tiddlywiki/events";
 export interface SessionManagerObject {
   AdminRoleName: string;
   UserRoleName: string;
-  parseIncomingRequest(cookies: BetterCookie, config: ServerState): Promise<AuthUser>;
+  parseIncomingRequest(headers: SuperHeaders, config: ServerState): Promise<AuthUser>;
 }
 
 export interface AuthUser {
@@ -22,7 +22,7 @@ export interface AuthUser {
   /** Username passed to the client */
   username: PrismaField<"Users", "username">;
   /** A session_id isn't guarenteed. There may be a session even if the user isn't logged in, and may not be even if they are, depending on the the situation. */
-  sessionId: PrismaField<"Sessions", "session_id"> | undefined;
+  session_id: PrismaField<"Sessions", "session_id"> | undefined;
   /** Is this user considered a site-admin. This is determined by the auth service, not MWS. */
   isAdmin: boolean;
   /** Is the user logged in? This also means that user_id should be 0. role_ids may still be specified. */
@@ -35,7 +35,14 @@ export interface AuthUser {
   /** Default role for all users. */
   UserRoleName: string;
   UserRoleID: string;
+}
 
+export interface SecFetch {
+  secFetchDest: RequestDestination | null;
+  secFetchMode: RequestMode | null;
+  secFetchSite: "same-origin" | "cross-site" | "same-site" | "none" | null;
+  secFetchUser: boolean;
+  pageToken: string | null;
 }
 
 export const SessionKeyMap: RouterKeyMap<SessionManager, true> = {
@@ -144,6 +151,8 @@ export class SessionManager {
       path: /^\/(?<item>login|profile)$/,
       bodyFormat: "stream",
     }, async state => {
+      checkPath(state, z => ({ item: z.enum(["login", "profile"]), }), new Error());
+      state.serveAdminPath = "/" + state.pathParams.item;
       await state.sendAdmin();
       return STREAM_ENDED;
     });
@@ -154,40 +163,44 @@ export class SessionManager {
 
   private static roleLookup: Record<string, string> = undefined as any;
 
-  static async parseIncomingRequest(cookies: BetterCookie, config: ServerState): Promise<AuthUser> {
+  static async parseIncomingRequest(headers: SuperHeaders, config: ServerState): Promise<AuthUser> {
 
     this.roleLookup ??= Object.fromEntries((await config.engine.roles.findMany({
       where: { role_name: { in: [this.AdminRoleName, this.UserRoleName] } },
       select: { role_id: true, role_name: true },
     })).map(e => [e.role_name, e.role_id]));
 
-    const sessionId = cookies.getAll("session") as PrismaField<"Sessions", "session_id">[];
-    const session = sessionId && await config.engine.sessions.findFirst({
-      where: { session_id: { in: sessionId } },
+    const session_ids = headers.cookie.getAll("session") as PrismaField<"Sessions", "session_id">[];
+
+    const session = session_ids.length && await config.engine.sessions.findFirst({
+      where: { session_id: { in: session_ids } },
       select: { session_id: true, user: { select: { user_id: true, username: true, roles: { select: { role_id: true, role_name: true } } } } }
     });
 
-    if (sessionId && session) return {
-      user_id: session.user.user_id,
-      username: session.user.username,
-      isAdmin: session.user.roles.some(e => e.role_name === "ADMIN"),
-      roles: session.user.roles.map(e => ({
-        role_id: e.role_id,
-        role_name: e.role_name
-      })),
-      sessionId: session.session_id,
-      isLoggedIn: true,
-      AdminRoleName: SessionManager.AdminRoleName,
-      UserRoleName: SessionManager.UserRoleName,
-      AdminRoleID: this.roleLookup[this.AdminRoleName],
-      UserRoleID: this.roleLookup[this.UserRoleName],
-    };
+    if (session_ids.length && session) {
+      return {
+        user_id: session.user.user_id,
+        username: session.user.username,
+        isAdmin: session.user.roles.some(e => e.role_name === "ADMIN"),
+        roles: session.user.roles.map(e => ({
+          role_id: e.role_id,
+          role_name: e.role_name
+        })),
+        session_id: session.session_id,
+        isLoggedIn: true,
+        AdminRoleName: SessionManager.AdminRoleName,
+        UserRoleName: SessionManager.UserRoleName,
+        AdminRoleID: this.roleLookup[this.AdminRoleName],
+        UserRoleID: this.roleLookup[this.UserRoleName],
+
+      };
+    }
     else return {
       user_id: "" as PrismaField<"Users", "user_id">,
       username: "(anon)" as PrismaField<"Users", "username">,
       isAdmin: false,
       roles: [],
-      sessionId: undefined,
+      session_id: undefined,
       isLoggedIn: false,
       AdminRoleName: SessionManager.AdminRoleName,
       UserRoleName: SessionManager.UserRoleName,
@@ -199,7 +212,7 @@ export class SessionManager {
   login1 = zodSession("/login/1", z => z.object({
     username: z.prismaField("Users", "username", "string"),
     startLoginRequest: z.string(),
-  }), async (state) => { state.assertReferer(["/login", "/profile"]); }, async (state, prisma) => {
+  }), async (state) => { await state.okPageToken(["/login", "/profile"]); }, async (state, prisma) => {
     const { username, startLoginRequest } = state.data;
 
     const user = await prisma.users.findUnique({
@@ -231,7 +244,7 @@ export class SessionManager {
     finishLoginRequest: z.string(),
     loginSession: z.string(),
     skipCookie: z.boolean().optional().default(false),
-  }), async (state) => { state.assertReferer(["/login", "/profile"]); }, async (state, prisma) => {
+  }), async (state) => { await state.okPageToken(["/login", "/profile"]); }, async (state, prisma) => {
     const { finishLoginRequest, skipCookie, loginSession } = state.data;
 
     if (!loginSession) throw "Login session not found.";
@@ -283,7 +296,7 @@ export class SessionManager {
     }
 
     if (state.user.isLoggedIn) {
-      await prisma.sessions.delete({ where: { session_id: state.user.sessionId } });
+      await prisma.sessions.delete({ where: { session_id: state.user.session_id } });
     }
 
     state.headers.cookie.forEach((cookie) => {
@@ -306,7 +319,7 @@ export class SessionManager {
     emailOrUsername: z.string(),
     resetCode: z.string().optional(),
   }), async state => {
-    state.assertReferer(["/login"]);
+    await state.okPageToken(["/login"]);
     if (state.data.resetCode)
       await passwordLookupRateLimiter.wait(state, "");
   }, async (state, prisma) => {
@@ -330,7 +343,7 @@ export class SessionManager {
     user_id: z.string(),
     registrationRequest: z.string().optional(),
     registrationRecord: z.string().optional(),
-  }), async (state) => { state.assertReferer(["/login"]); }, async (state, prisma) => {
+  }), async (state) => { await state.okPageToken(["/login"]); }, async (state, prisma) => {
     const user = await prisma.users.findUnique({ where: { user_id: state.data.user_id, }, });
     if (!user)
       throw new SendError("RECORD_KEY_NOT_FOUND", 400, { table: "users", name: "user_id" });
@@ -373,7 +386,7 @@ export class SessionManager {
     }),
     async (state) => {
       state.okUser();
-      state.assertReferer(["/profile"]);
+      await state.okPageToken(["/profile"]);
     },
     async (state, prisma) => {
 
@@ -444,3 +457,5 @@ export function assertSignature({ session_id, signature, session_key }: {
   const hash = createHash("sha256").update(session_key + session_id).digest("base64");
   if (hash !== signature) throw "Invalid session signature.";
 }
+
+
