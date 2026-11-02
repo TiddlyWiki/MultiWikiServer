@@ -7,7 +7,7 @@ export class FadeSwapController {
 
   constructor(
     public context: JSXElement,
-    length: number,
+    private length: number,
     private speed = 1,
   ) {
     this.refs = new Array(length);
@@ -21,10 +21,10 @@ export class FadeSwapController {
   refs: HybridRef<FadeSwapElement>[];
   preps: boolean[];
 
-  fadePanelOut(index: 0 | 1 | 2, direction: -1 | 0 | 1) {
+  fadePanelOut(index: number, direction: -1 | 0 | 1) {
     return this.refs[index].value?.swapOut(direction) ?? true;
   }
-  async fadePanelIn(index: 0 | 1 | 2, direction: -1 | 0 | 1) {
+  async fadePanelIn(index: number, direction: -1 | 0 | 1) {
     // Ref assignment happens during synchronous rendering; 
     // await resumes after that render stack completes.
     this.preps[index] = false;
@@ -34,12 +34,11 @@ export class FadeSwapController {
   }
 
   fadePanelSwap = async (
-    from: 0 | 1 | 2,
-    to: 0 | 1 | 2,
+    from: number,
+    to: number,
     direction: 0 | 1 | -1,
     swap: () => void
   ) => {
-    console.log({ from, to, direction, swap });
     if (from !== to) { this.preps[to] = true; this.context.requestUpdate(); }
     if (!await this.fadePanelOut(from, direction)) return;
     swap();
@@ -55,6 +54,8 @@ export class FadeSwapController {
    * @returns 
    */
   render(children: [Boolean, () => JSX.Node][]) {
+    if (children.length > this.length)
+      console.warn("children.length > this.length");
     return children.map(([visible, render], index) => {
       return (visible || this.preps[index]) && (
         <FadeSwapElement
