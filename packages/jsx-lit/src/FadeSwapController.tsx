@@ -3,9 +3,13 @@ import { addstyles, customElement, JSXElement, state } from "@tiddlywiki/jsx-lit
 import { createHybridRef, HybridRef } from "@tiddlywiki/jsx-runtime";
 
 
-export class FadeswapController {
+export class FadeSwapController {
 
-  constructor(public context: JSXElement, length: number) {
+  constructor(
+    public context: JSXElement,
+    length: number,
+    private speed = 1,
+  ) {
     this.refs = new Array(length);
     this.preps = new Array(length);
     for (let i = 0; i < length; i++) {
@@ -52,10 +56,14 @@ export class FadeswapController {
    */
   render(children: [Boolean, () => JSX.Node][]) {
     return children.map(([visible, render], index) => {
-      return (visible || this.preps[index]) && <FadeSwapElement
-        ref={this.refs[index]}
-        webjsx-attr-prepare={this.preps[index]}
-      >{render()}</FadeSwapElement>;
+      return (visible || this.preps[index]) && (
+        <FadeSwapElement
+          ref={this.refs[index]}
+          webjsx-attr-prepare={this.preps[index]}
+          timeOut={70 / this.speed}
+          timeIn={110 / this.speed}
+        >{render()}</FadeSwapElement>
+      );
     })
   }
 
@@ -70,12 +78,12 @@ export class FadeSwap {
 
   constructor() { }
 
-  out(target: HTMLElement, direction: -1 | 0 | 1 = 0): Promise<boolean> {
-    return this.animate(target, getComputedStyle(target).opacity, 0, 70, true, direction);
+  out(target: HTMLElement, direction: -1 | 0 | 1 = 0, timeOut = 70): Promise<boolean> {
+    return this.animate(target, getComputedStyle(target).opacity, 0, timeOut, true, direction);
   }
 
-  in(target: Element, direction: -1 | 0 | 1 = 0): Promise<boolean> {
-    return this.animate(target, 0, 1, 110, false, direction);
+  in(target: Element, direction: -1 | 0 | 1 = 0, timeIn = 110): Promise<boolean> {
+    return this.animate(target, 0, 1, timeIn, false, direction);
   }
 
   private async animate(
@@ -165,9 +173,14 @@ slot {
 export class FadeSwapElement extends JSXElement {
 
   @state({
-    hasChanged: (nv: FadeSwapElement["props"], ov: FadeSwapElement["props"]) => !Object.is(nv?.contentStyle, ov?.contentStyle)
+    hasChanged: (nv: FadeSwapElement["props"], ov: FadeSwapElement["props"]) =>
+      !Object.is(nv?.contentStyle, ov?.contentStyle)
+      || !Object.is(nv?.timeOut, ov?.timeOut)
+      || !Object.is(nv?.timeIn, ov?.timeIn)
   }) accessor props!: {
     contentStyle?: JSX.IntrinsicAttributes["style"];
+    timeOut?: number;
+    timeIn?: number;
   };
 
   private readonly fadeSwap = new FadeSwap();
@@ -178,10 +191,10 @@ export class FadeSwapElement extends JSXElement {
   }
 
   swapOut(direction: -1 | 0 | 1 = 0): Promise<boolean> {
-    return this.fadeSwap.out(this.content.value!, direction);
+    return this.fadeSwap.out(this.content.value!, direction, this.props.timeOut);
   }
 
   swapIn(direction: -1 | 0 | 1 = 0): Promise<boolean> {
-    return this.fadeSwap.in(this.content.value!, direction);
+    return this.fadeSwap.in(this.content.value!, direction, this.props.timeIn);
   }
 }
