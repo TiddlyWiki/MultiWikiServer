@@ -79,12 +79,17 @@ export type ParsedHonoRequest = ART<typeof parseHonoRequest>;
 const pathReg = /^\/([^/]+)(\/[^?]*)/;
 
 
-const catcher = (errorKey: string, err: any, inner: (e: any) => any) => {
+const catcher = (
+  c: Context<HonoEnv, string, {}>,
+  err: any,
+  inner: (c: Context<HonoEnv, string, {}>, err: any) => any
+) => {
+  const errorKey = `${c.req.method} ${c.req.url}`;
   if (err === STREAM_ENDED) return;
   // this can be thrown when a request cancels
   if (err instanceof Error && err.name === "AbortError") return;
 
-  inner(err);
+  inner(c, err);
 
   if (!err) console.log("A falsey error was thrown");
   // skiplog can be set to ignore this error
@@ -223,13 +228,13 @@ export class Router {
 
   }
 
-  catcherInner: (this: undefined, e: any) => void = (e: any) => { };
+  catcherInner: (this: undefined, c: Context<HonoEnv, string, {}>, err: any) => void = (c, e) => { };
 
   routeHandlerMiddleware = createMiddleware<HonoEnv>((c, next) => {
     let resolve: (res: Response) => void;
     const prom = new Promise<Response>((r) => { resolve = r; });
     this.handleHonoRequest(c, resolve!, next).catch(err => {
-      const err2 = catcher(`${c.req.method} ${c.req.url}`, err, this.catcherInner);
+      const err2 = catcher(c, err, this.catcherInner);
       if (!err2)
         return;
       if (err2.reason === "REDIRECT")
