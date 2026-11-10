@@ -276,6 +276,8 @@ mws-app-shell {
 }
 
 .app-shell-layout .app-page-content {
+	display: grid;
+	gap: 12px;
 	padding-top: 20px;
 }
 

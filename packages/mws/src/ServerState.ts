@@ -32,7 +32,9 @@ export class ServerState {
   attachmentsEnabled = false;
   attachmentSizeLimit = 0; // 100 * 1024; // 100 KB
   enableDocsRoute = false;
-  
+  demandHTTPS;
+  denyCrossPageScriptingAttacks;
+
   signer;
 
   // fieldModules;
@@ -50,9 +52,6 @@ export class ServerState {
       cachePath: string,
       storePath: string
     },
-    // public wikiPath: string,
-    /** The $tw instance needs to be disposable once commands are complete. */
-    // $tw: TW,
     public engine: PrismaEngineClient,
     public PasswordService: PasswordService,
     public cryptoKey: CryptoKey,
@@ -61,9 +60,6 @@ export class ServerState {
     this.wikiPath = wikiPath;
     this.cachePath = cachePath;
     this.storePath = storePath;
-
-    // this.fieldModules = $tw.Tiddler.fieldModules;
-    // this.contentTypeInfo = $tw.config.contentTypeInfo;
 
     this.SessionManager = SessionManager;
 
@@ -75,6 +71,8 @@ export class ServerState {
 
     this.rootRoutes = cfg.routeRoots;
     this.staticMounts = cfg.staticMounts;
+    this.demandHTTPS = cfg.demandHTTPS;
+    this.denyCrossPageScriptingAttacks = cfg.denyCrossPageScriptingAttacks;
 
     this.signer = new SignData(cryptoKey);
 

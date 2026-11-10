@@ -1,0 +1,6 @@
+created: 20261110162422214
+modified: 20261110162811452
+title: Deny Cross-Page Scripting Attacks
+type: text/vnd.tiddlywiki
+
+TiddlyWiki is built on a very simple premise: users can write ~WikiText or ~JavaScript which changes the behavior of the page. When another user comes along and loads the page, they run code written by another user. This opens the site to the possibility of ''"Cross-Page Scripting Attacks"'', which are exactly as bad as they sound.

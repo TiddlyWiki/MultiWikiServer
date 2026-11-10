@@ -1,5 +1,5 @@
 import { AdminTab, AppAdmin } from "./app-admin";
-import { ListPage, RichListItem } from "./app-shell";
+import { FeedbackNotice, ListPage, RichListItem } from "./app-shell";
 import { requestUpdate } from "./requestUpdate";
 import editIcon from "@material-symbols/svg-400/outlined/edit.svg";
 import { MaterialSymbol } from "./material-symbol";
@@ -55,6 +55,12 @@ export class AppTabController {
       eyebrow={tab.eyebrow}
       description={tab.description}
       ariaLabel={tab.ariaLabel}
+      renderFeedback={() => (
+        (tab.id === "users" || tab.id === "roles")
+        && !embeddedServerResponse.denyCrossPageScriptingAttacks
+      ) ? <FeedbackNotice tone="error" title="Cross-page scripting attacks between users are enabled." >
+        <a href="https://mws.tiddlywiki.com/#Deny%20Cross-Page%20Scripting%20Attacks">Click here to learn more.</a>
+      </FeedbackNotice> : null}
       renderActions={() => (
         <button
           class="primary-button"

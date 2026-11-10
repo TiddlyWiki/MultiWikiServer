@@ -7,6 +7,7 @@ import { AuthUser, SecFetch } from './new-managers/sessions';
 import { guarded } from './utils/guarded-promise';
 import { make_index_file, make_manifest_file } from './services/setupDevServer';
 import { b64 } from './services/CryptoService';
+import { serverEvents } from '@tiddlywiki/events';
 
 
 declare module "@tiddlywiki/server" {
@@ -29,8 +30,14 @@ export interface ServerAdminResponse {
   rootRoutes: ServerState["rootRoutes"];
   tw5Versions: string[];
   pageToken: string | null;
+  denyCrossPageScriptingAttacks: boolean;
 }
 
+serverEvents.on("request.init", (router, request) => {
+  const secFetchDest = request.headers.get("sec-fetch-dest") as Request["destination"] | null;
+  const secFetchMode = request.headers.get("sec-fetch-mode") as Request["mode"] | null;
+  if (secFetchDest && secFetchMode) request.assumeHTTPS = true;
+});
 
 export class StateObject<
   B extends BodyFormat = BodyFormat,
@@ -100,18 +107,28 @@ export class StateObject<
       rootRoutes: this.config.rootRoutes,
       sendError,
       pageToken: await this.makePageToken(this.serveAdminPath),
+      denyCrossPageScriptingAttacks: this.config.denyCrossPageScriptingAttacks,
     }
-    const indexBuffer = await make_index_file({
-      publicdir,
-      pathPrefix: this.pathPrefix,
-      assetsPrefix: this.config.rootRoutes.assets,
-      serverResponseJSON: JSON.stringify(serverResponse)
-    });
-    return this.sendBuffer(status, {
-      contentType: { mediaType: "text/html", charset: "utf-8" },
-      contentLength: indexBuffer.length,
-      contentSecurityPolicy: null,
-    }, indexBuffer);
+    if (!this.headers.accept.accepts("text/html") && this.headers.accept.accepts("application/json")) {
+      const indexBuffer = Buffer.from(JSON.stringify(serverResponse, null, 2), "utf8");
+      return this.sendBuffer(status, {
+        contentType: { mediaType: "application/json", charset: "utf-8" },
+        contentLength: indexBuffer.length,
+        // contentSecurityPolicy: null,
+      }, indexBuffer);
+    } else {
+      const indexBuffer = await make_index_file({
+        publicdir,
+        pathPrefix: this.pathPrefix,
+        assetsPrefix: this.config.rootRoutes.assets,
+        serverResponseJSON: JSON.stringify(serverResponse)
+      });
+      return this.sendBuffer(status, {
+        contentType: { mediaType: "text/html", charset: "utf-8" },
+        contentLength: indexBuffer.length,
+        // contentSecurityPolicy: null,
+      }, indexBuffer);
+    }
   }
 
   async serveManifest({ publicdir }: {
@@ -141,13 +158,6 @@ export class StateObject<
       throw new SendError("ACCESS_DENIED", 403, { reason: "User is not an admin" })
   }
 
-  okPageToken(urls: string[]) {
-    // failing to await this will probably cause the process to exit, which is good
-    return guarded(async () => {
-      if (!await this.checkPageToken(urls, this.requestAuthToken))
-        throw new SendError("ACCESS_DENIED", 403, { reason: "pathname signature failed" });
-    })();
-  }
 
   async $transaction<T>(fn: (prisma: PrismaTxnClient) => Promise<T>): Promise<T> {
     if (!this.asserted)
@@ -162,7 +172,7 @@ export class StateObject<
   }
 
   async makePageToken(pathname: string) {
-
+    if (!this.config.denyCrossPageScriptingAttacks) return null;
     const secFetchDest = this.headers.get("sec-fetch-dest") as Request["destination"] | null;
     const secFetchMode = this.headers.get("sec-fetch-mode") as Request["mode"] | null;
     const secFetchSite = this.headers.get("sec-fetch-site") as "cross-site" | "same-origin" | "same-site" | "none" | null;
@@ -180,7 +190,16 @@ export class StateObject<
     return null;
   }
 
-  async checkPageToken(url: string[], pageToken: string | null) {
+  okPageToken(urls: string[]) {
+    if (!this.config.denyCrossPageScriptingAttacks) return;
+    // failing to await this will probably cause the process to exit, which is good
+    return guarded(async () => {
+      if (!await this.checkPageToken(urls, this.requestAuthToken))
+        throw new SendError("ACCESS_DENIED", 403, { reason: "pathname signature failed" });
+    })();
+  }
+
+  private async checkPageToken(url: string[], pageToken: string | null) {
     if (!this.user.session_id || !pageToken || pageToken === "null") return false;
     for (const pathname of url) {
       const parts: string[] = [this.user.session_id, pathname]

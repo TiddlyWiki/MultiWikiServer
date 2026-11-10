@@ -27,6 +27,7 @@ declare global {
     rootRoutes: ServerAdminResponse["rootRoutes"];
     sendError?: ReturnType<SendError<any>["toJSON"]>;
     pageToken: ServerAdminResponse["pageToken"];
+    denyCrossPageScriptingAttacks: ServerAdminResponse["denyCrossPageScriptingAttacks"]
   }
 }
 
