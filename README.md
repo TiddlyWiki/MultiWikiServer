@@ -16,7 +16,9 @@ Multiple users, multiple wikis for TiddlyWiki.
 
 ## Security
 
-Security is a core priority.
+Security is a core priority. 
+
+**However, it is currently still a disaster. A fix for this is currently in the works. Please use caution until this warning is removed.**
 
 - MWS supports HTTPS through Node.js. We strongly recommend enabling it.
 - MWS uses OPAQUE for password-based authentication, so users' plaintext passwords are never sent to the server.
