@@ -14,7 +14,6 @@ Multiple users, multiple wikis for TiddlyWiki.
 - Multiple database engines supported, using Prisma.
 - Third-party OAuth and password-based login.
 
-
 ## Security
 
 Security is a core priority.
