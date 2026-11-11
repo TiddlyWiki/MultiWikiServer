@@ -112,13 +112,13 @@ serverEvents.on("mws.routes", (root, config) => {
     checkPath(state, z => ({ path: z.string(), }), new Error());
 
     async function serveStatic(path: string) {
-      state.applyHeaders(buildResponseHeaders({ type: "static" }, state));
+      buildResponseHeaders({ type: "static" }, state);
       return await fileSystemMountHandler(state, state.config.staticMounts, path, false);
     }
 
     async function serveWiki(recipe_slug: string) {
       if (state.method === "OPTIONS" || state.method === "PUT") return state.sendEmpty(405);
-      state.applyHeaders(buildResponseHeaders({ type: "wiki", recipe_slug_encoded: encodeURIComponent(recipe_slug) }, state));
+      buildResponseHeaders({ type: "wiki", recipe_slug_encoded: encodeURIComponent(recipe_slug) }, state);
       return await serveWikiIndex(state, recipe_slug, "index", false);
     }
 
@@ -196,16 +196,25 @@ serverEvents.on("mws.routes", (root, config) => {
 
 
 
-function buildResponseHeaders(options: { type: "wiki", recipe_slug_encoded: string } | { type: "static" }, state: ServerRequest): ApplyHeaders {
-  return {
+function buildResponseHeaders(options: { type: "wiki", recipe_slug_encoded: string } | { type: "static" }, state: ServerRequest) {
+  state.applyHeaders({
+    // prevents url leaks, mostly
     referrerPolicy: "no-referrer",
+    // Prevents window.open() from retaining access to another protected top-level document.
     crossOriginOpenerPolicy: "noopener-allow-popups",
+    // Prevents MIME sniffing from causing certain non-script resources to execute as scripts.
     xContentTypeOptions: "nosniff",
-    cacheControl: { private: true, noStore: true },
+    // noCache stores the response but requires revalidation
+    cacheControl: { private: true, noCache: true },
+    // vary splits the cached response, on top of the etag also containing sec-fetch-dest in its hash
+    vary: ["Sec-Fetch-Dest", "Sec-Fetch-Mode"],
+    // important to prevent service workers intercepting page tokens
     contentSecurityPolicy: new CSPBuilder()
       .set({ type: "worker-src", sources: ["blob:", "data:"] })
-      .toString()
-  }
+      .toString(),
+    // some privacy with user links.
+    "x-dns-prefetch-control": "off",
+  });
 }
 
 function buildSandboxCSP(options: { type: "wiki", recipe_slug_encoded: string } | { type: "static" }, state: ServerRequest): ApplyHeaders {

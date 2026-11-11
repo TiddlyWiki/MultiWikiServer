@@ -31,9 +31,6 @@ export class RecipeRoutes {
       method: ["GET", "HEAD", "PUT"],
       path: new RegExp("^" + RecipeRoutes.RecipePrefix + "/(?<recipe_slug>[^/]+)(?=/)"),
     }, async (state) => {
-      // state.applyHeaders({
-      //   accessControlAllowOrigin: "*",
-      // });
       checkPathLoose(state, z => ({ recipe_slug: z.prismaField("Recipe", "slug", "string") }), new Error());
       await state.okPageToken([state.config.rootRoutes.wiki + "/" + state.pathParams.recipe_slug])
     });

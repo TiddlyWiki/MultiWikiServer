@@ -192,20 +192,9 @@ abstract class IndexSender {
 
     const match = this.state.headers.ifNoneMatch.has(this.etag);
 
-    // const writerCacheKey = randomBytes(24).toString("base64url");
-
     this.state.writeHead(match ? 304 : 200, {
       contentType: "text/html",
       etag: this.etag,
-      cacheControl: "max-age=0, private, no-cache",
-      // setCookie: {
-      //   name: "mws_index_cache",
-      //   value: writerCacheKey,
-      //   httpOnly: true,
-      //   sameSite: "Strict",
-      //   maxAge: 10,
-      //   path: this.state.pathPrefix + "/",
-      // }
     });
 
     if (this.state.method === "HEAD" || match)

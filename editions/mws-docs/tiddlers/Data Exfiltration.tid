@@ -1,5 +1,5 @@
 created: 20261111040616649
-modified: 20261111043432249
+modified: 20261111053344333
 tags: Security
 title: Data Exfiltration
 type: text/vnd.tiddlywiki
@@ -12,6 +12,6 @@ Allow me to introduce you to Alice and Bob. They are users on an MWS site. Alice
 
 Bob knows this, so he creates his own bag and wiki. He puts some interesting curiosities in it, like a JavaScript timer in the upper right corner of the wiki page that goes ding when the time is up. Alice loves this idea and she adds Bob's bag as a read-only bag in her wiki. 
 
-What she doesn't realize is that Bob can now add code to the timer start button that sends her special cookie recipe to a server he controls. This is because Bob's bag is being rendered into her wiki just like her bag is. The tiddlers are combined into one wiki.
+What she doesn't realize is that Bob can now add code to the timer start button that sends her special cookie recipe to a server he controls. This is because Bob's bag is being rendered into her wiki just like her bag is. The tiddlers are combined into one wiki. MWS doesn't distinguish between code that came from Alice's bag and code that came from Bob's bag. It all runs together with Alice's permissions when she opens the page.
 
 __''So don't add untrusted bags from other users as a read-only bag in your important wikis.''__ 
