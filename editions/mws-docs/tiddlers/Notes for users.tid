@@ -1,0 +1,11 @@
+created: 20261111043450691
+modified: 20261111044252214
+tags: 
+title: Notes for users
+type: text/vnd.tiddlywiki
+
+Here's some things to keep in mind if you're using an MWS site. 
+
+* ''Admins can read everything.'' Users with the admin role don't need permission to read sites. The admin role does need to be added to make changes to a recipe. 
+* ''Your passwords belong to you.'' Admins and other users never need to know your password. Admins certainly do not need to know //your// password because they can change it anytime.
+* ''Read [[Data Exfiltration]].'' Don't add untrusted bags from other users to your super-secret special cookie recipe. They can add tiddlers and code that reads your tiddlers and sends them elsewhere. 

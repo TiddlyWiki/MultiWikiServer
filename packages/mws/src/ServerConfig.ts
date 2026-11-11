@@ -53,7 +53,7 @@ const serverConfigSchema = zod.object({
     "To combat this, MWS uses standard HTTP features to isolate pages. However, these features require HTTPS to be enabled, which is not the primary use case of MWS. Therefore setting this property to false will cause most pages to not work without HTTPS.",
     "",
     "Setting up HTTPS is generally quite simple. You can generate a HTTPS cert and key and then specify them in your listen parameters. It's a little harder if you aren't using a public domain name.",
-  ].join("\n"))
+  ].join("\n")),
 }).prefault({});
 
 export function loadConfigSync(wikiPath: string) {

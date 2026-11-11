@@ -41,7 +41,7 @@ export async function serveWikiIndex(
       return { index, status }
     });
 
-    const etag = index.getIndexEtag("", state.pluginCache);
+    const etag = index.getIndexEtag(state.headers.get("sec-fetch-dest") ?? "", state.pluginCache);
     return { recipe, index, etag, status };
   };
 

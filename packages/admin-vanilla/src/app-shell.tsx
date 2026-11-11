@@ -623,7 +623,6 @@ export class RichListItem extends JSXElement {
 interface FeedbackNoticeProps {
   title: string;
   tone?: "info" | "success" | "warning" | "error";
-  children?: JSX.Node;
   onDismiss?: () => void;
 }
 

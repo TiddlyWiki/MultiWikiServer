@@ -56,11 +56,13 @@ export class AppTabController {
       description={tab.description}
       ariaLabel={tab.ariaLabel}
       renderFeedback={() => (
-        (tab.id === "users" || tab.id === "roles")
-        && !embeddedServerResponse.denyCrossPageScriptingAttacks
-      ) ? <FeedbackNotice tone="error" title="Cross-page scripting attacks between users are enabled." >
-        <a href="https://mws.tiddlywiki.com/#Deny%20Cross-Page%20Scripting%20Attacks">Click here to learn more.</a>
-      </FeedbackNotice> : null}
+        !embeddedServerResponse.denyCrossPageScriptingAttacks
+      ) ? (
+        <FeedbackNotice tone="error" title="Scripting between pages is enabled." >
+          <p>Users with WRITE access have full ADMIN powers and can impersonate other users.</p>
+          <p><a href="https://mws.tiddlywiki.com/#Deny%20Cross-Page%20Scripting%20Attacks">Click here to learn more.</a> This warning is shown to all users.</p>
+        </FeedbackNotice>
+      ) : null}
       renderActions={() => (
         <button
           class="primary-button"

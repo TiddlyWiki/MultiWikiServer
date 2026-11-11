@@ -1,0 +1,17 @@
+created: 20261111040616649
+modified: 20261111043432249
+tags: Security
+title: Data Exfiltration
+type: text/vnd.tiddlywiki
+
+Generally speaking, wiki text is quite powerful, almost as powerful as JavaScript. Button clicks can run widget actions, which can read and change any tiddler in the current recipe. Any user could easily cause TiddlyWiki to write tiddlers to other bags via actions. There are a number of ways to craft network requests using the value of tiddlers. There are also ways to run JavaScript code. 
+
+By design, MWS allows many wikis to read from many bags. Therefore users must be careful not to add bags to their recipes unless they trust the contents of those bags. 
+
+Allow me to introduce you to Alice and Bob. They are users on an MWS site. Alice likes to make cookies, and wants to keep the cookie recipe a secret, so she creates a new bag which she only gives herself access to and then creates a wiki which writes to that bag. 
+
+Bob knows this, so he creates his own bag and wiki. He puts some interesting curiosities in it, like a JavaScript timer in the upper right corner of the wiki page that goes ding when the time is up. Alice loves this idea and she adds Bob's bag as a read-only bag in her wiki. 
+
+What she doesn't realize is that Bob can now add code to the timer start button that sends her special cookie recipe to a server he controls. This is because Bob's bag is being rendered into her wiki just like her bag is. The tiddlers are combined into one wiki.
+
+__''So don't add untrusted bags from other users as a read-only bag in your important wikis.''__ 

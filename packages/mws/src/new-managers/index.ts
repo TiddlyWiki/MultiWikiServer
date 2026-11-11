@@ -102,27 +102,6 @@ serverEvents.on("mws.routes", (root, config) => {
 
   });
 
-  function buildResponseHeaders(options: { type: "wiki", recipe_slug_encoded: string } | { type: "static" }, state: ServerRequest): ApplyHeaders {
-    // pathname always starts with a / and pathprefix has already been removed
-    // path prefix always starts with a slash and does not end with a slash, or else is empty
-    // const pathparts = state.urlInfo.pathname.split("/");
-    const workerSrc = ["blob:", "data:"];
-    // if (pathparts.length > 2) {
-    //   workerSrc.push(state.urlInfo.origin + state.pathPrefix + pathparts.slice(0, 2).join("/") + "/");
-    // }
-    return {
-      referrerPolicy: "no-referrer",
-      crossOriginOpenerPolicy: "noopener-allow-popups",
-      xFrameOptions: "DENY",
-      xContentTypeOptions: "nosniff",
-      cacheControl: { private: true, noStore: true },
-      contentSecurityPolicy: new CSPBuilder()
-        .set({ type: "worker-src", sources: workerSrc })
-        .set({ type: "frame-ancestors", sources: ["'none'"] })
-        .toString()
-    }
-  }
-
 
   root.defineRoute<"ignore">({
     method: ["GET", "HEAD", "OPTIONS", "PUT"],
@@ -133,13 +112,13 @@ serverEvents.on("mws.routes", (root, config) => {
     checkPath(state, z => ({ path: z.string(), }), new Error());
 
     async function serveStatic(path: string) {
-      state.applyHeaders({ ...buildResponseHeaders({ type: "static" }, state) });
+      state.applyHeaders(buildResponseHeaders({ type: "static" }, state));
       return await fileSystemMountHandler(state, state.config.staticMounts, path, false);
     }
 
     async function serveWiki(recipe_slug: string) {
       if (state.method === "OPTIONS" || state.method === "PUT") return state.sendEmpty(405);
-      state.applyHeaders({ ...buildResponseHeaders({ type: "wiki", recipe_slug_encoded: encodeURIComponent(recipe_slug) }, state) });
+      state.applyHeaders(buildResponseHeaders({ type: "wiki", recipe_slug_encoded: encodeURIComponent(recipe_slug) }, state));
       return await serveWikiIndex(state, recipe_slug, "index", false);
     }
 
@@ -216,3 +195,59 @@ serverEvents.on("mws.routes", (root, config) => {
 
 
 
+
+function buildResponseHeaders(options: { type: "wiki", recipe_slug_encoded: string } | { type: "static" }, state: ServerRequest): ApplyHeaders {
+  return {
+    referrerPolicy: "no-referrer",
+    crossOriginOpenerPolicy: "noopener-allow-popups",
+    xContentTypeOptions: "nosniff",
+    cacheControl: { private: true, noStore: true },
+    contentSecurityPolicy: new CSPBuilder()
+      .set({ type: "worker-src", sources: ["blob:", "data:"] })
+      .toString()
+  }
+}
+
+function buildSandboxCSP(options: { type: "wiki", recipe_slug_encoded: string } | { type: "static" }, state: ServerRequest): ApplyHeaders {
+
+  const assetSource = new URL(state.pathPrefix + state.config.rootRoutes.assets + "/", state.urlInfo).href;
+  const pluginSource = new URL(state.pathPrefix + state.config.rootRoutes.cache + "/", state.urlInfo).href;
+  const savingSource = options.type === "wiki"
+    ? new URL(state.pathPrefix + state.config.rootRoutes.recipe + "/" + options.recipe_slug_encoded + "/", state.urlInfo).href
+    : state.urlInfo.origin + state.pathPrefix + state.urlInfo.pathname;
+  const isWiki = options.type === "wiki";
+  return {
+    crossOriginOpenerPolicy: "noopener-allow-popups",
+    contentSecurityPolicy: new CSPBuilder()
+      .set({
+        type: "sandbox",
+        allowForms: true,
+        allowModals: true,
+        allowOrientationLock: true,
+        allowPointerLock: true,
+        allowScripts: true,
+        allowDownloads: true,
+        allowPopups: false,
+        allowPopupsToEscapeSandbox: false,
+        allowPresentation: false,
+        allowSameOrigin: true,
+        allowStorageAccessByUserActivation: true,
+        allowTopNavigation: true,
+        allowTopNavigationByUserActivation: false,
+        allowTopNavigationToCustomProtocols: false,
+      })
+      .set({ type: "default-src", sources: ["data:", "blob:"] })
+      .set({ type: "base-uri", sources: isWiki ? [new URL(state.pathPrefix + "/", state.urlInfo).href] : [] })
+      .set({ type: "script-src", sources: [assetSource, pluginSource, "'unsafe-inline'", "'unsafe-eval'"] })
+      .set({ type: "style-src", sources: [assetSource, "'unsafe-inline'"] })
+      .set({ type: "img-src", sources: [assetSource, "data:", "blob:"] })
+      .set({ type: "font-src", sources: [assetSource, "data:", "blob:"] })
+      .set({ type: "media-src", sources: [assetSource, "data:", "blob:"] })
+      .set({ type: "connect-src", sources: [savingSource] })
+      .set({ type: "form-action", sources: ["'none'"] })
+      .set({ type: "frame-ancestors", sources: ["'none'"] })
+      .set({ type: "worker-src", sources: ["data:", "blob:"] })
+      // .set({ type: "upgrade-insecure-requests", enabled:  })
+      .toString()
+  }
+}
