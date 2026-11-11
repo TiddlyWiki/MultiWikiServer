@@ -18,13 +18,12 @@ Multiple users, multiple wikis for TiddlyWiki.
 
 Security is a core priority. 
 
-**However, it is currently still a disaster. A fix for this is currently in the works. Please use caution until this warning is removed.**
-
 - MWS supports HTTPS through Node.js. We strongly recommend enabling it.
 - MWS uses OPAQUE for password-based authentication, so users' plaintext passwords are never sent to the server.
 - Role-based access controls let you grant users access to individual wikis.
+  - Read [Deny Cross-Page Scripting](https://mws.tiddlywiki.com/#Deny%20Cross-Page%20Scripting%20Attacks) if you are using this.
 
-***One Caveat:*** Currently, the security for users with write access is minimal. Having write access to even one wiki makes it possible to craft code that impersonates other users and reads or writes data they have access to.
+***One Caveat:*** The MWS Bag and Recipe modal has inherent risks that must be understood. See [Data Exfiltration](https://mws.tiddlywiki.com/#Data%20Exfiltration)
 
 ## Data Integrity
 
