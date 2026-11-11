@@ -144,13 +144,15 @@ serverEvents.on("listen.router.init", async (listen, router) => {
     const user = await SessionManager.parseIncomingRequest(request.headers, router.config);
     return new StateObject(user, router, request, ...args);
   }
-  router.hono = router.hono
-    .use(secureHeaders({
-      strictTransportSecurity: false,
-      referrerPolicy: "strict-origin-when-cross-origin",
-      crossOriginOpenerPolicy: "no-referrer",
-    }))
-    .use(router.routeHandlerMiddleware);
+  const secHead = secureHeaders({
+    strictTransportSecurity: false,
+    referrerPolicy: "strict-origin-when-cross-origin",
+    crossOriginOpenerPolicy: "no-referrer",
+  });
+  router.hono = router.hono.use(async (ctx, next) => {
+    await secHead(ctx, async () => { });
+    return await router.routeHandlerMiddleware(ctx, next);
+  });
 
   await router.config.engine.roles.findMany({})
 

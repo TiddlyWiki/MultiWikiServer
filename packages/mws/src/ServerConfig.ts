@@ -1,7 +1,7 @@
 import { zod } from "@tiddlywiki/server";
 import { existsSync, readFileSync, openSync } from "fs";
 import { join } from "path";
-import * as JSON5 from "json5";
+import JSON5 from "json5";
 import { fileSystemMountsSchema } from "./new-managers";
 
 const routeRootSchema = zod.string().regex(
