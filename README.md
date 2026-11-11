@@ -25,6 +25,8 @@ Security is a core priority.
 
 ***One Caveat:*** The MWS Bag and Recipe modal has inherent risks that must be understood. See [Data Exfiltration](https://mws.tiddlywiki.com/#Data%20Exfiltration)
 
+Be sure to update MWS to at least v0.2.13 by backing up your data folder and then running `npm update` to make use of the security features.
+
 ## Data Integrity
 
 We rely on established database technology to help protect data integrity. MWS currently uses SQLite, and we are planning to support more database engines in the future.
