@@ -1,5 +1,5 @@
 created: 20241105133737778
-modified: 20261018010316252
+modified: 20261111043442129
 tags: TableOfContents
 title: Usage
 type: text/vnd.tiddlywiki
@@ -8,11 +8,14 @@ Once MWS is successfully [[installed|Installation]], you can access it by visiti
 
 On first start, a default user is created with username `admin` and password `1234`. However, also by default, the server is only accessible to browsers on the same machine.
 
+Additional server commands are available via the command line.
+
+<<toc>>
+
+!! Serve TiddlyWiki Online
+
 If you intend to make an MWS installation available on the Internet, the server should first be secured with the following steps:
 
 * Change the administrator password
 * Install HTTPS server certificates from an online certificate service like [[Let's Encrypt|https://letsencrypt.org/]].
-
-Additional server commands are available via the command line.
-
-<<toc>>
+* [[Deny Cross-Page Scripting Attacks]] if you're hosting multiple users

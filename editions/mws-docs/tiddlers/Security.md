@@ -11,65 +11,45 @@ The primary use cases for MWS are
 
 While these are the goals of MWS, it is still in early development, so none of these security restraints have actually been put in place yet. This is a work in progress, and the direction we're headed. 
 
-## Don't add untrusted bags to your recipe. 
+## [[Data Exfiltration]]
 
-Generally speaking, wiki text is quite powerful, almost as powerful as JavaScript. Button clicks can run widget actions, which can read and change any tiddler in the current recipe. Any user could easily cause TiddlyWiki to write tiddlers to other bags via actions. 
+Allow me to introduce you to Alice and Bob. They are users on an MWS site. Alice likes to make cookies, and wants to keep the cookie recipe a secret, so she creates a new bag which she only gives herself access to and then creates a wiki which writes to that bag. 
 
-A user can also modify a bag they have write access to so that when a different user loads that bag in their own recipe it gives the first user access to tiddlers that the second user would consider private. This flaw is almost inherent to the idea of bags and recipes and cannot be avoided. 
+Bob knows this, so he creates his own bag and wiki. He puts some interesting curiosities in it, like a JavaScript timer in the upper right corner of the wiki page that goes ding when the time is up. He shows Alice the cool timer he made. Alice loves it and she adds Bob's bag as a read-only bag in her wiki. 
 
-## Potential weaknesses
+What she doesn't realize is that by adding his bag to her wiki, Bob can add code to the timer start button that sends her special cookie recipe to a server he controls. 
 
-- **Not using HTTPS** is always the number one weakness. If you're on an open WIFI network, your session info can be read by anyone within 100 meters.
-- **Oracles** that leak information through observable side-effects, such as network traffic, without directly revealing the contents. 
-- **Multi-user**: Users with write access can modify bags to gain access to other tiddlers in a different recipe that are supposed to be private. 
+''So don't add untrusted bags from other users as a read-only bag in your important wikis.''
+
+## [[Deny Cross-Page Scripting Attacks]]
+
+Users can write JavaScript in one wiki that waits for an admin to come along and load the page and then uses the admin's session to access the `/admin` endpoints to give themself access to some other recipe the attacker wants access to. The easiest solution requires HTTPS.
 
 ## Protection strategies
 
-I just needed some place to list all the different things we could do to secure a site. Some of these would be optional depending on the level of mitigation required. 
-
-1. Obvious, "tie your shoes" security precautions.
-2. Reasonable prevention of normal attack vectors.
-3. Optional hardening to prevent targeted attacks.
-4. Pedantic defenses against advanced attackers with full read-only access to the system or a backup.
-
-### HTTPS
-
-- Enable HTTPS site-wide using let's encrypt or another free certificate service.
-
-### Cookies
-
-[MDN - SetCookie](https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Set-Cookie)
-
-- Secure, HttpOnly, SameSite=strict, attributes
-- Setting separate session cookies for the admin and wiki paths doesn't work because it's based on the request path, not the page path.
-- Having a separate login subdomain and using oauth is a more complicated option.
-
-### `no-cors`
-
-- JavaScript `no-cors` mode allows `GET`, `HEAD`, and `POST` and sends relevant cookies. 
-- **`no-cors` prevents most headers, including custom headers, from being set.**
-- Our standard `x-requested-with` header cannot be set.
-
-### CORS headers
-
-- Set CORS header to only allow expected origins. This doesn't prevent external CLI tools from accessing the site, only browser-based tools. This could also be set for certain endpoints or recipes to only allow specific bags to receive external requests. 
-
 ### `Referer` header
 
-- Only allow a wiki to access its own recipe endpoints for extra tight security. It is difficult to predict when a specific request might be malicious if tools are allowed to make requests from one recipe to another on a user's behalf. Specific referer headers could be white-listed as approved tool wikis. 
-- Don't allow wiki pages to access admin APIs.
+- Same origin requests can set the Referer header, making it useless for our purposes. 
 
 ### `Content-Security-Policy` header
 
 - Able to block the page from making network requests, putting it in mostly read-only mode. This doesn't stop JavaScript from setting `location.href` nor prevent the user from clicking on `a href` links. This is more of a quick and dirty read-only, since it prevents ALL requests, including requests that might not actually change anything on the server. 
 
-### Other site configuration
+### Cookies
 
-- Don't allow admins to edit a wiki unless they are added to the ACL. The CSP header could be used to disable all network requests if the admin role does not have read permission, thus giving them true read-only access to the wiki. 
-- If compression is used, do not compress two bags in the same compression stream. This is a fairly extreme precaution with a limited likelihood. 
+Cookies are sent based on the path of the individual request, not the path of the requesting page. Cookie path params are useless for segregating pages. 
 
-## Other ideas
+### `Sec-Fetch-*` headers (this requires HTTPS)
 
-When you visit a page, you visit with page permissions only, and the page has to ask permission to use your full account permissions. The request could also be granular, where the page has to request the specific bag or wiki it wants access to. 
+The `Sec-Fetch-Dest` header tells the server what the browser intends to do with the request. `Sec-Fetch-Mode` tells it what type of request this is. The server generates a signed token and only returns it in the HTML of document navigate requests. If JavaScript tries to retrieve the HTML using `fetch`, the server refuses to send the token, or refuses the request entirely.
+
+### Other headers that tighten up security on the pages
+
+- `Cross-Origin-Opener-Policy: noopener-allow-popups`
+  - This is required to prevent pages from using `window.open` to trigger a document navigate request while retaining access to it. 
+- `Referrer-Policy: no-referrer`
+- `X-Content-Type-Options: nosniff`
+- `Cache-Control: private, no-store`
+  - Prevents certain kinds of caching attacks between fetch and document.
 
 

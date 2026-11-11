@@ -1,2 +1,0 @@
-- EditPage is mounted outside AppShell, so .app-shell-layout-scoped rules do not apply to modal controls.
-

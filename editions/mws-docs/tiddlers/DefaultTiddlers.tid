@@ -1,6 +1,10 @@
+created: 20261111042532680
+modified: 20261111044258968
 title: $:/DefaultTiddlers
+type: text/vnd.tiddlywiki
 
 HelloThere
 Installation
 Usage
-Reference
+[[Notes for users]]
+[[Data Exfiltration]]

@@ -153,7 +153,7 @@ export function parseNodeRequest<R extends GenericResponse | undefined>(req: Gen
 
   // const pathParams = routePath.reduce((n, e) => Object.assign(n, e.groups), {});
 
-  return { req, res, urlInfo, pathPrefix, secure: assumeHTTPS, method, host, headers, cookies }
+  return { req, res, urlInfo, pathPrefix, assumeHTTPS, method, host, headers, cookies }
 }
 
 
@@ -192,7 +192,7 @@ function parseHonoRequest(req: HonoRequest, pathPrefix: string, assumeHTTPS: boo
   return {
     urlInfo,
     pathPrefix,
-    secure: assumeHTTPS,
+    assumeHTTPS,
     method,
     host,
     headers,
@@ -203,7 +203,7 @@ function parseHonoRequest(req: HonoRequest, pathPrefix: string, assumeHTTPS: boo
 export interface ParsedRequest {
   urlInfo: URL;
   pathPrefix: string;
-  secure: boolean;
+  assumeHTTPS: boolean;
   method: string;
   host: string;
   headers: SuperHeaders;
@@ -277,7 +277,7 @@ export class Router {
   }
 
   securityChecks(parsed: ParsedRequest, routePath: RouteMatch[]) {
-    const { method, urlInfo, headers, secure } = parsed;
+    const { method, urlInfo, headers, assumeHTTPS } = parsed;
 
     // return 400 rather than 404 to protect the semantic meaning of 404 NOT FOUND,
     // because if the request does not match a route, we have no way of knowing what
@@ -307,7 +307,7 @@ export class Router {
           throw new SendError("INVALID_X_REQUESTED_WITH", 400, null);
 
     if (routePath.some(e => e.route.securityChecks?.requireHTTPS))
-      if (!secure)
+      if (!assumeHTTPS)
         throw new SendError("REQUIRES_HTTPS", 400, null);
   }
 

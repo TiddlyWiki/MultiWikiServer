@@ -143,7 +143,7 @@ export class StreamerRequest {
     this.url = request.urlInfo.pathname + request.urlInfo.search;
     this.urlInfo = request.urlInfo;
     this.pathPrefix = request.pathPrefix;
-    this.assumeHTTPS = request.secure;
+    this.assumeHTTPS = request.assumeHTTPS;
     this.method = request.method;
     this.host = request.host;
     this.headers = request.headers;

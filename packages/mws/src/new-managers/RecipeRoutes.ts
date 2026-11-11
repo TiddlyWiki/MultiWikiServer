@@ -1,4 +1,4 @@
-import { zodRoute, SendError, ServerRoute, registerZodRoutes } from "@tiddlywiki/server";
+import { zodRoute, SendError, ServerRoute, registerZodRoutes, ServerRequest, checkPath, checkData, checkPathLoose } from "@tiddlywiki/server";
 import { RecipeResolver } from "./RecipeResolver";
 import { serveWikiIndex } from "./RecipeIndexSender";
 import { ServerState } from "../ServerState";
@@ -12,21 +12,45 @@ export class RecipeRoutes {
     this.RecipePrefix = escapeStringRegexp(config.rootRoutes.recipe);
     const route = new RecipeRoutes();
     const keys = Object.keys(route).filter(e => route[e] instanceof zodRoute);
-    registerZodRoutes(root, route, keys)
+    root.defineRoute({
+      method: ["OPTIONS"],
+      path: new RegExp("^" + RecipeRoutes.RecipePrefix + "/(?<recipe_slug>[^/]+)/(?<path>.*)$"),
+    }, async (state) => {
+      checkPath(state, z => ({
+        recipe_slug: z.string().min(1),
+        path: z.string().min(1),
+      }), new Error());
+      // return state.sendEmpty(200, {
+      //   accessControlAllowOrigin: "*",
+      //   accessControlAllowHeaders: ["X-Requested-With", "Authorization", "Content-Type"],
+      //   accessControlAllowMethods: "PUT",
+      // })
+      return state.sendEmpty(405);
+    });
+    const parent = root.defineRoute({
+      method: ["GET", "HEAD", "PUT"],
+      path: new RegExp("^" + RecipeRoutes.RecipePrefix + "/(?<recipe_slug>[^/]+)(?=/)"),
+    }, async (state) => {
+      // state.applyHeaders({
+      //   accessControlAllowOrigin: "*",
+      // });
+      checkPathLoose(state, z => ({ recipe_slug: z.prismaField("Recipe", "slug", "string") }), new Error());
+      await state.okPageToken([state.config.rootRoutes.wiki + "/" + state.pathParams.recipe_slug])
+    });
+    registerZodRoutes(parent, route, keys)
   }
   static RecipePrefix: string;
 
   // #region GetStatus
   RecipeStatus = zodRoute({
     method: ["GET", "HEAD"],
-    path: RecipeRoutes.RecipePrefix + "/:recipe_slug/status",
+    path: "/status",
     bodyFormat: "ignore",
     zodPathParams: z => ({
       recipe_slug: z.prismaField("Recipe", "slug", "string"),
     }),
     inner: async (state) => {
       const { recipe_slug } = state.pathParams;
-      state.assertWikiReferer(recipe_slug);
       const recipe = (await RecipeResolver.assertRecipe({
         state,
         recipe_slug,
@@ -35,30 +59,14 @@ export class RecipeRoutes {
         state.asserted = true;
         return e;
       }))!;
-      return await state.$transaction(async (prisma) => {
-        const r = new RecipeResolver(recipe, prisma, state.user);
-        const { isAdmin, user_id, username, isLoggedIn } = state.user;
-        return {
-          isAdmin,
-          user_id,
-          username,
-          isLoggedIn,
-          bags: recipe.recipe_bags.map(e => ({
-            bag_id: e.bag_id,
-            is_writable: e.is_writable,
-            prefix: e.prefix,
-            priority: e.priority,
-            bag_name: e.bag.name,
-            canUserWrite: r.canWriteBag(e),
-          }))
-        };
-      });
+
+      return new RecipeResolver(recipe, null, state.user).getRecipeStatus(null);
     },
   })
   // #region TiddlerList
   TiddlerList = zodRoute({
     method: ["GET", "HEAD"],
-    path: RecipeRoutes.RecipePrefix + "/:recipe_slug/list.json",
+    path: "/list.json",
     bodyFormat: "ignore",
     securityChecks: { requestedWithHeader: false },
     zodPathParams: z => ({
@@ -66,7 +74,6 @@ export class RecipeRoutes {
     }),
     inner: async (state) => {
       const { recipe_slug } = state.pathParams;
-      state.assertWikiReferer(recipe_slug);
       const recipe = (await RecipeResolver.assertRecipe({
         state,
         recipe_slug,
@@ -76,15 +83,14 @@ export class RecipeRoutes {
         return e;
       }))!;
       return await state.$transaction(async (prisma) => {
-        const r = new RecipeResolver(recipe, prisma, state.user);
-        return await r.listTiddlers();
+        return await new RecipeResolver(recipe, prisma, state.user).listTiddlers();
       });
     },
   })
   // #region RecipeStore
   RecipeStoreJS = zodRoute({
     method: ["GET", "HEAD"],
-    path: RecipeRoutes.RecipePrefix + "/:recipe_slug/store.js",
+    path: "/store.js",
     bodyFormat: "ignore",
     securityChecks: { requestedWithHeader: false },
     zodPathParams: z => ({
@@ -93,14 +99,13 @@ export class RecipeRoutes {
     zodQueryKeys: ["cache"],
     inner: async (state) => {
       const { recipe_slug } = state.pathParams;
-      state.assertWikiReferer(recipe_slug);
       throw await serveWikiIndex(state, recipe_slug, "store.js", true);
     },
   })
   // #region RecipeStore
   RecipeStoreJSON = zodRoute({
     method: ["GET", "HEAD"],
-    path: RecipeRoutes.RecipePrefix + "/:recipe_slug/store.json",
+    path: "/store.json",
     bodyFormat: "ignore",
     securityChecks: { requestedWithHeader: false },
     zodPathParams: z => ({
@@ -109,7 +114,6 @@ export class RecipeRoutes {
     zodQueryKeys: ["cache"],
     inner: async (state) => {
       const { recipe_slug } = state.pathParams;
-      state.assertWikiReferer(recipe_slug);
       throw await serveWikiIndex(state, recipe_slug, "store.json", true);
     },
   })
@@ -117,7 +121,7 @@ export class RecipeRoutes {
   /** Poll for tiddler changes since a known sequence number. */
   RecipeUpdates = zodRoute({
     method: ["GET", "HEAD"],
-    path: RecipeRoutes.RecipePrefix + "/:recipe_slug/updates",
+    path: "/updates",
     bodyFormat: "ignore",
     securityChecks: { requestedWithHeader: false },
     zodPathParams: z => ({
@@ -126,8 +130,6 @@ export class RecipeRoutes {
     zodQueryKeys: ["since"],
     inner: async (state) => {
       const { recipe_slug } = state.pathParams;
-      state.assertWikiReferer(recipe_slug);
-
       const recipe = (await RecipeResolver.assertRecipe({
         state,
         recipe_slug,
@@ -177,7 +179,7 @@ export class RecipeRoutes {
    */
   TiddlerBatch = zodRoute({
     method: ["PUT"],
-    path: RecipeRoutes.RecipePrefix + "/:recipe_slug/batch/:op",
+    path: "/batch/:op",
     bodyFormat: "json",
     securityChecks: { requestedWithHeader: true },
     zodPathParams: z => ({
@@ -191,10 +193,6 @@ export class RecipeRoutes {
     }),
     inner: async (state) => {
       const { recipe_slug, op } = state.pathParams;
-      state.assertWikiReferer(recipe_slug)
-
-
-
       const recipe = (await RecipeResolver.assertRecipe({
         state,
         recipe_slug,

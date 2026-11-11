@@ -506,6 +506,7 @@ interface ListPageProps {
   description?: string;
   ariaLabel: string;
   renderActions: RenderContent;
+  renderFeedback?: RenderContent;
   renderContent: RenderContent;
 }
 
@@ -568,7 +569,7 @@ export class ListPage extends JSXElement {
     if (!this.displayedProps || this.props.pageId === this.displayedProps.pageId) {
       this.displayedProps = this.props;
     }
-    const { title, eyebrow, description, ariaLabel, renderActions, renderContent } = this.displayedProps;
+    const { title, eyebrow, description, ariaLabel, renderActions, renderFeedback, renderContent } = this.displayedProps;
     return <section class="app-list-page">
       <header class="app-page-heading">
         <div class="app-page-title">
@@ -579,6 +580,7 @@ export class ListPage extends JSXElement {
         <div class="app-page-actions">{renderActions?.()}</div>
       </header>
       <div class="app-page-content">
+        {renderFeedback?.()}
         <div class="rich-list" role="list" aria-label={ariaLabel}>
           {renderContent?.()}
         </div>
@@ -621,7 +623,6 @@ export class RichListItem extends JSXElement {
 interface FeedbackNoticeProps {
   title: string;
   tone?: "info" | "success" | "warning" | "error";
-  children?: JSX.Node;
   onDismiss?: () => void;
 }
 

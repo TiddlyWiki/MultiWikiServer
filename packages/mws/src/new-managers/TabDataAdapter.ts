@@ -556,9 +556,8 @@ export class AdminRoutes {
     }),
     zodRequestBody: z => z.any(),
     inner: async (state) => {
-
-      state.assertReferer(["/"]);
       this.okIsLoggedIn(state);
+      await state.okPageToken(["/admin"]);
       state.data = JSON.parse(JSON.stringify(state.data), (key: any, val: any) => {
         if (typeof val === "string" && val.startsWith(IdString.prefix))
           return new IdString(val.slice(IdString.prefix.length));
@@ -631,8 +630,8 @@ export class AdminRoutes {
     securityChecks: { requestedWithHeader: true },
     zodPathParams: z => ({}),
     inner: async (state) => {
-      state.assertReferer(["/"]);
       this.okIsLoggedIn(state);
+      await state.okPageToken(["/admin"]);
       const res = await state.$transaction(async prisma => {
         const roles = await new RoleImportWriter(prisma, false).getIdMapper();
         return {

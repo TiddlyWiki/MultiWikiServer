@@ -1,0 +1,30 @@
+created: 20261110162422214
+modified: 20261111040633478
+tags: Security
+title: Deny Cross-Page Scripting Attacks
+type: text/vnd.tiddlywiki
+
+TiddlyWiki is built on a very simple premise: editors can write ~WikiText or ~JavaScript, which changes the behavior of the page. When another user comes along and loads the page, they run code written by the other user. This opens the site to the possibility of ''"Cross-Page Scripting Attacks"'', which are exactly as bad as they sound.
+
+Only users with write privileges have this ability.
+
+To fix this you must setup HTTPS and create a `config.json` file in your MWS data folder. 
+<<.copy-code-to-clipboard """{"denyCrossPageScriptingAttacks": true}""">>
+
+This will enable additional code that enforces privileges across the server. 
+
+!! Why isn't this the default?
+
+Because most people are using MWS for their own personal use and if they let anyone else edit they probably give them access to everything. Setting up HTTPS is a nightmare for setups that aren't being hosted on the public internet.
+
+!! Why is HTTPS required?
+
+The `Sec-Fetch-*` headers are only sent for [[HTTPS and localhost requests|https://developer.mozilla.org/en-US/docs/Web/Security/Defenses/Secure_Contexts#potentially_trustworthy_urls]]. That link lists some other options as well which could be explored. 
+
+!! Why make the warning so dire/prominent?
+
+To stop people from trying to make the site enforce read permissions without setting it up properly.
+
+!! Why not just disable permissions entirely until someone sets up the site properly?
+
+I don't know, that's actually a good idea and I might eventually do that. 

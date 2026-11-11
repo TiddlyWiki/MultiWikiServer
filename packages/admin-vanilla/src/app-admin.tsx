@@ -123,7 +123,10 @@ export class AppAdmin extends JSXElement {
     this.isLoadingData = true;
     this.loadError = null;
     await fetch(pathPrefix + embeddedServerResponse.rootRoutes.admin + "/load", {
-      headers: { "X-Requested-With": "TiddlyWiki" }
+      headers: {
+        "X-Requested-With": "TiddlyWiki",
+        "Authorization": "Bearer " + embeddedServerResponse.pageToken,
+      }
     }).then(async response => {
       await new Promise(r => setTimeout(r, 1000));
       const text = await response.text();

@@ -49,6 +49,7 @@ export type RecipeInfo = ART<typeof RecipeResolver.assertRecipe> & {};
 export type RecipeBagRow = RecipeInfo["recipe_bags"][number];
 export type WriteTarget = ART<RecipeResolver["getWriteTarget"]>
 export type ReadInfo = ART<RecipeResolver["getReadInfo"]>;
+export type RecipeStatus = ART<RecipeResolver["getRecipeStatus"]>;
 
 // Permission levels are hierarchical: C_admin > B_write > A_read. Holding a
 // higher level implies all lower ones. The A_/B_/C_ prefixes make alphabetical
@@ -143,7 +144,7 @@ export class RecipeResolver {
 
     if (!recipe && sendNotFound)
       throw state.sendEmpty(404, { "x-reason": "recipe not found" });
-    else if (!recipe) 
+    else if (!recipe)
       return undefined;
 
     if (!state.user.isAdmin) {
@@ -173,7 +174,7 @@ export class RecipeResolver {
   // #region constructor
 
   constructor(
-    private recipe: RecipeInfo,
+    public recipe: RecipeInfo,
     private prisma: PrismaTxnClient | null,
     private user: AuthUser,
   ) {
@@ -202,6 +203,26 @@ export class RecipeResolver {
     if (this.user.isAdmin && !rb.bag.permissions.find(e => e.role_id === this.user.AdminRoleID)) return true;
     // permissions are sorted in descending level order
     return (WRITE_LEVELS as readonly string[]).includes(rb.bag.permissions[0]?.level ?? "");
+  }
+
+
+  getRecipeStatus(pageToken: string | null) {
+    const { isAdmin, user_id, username, isLoggedIn } = this.user;
+    return {
+      isAdmin,
+      user_id,
+      username,
+      isLoggedIn,
+      pageToken,
+      bags: this.recipe.recipe_bags.map(e => ({
+        bag_id: e.bag_id,
+        is_writable: e.is_writable,
+        prefix: e.prefix,
+        priority: e.priority,
+        bag_name: e.bag.name,
+        canUserWrite: this.canWriteBag(e),
+      }))
+    };
   }
 
   /**

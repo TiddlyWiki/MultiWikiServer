@@ -19,6 +19,7 @@ function sessionManager<K extends keyof SessionManagerMap>(key: K, path: Session
       headers: {
         'Content-Type': 'application/json',
         "X-Requested-With": "TiddlyWiki",
+        "Authorization": "Bearer " + embeddedServerResponse.pageToken
       },
       body: JSON.stringify(data),
     });

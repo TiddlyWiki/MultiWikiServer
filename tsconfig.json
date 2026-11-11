@@ -4,7 +4,7 @@
     "lib": [
       "ES2022",
       "DOM",
-      "DOM.Iterable",
+      "DOM.Iterable"
     ],
     "module": "preserve",
     "moduleResolution": "bundler",
