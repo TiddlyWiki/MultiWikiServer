@@ -6,7 +6,8 @@ import { createHybridRef, HybridRef } from "@tiddlywiki/jsx-runtime";
 export class FadeSwapController {
 
   constructor(
-    public context: JSXElement,
+    /** context is usually a JSXElement, but only `requestUpdate()` is actually used */
+    public context: { requestUpdate(): void; },
     private length: number,
     private speed = 1,
   ) {
